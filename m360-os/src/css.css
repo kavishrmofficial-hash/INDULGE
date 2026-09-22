@@ -67,6 +67,26 @@ img{max-width:100%}
 .side-item.active svg{opacity:1}
 .side-item .grow{flex:1}
 .badge{min-width:18px; height:18px; padding:0 5px; border-radius:999px; background:var(--flame); color:#fff; font-size:11px; font-weight:500; display:inline-flex; align-items:center; justify-content:center; line-height:1}
+.side-actions{padding:0 12px 10px; display:grid; gap:8px}
+.new-wrap{position:relative}
+.btn.new-trigger{width:100%; justify-content:center}
+.btn.new-trigger svg{width:18px; height:18px}
+.side-ask{display:flex; align-items:center; gap:10px; width:100%; height:40px; padding:0 12px; border:1px solid var(--line); border-radius:12px; background:var(--paper); cursor:pointer; font-size:14px; color:var(--ink62); text-align:left}
+.side-ask:hover{background:var(--warm); color:var(--ink)}
+.kbd{font-size:11px; color:var(--micro); border:1px solid var(--line); border-radius:6px; padding:1px 6px}
+.newmenu{position:fixed; z-index:80; background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:6px; box-shadow:0 18px 40px rgba(10,10,10,.14); display:grid; gap:2px}
+.newmenu-item{display:flex; align-items:center; gap:12px; width:100%; padding:10px 12px; border:0; background:transparent; border-radius:11px; cursor:pointer; text-align:left; color:var(--ink)}
+.newmenu-item:hover,.newmenu-item:focus-visible{background:var(--warm)}
+.newmenu-item svg{width:20px; height:20px; flex:none}
+.newmenu-item b{display:block; font-weight:500; font-size:14px}
+.newmenu-item span span{display:block; font-size:12px; color:var(--ink62)}
+.side-subs{display:grid; gap:1px; margin:4px 0 8px 23px; padding-left:12px; border-left:1px solid var(--line)}
+.side-sub{display:flex; align-items:center; gap:8px; width:100%; padding:7px 10px; border:0; background:transparent; border-radius:10px; cursor:pointer; text-align:left; font-size:14px; color:var(--ink62)}
+.side-sub:hover{background:var(--warm); color:var(--ink)}
+.side-sub.active{color:var(--ink); font-weight:500; background:var(--warm)}
+.iconbtn.dark{background:var(--dark); color:#fff; border-radius:999px}
+.iconbtn.dark:hover{background:#000}
+@media (min-width:861px){ .tabs.section-tabs{display:none} }
 .side-foot{border-top:1px solid var(--line); padding:14px 18px; display:flex; gap:11px; align-items:center}
 .side-foot .nm{font-weight:500; font-size:14px; line-height:1.25}
 .side-foot .ti{font-size:12px; color:var(--ink62)}
@@ -371,3 +391,55 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 @media (prefers-reduced-motion:no-preference){
   .btn,.side-item,.seg-btn,.tcard,.chip,.mood,.stat,.tab{transition:background .12s ease,border-color .12s ease,color .12s ease}
 }
+
+/* ---------- home: quick actions, my week, projects, buzz ---------- */
+.quick{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px}
+.quick-btn{display:flex; flex-direction:column; align-items:flex-start; gap:10px; padding:14px 14px 13px; border:1px solid var(--line); border-radius:16px; background:var(--paper); cursor:pointer; text-align:left; font-size:14px; font-weight:500; color:var(--ink); min-width:0}
+.quick-btn svg{width:22px; height:22px}
+.quick-btn:hover{background:var(--warm); border-color:var(--line2)}
+.quick-btn:hover svg{color:var(--flame)}
+.week-strip{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:6px}
+.wk-day{display:flex; flex-direction:column; align-items:center; gap:7px; padding:10px 4px 8px; border-radius:12px; background:var(--warm)}
+.wk-day.is-today{background:var(--paper); box-shadow:inset 0 0 0 1.5px var(--ink)}
+.wk-dow{font-size:12px; color:var(--ink62)}
+.wk-dot{width:14px; height:14px; border-radius:999px; background:transparent; box-shadow:inset 0 0 0 1.5px var(--line2)}
+.wk-day.office .wk-dot{background:var(--ink); box-shadow:none}
+.wk-day.wfh .wk-dot{background:var(--paper); box-shadow:inset 0 0 0 2px var(--ink)}
+.wk-day.late .wk-dot{background:var(--flame); box-shadow:none}
+.wk-day.off .wk-dot{background:var(--col); box-shadow:none}
+.wk-day.miss .wk-dot{box-shadow:inset 0 0 0 1.5px var(--flame)}
+.wk-day.future{opacity:.5}
+.wk-eod{font-size:11px; color:var(--ink); min-height:14px; white-space:nowrap}
+.wk-key{display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:12px}
+.wk-key span{display:inline-flex; align-items:center; gap:6px}
+.wk-key .k{width:9px; height:9px; border-radius:999px; display:inline-block}
+.wk-key .k.office{background:var(--ink)} .wk-key .k.wfh{box-shadow:inset 0 0 0 2px var(--ink)}
+.wk-key .k.late{background:var(--flame)} .wk-key .k.off{background:var(--col)}
+.rowbtn.proj-row{display:flex; text-align:left}
+.proj-row .grow{display:grid; gap:5px; min-width:0}
+.clamp1{display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.topthree{margin-top:14px; padding-top:12px; border-top:1px solid var(--line)}
+.rowbtn.top-row{display:flex; align-items:center; gap:10px; width:100%; padding:6px 0; text-align:left}
+.rank{width:22px; height:22px; border-radius:999px; background:var(--warm); display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:500; flex:none}
+.rank.first{background:var(--flame); color:#fff}
+@media (max-width:1100px){ .quick{grid-template-columns:repeat(3,minmax(0,1fr))} }
+@media (max-width:860px){
+  .quick{grid-template-columns:none; grid-auto-flow:column; grid-auto-columns:128px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none}
+  .quick::-webkit-scrollbar{display:none}
+}
+
+/* ---------- team: join screen, invites ---------- */
+.join-box{max-width:360px; margin:0 auto; text-align:left}
+.steps{margin:0; padding-left:20px; display:grid; gap:10px}
+.steps li{line-height:1.5}
+.invite-link{background:var(--warm); border-radius:12px; padding:12px 14px; font-size:13px; word-break:break-all; user-select:all}
+.rowbtn.join-banner{display:flex; align-items:center; gap:14px; width:100%; text-align:left; padding:14px 18px}
+
+/* ---------- setup checklist ---------- */
+.setup .bar{margin:4px 0 6px}
+.setup-list{display:grid; gap:0; margin-top:6px}
+.setup-step{display:flex; gap:14px; padding:14px 0; border-top:1px solid var(--line)}
+.setup-step:first-child{border-top:0}
+.setup-tick{width:24px; height:24px; border-radius:999px; flex:none; box-shadow:inset 0 0 0 1.5px var(--line2); display:inline-flex; align-items:center; justify-content:center; font-size:13px; color:#fff; margin-top:1px}
+.setup-step.done .setup-tick{background:var(--ink); box-shadow:none}
+.setup-step.done > .grow > div:first-child{color:var(--ink62); text-decoration:line-through; text-decoration-color:var(--line2)}

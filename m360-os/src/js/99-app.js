@@ -7,7 +7,7 @@
     const ctx = M.useCtx();
     if (!ctx.ready) return M.GateFor('boot');
     const onRoster = ctx.member && ctx.member.active !== false;
-    if (!ctx.isFounder && !onRoster) return M.GateFor('roster');
+    if (!ctx.isFounder && !onRoster) return M.parts.JoinGate ? html`<${M.parts.JoinGate}/>` : M.GateFor('roster');
     return html`<${M.Shell}/>`;
   }
 

@@ -155,7 +155,7 @@ M.makeWrites = db => {
 M.useColl = function useColl(db, path) {
   const [s, set] = React.useState({ready: false, map: {}});
   React.useEffect(() => {
-    if (!db) return;
+    if (!db || !path) { set({ready: true, map: {}}); return; }
     let un;
     try {
       un = db.collection(path).onSnapshot(q => {
@@ -269,6 +269,24 @@ M.parseHash = () => {
   return {page: page || '', id: id ? decodeURIComponent(id) : null};
 };
 M.nav = h => { location.hash = h; };
+M.isMac = /Mac|iPhone|iPad/.test((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '');
+/* intents: open a page and ask it to do one thing (open the kudos drawer, start a new project) */
+let pendingIntent = null;
+M.intend = (hash, what) => {
+  pendingIntent = what;
+  if (location.hash !== hash) M.nav(hash);
+  setTimeout(() => window.dispatchEvent(new CustomEvent('m360:intent')), 0);
+};
+M.useIntent = function useIntent(what, fn) {
+  const ref = React.useRef(fn);
+  ref.current = fn;
+  React.useEffect(() => {
+    const check = () => { if (pendingIntent === what) { pendingIntent = null; ref.current(); } };
+    check();
+    window.addEventListener('m360:intent', check);
+    return () => window.removeEventListener('m360:intent', check);
+  }, [what]);
+};
 M.useRoute = function useRoute() {
   const [r, set] = React.useState(M.parseHash());
   React.useEffect(() => {

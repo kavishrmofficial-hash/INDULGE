@@ -292,6 +292,7 @@
   function Pitches() {
     const ctx = M.useCtx();
     const [open, setOpen] = useState(null);
+    M.useIntent('pitch', () => setOpen('new'));
     const map = ctx.coll.pitches.map;
     const all = Object.keys(map).map(id => ({id, ...map[id]}));
     const fin = financeOf(ctx);

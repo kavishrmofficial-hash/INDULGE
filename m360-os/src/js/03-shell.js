@@ -88,27 +88,70 @@
         const dec = (ctx.coll.leavedec.map[lu] || {}).d || {};
         for (const r of ((ctx.coll.leave.map[lu] || {}).reqs || [])) if (!dec[r.id]) pend++;
       }
-      out.admin = pend;
+      out.join = (M.team && M.team.requests) ? M.team.requests(ctx).length : 0;
+      out.admin = pend + out.join;
       out.hq = ctx.flags.filter(f => f.severity === 'high').length;
     }
     return out;
   };
   const Badge = ({n}) => n > 0 ? html`<span class="badge">${n > 99 ? '99' : n}</span>` : null;
 
-  /* section tabs, used by every section page */
-  M.SectionTabs = function SectionTabs({section, active}) {
-    const ctx = M.useCtx();
-    const b = M.badges(ctx);
-    const tabs = (SECTIONS[section].tabs || []).filter(t => {
+  /* the tabs a viewer sees in a section (Hiring under Me only for panel members) */
+  function visibleTabs(ctx, section, b) {
+    return (SECTIONS[section].tabs || []).filter(t => {
       if (section === 'me' && t.k === 'hiring') return !ctx.isFounder && ((b.hiring || 0) > 0 || Object.keys(ctx.coll.candidates.map).some(id => (ctx.coll.candidates.map[id].evaluators || []).includes(ctx.uid)));
       return true;
     });
+  }
+
+  /* section tabs, used by every section page (the sidebar lists them on wide screens) */
+  M.SectionTabs = function SectionTabs({section, active}) {
+    const ctx = M.useCtx();
+    const b = M.badges(ctx);
+    const tabs = visibleTabs(ctx, section, b);
     if (tabs.length < 2) return null;
-    return html`<nav class="tabs" aria-label=${SECTIONS[section].label}>
+    return html`<nav class="tabs section-tabs" aria-label=${SECTIONS[section].label}>
       ${tabs.map(t => html`<button key=${t.k} type="button" class=${'tab' + (t.k === active ? ' active' : '')}
         onClick=${() => M.nav('#' + t.route)}>${t.label}<${Badge} n=${b[t.k] || 0}/></button>`)}
     </nav>`;
   };
+
+  /* ---------- the New menu: every create action in one place ---------- */
+  function NewMenu({onClose, onTask, onAsk}) {
+    const ctx = M.useCtx();
+    const ref = React.useRef(null);
+    const [pos, setPos] = React.useState(null);
+    React.useLayoutEffect(() => {
+      const t = ref.current && ref.current.parentElement.querySelector('.new-trigger');
+      if (!t) return;
+      const r = t.getBoundingClientRect();
+      const w = Math.min(300, window.innerWidth - 32);
+      setPos({top: r.bottom + 8, left: Math.max(16, Math.min(r.left, window.innerWidth - w - 16)), width: w});
+    }, []);
+    React.useEffect(() => {
+      const away = e => { if (ref.current && !ref.current.contains(e.target) && !e.target.closest('.new-trigger')) onClose(); };
+      const esc = e => { if (e.key === 'Escape') onClose(); };
+      document.addEventListener('pointerdown', away);
+      document.addEventListener('keydown', esc);
+      return () => { document.removeEventListener('pointerdown', away); document.removeEventListener('keydown', esc); };
+    }, []);
+    const run = fn => () => { onClose(); fn(); };
+    const items = [
+      {k: 'task', label: 'Task', sub: 'for you or anyone', icon: 'tasks', go: onTask},
+      {k: 'post', label: 'Update or win', sub: 'on the feed', icon: 'feed', go: () => M.intend('#feed', 'post')},
+      {k: 'kudos', label: 'Kudos', sub: 'thank someone', icon: 'scores', go: () => M.intend('#feed', 'kudos')},
+      {k: 'leave', label: 'Leave request', sub: 'days off', icon: 'leave', go: () => M.nav('#leave')},
+      {k: 'project', label: 'Project', sub: 'with a template', icon: 'projects', go: () => M.intend('#projects', 'project')},
+      ctx.isFounder ? {k: 'pitch', label: 'Pitch', sub: 'into the pipeline', icon: 'pitches', go: () => M.intend('#pitches', 'pitch')} : null,
+      {k: 'ask', label: 'Ask m360', sub: 'anything, or hand out work', icon: 'send', go: onAsk}
+    ].filter(Boolean);
+    return html`<div class="newmenu" ref=${ref} role="menu" aria-label="New"
+      style=${pos || {visibility: 'hidden'}}>
+      ${items.map(it => html`<button key=${it.k} type="button" role="menuitem" class="newmenu-item" onClick=${run(it.go)}>
+        <${M.icons[it.icon]}/><span class="grow"><b>${it.label}</b><span>${it.sub}</span></span>
+      </button>`)}
+    </div>`;
+  }
 
   /* ---------- shell ---------- */
   M.Shell = function Shell() {
@@ -116,6 +159,8 @@
     const route = M.useRoute();
     const [moreOpen, setMoreOpen] = React.useState(false);
     const [askOpen, setAskOpen] = React.useState(false);
+    const [newOpen, setNewOpen] = React.useState(false);
+    const [newTask, setNewTask] = React.useState(false);
 
     React.useEffect(() => {
       if (!route.page) M.nav(ctx.isFounder ? '#hq' : '#home');
@@ -142,11 +187,21 @@
     const founderKeys = ctx.isFounder ? ['hq', 'admin'] : [];
     const item = k => {
       const s = SECTIONS[k];
-      return html`<button key=${k} type="button"
-        class=${'side-item' + (r.s === k ? ' active' : '') + (s.founder ? ' founder' : '')} onClick=${() => go(k)}>
-        <${M.icons[s.icon]}/><span class="grow">${s.label}</span><${Badge} n=${b[k] || 0}/>
-      </button>`;
+      const subs = r.s === k ? visibleTabs(ctx, k, b) : [];
+      return html`<${React.Fragment} key=${k}>
+        <button type="button"
+          class=${'side-item' + (r.s === k ? ' active' : '') + (s.founder ? ' founder' : '')} onClick=${() => go(k)}>
+          <${M.icons[s.icon]}/><span class="grow">${s.label}</span><${Badge} n=${b[k] || 0}/>
+        </button>
+        ${subs.length > 1 ? html`<div class="side-subs">
+          ${subs.map(t => html`<button key=${t.k} type="button" class=${'side-sub' + (r.t === t.k ? ' active' : '')}
+            onClick=${() => { setMoreOpen(false); M.nav('#' + t.route); }}>
+            <span class="grow">${t.label}</span><${Badge} n=${b[t.k] || 0}/></button>`)}
+        </div>` : null}
+      <//>`;
     };
+    const newMenu = where => newOpen === where ? html`<${NewMenu} onClose=${() => setNewOpen(false)}
+      onTask=${() => setNewTask(true)} onAsk=${() => setAskOpen(true)}/>` : null;
 
     const tabKeys = ctx.isFounder ? ['hq', 'work', 'accounts', 'vibe'] : ['home', 'work', 'accounts', 'vibe', 'me'];
     const moreKeys = ctx.isFounder ? ['home', 'me', 'admin'] : [];
@@ -155,6 +210,16 @@
     return html`<div class="app">
       <aside class="sidebar">
         <div class="side-head"><${M.Mark} width="84px"/><span class="os">os</span></div>
+        <div class="side-actions">
+          <div class="new-wrap">
+            <button type="button" class="btn new-trigger" aria-expanded=${newOpen === 'side' ? 'true' : 'false'}
+              onClick=${() => setNewOpen(x => x === 'side' ? false : 'side')}><${M.icons.plus}/>New</button>
+            ${newMenu('side')}
+          </div>
+          <button type="button" class="side-ask" onClick=${() => setAskOpen(true)}>
+            <span class="flame-t" aria-hidden="true">\u2726</span><span class="grow">Ask m360</span><span class="kbd">${M.isMac ? '\u2318K' : 'Ctrl K'}</span>
+          </button>
+        </div>
         <nav class="side-scroll">
           ${mainKeys.map(item)}
           ${founderKeys.length ? html`<div class="side-group micro plain">founder</div>` : null}
@@ -171,8 +236,14 @@
 
       <div class="topbar">
         <${M.Mark} width="66px"/>
-        <button type="button" class="rowbtn" style=${{width: 'auto'}} onClick=${() => go('me')} aria-label="Me">
-          <${UI.Avatar} id=${ctx.uid} size=${34}/></button>
+        <div class="row nowrap" style=${{gap: '10px'}}>
+          <div class="new-wrap">
+            <button type="button" class="iconbtn new-trigger dark" aria-label="New" onClick=${() => setNewOpen(x => x === 'top' ? false : 'top')}><${M.icons.plus}/></button>
+            ${newMenu('top')}
+          </div>
+          <button type="button" class="rowbtn" style=${{width: 'auto'}} onClick=${() => go('me')} aria-label="Me">
+            <${UI.Avatar} id=${ctx.uid} size=${34}/></button>
+        </div>
       </div>
 
       <main class="main">
@@ -198,6 +269,7 @@
       <//>
 
       ${askOpen && M.parts.Ask ? html`<${M.parts.Ask} onClose=${() => setAskOpen(false)}/>` : null}
+      ${newTask && M.parts.TaskDrawer ? html`<${M.parts.TaskDrawer} taskId=${null} defaults=${{owner: ctx.uid}} onClose=${() => setNewTask(false)}/>` : null}
       <${M.ToastHost}/>
     </div>`;
   };

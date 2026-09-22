@@ -32,6 +32,10 @@
     const settingsDoc = M.useDoc(db, 'settings/app');
     const coll = {};
     for (const c of COLLS) coll[c] = M.useColl(db, c);
+    /* join requests: only the founder lists them; everyone else reads their own */
+    const rm = ((rosterDoc.data || {}).members || {})[uid];
+    const founderish = !!me.isOwner || !!(rm && rm.role === 'founder' && rm.active !== false);
+    coll.join = M.useColl(db, founderish ? 'join' : null);
 
     /* founder auto-added to the roster on first open */
     const seeded = React.useRef(false);
@@ -54,9 +58,9 @@
       const roster = rosterDoc.data || null;
       const members = (roster && roster.members) || {};
       const member = members[uid] || null;
-      const isFounder = !!me.isOwner || (member && member.role === 'founder');
+      const isFounder = !!me.isOwner || !!(member && member.role === 'founder' && member.active !== false);
       let founderUid = me.isOwner ? uid : null;
-      for (const k of Object.keys(members)) if (members[k].role === 'founder') { founderUid = founderUid || k; if (!me.isOwner) founderUid = k; }
+      for (const k of Object.keys(members)) if (members[k].role === 'founder' && members[k].active !== false) { founderUid = founderUid || k; if (!me.isOwner) founderUid = k; }
       const s0 = settingsDoc.data || {};
       const settings = {...M.SETTINGS_DEFAULTS, ...s0,
         rules: {...Object.fromEntries(M.RULE_IDS.map(r => [r, true])), ...(s0.rules || {})},
@@ -104,7 +108,7 @@
         ready: rosterDoc.ready && settingsDoc.ready,
         roster, members, member, activeMembers, isFounder, founderUid,
         settings, holidays, coll, leaveMap, onLeave, isWorkingDay, startFor, canSee, now, online};
-    }, [rosterDoc, settingsDoc, me, uid, W, now, online,
+    }, [rosterDoc, settingsDoc, me, uid, W, now, online, coll.join,
       ...COLLS.map(c => coll[c])]);
 
     /* private per-user docs (own state; founder: keeper and finance) */

@@ -428,6 +428,117 @@
     </section>`;
   }
 
+  /* ---------- quick actions ---------- */
+  function Quick({onTask}) {
+    const ctx = M.useCtx();
+    const items = [
+      {k: 'task', label: 'New task', icon: 'tasks', go: onTask},
+      {k: 'post', label: 'Post an update', icon: 'feed', go: () => M.intend('#feed', 'post')},
+      {k: 'kudos', label: 'Give kudos', icon: 'scores', go: () => M.intend('#feed', 'kudos')},
+      {k: 'leave', label: 'Request leave', icon: 'leave', go: () => M.nav('#leave')},
+      {k: 'project', label: 'New project', icon: 'projects', go: () => M.intend('#projects', 'project')},
+      ctx.isFounder ? {k: 'pitch', label: 'New pitch', icon: 'pitches', go: () => M.intend('#pitches', 'pitch')}
+        : {k: 'book', label: 'Handbook', icon: 'handbook', go: () => M.nav('#handbook')}
+    ];
+    return html`<nav class="quick" aria-label="Quick actions">
+      ${items.map(it => html`<button key=${it.k} type="button" class="quick-btn" onClick=${it.go}>
+        <${M.icons[it.icon]}/><span>${it.label}</span></button>`)}
+    </nav>`;
+  }
+
+  /* ---------- my week: attendance and EOD, Monday to Saturday ---------- */
+  function MyWeek() {
+    const ctx = M.useCtx();
+    const td = U.todayStr();
+    const days = U.weekDays(U.mondayOf(new Date(ctx.now)));
+    const eods = (ctx.coll.eod.map[ctx.uid] || {}).days || {};
+    let onTime = 0, worked = 0, eodN = 0;
+    const cells = days.map(d => {
+      const a = M.att.dayStatus(ctx, ctx.uid, d);
+      const future = d > td;
+      const inDay = a.status === 'office' || a.status === 'wfh';
+      if (inDay) { worked++; if (!a.late) onTime++; }
+      if (eods[d]) eodN++;
+      const cls = future ? 'future' : a.status === 'leave' || a.status === 'holiday' ? 'off'
+        : inDay ? (a.late ? 'late' : a.status) : d === td ? 'today' : 'miss';
+      const label = future ? '' : a.status === 'leave' ? 'leave' : a.status === 'holiday' ? 'holiday'
+        : inDay ? (a.status === 'wfh' ? 'WFH' : 'in') + (a.in ? ' ' + U.hhmm(a.in) : '') : d === td ? 'not in yet' : 'no check-in';
+      return {d, cls, label, eod: !!eods[d], today: d === td};
+    });
+    return html`<section class="card" id="my-week">
+      <div class="card-head"><h2 class="card-title">My week</h2>
+        <span class="small ink62 num">${onTime} of ${worked} on time · ${eodN} EOD</span></div>
+      <div class="week-strip">
+        ${cells.map(c => html`<div key=${c.d} class=${'wk-day ' + c.cls + (c.today ? ' is-today' : '')} title=${c.label}>
+          <span class="wk-dow">${U.fmtDay(c.d).split(' ')[0]}</span>
+          <span class="wk-dot"/>
+          <span class="wk-eod">${c.eod ? '\u2713 EOD' : ''}</span>
+        </div>`)}
+      </div>
+      <div class="wk-key tiny ink62">
+        <span><i class="k office"/>office</span><span><i class="k wfh"/>WFH</span><span><i class="k late"/>late</span><span><i class="k off"/>leave</span>
+      </div>
+    </section>`;
+  }
+
+  /* ---------- my projects ---------- */
+  function MyProjects() {
+    const ctx = M.useCtx();
+    const map = ctx.coll.projects.map;
+    const mine = Object.keys(map).map(id => ({id, ...map[id]}))
+      .filter(p => !p.archived && p.status !== 'done' && (p.owner === ctx.uid || (p.members || []).includes(ctx.uid)))
+      .sort((a, b) => String(a.due || '9999').localeCompare(String(b.due || '9999')));
+    const ST = (M.projects && M.projects.STATUS) || {};
+    return html`<section class="card" id="my-projects">
+      <div class="card-head"><h2 class="card-title">My projects</h2>
+        <button type="button" class="linky small" onClick=${() => M.nav('#projects')}>All projects</button></div>
+      ${mine.length ? html`<div class="stack tight">
+        ${mine.slice(0, 4).map(p => {
+          const pr = (M.projects && M.projects.progress) ? M.projects.progress(ctx, p.id) : {done: 0, total: 0, overdue: 0};
+          const st = ST[p.status] || {label: 'On track', pill: 'ink'};
+          const client = p.client && ctx.coll.clients.map[p.client] ? ctx.coll.clients.map[p.client].name : '';
+          return html`<button type="button" class="listrow rowbtn proj-row" key=${p.id} onClick=${() => M.nav('#projects/' + p.id)}>
+            <span class="grow">
+              <span class="row between nowrap"><b style=${{fontWeight: 500}}>${p.name}</b><span class=${'pill ' + st.pill}>${st.label}</span></span>
+              <span class="tiny ink62">${client ? client + ' · ' : ''}${pr.done} of ${pr.total} done${pr.overdue ? ', ' + pr.overdue + ' overdue' : ''}${p.due ? ' · due ' + U.fmtDay(p.due) : ''}</span>
+              <${UI.Bar} a=${pr.done} max=${pr.total || 1} thin=${true}/>
+            </span>
+          </button>`;
+        })}
+      </div>` : html`<div class="small ink62">Nothing on you right now. <button type="button" class="linky small" onClick=${() => M.intend('#projects', 'project')}>Start a project</button></div>`}
+    </section>`;
+  }
+
+  /* ---------- latest on the feed, and this week's top three ---------- */
+  function Buzz() {
+    const ctx = M.useCtx();
+    const items = (M.feed && M.feed.stream) ? M.feed.stream(ctx).filter(i => !i.pinned).slice(0, 3) : [];
+    const board = (M.points && M.points.leaderboard) ? M.points.leaderboard(ctx, 'week', new Date(ctx.now)).slice(0, 3) : [];
+    return html`<section class="card" id="buzz">
+      <div class="card-head"><h2 class="card-title">Around the studio</h2>
+        <button type="button" class="linky small" onClick=${() => M.nav('#feed')}>Open feed</button></div>
+      ${items.length ? html`<div class="stack tight">
+        ${items.map(it => html`<button type="button" class="listrow rowbtn" key=${it.key} onClick=${() => M.nav('#feed')}>
+          <${UI.Avatar} id=${it.type === 'kudos' ? it.giver : it.author} size=${28}/>
+          <span class="grow" style=${{minWidth: 0}}>
+            <span class="small"><b style=${{fontWeight: 500}}><${UI.Name} id=${it.type === 'kudos' ? it.giver : it.author}/></b>
+              ${it.type === 'kudos' ? html` gave kudos to <${UI.Name} id=${it.to}/>` : it.kind === 'win' ? ' shared a win' : ''}</span>
+            <span class="tiny ink62 clamp1">${it.type === 'kudos' ? it.why : it.text}</span>
+          </span>
+          <span class="tiny ink62 nowrap">${U.timeAgo(it.at)}</span>
+        </button>`)}
+      </div>` : html`<div class="small ink62">Quiet so far. <button type="button" class="linky small" onClick=${() => M.intend('#feed', 'post')}>Post the first update</button></div>`}
+      ${board.length ? html`<div class="topthree">
+        <div class="micro plain" style=${{marginBottom: '8px'}}>top this week</div>
+        ${board.map((r, i) => html`<button type="button" class="top-row rowbtn" key=${r.uid} onClick=${() => M.nav('#scores')}>
+          <span class=${'rank num' + (i === 0 ? ' first' : '')}>${i + 1}</span>
+          <${UI.Avatar} id=${r.uid} size=${24}/><span class="grow small"><${UI.Name} id=${r.uid}/></span>
+          <span class="num small">${r.total} pts</span>
+        </button>`)}
+      </div>` : null}
+    </section>`;
+  }
+
   /* ---------- page ---------- */
   function Home() {
     const ctx = M.useCtx();
@@ -444,25 +555,30 @@
 
     return html`<div class="stack" style=${{gap: '18px'}}>
       <${Hero} onStatus=${() => setStatus(true)}/>
+      ${M.parts.JoinBanner ? html`<${M.parts.JoinBanner}/>` : null}
       <${Announcement}/>
+      <${Quick} onTask=${() => setTask('new')}/>
       <div class="split">
         <div class="stack" style=${{gap: '18px'}}>
           ${eodFirst ? html`<${Wrap}/>` : null}
           <${Focus} onOpen=${setTask}/>
           <${Brief}/>
+          <${MyProjects}/>
           ${Outcomes ? html`<${Outcomes}/>` : null}
           ${!eodFirst && working ? html`<${Wrap}/>` : null}
           ${newHire && Onboard ? html`<${Onboard} uid=${ctx.uid} compact=${true}/>` : null}
         </div>
         <div class="stack" style=${{gap: '18px'}}>
           <${Numbers}/>
+          <${MyWeek}/>
           <${HeadsUp}/>
           <${Nudges}/>
           <${Crew}/>
+          <${Buzz}/>
           ${Day ? html`<${Day}/>` : null}
         </div>
       </div>
-      ${task && Drawer ? html`<${Drawer} taskId=${task} onClose=${() => setTask(null)}/>` : null}
+      ${task && Drawer ? html`<${Drawer} taskId=${task === 'new' ? null : task} defaults=${{owner: ctx.uid}} onClose=${() => setTask(null)}/>` : null}
       ${status ? html`<${StatusPicker} onClose=${() => setStatus(false)}/>` : null}
     </div>`;
   }

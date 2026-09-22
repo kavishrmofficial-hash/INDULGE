@@ -4,10 +4,10 @@
   const {html, React, U, UI, icons} = M;
   const {useState, useEffect, useMemo} = React;
 
-  const TABS = [{v: 'roster', label: 'Roster'}, {v: 'settings', label: 'Settings'},
+  const TABS = [{v: 'roster', label: 'Team'}, {v: 'settings', label: 'Settings'},
     {v: 'keeper', label: 'Keeper test'}, {v: 'leave', label: 'Leave'},
     {v: 'export', label: 'Export'}, {v: 'cleanup', label: 'Cleanup'}];
-  const ROLES = [{v: 'member', label: 'Member'}, {v: 'lead', label: 'Pod lead'}];
+  const ROLES = [{v: 'member', label: 'Member'}, {v: 'lead', label: 'Pod lead'}, {v: 'founder', label: 'Full access'}];
   const YN = [{v: 'yes', label: 'Yes'}, {v: 'no', label: 'No'}];
   const KEEPER_LINE = 'A no ends it quickly. Documented, paid in full, neutral relieving letter.';
   const THRESHOLDS = [
@@ -28,11 +28,11 @@
   };
 
   /* ---------- roster ---------- */
-  function AddDrawer({person, member, onClose}) {
+  function AddDrawer({person, member, onClose, title, onSaved}) {
     const ctx = M.useCtx();
     const [f, setF] = useState(() => ({
-      title: (member && member.title) || '', pod: (member && member.pod) || '',
-      role: (member && member.role === 'lead') ? 'lead' : 'member',
+      title: (member && member.title) || title || '', pod: (member && member.pod) || '',
+      role: (member && (member.role === 'lead' || member.role === 'founder')) ? member.role : 'member',
       joined: (member && member.joined) || U.todayStr(),
       start: (member && member.start) || '', probationEnd: (member && member.probationEnd) || ''
     }));
@@ -47,15 +47,19 @@
       if (!existing) patch.nextEmp = (roster.nextEmp || 2) + 1;
       await ctx.W.merge('roster/team', patch);
       M.toast(existing ? 'Saved' : 'Added, ' + empId);
+      if (onSaved) await onSaved(person.id);
       onClose();
     }
-    return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${member ? 'Edit person' : 'Add to roster'}
-      footer=${html`<${UI.Btn} onClick=${save}>${member ? 'Save' : 'Add to roster'}<//>`}>
+    const self = person.id === ctx.uid;
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${member ? 'Edit person' : 'Let them in'}
+      footer=${html`<${UI.Btn} onClick=${save}>${member ? 'Save' : 'Add to the team'}<//>`}>
       <div class="row"><${UI.Avatar} id=${person.id} size=${34}/>
-        <span style=${{fontWeight: 500}}>${person.name || 'Someone'}</span></div>
+        <span style=${{fontWeight: 500}}>${person.name || html`<${UI.Name} id=${person.id}/>`}</span></div>
       <${UI.Input} id="desk-title" label="title" value=${f.title} onChange=${v => set('title', v)}/>
       <${UI.Input} label="pod" value=${f.pod} onChange=${v => set('pod', v)}/>
-      <${UI.Field} label="role"><${UI.Seg} options=${ROLES} value=${f.role} onChange=${v => set('role', v)} ariaLabel="Role"/><//>
+      ${self ? null : html`<${UI.Field} label="access"
+        hint=${f.role === 'founder' ? 'Full access sees HQ, Admin and everyone\'s detail. Share the page with them as Can edit too.' : ''}>
+        <${UI.Seg} options=${ROLES} value=${f.role} onChange=${v => set('role', v)} ariaLabel="Role"/><//>`}
       <${UI.Input} label="joined" type="date" value=${f.joined} onChange=${v => set('joined', v)}/>
       <${UI.Input} label="start time, optional" type="time" value=${f.start} onChange=${v => set('start', v)}/>
       <${UI.Input} label="probation end, optional" type="date" value=${f.probationEnd} onChange=${v => set('probationEnd', v)}/>
@@ -81,15 +85,11 @@
       .then(() => M.toast(active ? 'Restored' : 'Removed'));
 
     return html`<div class="stack" style=${{gap: '18px'}}>
-      ${onlyFounder ? html`<${UI.Card} title="Getting the team on">
-        <div class="stack tight">
-          <div>1. Everyone needs a seat in your Claude organisation.</div>
-          <div>2. Share this page with them, set to Can interact.</div>
-          <div>3. Add them here.</div>
-        </div>
-      <//>` : null}
+      ${M.parts.JoinRequests ? html`<${M.parts.JoinRequests} onApprove=${r => setAdd({person: {id: r.uid, name: ''}, member: null, title: r.title, join: true})}/>` : null}
+      ${M.parts.InviteCard ? html`<${M.parts.InviteCard} open=${onlyFounder}/>` : null}
 
-      <${UI.Card} title="Add a person">
+      <${UI.Card} title="Add someone directly">
+        <p class="small ink62" style=${{marginTop: 0}}>Works for people in your Claude organisation. Everyone else uses the invite link above.</p>
         <${UI.Input} id="desk-search" label="search the organisation" value=${q} placeholder="Search the organisation"
           onChange=${search} onFocus=${() => search('')}/>
         <div class="stack tight" style=${{marginTop: '10px'}}>
@@ -122,7 +122,8 @@
           </tbody>
         </table></div>
       <//>
-      ${add ? html`<${AddDrawer} person=${add.person} member=${add.member} onClose=${() => setAdd(null)}/>` : null}
+      ${add ? html`<${AddDrawer} person=${add.person} member=${add.member} title=${add.title}
+        onSaved=${add.join ? (id => M.team.clear(ctx, id)) : null} onClose=${() => setAdd(null)}/>` : null}
     </div>`;
   }
 
@@ -153,7 +154,7 @@
         : null;
       const points = {};
       Object.keys(f.points).forEach(k => { points[k] = Number(f.points[k]) || 0; });
-      await ctx.W.set('settings/app', {
+      await ctx.W.merge('settings/app', {
         office, start: f.start, grace: Number(f.grace) || 0, eodCut: f.eodCut, mondayCut: f.mondayCut,
         wfhCap: Number(f.wfhCap) || 0, revCap: Number(f.revCap) || 0, ackHours: Number(f.ackHours) || 0,
         blockerDays: Number(f.blockerDays) || 0, holidays: f.holidays, rules: f.rules, points,
@@ -346,9 +347,10 @@
   /* ---------- page ---------- */
   function Desk() {
     const [tab, setTab] = useState('roster');
+    M.useIntent('settings', () => setTab('settings'));
     const Approvals = M.parts.LeaveApprovals;
     return html`<div class="stack" style=${{gap: '18px'}}>
-      <${UI.PageHead} micro="founder controls" title="Desk">
+      <${UI.PageHead} micro="founder controls" title="Controls">
         <${UI.Seg} options=${TABS} value=${tab} onChange=${setTab} ariaLabel="Desk section"/>
       <//>
       ${tab === 'roster' ? html`<${Roster}/>` : null}
@@ -361,4 +363,5 @@
   }
 
   M.pages.Desk = Desk;
+  M.parts.AddPerson = AddDrawer;
 })();

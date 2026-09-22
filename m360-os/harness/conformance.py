@@ -93,8 +93,9 @@ block = block.split('```json', 1)[1].split('```', 1)[0]
 want_rules = json.loads(block)
 # v2 adds one per-person collection: me/<uid> holds today's status
 want_rules += [{"path": "me", "read": "interact", "write": "admin"}, {"path": "me/{self}", "write": "interact"}]
+want_rules += [{"path": "join", "read": "admin", "write": "admin"}, {"path": "join/{self}", "read": "interact", "write": "interact"}]
 if caps['db']['rules'] != want_rules:
-    bad('capabilities.db.rules do not match BRIEF section 5 plus the me rule')
+    bad('capabilities.db.rules do not match BRIEF section 5 plus the me and join rules')
 for k in ('sample', 'room'):
     if caps.get(k) != {}:
         bad('capability %s is not declared' % k)

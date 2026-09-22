@@ -259,6 +259,8 @@
     const ctx = M.useCtx();
     const [filter, setFilter] = useState('all');
     const [kudosOpen, setKudosOpen] = useState(false);
+    M.useIntent('kudos', () => setKudosOpen(true));
+    M.useIntent('post', () => setTimeout(() => { const el = document.getElementById('feed-text'); if (el) el.focus(); }, 60));
     const items = stream(ctx);
     const counts = reactCounts(ctx);
     const mine = myReacts(ctx, ctx.uid);
@@ -293,4 +295,5 @@
   }
 
   M.pages.Feed = Feed;
+  M.feed = {stream, reactCounts};
 })();

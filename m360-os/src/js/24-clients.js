@@ -86,6 +86,7 @@
   function Clients() {
     const ctx = M.useCtx();
     const [open, setOpen] = useState(null); /* id, or 'new' */
+    M.useIntent('client', () => setOpen('new'));
     const map = ctx.coll.clients.map;
     const sh = useMemo(() => {
       const out = {};

@@ -194,7 +194,7 @@ def qa(h):
     h.go(page, 'outsider', hash='#today', width=1280, seed=True)
     page.wait_for_timeout(300)
     body = page.evaluate('document.body.innerText')
-    if 'not on the team roster yet' not in body:
+    if 'Ask to join' not in body:
         problems.append('outsider does not see the holding screen: %r' % body[:120])
     if page.locator('.sidebar').count():
         problems.append('outsider sees the sidebar')

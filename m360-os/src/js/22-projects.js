@@ -162,6 +162,7 @@
     const [scope, setScope] = useState('active');
     const [kind, setKind] = useState('all');
     const [open, setOpen] = useState(false);
+    M.useIntent('project', () => setOpen(true));
     const today = U.todayStr();
     const all = Object.keys(ctx.coll.projects.map).map(id => ({id, ...ctx.coll.projects.map[id]}));
     const isActive = p => p.status !== 'done' && !p.archived;

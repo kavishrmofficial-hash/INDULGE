@@ -208,6 +208,8 @@
           <${Tile} v=${n.moodAvg ? n.moodAvg.toFixed(1) + '/5' : 'n/a'} l="mood at check-in"/>
         </div>
       </header>
+      ${M.parts.JoinBanner ? html`<${M.parts.JoinBanner}/>` : null}
+      ${M.parts.SetupCard ? html`<${M.parts.SetupCard}/>` : null}
       <${M.SectionTabs} section="hq" active=${t}/>
       ${t === 'dashboard' ? html`<${Embed} page="Command"/>` : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>` : html`<div class="stack" style=${{gap: '20px'}}>
         <${IntelBrief}/>

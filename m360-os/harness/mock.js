@@ -44,10 +44,11 @@
     {path: 'votes', read: 'interact', write: 'admin'}, {path: 'votes/{self}', write: 'interact'},
     {path: 'access', read: 'interact', write: 'admin'}, {path: 'access/{self}', write: 'interact'},
     {path: 'onboard', read: 'interact', write: 'admin'}, {path: 'onboard/{self}', write: 'interact'},
-    {path: 'me', read: 'interact', write: 'admin'}, {path: 'me/{self}', write: 'interact'}
+    {path: 'me', read: 'interact', write: 'admin'}, {path: 'me/{self}', write: 'interact'},
+    {path: 'join', read: 'admin', write: 'admin'}, {path: 'join/{self}', read: 'interact', write: 'interact'}
   ];
   const LEVEL = {view: 0, interact: 1, admin: 2, owner: 3};
-  const myLevel = ME.isOwner ? 3 : 1;
+  const myLevel = ME.isOwner ? 3 : (q.get('level') === 'view' ? 0 : 1);
 
   function segs(p) { return p.split('/').filter(Boolean); }
   function checkPath(p, wantDoc) {
@@ -212,18 +213,19 @@
     };
   }
   const db = Object.freeze({doc: docRef, collection: collRef});
-  window.__db = {store: () => store, set: (p, d) => { store[p] = clone(d); persist(); notify(p); }, get: p => store[p]};
+  window.__db = {store: () => store, set: (p, d) => { store[p] = clone(d); persist(); notify(p); }, get: p => store[p], del: p => { delete store[p]; persist(); notify(p); }};
 
   /* ---------------- user ---------------- */
   const profOf = id => {
     const p = Object.values(IDENT).find(x => x.id === id);
     if (!p) return {id, name: '', avatarUrl: AV('?', '#BBBBBB'), color: '#BBBBBB', email: null, isMe: id === ME.id};
-    return {id: p.id, name: p.name, avatarUrl: p.avatarUrl, color: p.color, email: p.email, isMe: p.id === ME.id};
+    return {id: p.id, name: p.name, avatarUrl: p.avatarUrl, color: p.color, email: p.email, isMe: p.id === ME.id,
+      guest: q.get('guest') === '1' && p.id === ME.id};
   };
   const user = Object.freeze({
     isOwner: () => Promise.resolve(ME.isOwner),
     canEdit: () => Promise.resolve(ME.canEdit),
-    can: () => Promise.resolve(true),
+    can: n => Promise.resolve(n === 'data.write' ? (q.get('cannull') === '1' ? null : myLevel >= 1) : true),
     me: () => Promise.resolve({id: ME.id, name: ME.name, avatarUrl: ME.avatarUrl, color: ME.color, email: ME.email, isOwner: ME.isOwner, canEdit: ME.canEdit}),
     id: () => Promise.resolve(ME.id),
     name: () => Promise.resolve(ME.name),
