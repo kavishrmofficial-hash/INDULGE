@@ -116,6 +116,7 @@
     /* rules engine output, computed each render pass */
     ctx.flags = (M.rules && M.rules.evaluate) ? M.rules.evaluate(ctx, new Date()) : [];
     ctx.myFlags = ctx.flags.filter(f => f.uid === ctx.uid);
+    M.lastCtx = ctx;
 
     return html`<${M.Ctx.Provider} value=${ctx}>${children}<//>`;
   };

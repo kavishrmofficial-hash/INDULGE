@@ -13,7 +13,9 @@ builds core plus the listed modules only, into dist/index.today.html and harness
 The localStorage database is per origin and shared by every test on the same port; pass reset=True on the
 first open of a scenario. Identities: founder (owner), m1, m2, m3 (members once added to the roster), outsider.
 Helpers on the page: window.__db.set(path, doc) / window.__db.get(path) seed or inspect documents directly,
-window.__downloads records downloads.save calls, window.__mcpCalls records connector watches.
+window.__downloads records downloads.save calls, window.__mcpCalls records connector watches, M.lastCtx is the
+live app context (see h.ctx). h.roster(page, uids) puts members on the roster; h.seed_doc(page, path, doc) writes
+one document. After seeding, wait ~200 ms for snapshots to deliver before asserting on the DOM.
 """
 import http.server
 import os
@@ -92,6 +94,30 @@ class Harness:
         if wait:
             self.ready(page)
         return page
+
+    def roster(self, page, uids=('u_m1', 'u_m2', 'u_m3'), extra=None):
+        """Seed roster/team with the founder plus the given member ids (harness shortcut, bypasses rules).
+        extra = {uid: {field: value}} overrides per member (joined, probationEnd, start, role, pod, title)."""
+        members = {'u_founder': {'role': 'founder', 'empId': 'M360-001', 'title': 'Founder', 'pod': '', 'joined': '2024-01-01',
+                                 'start': '', 'probationEnd': '', 'active': True}}
+        titles = {'u_m1': ('Brand Strategist', 'Pod 1'), 'u_m2': ('Creative Lead', 'Pod 1'), 'u_m3': ('Producer', 'Pod 2')}
+        n = 2
+        for u in uids:
+            t = titles.get(u, ('Member', ''))
+            members[u] = {'role': 'member', 'empId': 'M360-%03d' % n, 'title': t[0], 'pod': t[1], 'joined': '2026-01-05',
+                          'start': '', 'probationEnd': '', 'active': True}
+            members[u].update((extra or {}).get(u, {}))
+            n += 1
+        page.evaluate('m => window.__db.set("roster/team", {members: m, nextEmp: %d, updated: Date.now()})' % n, members)
+        page.wait_for_timeout(150)
+
+    def seed_doc(self, page, path, doc):
+        page.evaluate('([p, d]) => window.__db.set(p, d)', [path, doc])
+        page.wait_for_timeout(120)
+
+    def ctx(self, page, expr):
+        """Evaluate an expression against the live app context, e.g. h.ctx(page, 'M.rules.evaluate(ctx, new Date())')."""
+        return page.evaluate('() => { const ctx = M.lastCtx; return (%s); }' % expr)
 
     def ready(self, page):
         page.wait_for_function("() => !document.querySelector('.gate') || !/Signing you in/.test(document.body.innerText)")
