@@ -1,0 +1,27 @@
+name: edgeone-probe
+on:
+  push:
+    branches: [claude/amazing-euler-c4ngj2]
+    paths: ['m360-os/edgeone-probe/**', '.github/workflows/edgeone-probe.yml']
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: m360-os/edgeone-probe
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install
+      - run: npx --yes edgeone@1.6.41 makers deploy --anonymous --site global --json 2>&1 | tee deploy.log
+      - name: Probe the deployed function
+        run: |
+          URL=$(grep -o '"url":"[^"]*"' deploy.log | head -1 | cut -d'"' -f4)
+          echo "URL=$URL"
+          sleep 20
+          curl -sS -X POST "$URL/api/ping" || true
+          echo
+          curl -sS -X POST "$URL/api/ping" || true

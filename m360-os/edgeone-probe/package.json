@@ -1,0 +1,8 @@
+{
+  "name": "m360-probe",
+  "private": true,
+  "version": "0.0.1",
+  "dependencies": {
+    "@edgeone/pages-blob": "0.0.16"
+  }
+}
