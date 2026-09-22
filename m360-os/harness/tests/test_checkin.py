@@ -33,7 +33,8 @@ TODAY_PAGE = '''(function () {
     get: function () { return undefined; },
     set: function (v) {
       Object.defineProperty(window, 'M', {configurable: true, enumerable: true, writable: true, value: v});
-      v.pages.Today = function TestToday() { return v.React.createElement(v.parts.CheckinCard); };
+      var TestToday = function TestToday() { return v.React.createElement(v.parts.CheckinCard); };
+      Object.defineProperty(v.pages, 'Home', {configurable: true, enumerable: true, get: function () { return TestToday; }, set: function () {}});
     }});
 })();'''
 
@@ -97,7 +98,7 @@ def card(page):
 
 
 def btn(page, name):
-    return page.get_by_role('button', name=name, exact=True)
+    return page.locator('#checkin-card').get_by_role('button', name=name, exact=True)
 
 
 def test(h):

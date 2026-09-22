@@ -91,8 +91,22 @@ brief = open(os.path.join(ROOT, 'BRIEF.md'), encoding='utf-8').read()
 block = brief.split('Access rules to declare exactly, as `capabilities.db.rules`:', 1)[1]
 block = block.split('```json', 1)[1].split('```', 1)[0]
 want_rules = json.loads(block)
+# v2 adds one per-person collection: me/<uid> holds today's status
+want_rules += [{"path": "me", "read": "interact", "write": "admin"}, {"path": "me/{self}", "write": "interact"}]
 if caps['db']['rules'] != want_rules:
-    bad('capabilities.db.rules do not match BRIEF section 5 exactly')
+    bad('capabilities.db.rules do not match BRIEF section 5 plus the me rule')
+for k in ('sample', 'room'):
+    if caps.get(k) != {}:
+        bad('capability %s is not declared' % k)
+# the brand: Space Grotesk only, no emoji in the app's own interface copy
+if 'Bricolage' in PAGE:
+    bad('a second font family is embedded')
+EMO = re.compile('[\U0001F300-\U0001FAFF\u2600-\u26FF\u2700-\u27BF]')
+for f in ('03-shell.js', '04-ai.js', '50-home.js', '51-sections.js', '55-hq.js', '57-ask.js', '58-buddy.js'):
+    for m in EMO.finditer(JS[f]):
+        if m.group(0) in '\u2713\u2726\u2303\u2325':
+            continue
+        bad('emoji %r in %s' % (m.group(0), f))
 # this workspace refuses the email scope, so the app declares profile only and shows no addresses
 if caps.get('user', {}).get('scopes') != ['profile']:
     bad('user scopes are not profile')
@@ -147,7 +161,7 @@ if '<title>m360 OS</title>' not in PAGE:
     bad('page title is not m360 OS')
 if 'viewport-fit=cover' not in PAGE:
     bad('viewport meta is missing viewport-fit=cover')
-if PAGE.count('@font-face') != 2:
+if PAGE.count('@font-face') != 2:  # Space Grotesk latin plus the rupee subset
     bad('expected two embedded font faces')
 if 'U+20B9' not in PAGE:
     bad('the rupee subset unicode-range is missing')

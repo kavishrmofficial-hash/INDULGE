@@ -11,9 +11,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from harness.lib import run  # noqa: E402
 
 F, M1, M2, M3 = 'u_founder', 'u_m1', 'u_m2', 'u_m3'
-PAGES = ['#today', '#tasks', '#projects', '#pitches', '#clients', '#feed', '#week', '#scores',
-         '#people', '#hiring', '#handbook', '#voice', '#leave', '#command', '#desk']
-MEMBER_PAGES = [p for p in PAGES if p not in ('#command', '#desk')]
+PAGES = ['#home', '#work', '#projects', '#projects/p1', '#week', '#accounts', '#pitches', '#vibe', '#people',
+         '#people/u_m1', '#voice', '#scores', '#me', '#leave', '#handbook', '#hiring', '#hq', '#command', '#admin']
+MEMBER_PAGES = [p for p in PAGES if p not in ('#hq', '#command', '#admin')]
 
 
 # the harness runs the browser in Asia/Kolkata while the container clock is UTC, so every seeded
@@ -173,7 +173,7 @@ def qa(h):
     for ident, pages in (('founder', PAGES), ('m1', MEMBER_PAGES), ('m2', MEMBER_PAGES)):
         for w in (1280, 768, 390):
             for hsh in pages:
-                h.go(page, ident, hash=hsh, width=w, seed=True)
+                h.go(page, ident, hash=hsh, width=w, seed=True, online='u_m2')
                 page.wait_for_timeout(350)
                 text = page.evaluate('document.body.innerText').strip()
                 if len(text) < 40:
@@ -199,14 +199,20 @@ def qa(h):
     if page.locator('.sidebar').count():
         problems.append('outsider sees the sidebar')
 
-    # members never reach Command or Desk
-    for hsh in ('#command', '#desk'):
+    # members never reach HQ or Admin, under old or new links
+    for hsh in ('#hq', '#command', '#admin', '#desk'):
         h.go(page, 'm1', hash=hsh, width=1280, seed=True)
         page.wait_for_timeout(500)
-        if page.evaluate('location.hash') != '#today':
+        if page.evaluate('location.hash') != '#home':
             problems.append('m1 was not redirected away from %s' % hsh)
-        if page.locator('.side-item', has_text='Command').count():
-            problems.append('m1 sees Command in the sidebar')
+        if page.locator('.side-item', has_text='HQ').count() or page.locator('.side-item', has_text='Admin').count():
+            problems.append('m1 sees founder sections in the sidebar')
+    # every old link still lands in the right section
+    for old_hash, label in (('#today', 'Home'), ('#tasks', 'Work'), ('#clients', 'Accounts'), ('#feed', 'Vibe'), ('#desk', 'Admin')):
+        h.go(page, 'founder', hash=old_hash, width=1280, seed=True)
+        page.wait_for_timeout(300)
+        if not page.locator('.side-item.active', has_text=label).count():
+            problems.append('old link %s did not open %s' % (old_hash, label))
 
     for e in h.errors():
         problems.append('console %s: %s' % (e[0], str(e[1])[:200]))

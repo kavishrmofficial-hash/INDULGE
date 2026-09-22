@@ -19,11 +19,11 @@
   M.RULE_IDS = ['R01','R02','R03','R04','R05','R06','R07','R08','R09','R10','R11','R12','R13','R14','R15','R16'];
 
   const COLLS = ['checkin','eod','plan','review','rocks','feed','reacts','acks','kudos','leave','leavedec',
-    'tasks','projects','pitches','clients','handbook','candidates','evals','pulse','ideas','votes','access','onboard'];
+    'tasks','projects','pitches','clients','handbook','candidates','evals','pulse','ideas','votes','access','onboard','me'];
 
   /* AppState wraps the whole signed-in app: subscribes once per collection, computes ctx. */
   M.AppState = function AppState({boot, children}) {
-    const {db, user, mcp, downloads, permissions, me} = boot;
+    const {db, user, mcp, downloads, permissions, sample, room, me} = boot;
     M.userNs = user;
     const uid = me.id;
     const W = React.useMemo(() => M.makeWrites(db), [db]);
@@ -48,6 +48,7 @@
     }, [rosterDoc.ready, rosterDoc.data, me.isOwner, uid, W]);
 
     const now = M.useNow();
+    const online = M.usePresence(room, uid);
 
     const ctx = React.useMemo(() => {
       const roster = rosterDoc.data || null;
@@ -99,11 +100,11 @@
       /* private detail (locations, exact times, late marks, scores, leave) shows to the founder and the person only */
       const canSee = u => isFounder || u === uid;
 
-      return {db, user, mcp, downloads, permissions, me, uid, W,
+      return {db, user, mcp, downloads, permissions, sample, room, me, uid, W,
         ready: rosterDoc.ready && settingsDoc.ready,
         roster, members, member, activeMembers, isFounder, founderUid,
-        settings, holidays, coll, leaveMap, onLeave, isWorkingDay, startFor, canSee, now};
-    }, [rosterDoc, settingsDoc, me, uid, W, now,
+        settings, holidays, coll, leaveMap, onLeave, isWorkingDay, startFor, canSee, now, online};
+    }, [rosterDoc, settingsDoc, me, uid, W, now, online,
       ...COLLS.map(c => coll[c])]);
 
     /* private per-user docs (own state; founder: keeper and finance) */

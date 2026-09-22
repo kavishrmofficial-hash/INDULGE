@@ -167,6 +167,15 @@
    {
     "path": "onboard/{self}",
     "write": "interact"
+   },
+   {
+    "path": "me",
+    "read": "interact",
+    "write": "admin"
+   },
+   {
+    "path": "me/{self}",
+    "write": "interact"
    }
   ]
  },
@@ -192,5 +201,7 @@
    }
   ]
  },
- "downloads": true
+ "downloads": true,
+ "sample": {},
+ "room": {}
 }

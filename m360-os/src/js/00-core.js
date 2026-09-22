@@ -99,12 +99,12 @@ const U = M.U = (() => {
 M.boot = async function boot() {
   const cl = window.claude;
   if (!cl || typeof cl.use !== 'function') return {mode: 'nohost'};
-  const [db, user, mcp, downloads, permissions] = await Promise.all(
-    ['db', 'user', 'mcp', 'downloads', 'permissions'].map(n => cl.use(n)));
+  const [db, user, mcp, downloads, permissions, sample, room] = await Promise.all(
+    ['db', 'user', 'mcp', 'downloads', 'permissions', 'sample', 'room'].map(n => cl.use(n)));
   if (!db || !user) return {mode: 'nocap'};
   const me = await user.me();
   if (!me.id) return {mode: 'noid'};
-  return {mode: 'ok', db, user, mcp, downloads, permissions, me, owner: !!me.isOwner};
+  return {mode: 'ok', db, user, mcp, downloads, permissions, sample, room, me, owner: !!me.isOwner};
 };
 
 /* ---------- toasts ---------- */
@@ -288,3 +288,6 @@ M.useNow = function useNow() {
   }, []);
   return n;
 };
+
+/* celebrations stay quiet in the m360 system: hover and state changes only */
+M.burst = function burst() {};

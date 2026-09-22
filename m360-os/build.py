@@ -20,7 +20,7 @@ CDN = [
     'https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js',
 ]
 
-CORE_FILES = ('00-core.js', '01-ui.js', '02-state.js', '03-shell.js', '99-app.js')
+CORE_FILES = ('00-core.js', '01-ui.js', '02-state.js', '03-shell.js', '04-ai.js', '99-app.js')
 
 LATIN_RANGE = ('U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, '
                'U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD')
@@ -36,9 +36,9 @@ def b64(p):
         return base64.b64encode(f.read()).decode('ascii')
 
 
-def font_face(path, urange):
-    return ("@font-face{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;font-display:swap;"
-            "src:url(data:font/woff2;base64,%s) format('woff2');unicode-range:%s;}" % (b64(path), urange))
+def font_face(path, urange, family='Space Grotesk', weight='300 700'):
+    return ("@font-face{font-family:'%s';font-style:normal;font-weight:%s;font-display:swap;"
+            "src:url(data:font/woff2;base64,%s) format('woff2');unicode-range:%s;}" % (family, weight, b64(path), urange))
 
 
 def build():
@@ -63,7 +63,7 @@ def build():
         font_face(os.path.join(ROOT, 'assets', 'sg-rupee.woff2'), 'U+20B9')
 
     gate = ('<div class="gate"><div><span class="mark" style="width:110px">%s</span>'
-            '<h1>Signing you in</h1><p>One moment.</p></div></div>' % mark)
+            '<h1>Booting up</h1><p>Signing you in. One sec.</p></div></div>' % mark)
 
     html = '\n'.join([
         '<title>m360 OS</title>',

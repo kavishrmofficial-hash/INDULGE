@@ -43,7 +43,8 @@
     {path: 'ideas', read: 'interact', write: 'admin'}, {path: 'ideas/{self}', write: 'interact'},
     {path: 'votes', read: 'interact', write: 'admin'}, {path: 'votes/{self}', write: 'interact'},
     {path: 'access', read: 'interact', write: 'admin'}, {path: 'access/{self}', write: 'interact'},
-    {path: 'onboard', read: 'interact', write: 'admin'}, {path: 'onboard/{self}', write: 'interact'}
+    {path: 'onboard', read: 'interact', write: 'admin'}, {path: 'onboard/{self}', write: 'interact'},
+    {path: 'me', read: 'interact', write: 'admin'}, {path: 'me/{self}', write: 'interact'}
   ];
   const LEVEL = {view: 0, interact: 1, admin: 2, owner: 3};
   const myLevel = ME.isOwner ? 3 : 1;
@@ -287,8 +288,104 @@
   window.__downloads = [];
   const downloads = Object.freeze({save: ({filename, data}) => { window.__downloads.push({filename, data: typeof data === 'string' ? data : '[binary]'}); return Promise.resolve({status: 'saved'}); }});
 
+  /* ---------------- sample: canned Claude answers, shaped like the real thing ---------------- */
+  window.__sampleCalls = [];
+  const tomorrow = (() => { const d = new Date(Date.now() + 86400000); const p = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); })();
+  const flat = input => typeof input === 'string' ? input : input.map(t => t.content).join('\n');
+  const sampleErr = q.get('aierr');
+  function answerFor(text) {
+    if (/plan for the rest of today/.test(text)) return '**Ship the hero reel script first, it is 4 days late.**\n- Finish Write hero reel script\n- Lock the shot list before review\n- Nudge Blah Studio on the call sheet\nYou have got this.';
+    if (/Wrapped/.test(text)) return '**Week 39, wrapped**\n- Thirty scripts approved in one pass\n- Kudos to Durvesh for the shoot schedule\n- Most shipped: Aanya\nNext week we go again.';
+    return 'Here is the short version:\n- Two tasks are overdue\n- One client brain needs approvals filled';
+  }
+  function jsonFor(text) {
+    if (/"headline"/.test(text)) return {headline: 'Swisse is on track but the shot list is the bottleneck.', pulse: '2 of 4 in, one late, mood 4 of 5.',
+      risks: [{title: 'Hero reel script 4 days late', detail: 'Durvesh owns it and flagged a blocker twice.'}], wins: ['Thirty scripts approved in one pass'],
+      people: [{name: 'Aanya', note: 'Creator brief is overdue, check if she needs help.'}], money: ['Aurelia proposal is 3 days past its next step.'],
+      actions: [{title: 'Send Aurelia the revised scope', owner: 'Kaavish', due: tomorrow, why: 'Pitch is going cold'}, {title: 'Chase Blah Studio for the call sheet', owner: 'Durvesh', due: tomorrow, why: 'Unblocks the shoot'}]};
+    if (/task moves/.test(text)) return [{task: 'Creator brief', to: 'Ishaan', why: 'Aanya is overdue, Ishaan has room'}];
+    if (/end of day line/.test(text)) return {shipped: 'Storyboarded the hero reel.', next: 'Lock the shot list.', blocked: ''};
+    if (/Break this brief/.test(text)) return [{title: 'Write ten Diwali reel scripts', owner: 'Durvesh', due: tomorrow, section: 'Strategy', why: 'Strategist owns scripts'},
+      {title: 'Book the studio day', owner: 'Ishaan', due: tomorrow, section: '', why: 'Producer runs logistics'}];
+    if (/Turn this note into one task/.test(text)) return {title: 'Cut the teaser', owner: 'Aanya', due: tomorrow, priority: 'high'};
+    return {};
+  }
+  const sample = function (input, opts) {
+    opts = opts || {};
+    const text = flat(input);
+    window.__sampleCalls.push({kind: 'text', text, tools: (opts.tools || []).map(t => t.name)});
+    if (sampleErr) return new Promise((res, rej) => setTimeout(() => rej({code: sampleErr, message: 'mock'}), 30));
+    return new Promise(async (res) => {
+      await new Promise(r => setTimeout(r, 60));
+      const tools = opts.tools || [];
+      const last = typeof input === 'string' ? (input.split('THEY SAID: ')[1] || input) : input[input.length - 1].content;
+      const pointAt = tools.find(x => x.name === 'point_at');
+      if (pointAt && !/add a task/i.test(last)) {
+        const sig = {signal: new AbortController().signal};
+        const pick = (screen, re) => {
+          const lines = String(screen).split('\n').filter(l => re.test(l.split(' | ')[2] || ''));
+          const ln = lines.find(l => l.split(' | ')[1] === 'button') || lines[0];
+          return ln ? ln.split(' | ')[0] : null;
+        };
+        let screen = text, said = 'Here.';
+        if (/leave/i.test(last)) {
+          screen = await tools.find(x => x.name === 'go_to').execute({section: 'leave'}, sig);
+          const id = pick(screen, /^Request leave/i);
+          if (id) await pointAt.execute({id, say: 'Request it here'}, sig);
+          said = 'Pick your dates on the Leave page and tap Request leave.';
+        } else if (/check in/i.test(last)) {
+          const id = pick(screen, /^Check in/i);
+          if (id) await pointAt.execute({id, say: 'Tap this'}, sig);
+          said = 'Tap Check in, office. It logs the time and where you are.';
+        }
+        if (opts.onText) opts.onText({text: said, delta: said});
+        return res({text: said, truncated: false, modelTierApplied: 'quick'});
+      }
+      if (tools.length && /add a task/i.test(last)) {
+        const t = tools.find(x => x.name === 'create_task');
+        await t.execute({title: 'Follow up with the client', owner: 'me', due: tomorrow}, {signal: new AbortController().signal});
+        const out = 'Done. Added a follow up for tomorrow.';
+        if (opts.onText) opts.onText({text: out, delta: out});
+        return res({text: out, truncated: false, modelTierApplied: 'default'});
+      }
+      if (tools.length && /give .* to /i.test(last)) {
+        const t = tools.find(x => x.name === 'reassign_task');
+        if (t) await t.execute({task: 'Creator brief', owner: 'Ishaan'}, {signal: new AbortController().signal});
+        const out = 'Moved it.';
+        if (opts.onText) opts.onText({text: out, delta: out});
+        return res({text: out, truncated: false, modelTierApplied: 'default'});
+      }
+      const out = answerFor(text);
+      const half = out.slice(0, Math.floor(out.length / 2));
+      if (opts.onText) { opts.onText({text: half, delta: half}); await new Promise(r => setTimeout(r, 30)); opts.onText({text: out, delta: out.slice(half.length)}); }
+      res({text: out, truncated: false, modelTierApplied: 'default'});
+    });
+  };
+  sample.json = function (input, opts) {
+    const text = flat(input);
+    window.__sampleCalls.push({kind: 'json', text});
+    if (sampleErr) return new Promise((res, rej) => setTimeout(() => rej({code: sampleErr, message: 'mock'}), 30));
+    return new Promise(res => setTimeout(() => res(jsonFor(text)), 60));
+  };
+  sample.limits = () => Promise.resolve({maxPromptBytes: 65536, tools: {maxCount: 8}});
+
+  /* ---------------- room: who else is online ---------------- */
+  const others = (q.get('online') || '').split(',').filter(Boolean);
+  let mine = {};
+  const room = {
+    presence: patch => { mine = {...mine, ...patch}; window.__presence = mine; return Promise.resolve(); },
+    onPeers: (fn) => {
+      const peers = () => [{peer: 'me', by: null, isMe: true, sameTab: true, kind: 'viewer', presence: mine, updatedAt: Date.now()}]
+        .concat(others.map((u, i) => ({peer: 'p' + i, by: null, isMe: false, sameTab: false, kind: 'viewer', presence: {uid: u, page: 'work'}, updatedAt: Date.now()})));
+      setTimeout(() => { const p = peers(); fn({peers: p, joined: p, left: [], updated: []}); }, 20);
+      return () => {};
+    },
+    peers: () => [], emit: () => Promise.resolve(), on: () => () => {}
+  };
+
   const caps = {db: q.get('nocap') === '1' ? null : db, user: q.get('nocap') === '1' ? null : user,
-    mcp: q.get('nomcp') === '1' ? null : mcp, downloads: q.get('nodl') === '1' ? null : downloads, permissions};
+    mcp: q.get('nomcp') === '1' ? null : mcp, downloads: q.get('nodl') === '1' ? null : downloads, permissions,
+    sample: q.get('noai') === '1' ? null : sample, room: q.get('noroom') === '1' ? null : room};
   const memo = {};
   window.claude = {use: name => memo[name] || (memo[name] = new Promise(r => setTimeout(() => r(caps[name] === undefined ? null : caps[name]), 40)))};
 
