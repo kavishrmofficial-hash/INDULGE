@@ -1,0 +1,6 @@
+dist/
+harness/out/
+harness/shots/
+__pycache__/
+*.pyc
+harness/quick.py

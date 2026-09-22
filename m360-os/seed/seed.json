@@ -1,0 +1,122 @@
+{
+ "settings/app": {
+  "office": null,
+  "start": "10:30",
+  "grace": 15,
+  "eodCut": "19:30",
+  "mondayCut": "12:00",
+  "wfhCap": 2,
+  "revCap": 2,
+  "ackHours": 48,
+  "blockerDays": 2,
+  "holidays": [],
+  "rules": {
+   "R01": true,
+   "R02": true,
+   "R03": true,
+   "R04": true,
+   "R05": true,
+   "R06": true,
+   "R07": true,
+   "R08": true,
+   "R09": true,
+   "R10": true,
+   "R11": true,
+   "R12": true,
+   "R13": true,
+   "R14": true,
+   "R15": true,
+   "R16": true
+  },
+  "points": {
+   "checkinOnTime": 2,
+   "eod": 2,
+   "planOnTime": 4,
+   "planLate": 1,
+   "outcomeHit": 12,
+   "outcomeMiss": -6,
+   "taskOnTime": 6,
+   "taskLate": 2,
+   "revision": -2,
+   "shown20": 2,
+   "qualityMult": 4,
+   "kudos": 3,
+   "rockDone": 20,
+   "overdueOpen": -2
+  },
+  "leaderboardIncludesFounder": false,
+  "updated": 1790078426995
+ },
+ "clients/swisse-wellness-uae": {
+  "name": "Swisse Wellness UAE",
+  "status": "live",
+  "pod": "Pod 1",
+  "owner": "",
+  "memory": "30 reel shoot with Blah Studio as the production partner, run day to day with Durvesh.",
+  "approvals": "",
+  "never": "",
+  "links": "",
+  "updated": 1790078426995,
+  "by": ""
+ },
+ "handbook/house-rules": {
+  "title": "House rules",
+  "body": "# Results and culture are the only two things that count.\nThese five rules are the culture. They apply to the founder too.\n\n## Finish it.\nThe last 20% belongs to whoever owns the task. Half work goes back unread.\n\n## Show it at 20%.\nRough direction goes to the Wednesday check before a single slide is built.\n\n## Write it down.\nThis handbook is the source of truth. A decision that isn't written down hasn't been made.\n\n## Bring the answer.\nEvery escalation arrives with a recommendation and the name of whoever owns the call.\n\n## Say it to their face.\nSay about a colleague only what you would say to them directly.",
+  "order": 1,
+  "updated": 1790078426995
+ },
+ "handbook/the-week": {
+  "title": "The week",
+  "body": "# Four fixed moments. Everything else runs async.\n\n## Check in when you start\nTap Check in on Today. It records the time and your location at that moment. Start time is {{start}}. Checking in more than {{grace}} minutes after that counts as late. You get {{wfhCap}} WFH days a week, your choice. In practice that's Saturday plus one midweek day.\n\n## Monday, 10:00. Plan, 30 min\nPost three outcomes on Today before the meeting. An outcome is something that will exist by Saturday. Outcomes posted after {{mondayCut}} on Monday count as late. Rocks get one word each: on track or off track.\n\n## Wednesday, 12:00. The 20% check\nA two-minute Loom per live brief showing the rough direction. Kaavish replies by Loom. Tick \"20% shown\" on the task.\n\n## Every day, 19:00. EOD line\nThree lines on Today: shipped, next, blocked. After {{eodCut}} it counts as missed. Kaavish replies to blockers only.\n\n## Friday, 17:00. Review, 30 min\nEvery Monday outcome gets marked hit or miss. One piece of work goes into crit.\n\n## Month end and quarter end\nMonth end: Kaavish runs the keeper test on every seat. Quarter end: Rocks close, done or not done.",
+  "order": 2,
+  "updated": 1790078426995
+ },
+ "handbook/ladder": {
+  "title": "The ladder",
+  "body": "# One bar, applied the same way to everyone.\nKnown on day one, so nothing is a surprise.\n\n## One missed Friday commitment\nA written note.\n\n## Two in a month\nA formal warning.\n\n## Three\nExit.\n\nYou can see your own ladder status on your People page at any time.",
+  "order": 3,
+  "updated": 1790078426995
+ },
+ "handbook/escalation": {
+  "title": "Escalation map",
+  "body": "# What comes to Kaavish\n- **Money.** Pricing, scope changes, anything that changes what a client pays.\n- **Client risk.** An escalation, a missed deadline, a client asking for a change in the team.\n- **Final creative sign-off** on anything going to a client for the first time.\n\n# What stays with you\nEverything else. Decide it, write it down, move.\n\n# How to escalate\nOne message: the problem, your recommendation, what you need from Kaavish and by when. A blocker reported {{blockerDays}} working days in a row shows up on Kaavish's dashboard automatically.",
+  "order": 4,
+  "updated": 1790078426995
+ },
+ "handbook/standards": {
+  "title": "Standards library",
+  "body": "# A campaign idea lands as five parts\n- **The line.** The idea in one sentence anyone in the room can repeat.\n- **The logic.** Why it moves behaviour, tied to the brief's objective.\n- **The look.** Pulled references, actual images, a moodboard.\n- **The asset map.** What it becomes across films, statics, creator cuts, experiential and OOH, with quantities and cadence.\n- **The phasing.** What goes live when.\n\nAnything that arrives as a paragraph goes back with this page linked. A task that reaches {{revCap}} revision rounds gets flagged.\n\n# Client messages\nRead it once before it goes. Names, spelling and dates checked.\n\n# Still to add\nPitch, script and client update standards, each with one example Kaavish has approved.",
+  "order": 5,
+  "updated": 1790078426995
+ },
+ "handbook/role-brand-strategist": {
+  "title": "Role card: Brand Strategist",
+  "body": "# You own\nClient briefs from input to output. Content strategy, scripts, campaign thinking and creator briefs. You're on the client group and on the call.\n\n# The number\nOn-time delivery above 90%. Under two revision rounds per deliverable. Quality 4 or more out of 5.\n\n# You decide alone\nEverything inside the brief and the agreed scope.\n\n# Comes to Kaavish\nCommercials, scope changes, client escalations and final creative approval.\n\n# 30, 60, 90\n- **Day 30.** Running one account without instructions being repeated.\n- **Day 60.** Presenting your own work to a client with no one else in the room.\n- **Day 90.** Two accounts end to end, plus one process the rest of the team uses.",
+  "order": 6,
+  "updated": 1790078426995
+ },
+ "handbook/tool-map": {
+  "title": "Tool map",
+  "body": "# Where things live\n- **m360 OS.** Tasks, projects, pitches, outcomes, EOD lines, check-ins, leave, hiring panels, this handbook and client brains.\n- **Google Drive.** Every working file, in the client's folder, owned by the Mask360 account.\n- **Loom.** The Wednesday 20% check and async feedback.\n- **Figma and Canva.** Design work, shared with the Mask360 account.\n- **WhatsApp.** Client groups only. Internal updates go in the Feed.\n\n# Access register\nEvery group, folder, seat and client login you hold goes in your access register on your People page. Names only. Never passwords or codes.",
+  "order": 7,
+  "updated": 1790078426995
+ },
+ "handbook/how-scores-work": {
+  "title": "How scores work",
+  "body": "# Output scores. Showing up is the floor.\nOutcomes hit, tasks delivered on time and your weekly quality score earn about three times what check-ins and EOD lines earn. The live points table is on the Scores page.\n\n## What earns points\n- Outcomes marked hit at Friday review.\n- Tasks done on or before their due date.\n- Your weekly quality score.\n- Rough direction shown at the 20% check.\n- Kudos from teammates.\n- On-time check-ins, EOD lines and Monday outcomes.\n\n## What costs points\n- Outcomes marked miss.\n- Revision rounds.\n- Tasks left overdue at the end of the period.\n\nPoints are calculated from the work itself. Nobody enters them by hand.",
+  "order": 8,
+  "updated": 1790078426995
+ },
+ "handbook/hiring-panel": {
+  "title": "Hiring panel",
+  "body": "# How we hire\nEvery strategy and creative hire does a paid two-hour test on a live brief before an offer. The pass condition is the shape of what comes back.\n\n## The panel\nKaavish picks the evaluators. Each one reviews the candidate's work and the test independently, and nobody sees anyone else's evaluation. Submit before the deadline on the candidate card.\n\n## What you answer\n- Gets it, wants it, has the capacity to do it. All three need a yes.\n- Quality of work, thinking and logic, communication, ownership and culture add, each 1 to 5.\n- Whether you want them in your pod.\n- Your verdict, one reason to hire and one risk.\n\nYour evaluation goes to Kaavish only. Write what you would say to his face.",
+  "order": 9,
+  "updated": 1790078426995
+ },
+ "handbook/what-we-record": {
+  "title": "What the OS records",
+  "body": "# What's recorded\n- **Check-in and check-out.** The time and your location at that moment. Nothing in between.\n- **Your work.** Tasks, outcomes, EOD lines, comments, posts and kudos.\n- **Leave.** Dates and type. Details go to Kaavish directly.\n\n# Who sees what\n- Teammates see your status, check-in time, outcomes, EOD lines, tasks, posts and your points total.\n- The screens show your check-in location, scorecard, quality scores, ladder status and leave requests only to you and Kaavish.\n- Only Kaavish sees hiring evaluations and his own private notes.\n- The pulse in Voice is anonymous. Your name is never stored with it.\n\n# What's never recorded\nPasswords, codes, bank details and anything from your personal accounts. Your calendar, mail and Drive show on your own screen only.",
+  "order": 10,
+  "updated": 1790078426995
+ }
+}
