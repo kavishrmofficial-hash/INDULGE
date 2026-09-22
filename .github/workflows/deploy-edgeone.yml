@@ -1,0 +1,78 @@
+name: deploy-edgeone
+# Builds the standalone m360 OS and deploys it to EdgeOne Pages.
+#  - With the repository secret EDGEONE_API_TOKEN set, every push deploys to the project named by the
+#    repository variable EDGEONE_PROJECT (default m360os), keeping its data.
+#  - Without it, a run started by hand or a commit whose message contains [deploy] makes an anonymous
+#    deployment: a fresh workspace that must be claimed within an hour from the link in the run summary.
+on:
+  push:
+    branches: [claude/amazing-euler-c4ngj2]
+    paths: ['m360-os/**', '.github/workflows/deploy-edgeone.yml']
+  workflow_dispatch:
+concurrency:
+  group: deploy-edgeone
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      EDGEONE_API_TOKEN: ${{ secrets.EDGEONE_API_TOKEN }}
+      EDGEONE_PROJECT: ${{ vars.EDGEONE_PROJECT || 'm360os' }}
+      ANON_OK: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[deploy]') }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build
+        working-directory: m360-os
+        run: python3 build_edgeone.py
+      - name: Deploy
+        run: |
+          set -o pipefail
+          if [ -z "$EDGEONE_API_TOKEN" ] && [ "$ANON_OK" != "true" ]; then
+            echo "No EDGEONE_API_TOKEN secret and no [deploy] in the commit message: skipping deploy." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          W="$RUNNER_TEMP/m360os"
+          mkdir -p "$W"
+          cp -r m360-os/edgeone/public m360-os/edgeone/server m360-os/edgeone/cloud-functions m360-os/edgeone/package.json m360-os/edgeone/edgeone.json "$W/"
+          cd "$W" && npm install --no-audit --no-fund
+          ok=""
+          for i in 1 2 3 4; do
+            if [ -n "$EDGEONE_API_TOKEN" ]; then
+              npx --yes edgeone@1.6.41 makers deploy -n "$EDGEONE_PROJECT" -t "$EDGEONE_API_TOKEN" --json 2>&1 | tee deploy.log || true
+            else
+              npx --yes edgeone@1.6.41 makers deploy --anonymous --site global --json 2>&1 | tee deploy.log || true
+            fi
+            if grep -q '"status":"success"' deploy.log; then ok=1; break; fi
+            sleep 8
+          done
+          [ -n "$ok" ] || { echo "Deploy failed" | tee -a "$GITHUB_STEP_SUMMARY"; exit 1; }
+          RESULT=$(grep '"status":"success"' deploy.log | tail -1)
+          echo "$RESULT" > "$GITHUB_WORKSPACE/deploy-result.json"
+          URL=$(echo "$RESULT" | grep -o '"url":"[^"]*"' | cut -d'"' -f4)
+          CLAIM=$(echo "$RESULT" | grep -o '"claimUrl":"[^"]*"' | cut -d'"' -f4)
+          EXPIRES=$(echo "$RESULT" | grep -o '"expiresAt":"[^"]*"' | cut -d'"' -f4)
+          {
+            echo "## m360 OS is live"
+            echo ""
+            echo "Open: ${URL%%\?*}"
+            if [ -n "$CLAIM" ]; then
+              echo ""
+              echo "Anonymous deployment. Claim it before $EXPIRES or EdgeOne removes it: $CLAIM"
+            fi
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Smoke test the API
+        run: |
+          [ -f deploy-result.json ] || exit 0
+          URL=$(grep -o '"url":"[^"]*"' deploy-result.json | cut -d'"' -f4)
+          BASE="${URL%%\?*}"
+          sleep 10
+          for i in 1 2 3 4 5; do
+            OUT=$(curl -sS -X POST "$BASE/api/m360" -H 'content-type: application/json' -d '{"a":"me"}' || true)
+            echo "$OUT"
+            echo "$OUT" | grep -q '"setup"' && exit 0
+            sleep 6
+          done
+          echo "API did not answer" && exit 1

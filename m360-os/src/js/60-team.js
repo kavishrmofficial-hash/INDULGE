@@ -7,8 +7,9 @@
 
   /* the published page; people open this link to join */
   M.APP_URL = 'https://claude.ai/artifact/D6nbirdVBLqU3ZD9qrA8Yq';
-  const INVITE = 'You are on m360 OS, the Mask360 workspace. Open ' + M.APP_URL +
-    ', sign in to Claude, tap Ask to join and you are in once Kaavish lets you in.';
+  const INVITE = () => window.M360_STANDALONE
+    ? 'You are on m360 OS, the Mask360 workspace. Open ' + M.APP_URL + ', type your name, tap Ask to join and you are in once Kaavish lets you in.'
+    : 'You are on m360 OS, the Mask360 workspace. Open ' + M.APP_URL + ', sign in to Claude, tap Ask to join and you are in once Kaavish lets you in.';
 
   async function copy(text) {
     try { await navigator.clipboard.writeText(text); M.toast('Copied'); return true; }
@@ -130,15 +131,19 @@
     return html`<${UI.Card} id="invite-card" title="Invite your team"
       action=${show ? null : html`<${UI.Btn} kind="sec" sm=${true} onClick=${() => setShow(true)}>Show how<//>`}>
       ${show ? html`<div class="stack" style=${{gap: '14px'}}>
-        <ol class="steps">
+        ${window.M360_STANDALONE ? html`<ol class="steps">
+          <li><b>Send them the link.</b> Copy the message below into WhatsApp or Slack.</li>
+          <li><b>They ask to join.</b> They open it, type their name and tap Ask to join. Nothing to install.</li>
+          <li><b>Let them in.</b> Their request lands here and on HQ, you tap Let them in. For a new phone, send them a sign-in link from the team list.</li>
+        </ol>` : html`<ol class="steps">
           <li><b>Give them a seat.</b> Everyone signs in with a Claude account inside the same Claude organisation as this page. Add them as members in your Claude organisation settings. People outside it can only look.</li>
           <li><b>Share this page.</b> Open Share at the top of this page and set your organisation, or each person, to Can interact.</li>
           <li><b>Send them the link.</b> Copy the message below into WhatsApp or Slack.</li>
           <li><b>Let them in.</b> They tap Ask to join. Their request lands here and on HQ, you tap Let them in.</li>
-        </ol>
+        </ol>`}
         <div class="invite-link num">${M.APP_URL}</div>
         <div class="row">
-          <${UI.Btn} sm=${true} onClick=${() => copy(INVITE)}>Copy invite message<//>
+          <${UI.Btn} sm=${true} onClick=${() => copy(INVITE())}>Copy invite message<//>
           <${UI.Btn} kind="sec" sm=${true} onClick=${() => copy(M.APP_URL)}>Copy link<//>
         </div>
       </div>` : html`<p class="small ink62" style=${{margin: 0}}>Share the page, send the link, approve each request in one tap.</p>`}

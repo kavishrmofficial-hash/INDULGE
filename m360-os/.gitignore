@@ -6,3 +6,6 @@ __pycache__/
 *.pyc
 seed/docs/
 seed/readback/
+edgeone/dev/.store.json
+edgeone/node_modules/
+edgeone/.edgeone/

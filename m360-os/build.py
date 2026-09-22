@@ -41,7 +41,8 @@ def font_face(path, urange, family='Space Grotesk', weight='300 700'):
             "src:url(data:font/woff2;base64,%s) format('woff2');unicode-range:%s;}" % (family, weight, b64(path), urange))
 
 
-def build():
+def build(extra=(), out_path=None):
+    """extra: module paths added just before 99-app.js (the EdgeOne build adds the standalone module)."""
     css = read(os.path.join(SRC, 'css.css'))
     mark = read(os.path.join(SRC, 'mark.svg')).strip()
     js_dir = os.path.join(SRC, 'js')
@@ -52,9 +53,14 @@ def build():
         keep = set(CORE_FILES) | set(x.strip() for x in only.split(',') if x.strip())
         files = [f for f in files if f in keep]
     tag = os.environ.get('M360_TAG', '')
+    paths = [os.path.join(js_dir, f) for f in files]
+    if extra:
+        at = next((i for i, p in enumerate(paths) if p.endswith('99-app.js')), len(paths))
+        paths[at:at] = list(extra)
     parts = []
-    for f in files:
-        parts.append('/* ==== %s ==== */\n' % f + read(os.path.join(js_dir, f)))
+    for path in paths:
+        f = os.path.basename(path)
+        parts.append('/* ==== %s ==== */\n' % f + read(path))
         if f == '00-core.js':
             parts.append('M.MARK_SVG = %s;' % json.dumps(mark))
     app_js = '\n'.join(parts)
@@ -90,10 +96,10 @@ def build():
         sys.exit('BUILD FAILED: page over 16MB')
 
     os.makedirs(DIST, exist_ok=True)
-    out = os.path.join(DIST, 'index%s.html' % ('.' + tag if tag else ''))
+    out = out_path or os.path.join(DIST, 'index%s.html' % ('.' + tag if tag else ''))
     with open(out, 'w', encoding='utf-8') as f:
         f.write(html)
-    print('built %s (%d bytes, %d js files)' % (out, len(html.encode('utf-8')), len(files)))
+    print('built %s (%d bytes, %d js files)' % (out, len(html.encode('utf-8')), len(paths)))
     return out
 
 

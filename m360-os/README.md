@@ -52,3 +52,25 @@ Publish `dist/index.html` with the Artifact tool, title "m360 OS", with the capa
 ## The cursor buddy
 
 `58-buddy.js` is m360's own take on a Clicky style AI cursor. A small flame pointer follows the mouse. Hold Ctrl plus Option (Ctrl plus Alt on Windows) to talk, or tap Ask m360 bottom right to type. Every question is sent with a list of the controls on screen (each tagged `data-ai`), and the model answers through the tools `point_at` (the pointer flies to the control and rings it), `go_to` (opens a section) and the task tools from `04-ai.js`. It never clicks for you. Voice uses the browser's speech recognition where the frame allows it and falls back to typing.
+
+## EdgeOne Pages (standalone)
+
+The same app also runs on its own at an EdgeOne Pages address, outside Claude. `src/standalone/shim.js` gives the page the `window.claude` contract it expects, backed by one API function:
+
+```
+edgeone/public/                      the built page (python3 build_edgeone.py), React, ReactDOM and htm pinned locally
+edgeone/cloud-functions/api/m360.js  POST /api/m360 {a: action}: sign in, documents, sync, presence, AI
+edgeone/server/core.js               the actions, the access rules from capabilities.json, the first-run seed
+edgeone/dev/server.mjs               a local stand-in with a file-backed store, for tests
+```
+
+- Storage is the project's EdgeOne Pages Blob store, one blob per document, so writes to different documents never collide. Pages poll every 3 seconds for changed collections.
+- The first person to open a fresh deployment types their name and becomes the founder; the workspace is seeded from `seed/seed.json`. Everyone after that types their name, taps Ask to join, and the founder lets them in. A session is an HttpOnly cookie; a new device signs in with a one-time link from Me (or from the founder, on the team list).
+- AI runs through the function with an Anthropic key: the `ANTHROPIC_API_KEY` environment variable in the EdgeOne console, or pasted once by the founder in Admin (kept on the server, never sent to a page). Without a key the AI buttons stay hidden.
+- Google connectors exist only inside Claude, so the Your day card is hidden here.
+
+Deploys run from `.github/workflows/deploy-edgeone.yml`. With the `EDGEONE_API_TOKEN` repository secret, every push updates the project named by the `EDGEONE_PROJECT` variable (default `m360os`). Without it, a commit message containing `[deploy]` makes an anonymous deployment that has to be claimed within an hour from the link in the run summary.
+
+```
+python3 harness/tests/test_edgeone.py   # two browsers against the local stand-in: setup, join, sync, rules, links, AI
+```

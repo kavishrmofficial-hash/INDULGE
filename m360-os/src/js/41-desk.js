@@ -71,6 +71,7 @@
     const [q, setQ] = useState('');
     const [hits, setHits] = useState([]);
     const [add, setAdd] = useState(null);
+    const [linkFor, setLinkFor] = useState(null);
     const members = ctx.members || {};
     const search = async v => {
       setQ(v);
@@ -114,6 +115,7 @@
               <td>${r.active === false ? html`<${UI.Pill} kind="warm">inactive<//>` : html`<${UI.Pill} kind="ink">active<//>`}</td>
               <td><span class="row nowrap">
                 <${UI.Btn} kind="ghost" sm=${true} onClick=${() => setAdd({person: {id: r.uid, name: ''}, member: r})}>Edit<//>
+                ${M.parts.LinkDrawer ? html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => setLinkFor(r.uid)}>Sign-in link<//>` : null}
                 ${r.uid === ctx.uid ? null : (r.active === false
                   ? html`<${UI.Btn} kind="sec" sm=${true} onClick=${() => setActive(r.uid, true)}>Restore<//>`
                   : html`<${UI.ConfirmBtn} onConfirm=${() => setActive(r.uid, false)}>Remove<//>`)}
@@ -122,6 +124,7 @@
           </tbody>
         </table></div>
       <//>
+      ${linkFor && M.parts.LinkDrawer ? html`<${M.parts.LinkDrawer} uid=${linkFor} onClose=${() => setLinkFor(null)}/>` : null}
       ${add ? html`<${AddDrawer} person=${add.person} member=${add.member} title=${add.title}
         onSaved=${add.join ? (id => M.team.clear(ctx, id)) : null} onClose=${() => setAdd(null)}/>` : null}
     </div>`;

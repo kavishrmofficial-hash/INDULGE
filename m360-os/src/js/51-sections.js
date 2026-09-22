@@ -239,6 +239,7 @@
       <${M.SectionTabs} section="me" active=${t}/>
       ${t === 'leave' ? html`<${Embed} page="Leave"/>` : t === 'handbook' ? html`<${Embed} page="Handbook" id=${id}/>`
         : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>` : html`<${Embed} page="People" id=${ctx.uid}/>`}
+      ${t === 'profile' && M.parts.DeviceCard ? html`<${M.parts.DeviceCard}/>` : null}
     </div>`;
   }
 
@@ -247,6 +248,7 @@
     return html`<div class="stack" style=${{gap: '20px'}}>
       <${M.SectionHero} color="ink" micro="founder" title="Admin"
         sub="Roster, rules, office location, keeper test, payroll export and cleanup."/>
+      ${M.parts.AiKeyCard ? html`<${M.parts.AiKeyCard}/>` : null}
       <${Embed} page="Desk"/>
     </div>`;
   }

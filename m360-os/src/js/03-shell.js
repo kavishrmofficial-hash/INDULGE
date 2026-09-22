@@ -20,6 +20,7 @@
     roster: {t: 'Not on the roster yet', l: "You're signed in, but not on the team roster yet. Kaavish adds you from Admin."}
   };
   M.GateFor = mode => {
+    if (mode === 'noid' && M.parts.SignIn) return html`<${M.parts.SignIn}/>`;
     const g = GATES[mode] || GATES.nocap;
     return html`<${M.Gate} title=${g.t} line=${g.l}/>`;
   };
