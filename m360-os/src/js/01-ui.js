@@ -109,13 +109,13 @@
       ${hint ? html`<div class="hint">${hint}</div>` : null}
     </div>`;
   };
-  UI.Input = function Input({label, hint, value, onChange, type, placeholder, id, min, max, step, disabled, onEnter}) {
+  UI.Input = function Input({label, hint, value, onChange, type, placeholder, id, min, max, step, disabled, onEnter, onFocus}) {
     const iid = React.useMemo(() => id || ('f' + (++fieldSeq)), [id]);
     return html`<div class="field">
       ${label ? html`<label for=${iid}>${label}</label>` : null}
       <input id=${iid} class="input" type=${type || 'text'} value=${value == null ? '' : value} placeholder=${placeholder}
         min=${min} max=${max} step=${step} disabled=${disabled}
-        onInput=${e => onChange && onChange(e.target.value)}
+        onInput=${e => onChange && onChange(e.target.value)} onFocus=${onFocus}
         onKeyDown=${e => { if (onEnter && e.key === 'Enter') onEnter(e.target.value); }}/>
       ${hint ? html`<div class="hint">${hint}</div>` : null}
     </div>`;

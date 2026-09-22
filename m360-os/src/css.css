@@ -19,6 +19,7 @@ body{
   font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
   font-size:15px; font-weight:300; line-height:1.5;
   -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  overflow-wrap:break-word;
 }
 b,strong{font-weight:500}
 a{color:inherit}
@@ -68,6 +69,7 @@ img{max-width:100%}
 .content.wide{max-width:1180px}
 .page-head{display:flex; flex-direction:column; gap:2px; margin-bottom:4px}
 .head-row{display:flex; align-items:flex-end; justify-content:space-between; gap:14px; flex-wrap:wrap}
+.head-row>.row{min-width:0; max-width:100%}
 
 /* phone chrome */
 .topbar{display:none}
@@ -90,7 +92,7 @@ img{max-width:100%}
 .row.nowrap{flex-wrap:nowrap}
 .grow{flex:1; min-width:0}
 .hair{border:0; border-top:1px solid var(--line); margin:14px 0}
-.listrow{display:flex; align-items:center; gap:11px; padding:10px 0; border-bottom:1px solid var(--line); min-width:0}
+.listrow{display:flex; align-items:center; gap:11px; padding:10px 0; border-bottom:1px solid var(--line); min-width:0; flex-wrap:wrap}
 .listrow:last-child{border-bottom:0}
 .listrow:first-child{padding-top:2px}
 .clickable{cursor:pointer}
@@ -135,7 +137,8 @@ select.input{appearance:none; background-image:url("data:image/svg+xml,%3Csvg xm
 .checkline input{width:17px; height:17px; accent-color:var(--ink); flex:none}
 
 /* segmented control */
-.seg{display:inline-flex; background:var(--warm); border-radius:12px; padding:3px; gap:2px; max-width:100%; overflow-x:auto}
+.seg{display:inline-flex; background:var(--warm); border-radius:12px; padding:3px; gap:2px; max-width:100%; min-width:0; overflow-x:auto; scrollbar-width:none}
+.seg::-webkit-scrollbar{display:none}
 .seg-btn{height:32px; padding:0 13px; border-radius:9px; border:1px solid transparent; background:transparent; cursor:pointer; font-size:13px; font-weight:400; color:var(--ink62); white-space:nowrap; flex:none}
 .seg-btn.active{background:var(--paper); border-color:var(--line2); color:var(--ink); font-weight:500}
 .seg.sm .seg-btn{height:27px; padding:0 10px; font-size:12px}
