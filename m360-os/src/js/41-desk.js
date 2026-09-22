@@ -95,7 +95,7 @@
         <div class="stack tight" style=${{marginTop: '10px'}}>
           ${hits.filter(h => !members[h.id]).map(h => html`<div class="listrow" key=${h.id}>
             <${UI.Avatar} id=${h.id} size=${28}/>
-            <span class="grow">${h.name || 'Someone'}${h.email ? html`<span class="tiny ink62"> ${h.email}</span>` : null}</span>
+            <span class="grow">${h.name || 'Someone'}</span>
             <${UI.Btn} sm=${true} onClick=${() => setAdd({person: h, member: null})}>Add<//>
           </div>`)}
           ${q && !hits.filter(h => !members[h.id]).length ? html`<${UI.Empty} text="Nobody new found."/>` : null}

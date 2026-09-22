@@ -1,46 +1,196 @@
 {
- "user": {"scopes": ["profile", "email"]},
- "db": {"rules": [
-  {"path": "", "read": "interact", "write": "interact"},
-  {"path": "roster", "read": "interact", "write": "admin"},
-  {"path": "settings", "read": "interact", "write": "admin"},
-  {"path": "handbook", "read": "interact", "write": "admin"},
-  {"path": "review", "read": "interact", "write": "admin"},
-  {"path": "leavedec", "read": "interact", "write": "admin"},
-  {"path": "candidates", "read": "interact", "write": "admin"},
-  {"path": "evals", "read": "admin", "write": "admin"},
-  {"path": "evals/{self}", "read": "interact", "write": "interact"},
-  {"path": "checkin", "read": "interact", "write": "admin"},
-  {"path": "checkin/{self}", "write": "interact"},
-  {"path": "eod", "read": "interact", "write": "admin"},
-  {"path": "eod/{self}", "write": "interact"},
-  {"path": "plan", "read": "interact", "write": "admin"},
-  {"path": "plan/{self}", "write": "interact"},
-  {"path": "rocks", "read": "interact", "write": "admin"},
-  {"path": "rocks/{self}", "write": "interact"},
-  {"path": "feed", "read": "interact", "write": "admin"},
-  {"path": "feed/{self}", "write": "interact"},
-  {"path": "reacts", "read": "interact", "write": "admin"},
-  {"path": "reacts/{self}", "write": "interact"},
-  {"path": "acks", "read": "interact", "write": "admin"},
-  {"path": "acks/{self}", "write": "interact"},
-  {"path": "kudos", "read": "interact", "write": "admin"},
-  {"path": "kudos/{self}", "write": "interact"},
-  {"path": "leave", "read": "interact", "write": "admin"},
-  {"path": "leave/{self}", "write": "interact"},
-  {"path": "ideas", "read": "interact", "write": "admin"},
-  {"path": "ideas/{self}", "write": "interact"},
-  {"path": "votes", "read": "interact", "write": "admin"},
-  {"path": "votes/{self}", "write": "interact"},
-  {"path": "access", "read": "interact", "write": "admin"},
-  {"path": "access/{self}", "write": "interact"},
-  {"path": "onboard", "read": "interact", "write": "admin"},
-  {"path": "onboard/{self}", "write": "interact"}
- ]},
- "mcp": {"servers": [
-  {"server": "Google Calendar", "tools": ["list_events"]},
-  {"server": "Gmail", "tools": ["search_threads"]},
-  {"server": "Google Drive", "tools": ["list_recent_files"]}
- ]},
+ "user": {
+  "scopes": [
+   "profile"
+  ]
+ },
+ "db": {
+  "rules": [
+   {
+    "path": "",
+    "read": "interact",
+    "write": "interact"
+   },
+   {
+    "path": "roster",
+    "read": "interact",
+    "write": "admin"
+   },
+   {
+    "path": "settings",
+    "read": "interact",
+    "write": "admin"
+   },
+   {
+    "path": "handbook",
+    "read": "interact",
+    "write": "admin"
+   },
+   {
+    "path": "review",
+    "read": "interact",
+    "write": "admin"
+   },
+   {
+    "path": "leavedec",
+    "read": "interact",
+    "write": "admin"
+   },
+   {
+    "path": "candidates",
+    "read": "interact",
+    "write": "admin"
+   },
+   {
+    "path": "evals",
+    "read": "admin",
+    "write": "admin"
+   },
+   {
+    "path": "evals/{self}",
+    "read": "interact",
+    "write": "interact"
+   },
+   {
+    "path": "checkin",
+    "read": "interact",
+    "write": "admin"
+   },
+   {
+    "path": "checkin/{self}",
+    "write": "interact"
+   },
+   {
+    "path": "eod",
+    "read": "interact",
+    "write": "admin"
+   },
+   {
+    "path": "eod/{self}",
+    "write": "interact"
+   },
+   {
+    "path": "plan",
+    "read": "interact",
+    "write": "admin"
+   },
+   {
+    "path": "plan/{self}",
+    "write": "interact"
+   },
+   {
+    "path": "rocks",
+    "read": "interact",
+    "write": "admin"
+   },
+   {
+    "path": "rocks/{self}",
+    "write": "interact"
+   },
+   {
+    "path": "feed",
+    "read": "interact",
+    "write": "admin"
+   },
+   {
+    "path": "feed/{self}",
+    "write": "interact"
+   },
+   {
+    "path": "reacts",
+    "read": "interact",
+    "write": "admin"
+   },
+   {
+    "path": "reacts/{self}",
+    "write": "interact"
+   },
+   {
+    "path": "acks",
+    "read": "interact",
+    "write": "admin"
+   },
+   {
+    "path": "acks/{self}",
+    "write": "interact"
+   },
+   {
+    "path": "kudos",
+    "read": "interact",
+    "write": "admin"
+   },
+   {
+    "path": "kudos/{self}",
+    "write": "interact"
+   },
+   {
+    "path": "leave",
+    "read": "interact",
+    "write": "admin"
+   },
+   {
+    "path": "leave/{self}",
+    "write": "interact"
+   },
+   {
+    "path": "ideas",
+    "read": "interact",
+    "write": "admin"
+   },
+   {
+    "path": "ideas/{self}",
+    "write": "interact"
+   },
+   {
+    "path": "votes",
+    "read": "interact",
+    "write": "admin"
+   },
+   {
+    "path": "votes/{self}",
+    "write": "interact"
+   },
+   {
+    "path": "access",
+    "read": "interact",
+    "write": "admin"
+   },
+   {
+    "path": "access/{self}",
+    "write": "interact"
+   },
+   {
+    "path": "onboard",
+    "read": "interact",
+    "write": "admin"
+   },
+   {
+    "path": "onboard/{self}",
+    "write": "interact"
+   }
+  ]
+ },
+ "mcp": {
+  "servers": [
+   {
+    "server": "Google Calendar",
+    "tools": [
+     "list_events"
+    ]
+   },
+   {
+    "server": "Gmail",
+    "tools": [
+     "search_threads"
+    ]
+   },
+   {
+    "server": "Google Drive",
+    "tools": [
+     "list_recent_files"
+    ]
+   }
+  ]
+ },
  "downloads": true
 }

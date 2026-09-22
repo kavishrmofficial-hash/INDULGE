@@ -1,6 +1,8 @@
 dist/
 harness/out/
 harness/shots/
+harness/vendor/
 __pycache__/
 *.pyc
-harness/quick.py
+seed/docs/
+seed/readback/
