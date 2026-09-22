@@ -181,7 +181,7 @@
   UI.Name = function Name({id, fallback}) {
     const ps = M.useProfiles(id ? [id] : []);
     const p = id ? ps[id] : null;
-    return html`<span>${(p && p.name) || fallback || 'Someone'}</span>`;
+    return html`<span data-uid=${id || ''}>${(p && p.name) || fallback || 'Someone'}</span>`;
   };
 
   UI.Empty = function Empty({text}) {

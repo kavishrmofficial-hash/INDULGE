@@ -184,10 +184,18 @@ M.useDoc = function useDoc(db, path) {
 
 /* ---------- profiles ---------- */
 const profCache = {};
+/* The cache is an external mutable store shared by every avatar and name on the page.
+   useSyncExternalStore re-checks the version right after subscribing, so a component whose
+   profile resolves between its render and its subscription still re-renders. A plain
+   subscribe-in-effect misses that window and shows its fallback for good. */
+const profSubs = new Set();
+let profVersion = 0;
+const profSubscribe = fn => { profSubs.add(fn); return () => { profSubs.delete(fn); }; };
+const profSnapshot = () => profVersion;
 M.useProfiles = function useProfiles(ids) {
   const user = M.userNs;
   const key = (ids || []).filter(Boolean).sort().join(',');
-  const [, force] = React.useReducer(x => x + 1, 0);
+  React.useSyncExternalStore(profSubscribe, profSnapshot, profSnapshot);
   React.useEffect(() => {
     if (!user || !key) return;
     let live = true;
@@ -199,7 +207,7 @@ M.useProfiles = function useProfiles(ids) {
         const c = profCache[id];
         if (!c || c.name !== p.name || c.avatarUrl !== p.avatarUrl) { profCache[id] = p; changed = true; }
       });
-      if (changed) force();
+      if (changed) { profVersion++; profSubs.forEach(fn => fn()); }
     });
     return () => { live = false; };
   }, [user, key]);

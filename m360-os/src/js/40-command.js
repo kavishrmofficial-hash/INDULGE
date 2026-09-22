@@ -100,7 +100,7 @@
       </div>
 
       <div class="grid2">
-        <${UI.Card} className="" title="Attendance today" id="attendance">
+        <div style=${full}><${UI.Card} title="Attendance today" id="attendance">
           <div class="tbl-wrap"><table class="tbl">
             <thead><tr><th>id</th><th>person</th><th>status</th><th>in</th><th>place</th><th>out</th><th>hours</th><th>map</th></tr></thead>
             <tbody>
@@ -118,9 +118,9 @@
             </tbody>
           </table></div>
           ${k.rows.length ? null : html`<${UI.Empty} text="Nobody on the roster yet."/>`}
-        <//>
+        <//></div>
 
-        <${UI.Card} title="Flags"
+        <div style=${full}><${UI.Card} title="Flags"
           action=${html`<select class="input" style=${{width: 'auto', maxWidth: '100%', minWidth: 0, minHeight: '34px'}} value=${rule}
             onChange=${e => setRule(e.target.value)} aria-label="Rule filter">
             <option value="">All rules</option>
@@ -143,7 +143,7 @@
               </div>
             </div>`;
           }) : html`<${UI.Empty} text="All clear."/>`}
-        <//>
+        <//></div>
 
         <${UI.Card} title="Leaderboard" action=${html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => M.nav('#scores')}>Scores<//>`}>
           ${board.length ? html`<div class="stack tight">

@@ -224,7 +224,7 @@ def test(h):
     check(p['stage'] == 'won' and p['stageAt'] > prev, 'won stored with a fresh stageAt')
     check(page.locator('.colm[data-stage="won"] .tcard', has_text=BRAND).count() == 1, 'card in the Won column')
     check(tile(page, 'kpi-weighted') == '₹0', 'won pitch leaves the weighted pipeline')
-    check(tile(page, 'kpi-win') == '100%', 'win rate 100% after one win: %r' % tile(page, 'kpi-win'))
+    check(tile(page, 'kpi-win') == '100%', 'win rate 100%% after one win: %r' % tile(page, 'kpi-win'))
     check(tile(page, 'kpi-overdue') == '0', 'won pitch is no longer overdue')
     check('0 in play' in page.inner_text('.page-head'), 'page micro drops the won pitch')
     open_card(page, BRAND)

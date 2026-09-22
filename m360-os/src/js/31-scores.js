@@ -45,6 +45,8 @@
     const range = useMemo(() => U.periodRange(period, new Date(ctx.now)), [period, ctx.now]);
     const board = useMemo(() => (M.points && M.points.leaderboard)
       ? M.points.leaderboard(ctx, period, new Date(ctx.now)) : [], [ctx, period]);
+    /* one profiles call for the whole page: hooks never run inside a loop */
+    const profs = M.useProfiles(board.map(r => r.uid));
     const top = board.length ? Math.max(1, board[0].total) : 1;
     const three = board.slice(0, 3);
     /* podium order: second, first, third */
@@ -85,7 +87,7 @@
 
       ${ctx.isFounder
         ? (board.length ? board.map(r => html`<${Breakdown} key=${r.uid} uid=${r.uid} range=${range}
-            title=${((M.useProfiles([r.uid])[r.uid] || {}).name) || 'Points'}/>`) : null)
+            title=${((profs[r.uid] || {}).name) || 'Points'}/>`) : null)
         : html`<${Breakdown} uid=${ctx.uid} range=${range} title="Your points"/>`}
     </div>`;
   }

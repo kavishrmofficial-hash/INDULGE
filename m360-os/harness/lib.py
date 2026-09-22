@@ -95,6 +95,32 @@ class Harness:
             self.ready(page)
         return page
 
+    def session(self, ident='founder', width=1280, height=900, geo=None, **params):
+        """One browser context whose localStorage persists across go() calls. Use this whenever a
+        scenario seeds data once and then walks several pages or identities: a second open() gets a
+        fresh, empty store because Playwright isolates storage per context."""
+        opts = {'viewport': {'width': width, 'height': height}, 'locale': 'en-IN', 'timezone_id': 'Asia/Kolkata'}
+        if geo:
+            opts['geolocation'] = {'latitude': geo[0], 'longitude': geo[1], 'accuracy': geo[2] if len(geo) > 2 else 30}
+            opts['permissions'] = ['geolocation']
+        ctx = self.browser.new_context(**opts)
+        self.contexts.append(ctx)
+        page = ctx.new_page()
+        page.set_default_timeout(8000)
+        page.on('console', lambda m: self.console.append((m.type, m.text)) if m.type in ('error', 'warning') else None)
+        page.on('pageerror', lambda e: self.console.append(('pageerror', str(e))))
+        self.go(page, ident, **params)
+        return page
+
+    def go(self, page, ident='founder', hash='', width=None, wait=True, **params):
+        """Navigate an existing page, keeping its context and stored data."""
+        if width:
+            page.set_viewport_size({'width': width, 'height': page.viewport_size['height']})
+        page.goto(self.url(ident, hash, **params))
+        if wait:
+            self.ready(page)
+        return page
+
     def roster(self, page, uids=('u_m1', 'u_m2', 'u_m3'), extra=None):
         """Seed roster/team with the founder plus the given member ids (harness shortcut, bypasses rules).
         extra = {uid: {field: value}} overrides per member (joined, probationEnd, start, role, pod, title)."""
