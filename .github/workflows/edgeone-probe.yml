@@ -7,16 +7,23 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: m360-os/edgeone-probe
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      - run: npm install
-      - run: npx --yes edgeone@1.6.41 makers deploy --anonymous --site global --json 2>&1 | tee deploy.log
+          node-version: '22'
+      - name: Deploy anonymously
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/m360os" && cp -r m360-os/edgeone-probe/. "$RUNNER_TEMP/m360os/"
+          cd "$RUNNER_TEMP/m360os" && npm install --no-audit --no-fund
+          for i in 1 2 3 4; do
+            if npx --yes edgeone@1.6.41 makers deploy --anonymous --site global --json 2>&1 | tee deploy.log; then
+              grep -q '"status":"success"' deploy.log && break
+            fi
+            sleep 5
+          done
+          cp deploy.log "$GITHUB_WORKSPACE/deploy.log"
       - name: Probe the deployed function
         run: |
           URL=$(grep -o '"url":"[^"]*"' deploy.log | head -1 | cut -d'"' -f4)
