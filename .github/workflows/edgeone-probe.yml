@@ -20,8 +20,12 @@ jobs:
       - name: Probe the deployed function
         run: |
           URL=$(grep -o '"url":"[^"]*"' deploy.log | head -1 | cut -d'"' -f4)
-          echo "URL=$URL"
-          sleep 20
-          curl -sS -X POST "$URL/api/ping" || true
-          echo
-          curl -sS -X POST "$URL/api/ping" || true
+          BASE="${URL%%\?*}"; QS="${URL#*\?}"
+          echo "BASE=$BASE"
+          sleep 15
+          for i in 1 2; do
+            curl -sS -i -X POST "$BASE/api/ping?$QS" -H 'content-type: application/json' -d '{"hello":1}' | sed -n '1,40p' || true
+            echo
+          done
+          curl -sS -o /dev/null -w "root without token: %{http_code}\n" "$BASE/" || true
+          curl -sS -o /dev/null -w "api without token: %{http_code}\n" -X POST "$BASE/api/ping" || true
