@@ -103,7 +103,8 @@
         for (const r of ((ctx.coll.leave.map[lu] || {}).reqs || [])) if (!dec[r.id]) pend++;
       }
       out.join = (M.team && M.team.requests) ? M.team.requests(ctx).length : 0;
-      out.admin = pend + out.join;
+      /* the Admin item counts leave waiting, corrections waiting and people waiting to join */
+      out.admin = pend + (M.fixes && M.fixes.pending ? M.fixes.pending(ctx).length : 0) + (out.join || 0);
       out.hq = ctx.flags.filter(f => f.severity === 'high').length;
     }
     return out;
@@ -166,6 +167,45 @@
       </button>`)}
     </div>`;
   }
+
+  /* ---------- banners above the page: lock, alert, preview ---------- */
+  /* everyone but the founder sees the lock line while settings.locked is on */
+  function LockBanner() {
+    const ctx = M.useCtx();
+    if (!ctx.locked || ctx.isFounder) return null;
+    const note = String(ctx.settings.lockNote || '').trim();
+    return html`<div class="lockbar" id="lock-banner" role="status">
+      <span>m360 is locked for changes right now.${note ? ' ' + note : ''}</span>
+    </div>`;
+  }
+  /* the founder's alert, shown to everyone until its date, dismissable for the day on this device */
+  const alertKey = a => String(a.at || 0) + ':' + U.todayStr();
+  function AlertBanner() {
+    const ctx = M.useCtx();
+    const [hidden, setHidden] = React.useState(() => M.prefs.get('alertSeen', ''));
+    const a = ctx.settings.alert;
+    if (!a || !String(a.text || '').trim()) return null;
+    if (!a.until || a.until < U.todayStr()) return null;
+    if (hidden === alertKey(a)) return null;
+    const dismiss = () => { M.prefs.set('alertSeen', alertKey(a)); setHidden(alertKey(a)); };
+    return html`<div class="alertbar" id="alert-banner" role="status">
+      <span class="grow">${String(a.text).slice(0, 140)}</span>
+      <button type="button" class="iconbtn" aria-label="Dismiss" title="Dismiss for today" onClick=${dismiss}><${M.icons.x}/></button>
+    </div>`;
+  }
+  /* view as: a sticky ink bar while the founder previews the app as someone else */
+  function PreviewBar() {
+    const ctx = M.useCtx();
+    if (!ctx.viewAs) return null;
+    return html`<div class="previewbar" id="preview-bar" role="status">
+      <${UI.Avatar} id=${ctx.viewAs} size=${26}/>
+      <span class="grow">Viewing as <b><${UI.Name} id=${ctx.viewAs}/></b>. Preview only, nothing saves.</span>
+      <button type="button" class="btn sm" onClick=${() => M.viewAs.set(null)}>Exit</button>
+    </div>`;
+  }
+  M.parts.LockBanner = LockBanner;
+  M.parts.AlertBanner = AlertBanner;
+  M.parts.PreviewBar = PreviewBar;
 
   /* ---------- the shortcut sheet ---------- */
   function Keys({onClose}) {
@@ -309,6 +349,9 @@
 
       <main class="main">
         <div class=${'content' + (['work', 'accounts', 'hq'].indexOf(r.s) >= 0 ? ' wide' : '')}>
+          <${PreviewBar}/>
+          <${AlertBanner}/>
+          <${LockBanner}/>
           ${Page ? html`<${Page} tab=${r.t} id=${r.id}/>` : html`<${UI.Card} title="Loading"><${UI.Empty} text="One moment."/><//>`}
         </div>
       </main>

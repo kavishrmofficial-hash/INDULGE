@@ -76,6 +76,16 @@
         </div></div>
       <//>`;
     }
+    /* invite only: settings are readable by anyone signed in, so the gate can say so before a request goes out */
+    const inviteOnly = ctx.settings && ctx.settings.joinPolicy === 'invite';
+    if (inviteOnly && !sent) {
+      return html`<${M.Gate} title=${removed ? 'Your access is paused' : 'Welcome to m360'} line="Joining is by invite. Ask Kaavish for one.">
+        <div class="join-box" id="join-invite-only"><div class="row" style=${{justifyContent: 'center'}}>
+          <${UI.Avatar} id=${ctx.uid} size=${40}/>
+          <span style=${{fontWeight: 500}}><${UI.Name} id=${ctx.uid} fallback="You"/></span>
+        </div></div>
+      <//>`;
+    }
     const title0 = sent ? 'Request sent' : removed ? 'Your access is paused' : 'Welcome to m360';
     const line = sent
       ? 'Kaavish sees it on HQ. This page opens by itself the moment you are let in.'

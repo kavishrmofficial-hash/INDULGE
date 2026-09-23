@@ -9,8 +9,25 @@
   M.SETTINGS_DEFAULTS = {
     office: null, start: '10:30', grace: 15, eodCut: '19:30', mondayCut: '12:00',
     wfhCap: 2, revCap: 2, ackHours: 48, blockerDays: 2, holidays: [],
-    rules: {}, points: {}, leaderboardIncludesFounder: false
+    rules: {}, points: {}, leaderboardIncludesFounder: false,
+    locked: false, lockNote: '', joinPolicy: 'open', alert: null
   };
+
+  /* view as: the founder previews the app as one member. Held in memory only, never persisted. */
+  let viewAsUid = null;
+  const viewAsSubs = new Set();
+  M.viewAs = {
+    get: () => viewAsUid,
+    set(uid) {
+      const next = uid ? String(uid) : null;
+      if (next === viewAsUid) return;
+      viewAsUid = next;
+      viewAsSubs.forEach(fn => fn());
+    },
+    subscribe(fn) { viewAsSubs.add(fn); return () => { viewAsSubs.delete(fn); }; }
+  };
+  const LOCK_MSG = 'm360 is locked right now. Try again later.';
+  const PREVIEW_MSG = 'Preview mode. Nothing saves.';
   M.POINTS_DEFAULTS = {
     checkinOnTime: 2, eod: 2, planOnTime: 4, planLate: 1, outcomeHit: 12, outcomeMiss: -6,
     taskOnTime: 6, taskLate: 2, revision: -2, shown20: 2, qualityMult: 4, kudos: 3,
@@ -25,17 +42,36 @@
   M.AppState = function AppState({boot, children}) {
     const {db, user, mcp, downloads, permissions, sample, room, me} = boot;
     M.userNs = user;
-    const uid = me.id;
-    const W = React.useMemo(() => M.makeWrites(db), [db]);
+    /* the signed-in person, and the person the page renders as (the same unless the founder previews) */
+    const realUid = me.id;
+    const viewAs = React.useSyncExternalStore(M.viewAs.subscribe, M.viewAs.get, M.viewAs.get);
+    const uid = viewAs || realUid;
+    const baseW = React.useMemo(() => M.makeWrites(db), [db]);
 
     const rosterDoc = M.useDoc(db, 'roster/team');
     const settingsDoc = M.useDoc(db, 'settings/app');
     const coll = {};
     for (const c of COLLS) coll[c] = M.useColl(db, c);
     /* join requests: only the founder lists them; everyone else reads their own */
-    const rm = ((rosterDoc.data || {}).members || {})[uid];
+    const rm = ((rosterDoc.data || {}).members || {})[realUid];
     const founderish = !!me.isOwner || !!(rm && rm.role === 'founder' && rm.active !== false);
     coll.join = M.useColl(db, founderish ? 'join' : null);
+
+    /* who the page renders as: in preview the founder becomes a plain member */
+    const members0 = (rosterDoc.data || {}).members || {};
+    const member0 = members0[uid] || null;
+    const isFounder = !viewAs && (!!me.isOwner || !!(member0 && member0.role === 'founder' && member0.active !== false));
+    const locked = !!(settingsDoc.data && settingsDoc.data.locked);
+
+    /* writes: refused client side while the workspace is locked (members) or a preview is on (everyone) */
+    const W = React.useMemo(() => {
+      if (!viewAs && !(locked && !isFounder)) return baseW;
+      const msg = viewAs ? PREVIEW_MSG : LOCK_MSG;
+      const allowed = p => !viewAs && (p === 'me/' + uid || p === 'join/' + uid);
+      const refuse = () => { M.toast(msg, true); return Promise.reject({code: 'locked', message: msg}); };
+      const wrap = fn => (p, d) => allowed(p) ? fn(p, d) : refuse();
+      return {set: wrap(baseW.set), update: wrap(baseW.update), merge: wrap(baseW.merge), del: wrap(baseW.del)};
+    }, [baseW, locked, isFounder, uid, viewAs]);
 
     /* profile photos ride in me/<uid>.photo; avatars everywhere read M.photos */
     React.useEffect(() => {
@@ -53,23 +89,22 @@
       if (!rosterDoc.ready || seeded.current) return;
       if (me.isOwner && !rosterDoc.data) {
         seeded.current = true;
-        W.set('roster/team', {
-          members: {[uid]: {role: 'founder', empId: 'M360-001', title: 'Founder', pod: '',
+        baseW.set('roster/team', {
+          members: {[realUid]: {role: 'founder', empId: 'M360-001', title: 'Founder', pod: '',
             joined: U.todayStr(), start: '', probationEnd: '', active: true}},
           nextEmp: 2, updated: Date.now()
         });
       }
-    }, [rosterDoc.ready, rosterDoc.data, me.isOwner, uid, W]);
+    }, [rosterDoc.ready, rosterDoc.data, me.isOwner, realUid, baseW]);
 
     const now = M.useNow();
-    const online = M.usePresence(room, uid);
+    const online = M.usePresence(room, realUid);
 
     const ctx = React.useMemo(() => {
       const roster = rosterDoc.data || null;
       const members = (roster && roster.members) || {};
       const member = members[uid] || null;
-      const isFounder = !!me.isOwner || !!(member && member.role === 'founder' && member.active !== false);
-      let founderUid = me.isOwner ? uid : null;
+      let founderUid = me.isOwner ? realUid : null;
       for (const k of Object.keys(members)) if (members[k].role === 'founder' && members[k].active !== false) { founderUid = founderUid || k; if (!me.isOwner) founderUid = k; }
       const s0 = settingsDoc.data || {};
       const settings = {...M.SETTINGS_DEFAULTS, ...s0,
@@ -114,11 +149,11 @@
       /* private detail (locations, exact times, late marks, scores, leave) shows to the founder and the person only */
       const canSee = u => isFounder || u === uid;
 
-      return {db, user, mcp, downloads, permissions, sample, room, me, uid, W,
+      return {db, user, mcp, downloads, permissions, sample, room, me, uid, realUid, viewAs, W,
         ready: rosterDoc.ready && settingsDoc.ready,
-        roster, members, member, activeMembers, isFounder, founderUid,
+        roster, members, member, activeMembers, isFounder, founderUid, locked,
         settings, holidays, coll, leaveMap, onLeave, isWorkingDay, startFor, canSee, now, online};
-    }, [rosterDoc, settingsDoc, me, uid, W, now, online, coll.join,
+    }, [rosterDoc, settingsDoc, me, uid, realUid, viewAs, isFounder, locked, W, now, online, coll.join,
       ...COLLS.map(c => coll[c])]);
 
     /* private per-user docs (own state; founder: keeper and finance) */
