@@ -22,6 +22,11 @@ src/js/        the app, concatenated in filename order:
                67-badges   the trophy case and celebrations
                68-breathe  sixty seconds of box breathing
                69-tape     HQ's live tape and the mood heatmap
+               71-profile  photo, bio and details on Me and Person pages
+               72-fixes    correction requests and the founder's queue
+               73-log      the activity log tab and client side logging
+               74-super    founder super controls
+               75-radar    news, awards and watch channels
                51-sections  Work, Accounts, Vibe, Me, Admin
                55-hq    founder intelligence (HQ)
                57-ask   the Ask chat drawer (Cmd or Ctrl K)
@@ -71,6 +76,16 @@ Publish `dist/index.html` with the Artifact tool, title "m360 OS", with the capa
 - **Breathe**: a one minute box breathing screen. **The tour**: the cursor buddy walks you around.
 - **HQ**: the tape (today, newest first) and a three week mood heatmap. **Client update**: an AI written, client ready status note.
 - **Look and feel**: paper by day and ink by night (auto, or pick), entrance motion, rolling numbers, a flame spark when something ships, tiny synthesized sounds (off in one tap), keyboard shortcuts (`?`), and on EdgeOne an installable phone app.
+
+## What is in v5
+
+- **Logins that hold**: an invite link is tied to the email it was made for and asks for that email before it lets anyone in; sign-in links expire in minutes; every member sees their own devices in Me and can sign the others out; the founder can sign anyone out everywhere, lock the workspace, and switch joining to invite only.
+- **Profiles**: photo, pronouns, city, bio, ask me about, links, phone, birthday and a fun fact, on Me and on every Person page.
+- **Corrections**: a member asks for a fix (a check-in time, a leave balance, a task, their title) from Me; the founder approves or declines from Admin, and approved attendance or title fixes apply themselves.
+- **Activity log**: every write and every sign-in is recorded per person per day (`log/<date>-<uid>`, ids only) and read from Admin > Log with filters, search and CSV export. On EdgeOne the server writes it, so it cannot be skipped.
+- **Super controls** in Admin > Super: lock, join policy, an alert banner for everyone, view the OS as any member (preview only), fix anyone's attendance with a reason, offboard in one tap, export everything.
+- **Radar**: a live news stream for agency business (India, awards, campaigns, business, platforms, creators) with watch keywords, save and share to Vibe, an awards season table, and Watch: YouTube channels with their latest videos playing inside m360. The live feeds run on the EdgeOne address; the claude.ai page shows the directories and the awards table.
+- **Phone pass**: bottom sheets with a grab handle, bigger tap targets, snap scrolling board columns, no sideways scroll, and an add to home screen nudge. **Home hero**: a sun that moves with the time of day, a moon at night.
 
 ## The cursor buddy
 
