@@ -297,13 +297,51 @@ button.chipline:hover{background:var(--warm)}
 button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 
 /* hero: the rare dark surface, or a plain paper head */
-.hero{border-radius:24px; padding:30px 30px 26px; position:relative; overflow:hidden; background:var(--paper); border:1px solid var(--line)}
+.hero{--tex:rgba(14,14,14,.1); border-radius:24px; padding:30px 30px 26px; position:relative; overflow:hidden; background:var(--paper); border:1px solid var(--line)}
 .hero .hi{font-weight:600; font-size:clamp(34px,5vw,60px); letter-spacing:-.045em; line-height:.98; margin:8px 0 0}
-.hero.ink{background:var(--dark); border-color:var(--dark); color:#fff}
+.hero.ink{--tex:rgba(255,255,255,.07); background:var(--dark); border-color:var(--dark); color:#fff}
 .hero.ink .micro{color:rgba(255,255,255,.64)}
 .hero.ink .sub{color:rgba(255,255,255,.7)}
 .hero .ring{position:absolute; border-radius:999px; border:1px solid rgba(245,57,1,.5); pointer-events:none}
 .hero .dot{position:absolute; width:10px; height:10px; border-radius:999px; background:var(--flame); pointer-events:none}
+/* every ink hero carries a faint paper dot grid; the content sits above it */
+.hero.ink::before{content:""; position:absolute; inset:0; background-image:radial-gradient(var(--tex) 1px, transparent 1.5px); background-size:24px 24px; pointer-events:none}
+.hero.ink > div:not(.sky){position:relative}
+
+/* the home hero: a sky that follows the clock. The sun (a flame disc) rises low left in the
+   morning, stands high at midday and sets low right in the evening; at night a paper ring moon
+   hangs over ink. Fine concentric rings in ink ripple out from the sun; a dot grid gives the
+   paper tooth. --sx, --sy and --sun come from the page. */
+.home-hero{--sx:70%; --sy:30%; --sun:200px}
+.home-hero.day::before{content:""; position:absolute; inset:0; background-image:radial-gradient(var(--tex) 1px, transparent 1.5px); background-size:24px 24px; opacity:.55; pointer-events:none}
+.home-hero .sky{position:absolute; inset:0; pointer-events:none; overflow:hidden}
+.home-hero .halo{position:absolute; inset:0;
+  background:repeating-radial-gradient(circle at var(--sx) var(--sy), transparent 0, transparent 46px, var(--tex) 46px, var(--tex) 47px);
+  -webkit-mask-image:radial-gradient(circle at var(--sx) var(--sy), #000 0, rgba(0,0,0,.55) 30%, transparent 64%);
+  mask-image:radial-gradient(circle at var(--sx) var(--sy), #000 0, rgba(0,0,0,.55) 30%, transparent 64%)}
+.home-hero .sun,.home-hero .moon{position:absolute; left:var(--sx); top:var(--sy); width:var(--sun); height:var(--sun); border-radius:999px; transform:translate(-50%,-50%)}
+.home-hero .sun{background:var(--flame)}
+.home-hero .moon{border:1.5px solid rgba(255,255,255,.82); box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.home-hero .moon::after{content:""; position:absolute; width:8px; height:8px; border-radius:999px; background:var(--flame); left:-22%; top:18%}
+.home-hero.day .micro{color:var(--ink); opacity:.88}
+.home-hero .hero-in{position:relative; display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:24px; align-items:end}
+.home-hero .hero-greet{min-height:250px; display:flex; flex-direction:column; justify-content:flex-end; min-width:0}
+.home-hero .hero-chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:20px}
+.home-hero .hero-panel{background:var(--dark); color:#fff; border-radius:18px; padding:20px 20px 18px; border:1px solid rgba(255,255,255,.08); min-width:0}
+.home-hero.night .hero-panel{background:rgba(255,255,255,.06); background:color-mix(in srgb, var(--dark) 93%, #fff); border-color:rgba(255,255,255,.12)}
+.home-hero.day .hero-clock{color:var(--micro)}
+.home-hero.day .hero-clock .clock{color:var(--ink)}
+.home-hero.day .chipline{background:rgba(255,255,255,.7); border-color:var(--line2)}
+.hero-panel .seg{background:rgba(255,255,255,.1)}
+.hero-panel .seg-btn{color:rgba(255,255,255,.72)}
+.hero-panel .seg-btn.active{background:#fff; color:#0E0E0E; border-color:#fff}
+:root[data-theme="dark"] .hero{--tex:rgba(242,241,236,.11)}
+:root[data-theme="dark"] .hero.ink{--tex:rgba(255,255,255,.07)}
+:root[data-theme="dark"] .home-hero.day .chipline{background:rgba(18,18,18,.7)}
+@media (prefers-reduced-motion:no-preference){
+  .home-hero .sun,.home-hero .moon{animation:drift 18s ease-in-out infinite alternate}
+}
+@keyframes drift{from{transform:translate(-50%,-50%)} to{transform:translate(-50%,calc(-50% - 10px))}}
 
 /* mood scale */
 .moods{display:flex; gap:6px; flex-wrap:wrap}

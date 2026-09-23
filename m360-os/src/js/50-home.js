@@ -129,10 +129,36 @@
     return html`<span class="hero-clock"><span aria-hidden="true">\u00b7</span><span class="clock num">${U.hhmm(t)}</span></span>`;
   }
 
+  /* ---------- the sky: where the sun or the moon sits at a given moment ----------
+     Day runs 6:00 to 19:30. The sun travels an arc from low left to high centre to low right,
+     growing towards midday; at night a paper ring moon hangs high right. Positions are percent
+     of the sky box, size in px (the stylesheet caps it on phones). M.hero.at pins the moment
+     for previews and tests. */
+  const DAY_FROM = 6 * 60, DAY_TO = 19 * 60 + 30;
+  M.hero = {
+    at: null,
+    mode(d) {
+      d = d || (M.hero.at ? new Date(M.hero.at) : new Date());
+      const min = d.getHours() * 60 + d.getMinutes();
+      const night = min < DAY_FROM || min >= DAY_TO;
+      /* px and py place it on a phone, where the sky is a band above the greeting */
+      if (night) return {mode: 'night', x: 48, y: 20, px: 84, py: 34, size: 132, greeting: U.greeting(d)};
+      const t = (min - DAY_FROM) / (DAY_TO - DAY_FROM);
+      const arc = Math.sin(Math.PI * t);
+      const x = Math.round(10 + t * 52);
+      return {mode: 'day', x, y: Math.round(66 - arc * 54), px: Math.round(12 + t * 76), py: Math.round(70 - arc * 56), size: Math.round(160 + arc * 84), greeting: U.greeting(d)};
+    }
+  };
+  M.heroMode = d => M.hero.mode(d);
+
   /* ---------- hero ---------- */
   function Hero({onStatus}) {
     const ctx = M.useCtx();
-    const now = new Date(ctx.now);
+    const clock = M.useClock();
+    const now = M.hero.at ? new Date(M.hero.at) : new Date(clock);
+    const sky = M.hero.mode(now);
+    const night = sky.mode === 'night';
+    const chip = 'chipline' + (night ? ' on-dark' : '');
     const first = U.firstName(ctx.me.name) || 'there';
     const td = U.todayStr();
     const a = M.att.dayStatus(ctx, ctx.uid, td);
@@ -144,25 +170,80 @@
     const st = todayStatus(ctx, ctx.uid);
     const special = a.status === 'leave' ? "You're on approved leave today. Log off."
       : a.status === 'holiday' ? 'Today is a holiday.' : a.status === 'sunday' ? 'Sunday. The OS rests too.' : '';
-    return html`<header class="hero ink" id="home-hero">
-      <span class="ring" style=${{width: '340px', height: '340px', right: '-120px', top: '-150px'}}/>
-      <span class="ring" style=${{width: '220px', height: '220px', right: '-60px', top: '-90px'}}/>
-      <span class="dot" style=${{right: '96px', top: '58px'}}/>
-      <div class="split" style=${{position: 'relative', alignItems: 'end'}}>
-        <div>
+    return html`<header class=${'hero home-hero ' + (night ? 'ink night' : 'day')} id="home-hero" data-mode=${sky.mode}
+      style=${{'--sx': sky.x + '%', '--sy': sky.y + '%', '--px': sky.px + '%', '--py': sky.py + '%', '--sun': sky.size + 'px'}}>
+      <div class="sky" aria-hidden="true">
+        <span class="halo"/>
+        ${night ? html`<span class="moon"/>` : html`<span class="sun"/>`}
+      </div>
+      <div class="hero-in">
+        <div class="hero-greet">
           <${UI.Micro}>${U.dateLabel(now)} <${Clock}/><//>
-          <h1 class="hi">${U.greeting(now)},<br/>${first}.</h1>
-          <div class="row" style=${{marginTop: '20px', gap: '8px'}}>
-            <span class="chipline on-dark"><b class="flame-t num">${inStreak}</b> day streak</span>
-            <span class="chipline on-dark"><b class="num">${eodStreak}</b> EOD lines in a row</span>
-            <span class="chipline on-dark">level <b class="num">${lv.lvl}</b></span>
-            <button type="button" class="chipline on-dark" onClick=${onStatus}>${st ? html`<span class="dotflame"/>${st.text}` : 'Set a status'}</button>
+          <h1 class="hi">${sky.greeting},<br/>${first}.</h1>
+          <div class="hero-chips">
+            <span class=${chip}><b class="flame-t num">${inStreak}</b> day streak</span>
+            <span class=${chip}><b class="num">${eodStreak}</b> EOD lines in a row</span>
+            <span class=${chip}>level <b class="num">${lv.lvl}</b></span>
+            <button type="button" class=${chip} onClick=${onStatus}>${st ? html`<span class="dotflame"/>${st.text}` : 'Set a status'}</button>
           </div>
         </div>
-        <div>${special ? html`<div class="display" style=${{fontSize: '24px'}}>${special}</div>`
+        <div class="hero-panel">${special ? html`<div class="display" style=${{fontSize: '24px'}}>${special}</div>`
           : (a.in ? html`<${InNow}/>` : html`<${TapIn}/>`)}</div>
       </div>
     </header>`;
+  }
+
+  /* ---------- add m360 to the home screen: one card, once, on phones in a browser ----------
+     Chromium hands over its install prompt through beforeinstallprompt, kept for the Install
+     button. iOS has no prompt, so the card says where the option lives. The card never shows
+     inside another page (the claude.ai frame) or once the app runs standalone. */
+  let installEvt = null;
+  try {
+    window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; window.dispatchEvent(new CustomEvent('m360:install')); });
+  } catch (e) { /* old browser */ }
+  const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const standalone = () => { try { return !!(navigator.standalone || window.matchMedia('(display-mode: standalone)').matches); } catch (e) { return false; } };
+  const framed = () => { try { return window.self !== window.top; } catch (e) { return true; } };
+  function InstallHint() {
+    const [gone, setGone] = useState(() => M.prefs.get('a2hs', '') === '1');
+    const [narrow, setNarrow] = useState(() => window.innerWidth < 700);
+    const [, bump] = useState(0);
+    React.useEffect(() => {
+      const on = () => setNarrow(window.innerWidth < 700);
+      const got = () => bump(x => x + 1);
+      window.addEventListener('resize', on); window.addEventListener('m360:install', got);
+      return () => { window.removeEventListener('resize', on); window.removeEventListener('m360:install', got); };
+    }, []);
+    if (gone || !narrow || standalone() || framed()) return null;
+    const dismiss = () => { M.prefs.set('a2hs', '1'); setGone(true); };
+    const install = async () => {
+      const e = installEvt;
+      if (!e) return;
+      installEvt = null;
+      try {
+        e.prompt();
+        const r = await e.userChoice;
+        if (r && r.outcome === 'accepted') M.toast('Added. m360 is on your home screen');
+      } catch (err) { /* the browser declined to prompt */ }
+      dismiss();
+    };
+    const ios = isIOS();
+    const line = ios ? 'Tap Share, then Add to Home Screen. It opens full screen, like an app.'
+      : installEvt ? 'One tap and it opens full screen, like an app.'
+        : 'Open the browser menu and choose Add to Home screen. It opens full screen, like an app.';
+    return html`<section class="card install-hint" id="install-hint">
+      <div class="row nowrap" style=${{alignItems: 'flex-start', gap: '12px'}}>
+        <span class="ic"><${M.Mark} width="26px"/></span>
+        <div class="grow">
+          <div style=${{fontWeight: 500}}>Add m360 to your home screen</div>
+          <div class="small ink62" style=${{marginTop: '2px'}}>${line}</div>
+        </div>
+      </div>
+      <div class="row" style=${{marginTop: '10px', gap: '6px'}}>
+        ${!ios && installEvt ? html`<${UI.Btn} sm=${true} onClick=${install}>Install<//>` : null}
+        <${UI.Btn} kind="ghost" sm=${true} onClick=${dismiss}>Not now<//>
+      </div>
+    </section>`;
   }
 
   /* ---------- pinned announcement ---------- */
@@ -568,6 +649,7 @@
       <${Announcement}/>
       ${Celebrate ? html`<${Celebrate}/>` : null}
       <${Quick} onTask=${() => setTask('new')}/>
+      <${InstallHint}/>
       <div class="split">
         <div class="stack" style=${{gap: '18px'}}>
           ${eodFirst ? html`<${Wrap}/>` : null}

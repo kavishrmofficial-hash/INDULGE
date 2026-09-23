@@ -1,0 +1,109 @@
+/* phones: bottom sheets, 40px targets, scrollers with an edge fade, the board as snap panes,
+   the compact home hero, and room for the keyboard. Everything here sits under 860px, the
+   width where the sidebar gives way to the topbar and tabbar. */
+@media (max-width:860px){
+  /* ---------- chrome ---------- */
+  .topbar{top:0; height:auto; min-height:56px; padding:env(safe-area-inset-top,0px) 12px 0 16px}
+  .topbar .iconbtn{width:44px; height:44px; border-radius:14px}
+  .topbar .iconbtn.dark{border-radius:999px}
+  .topbar .rowbtn{min-width:44px; min-height:44px; display:inline-flex; align-items:center; justify-content:center}
+  .topbar .row.nowrap{gap:4px}
+  .tabbar{padding:4px 4px calc(4px + env(safe-area-inset-bottom))}
+  .tab-item{min-height:48px; padding:5px 2px 4px; justify-content:center}
+  .tab-item .badge{top:1px}
+
+  /* ---------- tap targets: 40px everywhere, 36px for inline text links ---------- */
+  .main button{min-height:40px}
+  .main .iconbtn{width:40px; height:40px}
+  .btn.sm{min-height:40px; padding:0 14px}
+  .chip,.chipline,.emoji-btn,.lens button,.theme-seg button,.seg-btn,.seg.sm .seg-btn{min-height:40px}
+  .chipline{height:40px; padding:0 14px}
+  .mood{min-height:42px}
+  .theme-seg,.seg{border-radius:14px}
+  .theme-seg button{border-radius:12px}
+  .linky{display:inline-flex; align-items:center; min-height:36px}
+  .main .side-item{min-height:44px}
+  /* the tick keeps its 22px circle inside a 36px button */
+  .main button.tick{width:36px; height:36px; min-height:36px; border:0; background:transparent; position:relative; isolation:isolate}
+  .main button.tick::before{content:""; position:absolute; inset:7px; z-index:-1; border-radius:999px; background:var(--paper); box-shadow:inset 0 0 0 1.5px var(--line2)}
+  .main button.tick:hover::before{box-shadow:inset 0 0 0 1.5px var(--ink)}
+  .main button.tick.done::before{background:var(--ink); box-shadow:none}
+  .focus{padding:8px 12px 8px 8px}
+
+  /* inputs keep 16px so iOS does not zoom the page on focus */
+  .input,select.input,textarea.input,.pal-in input,.ask-in input,.buddy-bubble .input{font-size:16px}
+
+  /* ---------- scrollers with an edge fade ---------- */
+  .tbl-wrap,.heat{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent); mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent); padding-right:32px}
+  .seg{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 20px),transparent); mask-image:linear-gradient(90deg,#000 calc(100% - 20px),transparent); padding-right:16px}
+  .tabs.section-tabs{flex-wrap:nowrap; overflow-x:auto; gap:0 18px; margin:0 -16px; padding:0 16px; scrollbar-width:none; -webkit-overflow-scrolling:touch;
+    -webkit-mask-image:linear-gradient(90deg,transparent,#000 12px,#000 calc(100% - 36px),transparent); mask-image:linear-gradient(90deg,transparent,#000 12px,#000 calc(100% - 36px),transparent)}
+  .tabs.section-tabs::-webkit-scrollbar{display:none}
+  .tabs.section-tabs .tab{flex:none; min-height:46px}
+  .tabs.section-tabs::after{content:""; flex:none; width:24px; height:1px}
+  .quick{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 40px),transparent); mask-image:linear-gradient(90deg,#000 calc(100% - 40px),transparent); margin-right:-16px; padding-right:40px}
+  /* section hero stats: one row that scrolls */
+  .hero > div > .row:not(.between):not(.nowrap),.home-hero .hero-chips{flex-wrap:nowrap; overflow-x:auto; margin-left:-20px; margin-right:-20px; padding:2px 20px; scrollbar-width:none;
+    -webkit-mask-image:linear-gradient(90deg,transparent,#000 14px,#000 calc(100% - 28px),transparent); mask-image:linear-gradient(90deg,transparent,#000 14px,#000 calc(100% - 28px),transparent)}
+  .hero > div > .row:not(.between):not(.nowrap)::-webkit-scrollbar,.home-hero .hero-chips::-webkit-scrollbar{display:none}
+  .hero > div > .row:not(.between):not(.nowrap)::after,.home-hero .hero-chips::after{content:""; flex:none; width:12px}
+  .hero .stat{padding:14px 14px 12px}
+  .hero .stat .v{font-size:22px; letter-spacing:-.03em}
+
+  /* ---------- the board: one column per pane, snap to each, a dot shows where you are ---------- */
+  .board-wrap{margin:0 calc(-1 * var(--pad-card)); padding:0 var(--pad-card) 6px; scroll-snap-type:x mandatory; scroll-padding:0 var(--pad-card); scrollbar-width:none; -webkit-overflow-scrolling:touch; position:relative}
+  .board-wrap::-webkit-scrollbar{display:none}
+  .board{gap:10px}
+  .colm{width:min(86vw,calc(100vw - 92px)); scroll-snap-align:start; scroll-snap-stop:always}
+  .board-wrap::before{content:""; position:sticky; left:0; display:block; height:4px; margin:0 0 10px; border-radius:999px; background:radial-gradient(circle,var(--flame) 0 2.5px,transparent 3px) no-repeat 0% 50% / 10px 10px, linear-gradient(var(--line),var(--line)) no-repeat 0 50% / 100% 1px}
+  @supports (animation-timeline:scroll()){
+    .board-wrap::before{animation:boardpos linear both; animation-timeline:scroll(nearest inline)}
+  }
+
+  /* ---------- bottom sheets ---------- */
+  .drawer{max-height:92vh; max-height:92dvh; border-radius:var(--r-drawer) var(--r-drawer) 0 0; touch-action:pan-y}
+  .sheet-handle{display:flex; justify-content:center; padding:10px 0 2px; cursor:grab; touch-action:none; flex:none}
+  .sheet-handle i{display:block; width:40px; height:4px; border-radius:999px; background:var(--line2)}
+  .drawer-head{padding-top:6px}
+  .drawer-foot{position:sticky; bottom:0; background:var(--paper); padding-bottom:calc(14px + env(safe-area-inset-bottom))}
+  .drawer-body{padding-bottom:16px}
+  .drawer .grid2{grid-template-columns:1fr}
+  .pal-scrim{padding:12px 12px 12px; align-items:flex-start}
+  .pal{max-height:calc(100vh - 24px); max-height:calc(100dvh - 24px)}
+  .breathe{min-height:100dvh}
+
+  /* ---------- home: a compact hero, then one column ---------- */
+  .home-hero{padding:20px 20px 18px}
+  /* the sky is a band above the greeting; the sun keeps its arc inside it, at half size */
+  .home-hero .sky{inset:0 0 auto 0; height:124px}
+  .home-hero .sun,.home-hero .moon{left:var(--px,var(--sx)); top:var(--py,var(--sy)); width:calc(var(--sun) * .55); height:calc(var(--sun) * .55)}
+  .home-hero .halo{background:repeating-radial-gradient(circle at var(--px,var(--sx)) var(--py,var(--sy)), transparent 0, transparent 30px, var(--tex) 30px, var(--tex) 31px);
+    -webkit-mask-image:radial-gradient(circle at var(--px,var(--sx)) var(--py,var(--sy)), #000 0, rgba(0,0,0,.55) 30%, transparent 64%); mask-image:radial-gradient(circle at var(--px,var(--sx)) var(--py,var(--sy)), #000 0, rgba(0,0,0,.55) 30%, transparent 64%)}
+  .home-hero .hero-in{grid-template-columns:1fr; gap:16px}
+  .home-hero .hero-greet{min-height:0; padding-top:56px}
+  .home-hero .micro{white-space:nowrap; flex-wrap:wrap; letter-spacing:.1em; row-gap:2px}
+  .home-hero .hi{font-size:clamp(32px,9.6vw,40px)}
+  .home-hero .hero-chips{margin-top:16px}
+  .home-hero .hero-panel{padding:16px 16px 14px; border-radius:16px}
+  .home-hero .btn.xl{height:52px}
+  .install-hint{padding:16px 18px}
+  .install-hint .ic{width:40px; height:40px; border-radius:12px; background:var(--ink); color:var(--on-ink); display:inline-flex; align-items:center; justify-content:center; flex:none}
+  .install-hint .ic .mark{width:26px; color:var(--on-ink)}
+
+  /* forms and rows */
+  .head-row .row{width:100%}
+  .head-row .row > .btn:only-child{flex:1 1 auto}
+  .cal-dow{white-space:nowrap; overflow:hidden; letter-spacing:.06em; padding:0 2px 4px; text-align:center}
+  .ask-in{flex-wrap:wrap}
+  .ask-in .input{flex:1 1 180px}
+  .grid4.two{gap:10px}
+}
+@media (min-width:861px){
+  .sheet-handle,.install-hint{display:none}
+}
+@media (max-width:400px){
+  .home-hero .hero-chips{margin-left:-20px}
+  .tab-item{font-size:11px}
+  .quick{grid-auto-columns:120px}
+}
+@keyframes boardpos{from{background-position:0% 50%, 0 50%} to{background-position:100% 50%, 0 50%}}
