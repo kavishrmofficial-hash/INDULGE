@@ -292,11 +292,11 @@
           <thead><tr><th>week</th><th>on time</th><th>revisions per task</th><th>quality</th><th>outcomes hit</th></tr></thead>
           <tbody>
             ${rows.map(r => html`<tr key=${r.week}>
-              <td class="num">${r.week}</td>
-              <td class="num">${num(r.s && r.s.onTimePct, '%')}</td>
-              <td class="num">${num(r.s && r.s.revPerTask)}</td>
-              <td class="num">${num(r.s && r.s.quality)}</td>
-              <td class="num">${hitText(r.s)}</td>
+              <td class="num lead">${r.week}</td>
+              <td class="num" data-label="on time">${num(r.s && r.s.onTimePct, '%')}</td>
+              <td class="num" data-label="revisions">${num(r.s && r.s.revPerTask)}</td>
+              <td class="num" data-label="quality">${num(r.s && r.s.quality)}</td>
+              <td class="num" data-label="outcomes">${hitText(r.s)}</td>
             </tr>`)}
           </tbody>
         </table></div>

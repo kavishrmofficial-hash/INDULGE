@@ -106,11 +106,10 @@
 
       <${UI.Card} title="Roster">
         <div class="tbl-wrap"><table class="tbl">
-          <thead><tr><th>id</th><th>person</th><th>title</th><th>pod</th><th>role</th><th>status</th><th/></tr></thead>
+          <thead><tr><th>person</th><th>title</th><th>pod</th><th>role</th><th>status</th><th/></tr></thead>
           <tbody>
             ${rows.map(r => html`<tr key=${r.uid}>
-              <td class="num tiny">${r.empId}</td>
-              <td><span class="row nowrap"><${UI.Avatar} id=${r.uid} size=${24}/><${UI.Name} id=${r.uid}/></span></td>
+              <td class="lead"><span class="row nowrap"><${UI.Avatar} id=${r.uid} size=${24}/><${UI.Name} id=${r.uid}/><span class="num tiny ink62">${r.empId}</span></span></td>
               <td>${r.title || ''}</td><td>${r.pod || ''}</td>
               <td><${UI.Pill}>${r.role}<//></td>
               <td>${r.active === false ? html`<${UI.Pill} kind="warm">inactive<//>` : html`<${UI.Pill} kind="ink">active<//>`}</td>

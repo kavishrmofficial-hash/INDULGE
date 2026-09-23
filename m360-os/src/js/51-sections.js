@@ -238,12 +238,12 @@
         </div>
       <//>
       <${M.SectionTabs} section="me" active=${t}/>
-      ${t === 'profile' && M.parts.ProfileCard ? html`<${M.parts.ProfileCard}/>` : null}
+      ${t === 'profile' && M.parts.ProfileCard ? html`<${UI.Fold} title="Your profile" summary="photo, pronouns, city, bio, links, birthday" id="fold-profile"><${M.parts.ProfileCard}/><//>` : null}
       ${t === 'leave' ? html`<${Embed} page="Leave"/>` : t === 'handbook' ? html`<${Embed} page="Handbook" id=${id}/>`
         : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>` : t === 'trophies' ? (M.parts.Trophies ? html`<${M.parts.Trophies}/>` : null) : html`<${Embed} page="People" id=${ctx.uid}/>`}
-      ${t === 'profile' ? html`<${Prefs}/>` : null}
-      ${t === 'profile' && M.parts.EmailCard ? html`<${M.parts.EmailCard}/>` : null}
-      ${t === 'profile' && M.parts.DeviceCard ? html`<${M.parts.DeviceCard}/>` : null}
+      ${t === 'profile' ? html`<${UI.Fold} title="Your m360" summary="look, sounds, shortcuts" id="fold-prefs"><${Prefs}/><//>` : null}
+      ${t === 'profile' && M.parts.EmailCard ? html`<${UI.Fold} title="Your email" summary="for sign-in links" id="fold-email"><${M.parts.EmailCard}/><//>` : null}
+      ${t === 'profile' && M.parts.DeviceCard ? html`<${UI.Fold} title="Your devices" summary="where you are signed in" id="fold-devices"><${M.parts.DeviceCard}/><//>` : null}
       ${t === 'profile' ? (M.meCards || []).map((C, i) => html`<${C} key=${i}/>`) : null}
     </div>`;
   }
@@ -279,9 +279,9 @@
     return html`<div class="stack" style=${{gap: '20px'}}>
       <${M.SectionHero} color="ink" micro="founder" title="Admin"
         sub="Team, rules, corrections, the activity log, payroll export and your super controls."/>
-      ${M.parts.AiKeyCard ? html`<${M.parts.AiKeyCard}/>` : null}
-      ${M.parts.MailCard ? html`<${M.parts.MailCard}/>` : null}
-      ${(M.adminCards || []).map((C, i) => html`<${C} key=${i}/>`)}
+      ${M.parts.AiKeyCard ? html`<${UI.Fold} title="m360 AI" summary="your Anthropic key switches the AI on" id="fold-ai"><${M.parts.AiKeyCard}/><//>` : null}
+      ${M.parts.MailCard ? html`<${UI.Fold} title="Email sending" summary="Resend key and sender" id="fold-mail"><${M.parts.MailCard}/><//>` : null}
+      ${(M.adminCards || []).map((C, i) => html`<${UI.Fold} key=${i} title="Radar settings" summary="keywords, sources, channels" id=${'fold-admin-' + i}><${C}/><//>`)}
       <${Embed} page="Desk"/>
     </div>`;
   }

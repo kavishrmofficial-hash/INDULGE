@@ -146,8 +146,8 @@
           <thead><tr><th>person</th>${days.map(d => html`<th key=${d}>${U.fmtDay(d).toLowerCase()}</th>`)}</tr></thead>
           <tbody>
             ${ctx.activeMembers.map(m => html`<tr key=${m.uid}>
-              <td><span class="row nowrap"><${UI.Avatar} id=${m.uid} size=${26}/><${UI.Name} id=${m.uid}/></span></td>
-              ${days.map(d => html`<td key=${d} style=${{padding: '4px 6px'}}>
+              <td class="lead"><span class="row nowrap"><${UI.Avatar} id=${m.uid} size=${26}/><${UI.Name} id=${m.uid}/></span></td>
+              ${days.map(d => html`<td key=${d} class="wk-cell" data-label=${U.fmtDay(d).toLowerCase().slice(0, 3)}>
                 <${Cell} uid=${m.uid} date=${d} today=${today} onOpen=${setCell}/></td>`)}
             </tr>`)}
           </tbody>

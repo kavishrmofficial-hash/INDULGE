@@ -294,8 +294,8 @@
     const newMenu = where => newOpen === where ? html`<${NewMenu} onClose=${() => setNewOpen(false)}
       onTask=${() => setNewTask(true)} onAsk=${() => setAskOpen(true)}/>` : null;
 
-    const tabKeys = ctx.isFounder ? ['hq', 'work', 'accounts', 'vibe'] : ['home', 'work', 'accounts', 'vibe', 'me'];
-    const moreKeys = ctx.isFounder ? ['home', 'radar', 'me', 'admin'] : ['radar'];
+    const tabKeys = ctx.isFounder ? ['home', 'hq', 'work', 'vibe'] : ['home', 'work', 'accounts', 'vibe', 'me'];
+    const moreKeys = ctx.isFounder ? ['accounts', 'radar', 'me', 'admin'] : ['radar'];
     const moreBadge = moreKeys.reduce((n, k) => n + (b[k] || 0), 0);
 
     return html`<div class="app">

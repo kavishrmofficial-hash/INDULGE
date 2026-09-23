@@ -86,6 +86,39 @@
     </section>`;
   };
 
+  /* phones: one column, thumbs, short attention. Sections fold behind a one line summary. */
+  const phoneMq = () => { try { return window.matchMedia('(max-width: 860px)'); } catch (e) { return null; } };
+  M.usePhone = function usePhone() {
+    const [p, set] = React.useState(() => { const m = phoneMq(); return !!(m && m.matches); });
+    React.useEffect(() => {
+      const m = phoneMq();
+      if (!m) return undefined;
+      const on = () => set(m.matches);
+      try { m.addEventListener('change', on); } catch (e) { m.addListener(on); }
+      return () => { try { m.removeEventListener('change', on); } catch (e) { m.removeListener(on); } };
+    }, []);
+    return p;
+  };
+  /* On desktop a Fold is invisible: the children render as they are. On a phone it is a header row
+     (title, summary, chevron) that opens the section. `open` sets the phone default; `hot` marks it. */
+  UI.Fold = function Fold({title, summary, open, hot, id, children}) {
+    const phone = M.usePhone();
+    const [on, setOn] = React.useState(!!open);
+    const [touched, setTouched] = React.useState(false);
+    const show = touched ? on : !!open;
+    if (!phone) return children;
+    return html`<section class=${'fold' + (show ? ' open' : '') + (hot ? ' hot' : '')} id=${id}>
+      <button type="button" class="fold-head" aria-expanded=${show} onClick=${() => { setTouched(true); setOn(!show); }}>
+        <span class="grow">
+          <span class="fold-title">${title}</span>
+          ${summary ? html`<span class="fold-sum">${summary}</span>` : null}
+        </span>
+        <span class="fold-chev"><${M.icons.chevD}/></span>
+      </button>
+      ${show ? html`<div class="fold-body">${children}</div>` : null}
+    </section>`;
+  };
+
   UI.Micro = function Micro({children, plain}) {
     return html`<div class=${'micro' + (plain ? ' plain' : '')}>${children}</div>`;
   };

@@ -100,27 +100,27 @@
       </div>
 
       <div class="grid2">
-        <div style=${full}><${UI.Card} title="Attendance today" id="attendance">
+        <div style=${full}><${UI.Fold} title="Attendance today" summary=${(Array.isArray(k.inToday) ? k.inToday.length : k.inToday) + " of " + members.length + " in" + (k.late ? ", " + k.late + " late" : "")} hot=${k.late > 0}><${UI.Card} title="Attendance today" id="attendance">
           <div class="tbl-wrap"><table class="tbl">
             <thead><tr><th>id</th><th>person</th><th>status</th><th>in</th><th>place</th><th>out</th><th>hours</th><th>map</th></tr></thead>
             <tbody>
               ${k.rows.map(({m, d}) => html`<tr key=${m.uid}>
                 <td class="num tiny">${m.empId || ''}</td>
-                <td><span class="row nowrap"><${UI.Avatar} id=${m.uid} size=${24}/><${UI.Name} id=${m.uid}/></span></td>
+                <td class="lead"><span class="row nowrap"><${UI.Avatar} id=${m.uid} size=${24}/><${UI.Name} id=${m.uid}/></span></td>
                 <td>${d.status === 'none' ? 'not in yet' : d.status}</td>
-                <td class=${'num' + (d.late ? ' flame-t' : '')}>${d.in ? U.hhmm(d.in) : ''}</td>
+                <td class=${'num' + (d.late ? ' flame-t' : '')} data-label=${d.in ? 'in' : null}>${d.in ? U.hhmm(d.in) : ''}</td>
                 <td><span class="row nowrap">${d.place || ''}${d.verified ? html`<${UI.Pill} kind="ink">verified<//>` : null}</span></td>
-                <td class="num">${d.out ? U.hhmm(d.out) : ''}</td>
-                <td class="num">${d.hours ? U.durText(d.hours) : ''}</td>
+                <td class="num" data-label=${d.out ? 'out' : null}>${d.out ? U.hhmm(d.out) : ''}</td>
+                <td class="num" data-label=${d.hours ? 'hours' : null}>${d.hours ? U.durText(d.hours) : ''}</td>
                 <td>${d.loc && d.loc.lat != null ? html`<a class="linky" target="_blank" rel="noopener"
                   href=${'https://www.google.com/maps?q=' + d.loc.lat + ',' + d.loc.lng}>map</a>` : ''}</td>
               </tr>`)}
             </tbody>
           </table></div>
           ${k.rows.length ? null : html`<${UI.Empty} text="Nobody on the roster yet."/>`}
-        <//></div>
+        <//><//></div>
 
-        <div style=${full}><${UI.Card} title="Flags"
+        <div style=${full}><${UI.Fold} title="Flags" summary=${flags.length + (flags.length === 1 ? " flag" : " flags")} hot=${flags.some(f => f.severity === "high")}><${UI.Card} title="Flags"
           action=${html`<select class="input" style=${{width: 'auto', maxWidth: '100%', minWidth: 0, minHeight: '34px'}} value=${rule}
             onChange=${e => setRule(e.target.value)} aria-label="Rule filter">
             <option value="">All rules</option>
@@ -143,8 +143,9 @@
               </div>
             </div>`;
           }) : html`<${UI.Empty} text="All clear."/>`}
-        <//></div>
+        <//><//></div>
 
+        <${UI.Fold} title="Leaderboard" summary=${"top " + board.length + " this week"}>
         <${UI.Card} title="Leaderboard" action=${html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => M.nav('#scores')}>Scores<//>`}>
           ${board.length ? html`<div class="stack tight">
             ${board.map((r, i) => html`<div class="listrow" key=${r.uid}>
@@ -155,7 +156,9 @@
             </div>`)}
           </div>` : html`<${UI.Empty} text="No points yet."/>`}
         <//>
+        <//>
 
+        <${UI.Fold} title="Pipeline" summary=${U.inr(k.pm.weighted) + " weighted"}>
         <${UI.Card} title="Pipeline" action=${html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => M.nav('#pitches')}>Pitches<//>`}>
           <div class="tbl-wrap"><table class="tbl">
             <tbody>
@@ -170,7 +173,9 @@
           <div class=${'small' + ((k.pm.overdue || []).length ? ' flame-t' : ' ink62')} style=${{marginTop: '10px'}}>
             ${(k.pm.overdue || []).length} next steps overdue</div>
         <//>
+        <//>
 
+        <${UI.Fold} title="Projects health" summary=${projList.length + " live, " + atRisk.length + " at risk"}>
         <${UI.Card} title="Projects health" action=${html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => M.nav('#projects')}>Projects<//>`}>
           <div class="grid3">
             <div class="kpi"><span class="v num">${health.on}</span><span class="l">on track</span></div>
@@ -184,7 +189,9 @@
             </div>`)}
           </div>` : null}
         <//>
+        <//>
 
+        <${UI.Fold} title="People" summary=${members.length + " on the roster"}>
         <${UI.Card} title="People" action=${html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => M.nav('#people')}>People<//>`}>
           ${members.length ? html`<div class="stack tight">
             ${members.map(m => {
@@ -204,7 +211,9 @@
             })}
           </div>` : html`<${UI.Empty} text="Nobody on the roster yet."/>`}
         <//>
+        <//>
 
+        <${UI.Fold} title="Hiring" summary=${panel.length + " on your panel"}>
         <${UI.Card} title="Hiring" action=${html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => M.nav('#hiring')}>Hiring<//>`}>
           ${panel.length ? html`<div class="stack tight">
             ${panel.map(p => html`<div class="listrow" key=${p.id}>
@@ -213,9 +222,11 @@
             </div>`)}
           </div>` : html`<${UI.Empty} text="No candidates in panel."/>`}
         <//>
+        <//>
 
         <div style=${full}>${Approvals ? html`<${Approvals}/>` : null}</div>
 
+        <${UI.Fold} title="Voice" summary=${"pulse and energy"}>
         <${UI.Card} title="Voice" action=${html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => M.nav('#voice')}>Voice<//>`}>
           <div class="vbars">
             ${(k.energy || []).map(e => html`<div key=${e.week} class=${'vb' + (e.avg != null && e.avg < 3 ? ' low' : '')}
@@ -229,7 +240,9 @@
             </div>`) : html`<${UI.Empty} text="No responses yet."/>`}
           </div>
         <//>
+        <//>
 
+        <${UI.Fold} title="Clients" summary=${k.sh.length + " clients, " + k.topShare + "% top share"}>
         <${UI.Card} title="Clients" action=${html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => M.nav('#clients')}>Clients<//>`}>
           <div class="tbl-wrap"><table class="tbl">
             <thead><tr><th>client</th><th>monthly</th><th>share</th><th>open tasks</th><th>brain</th></tr></thead>
@@ -239,14 +252,15 @@
                 const comp = (M.clients && M.clients.completeness) ? M.clients.completeness(c) : {filled: 0, total: 3};
                 const openN = (M.clients && M.clients.openTaskCount) ? M.clients.openTaskCount(ctx, r.id) : 0;
                 return html`<tr key=${r.id}>
-                  <td>${r.name}</td><td class="num">${U.inr(r.monthly)}</td>
-                  <td class="num">${r.share}%</td><td class="num">${openN}</td>
-                  <td class=${'num' + (comp.filled < comp.total ? ' flame-t' : '')}>${comp.filled} of ${comp.total}</td>
+                  <td class="lead">${r.name}</td><td class="num" data-label="monthly">${U.inr(r.monthly)}</td>
+                  <td class="num" data-label="share">${r.share}%</td><td class="num" data-label="open tasks">${openN}</td>
+                  <td class=${'num' + (comp.filled < comp.total ? ' flame-t' : '')} data-label="brain">${comp.filled} of ${comp.total}</td>
                 </tr>`;
               })}
             </tbody>
           </table></div>
           ${k.sh.length ? null : html`<${UI.Empty} text="No clients yet."/>`}
+        <//>
         <//>
       </div>
     </div>`;

@@ -642,6 +642,18 @@
     M.useIntent('checkin', () => setTimeout(() => { const el = document.getElementById('tapin') || document.getElementById('home-hero'); if (el) el.scrollIntoView({block: 'center', behavior: M.reduced() ? 'auto' : 'smooth'}); const b = el && el.querySelector('.btn'); if (b) b.focus(); }, 80));
     const Celebrate = M.parts.Celebrate, Reviews = M.parts.Reviews;
     const newHire = (M.people && M.people.isNewHire) ? M.people.isNewHire(ctx, ctx.uid) : false;
+    /* one line summaries for the phone folds */
+    const F = UI.Fold;
+    const myOpen = (M.tasks && M.tasks.open) ? M.tasks.open(ctx).filter(t => t.owner === ctx.uid) : [];
+    const myLate = myOpen.filter(t => t.due && t.due < td).length;
+    const revN = (M.reviews && M.reviews.queue) ? M.reviews.queue(ctx).filter(t => M.reviews.canReview(ctx, t)).length : 0;
+    const pmap = ctx.coll.projects.map;
+    const projN = Object.keys(pmap).filter(id => { const p = pmap[id]; return p && !p.archived && p.status !== 'done' && (p.owner === ctx.uid || (p.members || []).includes(ctx.uid)); }).length;
+    const flagN = (ctx.myFlags || []).length;
+    const inN = ctx.activeMembers.filter(m => { const s = M.att.dayStatus(ctx, m.uid, td).status; return s === 'office' || s === 'wfh'; }).length;
+    const wk = U.periodRange('week', new Date(ctx.now));
+    const ptsWk = (M.points && M.points.pointsFor) ? M.points.pointsFor(ctx, ctx.uid, wk.from, wk.to).total : 0;
+    const n = (k, one, many) => k + ' ' + (k === 1 ? one : many);
 
     return html`<div class="stack" style=${{gap: '18px'}}>
       <${Hero} onStatus=${() => setStatus(true)}/>
@@ -652,23 +664,23 @@
       <${InstallHint}/>
       <div class="split">
         <div class="stack" style=${{gap: '18px'}}>
-          ${eodFirst ? html`<${Wrap}/>` : null}
-          <${Focus} onOpen=${setTask}/>
-          ${Reviews ? html`<${Reviews} compact=${true}/>` : null}
-          <${Brief}/>
-          <${MyProjects}/>
-          ${Outcomes ? html`<${Outcomes}/>` : null}
-          ${!eodFirst && working ? html`<${Wrap}/>` : null}
-          ${newHire && Onboard ? html`<${Onboard} uid=${ctx.uid} compact=${true}/>` : null}
+          ${eodFirst ? html`<${F} title="EOD line" summary=${eodPosted ? 'posted for today' : 'due by ' + (ctx.settings.eodCut || '19:30')} open=${!eodPosted} hot=${!eodPosted} id="fold-eod"><${Wrap}/><//>` : null}
+          <${F} title="Today's focus" summary=${n(myOpen.length, 'open task', 'open tasks') + (myLate ? ', ' + n(myLate, 'overdue', 'overdue') : '')} open=${true} hot=${myLate > 0} id="fold-focus"><${Focus} onOpen=${setTask}/><//>
+          ${Reviews && revN ? html`<${F} title="Waiting on your review" summary=${n(revN, 'piece', 'pieces')} open=${true} hot=${true} id="fold-reviews"><${Reviews} compact=${true}/><//>` : null}
+          ${Outcomes ? html`<${F} title="This week's outcomes" summary="what you said you would ship" id="fold-outcomes"><${Outcomes}/><//>` : null}
+          ${!eodFirst && working ? html`<${F} title="EOD line" summary=${'three lines before ' + (ctx.settings.eodCut || '19:30')} id="fold-eod"><${Wrap}/><//>` : null}
+          ${newHire && Onboard ? html`<${F} title="Onboarding" summary="your first weeks, step by step" id="fold-onboard"><${Onboard} uid=${ctx.uid} compact=${true}/><//>` : null}
+          ${M.ai.on(ctx) ? html`<${F} title="Your day, sorted" summary="an AI plan for the rest of today" id="fold-brief"><${Brief}/><//>` : null}
+          <${F} title="My projects" summary=${n(projN, 'active project', 'active projects')} id="fold-projects"><${MyProjects}/><//>
         </div>
         <div class="stack" style=${{gap: '18px'}}>
-          <${Numbers}/>
-          <${MyWeek}/>
-          <${HeadsUp}/>
+          <${F} title="My numbers" summary=${ptsWk + ' points this week'} id="fold-numbers"><${Numbers}/><//>
+          <${F} title="My week" summary="check-ins and EOD lines, Monday to Saturday" id="fold-week"><${MyWeek}/><//>
+          <${F} title="Rule box" summary=${flagN ? n(flagN, 'flag on you', 'flags on you') : 'all clear'} hot=${flagN > 0} open=${flagN > 0} id="fold-rules"><${HeadsUp}/><//>
           <${Nudges}/>
-          <${Crew}/>
-          <${Buzz}/>
-          ${Day ? html`<${Day}/>` : null}
+          <${F} title="Who's in today" summary=${inN + ' of ' + ctx.activeMembers.length + ' in'} id="fold-crew"><${Crew}/><//>
+          <${F} title="Around the studio" summary="the feed and this week's ladder" id="fold-buzz"><${Buzz}/><//>
+          ${Day ? html`<${F} title="Your day" summary="calendar, mail and files" id="fold-day"><${Day}/><//>` : null}
         </div>
       </div>
       ${task && Drawer ? html`<${Drawer} taskId=${task === 'new' ? null : task} defaults=${{owner: ctx.uid}} onClose=${() => setTask(null)}/>` : null}

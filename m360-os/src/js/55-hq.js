@@ -187,6 +187,11 @@
     const n = useNumbers(ctx);
     const t = tab || 'brief';
     const Panel = M.parts.AskPanel;
+    const hqRev = (M.reviews && M.reviews.queue) ? M.reviews.queue(ctx).filter(x => M.reviews.canReview(ctx, x)).length : 0;
+    const hqLeave = (M.leave && M.leave.pending) ? M.leave.pending(ctx).length : 0;
+    const setupSteps = (M.setup && M.setup.steps) ? M.setup.steps(ctx) : [];
+    const setupDone = !setupSteps.length || setupSteps.every(x => x.done) || !!(ctx.settings.setup && ctx.settings.setup.dismissed);
+    const setupSum = setupSteps.length ? setupSteps.filter(x => x.done).length + ' of ' + setupSteps.length + ' done' : 'your first-run checklist';
     return html`<div class="stack" style=${{gap: '20px'}}>
       <header class="hero ink">
         <span class="ring" style=${{width: '380px', height: '380px', right: '-140px', top: '-190px'}}/>
@@ -209,21 +214,21 @@
         </div>
       </header>
       ${M.parts.JoinBanner ? html`<${M.parts.JoinBanner}/>` : null}
-      ${M.parts.SetupCard ? html`<${M.parts.SetupCard}/>` : null}
+      ${M.parts.SetupCard && !setupDone ? html`<${UI.Fold} title="Get m360 ready" summary=${setupSum} open=${false} id="fold-setup"><${M.parts.SetupCard}/><//>` : null}
       <${M.SectionTabs} section="hq" active=${t}/>
       ${t === 'dashboard' ? html`<${Embed} page="Command"/>` : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>` : html`<div class="stack" style=${{gap: '20px'}}>
         <${IntelBrief}/>
         <div class="split">
           <div class="stack" style=${{gap: '20px'}}>
-            <${Workload}/>
-            ${M.parts.MoodHeat ? html`<${M.parts.MoodHeat}/>` : null}
-            ${Panel && M.ai.on(ctx) ? html`<section class="card"><div class="card-head"><h2 class="card-title">Ask HQ anything</h2></div><${Panel} inline=${true}/></section>` : null}
+            <${UI.Fold} title="Workload" summary=${ctx.activeMembers.length + ' people, open tasks and late marks'} id="fold-workload"><${Workload}/><//>
+            ${M.parts.MoodHeat ? html`<${UI.Fold} title="Mood, three weeks" summary="every check-in mood, one box a day" id="fold-mood"><${M.parts.MoodHeat}/><//>` : null}
+            ${Panel && M.ai.on(ctx) ? html`<${UI.Fold} title="Ask HQ anything" summary="anyone, any client, any number" id="fold-askhq"><section class="card"><div class="card-head"><h2 class="card-title">Ask HQ anything</h2></div><${Panel} inline=${true}/></section><//>` : null}
           </div>
           <div class="stack" style=${{gap: '20px'}}>
-            <${LiveNow}/>
-            ${M.parts.Reviews ? html`<${M.parts.Reviews} compact=${true}/>` : null}
-            ${M.parts.LeaveApprovals ? html`<${M.parts.LeaveApprovals}/>` : null}
-            ${M.parts.Tape ? html`<${M.parts.Tape}/>` : null}
+            <${UI.Fold} title="Live now" summary=${Object.keys(ctx.online).length + ' online'} id="fold-live"><${LiveNow}/><//>
+            ${M.parts.Reviews ? html`<${UI.Fold} title="Waiting on your review" summary=${hqRev + (hqRev === 1 ? ' piece' : ' pieces')} open=${hqRev > 0} hot=${hqRev > 0} id="fold-hqreviews"><${M.parts.Reviews} compact=${true}/><//>` : null}
+            ${M.parts.LeaveApprovals ? html`<${UI.Fold} title="Leave approvals" summary=${hqLeave + ' pending'} open=${hqLeave > 0} hot=${hqLeave > 0} id="fold-approvals"><${M.parts.LeaveApprovals}/><//>` : null}
+            ${M.parts.Tape ? html`<${UI.Fold} title="The tape" summary="today, newest first" id="fold-tape"><${M.parts.Tape}/><//>` : null}
           </div>
         </div>
       </div>`}

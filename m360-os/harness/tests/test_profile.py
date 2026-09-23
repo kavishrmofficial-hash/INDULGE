@@ -128,6 +128,8 @@ def t(h):
 
     # ---- phone ----
     h.go(p, 'm1', hash='#me', width=390)
+    p.wait_for_selector('#fold-profile .fold-head')
+    p.click('#fold-profile .fold-head')
     p.wait_for_selector('#profile-card')
     check(overflow(p) <= 0, 'me overflow at 390: %d' % overflow(p))
     h.shot(p, 'profile-me-390')
