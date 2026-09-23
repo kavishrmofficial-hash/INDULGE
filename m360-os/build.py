@@ -44,6 +44,11 @@ def font_face(path, urange, family='Space Grotesk', weight='300 700'):
 def build(extra=(), out_path=None):
     """extra: module paths added just before 99-app.js (the EdgeOne build adds the standalone module)."""
     css = read(os.path.join(SRC, 'css.css'))
+    css_dir = os.path.join(SRC, 'css')
+    if os.path.isdir(css_dir):
+        for f in sorted(os.listdir(css_dir)):
+            if f.endswith('.css'):
+                css += '\n/* ==== %s ==== */\n' % f + read(os.path.join(css_dir, f))
     mark = read(os.path.join(SRC, 'mark.svg')).strip()
     js_dir = os.path.join(SRC, 'js')
     files = sorted(f for f in os.listdir(js_dir) if f.endswith('.js'))

@@ -19,7 +19,7 @@
   M.RULE_IDS = ['R01','R02','R03','R04','R05','R06','R07','R08','R09','R10','R11','R12','R13','R14','R15','R16'];
 
   const COLLS = ['checkin','eod','plan','review','rocks','feed','reacts','acks','kudos','leave','leavedec',
-    'tasks','projects','pitches','clients','handbook','candidates','evals','pulse','ideas','votes','access','onboard','me'];
+    'tasks','projects','pitches','clients','handbook','candidates','evals','pulse','ideas','votes','access','onboard','me','fixes'];
 
   /* AppState wraps the whole signed-in app: subscribes once per collection, computes ctx. */
   M.AppState = function AppState({boot, children}) {
@@ -36,6 +36,16 @@
     const rm = ((rosterDoc.data || {}).members || {})[uid];
     const founderish = !!me.isOwner || !!(rm && rm.role === 'founder' && rm.active !== false);
     coll.join = M.useColl(db, founderish ? 'join' : null);
+
+    /* profile photos ride in me/<uid>.photo; avatars everywhere read M.photos */
+    React.useEffect(() => {
+      const next = {};
+      let changed = false;
+      for (const id of Object.keys(coll.me.map)) { const ph = coll.me.map[id] && coll.me.map[id].photo; if (ph) next[id] = ph; }
+      const cur = M.photos || {};
+      if (Object.keys(cur).length !== Object.keys(next).length || Object.keys(next).some(k => cur[k] !== next[k])) changed = true;
+      if (changed) { M.photos = next; if (M.profilesBump) M.profilesBump(); }
+    }, [coll.me]);
 
     /* founder auto-added to the roster on first open */
     const seeded = React.useRef(false);

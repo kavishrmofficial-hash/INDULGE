@@ -192,6 +192,9 @@ const profSubs = new Set();
 let profVersion = 0;
 const profSubscribe = fn => { profSubs.add(fn); return () => { profSubs.delete(fn); }; };
 const profSnapshot = () => profVersion;
+M.photos = {};
+M.deskTabs = []; M.meCards = []; M.adminCards = [];
+M.profilesBump = () => { profVersion++; profSubs.forEach(fn => fn()); };
 M.useProfiles = function useProfiles(ids) {
   const user = M.userNs;
   const key = (ids || []).filter(Boolean).sort().join(',');

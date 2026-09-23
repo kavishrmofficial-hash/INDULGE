@@ -244,6 +244,7 @@
       ${t === 'profile' ? html`<${Prefs}/>` : null}
       ${t === 'profile' && M.parts.EmailCard ? html`<${M.parts.EmailCard}/>` : null}
       ${t === 'profile' && M.parts.DeviceCard ? html`<${M.parts.DeviceCard}/>` : null}
+      ${t === 'profile' ? (M.meCards || []).map((C, i) => html`<${C} key=${i}/>`) : null}
     </div>`;
   }
 
@@ -280,6 +281,7 @@
         sub="Roster, rules, office location, keeper test, payroll export and cleanup."/>
       ${M.parts.AiKeyCard ? html`<${M.parts.AiKeyCard}/>` : null}
       ${M.parts.MailCard ? html`<${M.parts.MailCard}/>` : null}
+      ${(M.adminCards || []).map((C, i) => html`<${C} key=${i}/>`)}
       <${Embed} page="Desk"/>
     </div>`;
   }

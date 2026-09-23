@@ -37,6 +37,8 @@
     vibe: {label: 'Vibe', icon: 'feed', page: 'Vibe', tabs: [
       {k: 'feed', label: 'Feed', route: 'feed'}, {k: 'crew', label: 'Crew', route: 'people'},
       {k: 'pulse', label: 'Pulse and ideas', route: 'voice'}, {k: 'scores', label: 'Leaderboard', route: 'scores'}]},
+    radar: {label: 'Radar', icon: 'radar', page: 'Radar', tabs: [
+      {k: 'news', label: 'News', route: 'radar'}, {k: 'awards', label: 'Awards', route: 'awards'}, {k: 'watch', label: 'Watch', route: 'watch'}]},
     me: {label: 'Me', icon: 'people', page: 'Me', tabs: [
       {k: 'profile', label: 'Profile', route: 'me'}, {k: 'trophies', label: 'Trophies', route: 'trophies'}, {k: 'leave', label: 'Leave', route: 'leave'},
       {k: 'handbook', label: 'Handbook', route: 'handbook'}, {k: 'hiring', label: 'Hiring', route: 'hiring'}]},
@@ -63,6 +65,9 @@
       case 'people': case 'crew': return {s: 'vibe', t: 'crew', id};
       case 'voice': case 'pulse': return {s: 'vibe', t: 'pulse'};
       case 'scores': return {s: 'vibe', t: 'scores'};
+      case 'radar': case 'news': return {s: 'radar', t: 'news'};
+      case 'awards': return {s: 'radar', t: 'awards'};
+      case 'watch': return {s: 'radar', t: 'watch'};
       case 'me': case 'profile': return {s: 'me', t: 'profile'};
       case 'tasks': return {s: 'work', t: 'tasks', id};
       case 'leave': return {s: 'me', t: 'leave'};
@@ -250,7 +255,7 @@
       onTask=${() => setNewTask(true)} onAsk=${() => setAskOpen(true)}/>` : null;
 
     const tabKeys = ctx.isFounder ? ['hq', 'work', 'accounts', 'vibe'] : ['home', 'work', 'accounts', 'vibe', 'me'];
-    const moreKeys = ctx.isFounder ? ['home', 'me', 'admin'] : [];
+    const moreKeys = ctx.isFounder ? ['home', 'radar', 'me', 'admin'] : ['radar'];
     const moreBadge = moreKeys.reduce((n, k) => n + (b[k] || 0), 0);
 
     return html`<div class="app">

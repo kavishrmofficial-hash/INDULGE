@@ -12,6 +12,11 @@ PAGE = open(os.path.join(ROOT, 'dist', 'index.html'), encoding='utf-8').read()
 JS_FILES = sorted(f for f in os.listdir(os.path.join(SRC, 'js')) if f.endswith('.js'))
 JS = {f: open(os.path.join(SRC, 'js', f), encoding='utf-8').read() for f in JS_FILES}
 CSS = open(os.path.join(SRC, 'css.css'), encoding='utf-8').read()
+_cssdir = os.path.join(SRC, 'css')
+if os.path.isdir(_cssdir):
+    for _f in sorted(os.listdir(_cssdir)):
+        if _f.endswith('.css'):
+            CSS += '\n' + open(os.path.join(_cssdir, _f), encoding='utf-8').read()
 ALL_JS = '\n'.join(JS.values())
 
 problems = []

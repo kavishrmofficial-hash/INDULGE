@@ -25,6 +25,12 @@
     leave: I('<path d="M3.5 19.5h17"/><path d="M12 15.5a6.3 6.3 0 0 0-6.3-6.3A6.3 6.3 0 0 0 12 15.5Zm0 0a6.3 6.3 0 0 1 6.3-6.3A6.3 6.3 0 0 1 12 15.5Zm0 0V6.2"/>'),
     command: I('<circle cx="12" cy="13" r="8.5"/><path d="M12 13l3.6-3.6M8.6 21H4.9M19.1 21h-3.7"/>'),
     desk: I('<path d="M4 8h16M4 8v11M20 8v11M2.8 8 5 4.5h14L21.2 8M8 12h8"/>'),
+    radar: I('<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12l6-6"/><circle cx="12" cy="12" r="1"/>'),
+    camera: I('<path d="M4 8.5A2 2 0 0 1 6 6.5h2.2l1.4-2h4.8l1.4 2H18a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><circle cx="12" cy="12.7" r="3.4"/>'),
+    shield: I('<path d="M12 3 4.5 6v5.5c0 4.6 3.2 8 7.5 9.5 4.3-1.5 7.5-4.9 7.5-9.5V6Z"/><path d="m9 12 2 2 4-4.5"/>'),
+    log: I('<path d="M5 6h14M5 12h14M5 18h9"/>'),
+    fix: I('<path d="M14.5 5.5a4 4 0 0 0 5 5L9 21H4v-5Z"/><path d="M14 9l1 1"/>'),
+    play2: I('<circle cx="12" cy="12" r="8.5"/><path d="m10 8.5 5 3.5-5 3.5Z"/>'),
     more: I('<circle cx="5.5" cy="12" r="1.1"/><circle cx="12" cy="12" r="1.1"/><circle cx="18.5" cy="12" r="1.1"/>'),
     plus: I('<path d="M12 5.5v13M5.5 12h13"/>'),
     x: I('<path d="m6 6 12 12M18 6 6 18"/>'),
@@ -185,7 +191,7 @@
     const p = id ? ps[id] : null;
     const s = size || 28;
     return html`<img class="av" width=${s} height=${s} style=${{width: s + 'px', height: s + 'px'}}
-      src=${p ? p.avatarUrl : M.AV_FALLBACK} alt=${p && p.name ? p.name : 'avatar'} title=${title || (p && p.name) || ''}/>`;
+      src=${(M.photos && M.photos[id]) || (p ? p.avatarUrl : M.AV_FALLBACK)} alt=${p && p.name ? p.name : 'avatar'} title=${title || (p && p.name) || ''}/>`;
   };
   UI.AvatarRow = function AvatarRow({ids, size, max}) {
     const list = (ids || []).slice(0, max || 6);

@@ -7,6 +7,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {createApp} from '../server/core.js';
+import {fakeRadar} from './fake-radar.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PUB = path.join(here, '..', 'public');
@@ -33,6 +34,8 @@ const store = {
 /* a canned model: plain answers, JSON when asked, and one tool call when a tool fits */
 globalThis.__mails = [];
 async function fakeFetch(url, init) {
+  const fr = await fakeRadar(String(url), init || {});
+  if (fr) return fr;
   const body = JSON.parse(init.body);
   if (String(url).includes('api.resend.com')) {
     if (!/^Bearer re_/.test(init.headers.authorization || '')) return new Response(JSON.stringify({message: 'bad key'}), {status: 401});

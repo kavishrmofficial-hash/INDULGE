@@ -355,7 +355,7 @@
     const Approvals = M.parts.LeaveApprovals;
     return html`<div class="stack" style=${{gap: '18px'}}>
       <${UI.PageHead} micro="founder controls" title="Controls">
-        <${UI.Seg} options=${TABS} value=${tab} onChange=${setTab} ariaLabel="Desk section"/>
+        <${UI.Seg} options=${TABS.concat((M.deskTabs || []).map(x => ({v: x.v, label: x.label})))} value=${tab} onChange=${setTab} ariaLabel="Desk section"/>
       <//>
       ${tab === 'roster' ? html`<${Roster}/>` : null}
       ${tab === 'settings' ? html`<${Settings}/>` : null}
@@ -363,6 +363,7 @@
       ${tab === 'leave' ? (Approvals ? html`<${Approvals}/>` : null) : null}
       ${tab === 'export' ? html`<${Export}/>` : null}
       ${tab === 'cleanup' ? html`<${Cleanup}/>` : null}
+      ${(M.deskTabs || []).map(x => x.v === tab ? html`<${x.render} key=${x.v}/>` : null)}
     </div>`;
   }
 

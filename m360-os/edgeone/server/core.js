@@ -18,6 +18,7 @@
 */
 import {RULES} from './rules.js';
 import {SEED} from './seed.js';
+import {radarActions} from './radar.js';
 
 const LEVEL = {view: 0, interact: 1, admin: 2, owner: 3};
 const SESSION_DAYS = 180;
@@ -521,6 +522,8 @@ export function createApp({store, env = {}}) {
       return {content: j.content || [], stop_reason: j.stop_reason || ''};
     }
   };
+  /* radar actions (news, awards, watch) live in radar.js and share the store helpers */
+  Object.assign(actions, radarActions({store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, isObj}));
 
   const json = (obj, status = 200, extra = {}) => new Response(JSON.stringify(obj), {
     status, headers: {'content-type': 'application/json', 'cache-control': 'no-store', ...extra}
