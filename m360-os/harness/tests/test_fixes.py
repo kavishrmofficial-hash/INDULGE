@@ -2,7 +2,7 @@
 """v5 test: correction requests and the activity log. A member asks for a check-in time to be put
 right, the founder approves it from Admin > Controls > Corrections and the day changes; a second
 request is declined with a note the member reads on Me and in the inbox; every write shows up on
-the founder's Log tab and in log/<today>-<uid>; the queue and the log fit a phone.
+the founder's Log tab and in log/<uid>/days/<today>; the queue and the log fit a phone.
 
 Run: cd m360-os && python3 harness/tests/test_fixes.py
 """
@@ -65,18 +65,14 @@ def t(h):
     check(reqs[task_id]['field'] == 'status', 'task field default %r' % reqs[task_id].get('field'))
     check(len(h.ctx(p, 'M.fixes.pending(ctx)')) == 2, 'M.fixes.pending for the member')
 
-    # ---- the log doc for m1 holds the fixes write, where the rules let a member append ----
-    # the declared rule is log read admin, write interact. Writing implies reading on the platform
-    # (and in the mock), so a member's append is refused until the log gets a {self} shaped rule.
-    # The note below says which way this run went; the founder's own log is asserted further down.
-    log_m1 = doc(p, 'log/%s-u_m1' % today)
+    # ---- the log doc for m1 holds the fixes write (log/<uid>/days/<date>, a {self} shaped rule) ----
+    log_m1 = doc(p, 'log/u_m1/days/%s' % today)
+    check(bool(log_m1), 'log/u_m1/days/%s missing' % today)
     if log_m1:
-        check(any(str(e.get('p', '')).startswith('fixes/') for e in log_m1['e'].values()), 'log/%s-u_m1 missing a fixes entry: %r' % (today, log_m1))
+        check(any(str(e.get('p', '')).startswith('fixes/') for e in log_m1['e'].values()), 'log for m1 missing a fixes entry: %r' % log_m1)
         entry = next(e for e in log_m1['e'].values() if str(e.get('p', '')).startswith('fixes/'))
         check(entry['a'] == 'set' and entry['s'] == 'reqs' and entry['at'] > 0, 'log entry shape %r' % entry)
         check(all(re.match(r'^\d{13}[a-z0-9]{4}$', k) for k in log_m1['e']), 'log entry ids %r' % list(log_m1['e'])[:3])
-    else:
-        print('NOTE: the rules refused the member log write (log read admin, write interact); only founder writes are logged')
 
     # ---- the founder: inbox item, then the Corrections tab ----
     h.go(p, 'founder', hash='#home', width=1280)
@@ -177,7 +173,7 @@ def t(h):
     check(csv.splitlines()[0] == '"date","time","person","action","target","summary"' and 'checkin/u_m1' in csv, 'csv: ' + csv[:200])
     h.shot(p, 'log-tab')
     # the founder's own log doc: entries for the approval writes, ids as String(at) plus 4 base36 chars
-    log_f = doc(p, 'log/%s-u_founder' % today)
+    log_f = doc(p, 'log/u_founder/days/%s' % today)
     check(bool(log_f) and any(e.get('p') == 'checkin/u_m1' and e.get('a') == 'update' and e.get('s') == 'days' for e in log_f['e'].values()), 'founder log missing the check-in change: %r' % (log_f and list(log_f['e'].values())[:3]))
     check(bool(log_f) and any(str(e.get('p', '')).startswith('fixes/u_m1') for e in log_f['e'].values()), 'founder log missing the decision writes')
     check(bool(log_f) and all(re.match(r'^\d{13}[a-z0-9]{4}$', k) for k in log_f['e']), 'log entry ids %r' % (log_f and list(log_f['e'])[:3]))

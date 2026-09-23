@@ -27,25 +27,29 @@
   M.logs = M.logs || {};
   M.logs.read = M.logs.read || function read(ctx, range) {
     const from = (range && range.from) || '0000-00-00', to = (range && range.to) || '9999-12-31';
-    return new Promise((res, rej) => {
+    /* one subscription per person on the roster (plus the viewer), each read once and released */
+    const people = Array.from(new Set(Object.keys(ctx.members || {}).concat([ctx.uid]).filter(Boolean)));
+    const one = uid => new Promise(res => {
       let un = null, done = false;
       const stop = () => setTimeout(() => { try { if (un) un(); } catch (e) { /* gone */ } }, 0);
+      const finish = out => { if (done) return; done = true; stop(); res(out); };
       try {
-        un = ctx.db.collection('log').onSnapshot(q => {
-          if (done) return;
-          done = true;
+        un = ctx.db.collection('log/' + uid + '/days').onSnapshot(q => {
           const out = {};
           (q.docs || []).forEach(d => {
             if (!d.exists) return;
             const date = String(d.id).slice(0, 10);
-            if (date >= from && date <= to) out[d.id] = d.data();
+            if (date >= from && date <= to) out[date + '-' + uid] = d.data();
           });
-          stop();
-          res(out);
-        }, e => { if (done) return; done = true; stop(); rej(e); });
-      } catch (e) { rej(e); }
+          finish(out);
+        }, () => finish({}));
+      } catch (e) { finish({}); }
+      setTimeout(() => finish({}), 8000);
     });
+    return Promise.all(people.map(one)).then(parts => Object.assign({}, ...parts));
   };
+  /* a log document id (<ymd>-<uid>) back to its path */
+  M.logs.pathOf = id => { const s = String(id); return 'log/' + s.slice(11) + '/days/' + s.slice(0, 10); };
 
   /* flat rows out of {docId: {e: {id: entry}}}, newest first */
   function rows(docs) {
@@ -155,7 +159,7 @@
         } else {
           const old = await M.logs.read(ctx, {from: '0000-00-00', to: cut});
           const ids = Object.keys(old || {}).filter(id => id.slice(0, 10) < cut);
-          for (const id of ids) await ctx.W.del('log/' + id).catch(() => {});
+          for (const id of ids) await ctx.W.del(M.logs.pathOf(id)).catch(() => {});
           M.toast('Cleared ' + ids.length + (ids.length === 1 ? ' day of log' : ' days of log'));
         }
       } catch (e) { M.toast('That did not clear. Try again in a moment.', true); }

@@ -137,7 +137,8 @@ const WRITE_MSG = {
   invalid_argument: 'That could not be saved here.',
   revoked: 'Your access changed. Reload the page.'
 };
-/* the activity log: one document per person per day, log/<YYYY-MM-DD>-<uid>, entries {at, a, p, s}.
+/* the activity log: one document per person per day, log/<uid>/days/<YYYY-MM-DD>, entries {at, a, p, s}.
+   (Readers key the documents as <YYYY-MM-DD>-<uid>, the same ids the EdgeOne server serves.)
    Written after every successful write that is not itself a log write. Never throws into the caller.
    On the standalone build the server keeps the log, so the page writes none. */
 const LOG_KEYS = ['title', 'name', 'status'];
@@ -154,7 +155,7 @@ M.logWrite = function logWrite(db, uid, a, p, d) {
     if (window.M360_STANDALONE || logRefused || !db || !uid || !p || /^log(\/|$)/.test(String(p))) return;
     const at = Date.now();
     const id = String(at) + Math.random().toString(36).slice(2, 6).padEnd(4, '0');
-    const path = 'log/' + U.todayStr() + '-' + uid;
+    const path = 'log/' + uid + '/days/' + U.todayStr();
     const body = {e: {[id]: {at, a, p: String(p), s: a === 'delete' ? '' : logSummary(d)}}};
     queued(path, () => db.doc(path).update(body).catch(e => {
       if (e && e.code === 'invalid_argument') return db.doc(path).set(body).catch(e2 => { if (e2 && e2.code === 'invalid_argument') logRefused = true; throw e2; });

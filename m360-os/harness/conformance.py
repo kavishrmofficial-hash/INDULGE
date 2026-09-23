@@ -102,7 +102,7 @@ want_rules += [{"path": "me", "read": "interact", "write": "admin"}, {"path": "m
 want_rules += [{"path": "join", "read": "admin", "write": "admin"}, {"path": "join/{self}", "read": "interact", "write": "interact"}]
 # v5: correction requests (own, founder reads all) and the activity log (anyone appends, founder reads)
 want_rules += [{"path": "fixes", "read": "admin", "write": "admin"}, {"path": "fixes/{self}", "read": "interact", "write": "interact"},
-               {"path": "log", "read": "admin", "write": "interact"}]
+               {"path": "log", "read": "admin", "write": "admin"}, {"path": "log/{self}", "read": "interact", "write": "interact"}]
 if caps['db']['rules'] != want_rules:
     bad('capabilities.db.rules do not match BRIEF section 5 plus the me, join, fixes and log rules')
 for k in ('sample', 'room'):
