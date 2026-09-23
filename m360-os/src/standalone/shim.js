@@ -3,10 +3,13 @@
 (function () {
   'use strict';
   window.M360_STANDALONE = true;
+  let meInfo = null;         /* the me answer, once it is in */
 
   /* anonymous EdgeOne previews carry an access token in the query; every call must keep it */
   const QS = location.search || '';
   const API = '/api/m360' + QS;
+  /* actions the sign-in screen calls before anyone is signed in: a 401 from these is an answer, never a lost session */
+  const OPEN = new Set(['me', 'setup', 'signup', 'login', 'accept', 'invited', 'magic', 'pw', 'reset', 'resetpw']);
   async function call(a, body) {
     let r;
     try {
@@ -15,7 +18,11 @@
     } catch (e) { throw {code: 'unavailable', message: 'offline'}; }
     let j = {};
     try { j = await r.json(); } catch (e) { j = {}; }
-    if (!r.ok || j.error) throw {code: (j.error && j.error.code) || 'unavailable', message: (j.error && j.error.message) || ('http ' + r.status), status: r.status};
+    if (!r.ok || j.error) {
+      /* a signed-in page that gets a 401 anywhere has lost its session: back to the sign-in screen */
+      if (r.status === 401 && !OPEN.has(a) && meInfo && meInfo.uid) kick();
+      throw {code: (j.error && j.error.code) || 'unavailable', message: (j.error && j.error.message) || ('http ' + r.status), status: r.status};
+    }
     return j;
   }
   window.M360_API = call;
@@ -37,7 +44,6 @@
   const segs = p => String(p || '').split('/').filter(Boolean);
 
   /* ---------- who is here ---------- */
-  let meInfo = null;
   /* a sign-in link: #login=<code> signs this browser in, then the hash is cleared.
      An invite link #invite=<code> signs nobody in by itself: the sign-in screen asks for the invited email first (window.M360_INVITE). */
   const loginCode = (/^#login=([a-z0-9]{10,64})$/.exec(location.hash || '') || [])[1];

@@ -9,6 +9,8 @@
      p/<id>                              {name, at}                    people who signed in
      s/<token>                           {uid, at, last, ua}           sessions (cookie m360s); ua is a short device label
      k/<code>                            {uid, until}                  one-time sign-in links (magic: 20 minutes, founder made: 24 hours)
+     w/<uid>                             {salt, hash, iter, at, fails, since, until}   the person's password, PBKDF2-SHA256; never sent to a page
+     c/<uid>                             {salt, hash, iter, until, tries}   a 6 digit reset code (15 minutes, 5 tries), hashed the same way
      d/log~<YYYY-MM-DD>-<uid>            {e: {id: {at, a, p, s}}}      the activity log, written only by the server, read by admin+
      o/owner                             {uid}                         the founder account
      x/ai                                {key}                         Anthropic key, never sent to a page
@@ -27,6 +29,13 @@ const SESSION_DAYS = 180;
 const LINK_HOURS = 24;          /* a sign-in link made from Me or by the founder */
 const MAGIC_MINUTES = 20;       /* a sign-in link sent by email */
 const INVITE_DAYS = 7;
+const PW_ITER = 150000;         /* PBKDF2-SHA256 rounds for passwords and reset codes */
+const PW_MIN = 8, PW_MAX = 200;
+const PW_FAILS = 6;             /* wrong passwords in a row before the account waits */
+const PW_WAIT_MS = 15 * 60000;
+const CODE_MINUTES = 15;        /* a reset code's life */
+const CODE_TRIES = 5;
+const WEAK = new Set(['password', '12345678']);
 const LAST_SEEN_MS = 3600000;   /* a session's last-seen stamp moves at most once an hour */
 const PRESENCE_MS = 45000;
 const MAX_DOC = 256 * 1024;
@@ -73,6 +82,38 @@ const cleanName = s => String(s || '').replace(/[\u0000-\u001f<>]/g, '').replace
 const cleanEmail = s => { const e = String(s || '').trim().toLowerCase(); return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e.length <= 120 ? e : ''; };
 const emailKey = e => 'e/' + encodeURIComponent(e);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+/* ---------- passwords and reset codes: PBKDF2-SHA256 through Web Crypto, salted, compared in constant time ---------- */
+const b64 = bytes => btoa(Array.from(bytes, b => String.fromCharCode(b)).join(''));
+const unb64 = str => Uint8Array.from(atob(String(str || '')), c => c.charCodeAt(0));
+async function derive(secret, salt, iter) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(secret)), 'PBKDF2', false, ['deriveBits']);
+  return new Uint8Array(await crypto.subtle.deriveBits({name: 'PBKDF2', hash: 'SHA-256', salt, iterations: iter}, key, 256));
+}
+function sameBytes(a, b) {
+  let d = a.length ^ b.length;
+  for (let i = 0; i < a.length; i++) d |= a[i] ^ (b[i % b.length] || 0);
+  return d === 0;
+}
+/* {salt, hash, iter}: what the store keeps of a secret */
+async function hashSecret(secret) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  return {salt: b64(salt), hash: b64(await derive(secret, salt, PW_ITER)), iter: PW_ITER};
+}
+async function checkSecret(secret, rec) {
+  if (!rec || typeof rec.salt !== 'string' || typeof rec.hash !== 'string') return false;
+  try { return sameBytes(await derive(secret, unb64(rec.salt), Number(rec.iter) || PW_ITER), unb64(rec.hash)); }
+  catch (e) { return false; }
+}
+/* a password the rules accept, or an HttpError that says why */
+function checkPassword(pw, email) {
+  if (typeof pw !== 'string' || !pw) throw new HttpError(400, 'weak', 'Type a password of at least ' + PW_MIN + ' characters.');
+  if (pw.length < PW_MIN) throw new HttpError(400, 'weak', 'Use at least ' + PW_MIN + ' characters.');
+  if (pw.length > PW_MAX) throw new HttpError(400, 'weak', 'Keep it under ' + PW_MAX + ' characters.');
+  if (WEAK.has(pw.toLowerCase())) throw new HttpError(400, 'weak', 'That one is too easy to guess. Pick something else.');
+  if (email && pw.trim().toLowerCase() === email) throw new HttpError(400, 'weak', 'Your email cannot be your password.');
+  return pw;
+}
+const sixDigits = () => { const n = new Uint32Array(1); crypto.getRandomValues(n); return String(n[0] % 1000000).padStart(6, '0'); };
 /* a short device label from the user-agent header, for the devices list: "iPhone, Safari", "Windows, Edge" */
 function deviceLabel(ua) {
   ua = String(ua || '');
@@ -222,6 +263,34 @@ export function createApp({store, env = {}}) {
     return list.length;
   }
 
+  /* ---------- passwords ---------- */
+  /* true when the password matches w/<uid>. A miss counts; PW_FAILS misses inside PW_WAIT_MS make the account wait
+     (429 slow_down) and a hit clears the count. With no record the work is still done, so timing says nothing. */
+  const NO_REC = {salt: 'AAAAAAAAAAAAAAAAAAAAAA==', hash: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=', iter: PW_ITER};
+  async function verifyPassword(uid, rec, password) {
+    const now = Date.now();
+    const has = !!(rec && rec.hash);
+    if (has && rec.until > now) throw new HttpError(429, 'slow_down', 'Too many tries. Wait 15 minutes or reset your password.');
+    const ok = await checkSecret(password, has ? rec : NO_REC);
+    if (!has) return false;
+    if (ok) {
+      if (rec.fails || rec.until) await putJ('w/' + uid, {salt: rec.salt, hash: rec.hash, iter: rec.iter, at: rec.at}).catch(() => {});
+      return true;
+    }
+    const fresh = !rec.since || now - rec.since > PW_WAIT_MS;
+    const fails = fresh ? 1 : (Number(rec.fails) || 0) + 1;
+    const next = {salt: rec.salt, hash: rec.hash, iter: rec.iter, at: rec.at, fails, since: fresh ? now : rec.since};
+    if (fails >= PW_FAILS) next.until = now + PW_WAIT_MS;
+    await putJ('w/' + uid, next).catch(() => {});
+    return false;
+  }
+  /* a fresh reset code for one person: stored hashed under c/<uid>, returned in the clear once */
+  async function makeCode(uid) {
+    const code = sixDigits();
+    await putJ('c/' + uid, {...(await hashSecret(code)), until: Date.now() + CODE_MINUTES * 60000, tries: 0, at: Date.now()});
+    return code;
+  }
+
   /* ---------- the activity log: one document per person per day, appended by the server only ----------
      An append is get, merge, set on that one document. Appends to the same document from this function
      instance queue up one after another, so a page firing two writes at once does not lose an entry. */
@@ -323,20 +392,24 @@ export function createApp({store, env = {}}) {
       const [owner, app] = await Promise.all([ownerUid(), appSettings()]);
       const joinOpen = app.joinPolicy !== 'invite';
       if (!v) return {uid: null, setup: !owner, joinOpen};
-      const [p, level, ai, mail] = await Promise.all([getJ('p/' + v.uid), levelOf(v.uid), aiKey(), mailConf()]);
+      const [p, level, ai, mail, w] = await Promise.all([getJ('p/' + v.uid), levelOf(v.uid), aiKey(), mailConf(), getJ('w/' + v.uid)]);
       return {uid: v.uid, name: (p && p.name) || '', email: (p && p.email) || '', isOwner: v.uid === owner, canEdit: level >= LEVEL.admin,
-        level, setup: !owner, ai: !!ai, mail: !!mail, joinOpen, locked: app.locked === true};
+        level, setup: !owner, ai: !!ai, mail: !!mail, joinOpen, locked: app.locked === true, hasPw: !!(w && w.hash)};
     },
 
-    /* the first person to open a fresh deploy becomes the founder, and the workspace is seeded */
+    /* the first person to open a fresh deploy becomes the founder, and the workspace is seeded.
+       Their email is the super admin login, so name, email and password are all required. */
     async setup(v, body, req) {
       const name = cleanName(body.name);
       if (!name) throw new HttpError(400, 'invalid_argument', 'name needed');
+      const email = cleanEmail(body.email);
+      if (!email) throw new HttpError(400, 'invalid_argument', 'That email does not look right.');
+      const password = checkPassword(body.password, email);
       if (await ownerUid()) throw new HttpError(409, 'taken', 'already set up');
       const uid = newId();
-      const email = cleanEmail(body.email);
+      await putJ('w/' + uid, {...(await hashSecret(password)), at: Date.now()});
       await putJ('p/' + uid, {name, email, at: Date.now()});
-      if (email) await putJ(emailKey(email), {uid});
+      await putJ(emailKey(email), {uid});
       await putJ('o/owner', {uid});
       await Promise.all(Object.keys(SEED).map(path => putJ(docKey(path), SEED[path])));
       const token = await startSession(uid, req.ua);
@@ -344,14 +417,21 @@ export function createApp({store, env = {}}) {
       return {__cookie: cookie(token), uid};
     },
 
-    /* a name and nothing else: the person waits on the join screen until the founder lets them in */
+    /* a name, an unused email and a password: the person waits on the join screen until the founder lets them in */
     async signup(v, body, req) {
       const name = cleanName(body.name);
       if (!name) throw new HttpError(400, 'invalid_argument', 'name needed');
+      const email = cleanEmail(body.email);
+      if (!email) throw new HttpError(400, 'invalid_argument', 'That email does not look right.');
+      const password = checkPassword(body.password, email);
       if (!(await ownerUid())) throw new HttpError(409, 'not_setup', 'set up first');
       if ((await appSettings()).joinPolicy === 'invite') throw new HttpError(409, 'closed', 'm360 is invite only right now. Ask Kaavish for an invite.');
+      const taken = await getJ(emailKey(email));
+      if (taken && taken.uid && (await getJ('p/' + taken.uid))) throw new HttpError(409, 'taken', 'That email is already on m360. Sign in with it instead.');
       const uid = newId();
-      await putJ('p/' + uid, {name, at: Date.now()});
+      await putJ('w/' + uid, {...(await hashSecret(password)), at: Date.now()});
+      await putJ('p/' + uid, {name, email, at: Date.now()});
+      await putJ(emailKey(email), {uid});
       const token = await startSession(uid, req.ua);
       await log(uid, 'signup', '', req.ua);
       return {__cookie: cookie(token), uid};
@@ -650,6 +730,7 @@ export function createApp({store, env = {}}) {
       const email = cleanEmail(body.email);
       if (!email) throw new HttpError(400, 'invalid_argument', 'Type the email your invite went to.');
       if (email !== inv.email) throw new HttpError(403, 'mismatch', 'That email does not match this invite.');
+      const password = checkPassword(body.password, email);
       const known = await getJ(emailKey(inv.email));
       let uid = known && known.uid;
       if (uid && !(await getJ('p/' + uid))) uid = null;
@@ -658,6 +739,9 @@ export function createApp({store, env = {}}) {
         await putJ('p/' + uid, {name: inv.name || inv.email.split('@')[0], email: inv.email, at: Date.now()});
         await putJ(emailKey(inv.email), {uid});
       }
+      /* the invite proved the email, so the password set here replaces any older one */
+      await putJ('w/' + uid, {...(await hashSecret(password)), at: Date.now()});
+      await store.delete('c/' + uid).catch(() => {});
       const team = (await getJ(docKey('roster/team'))) || {members: {}, nextEmp: 2, updated: 0};
       team.members = team.members || {};
       const cur = team.members[uid];
@@ -689,6 +773,97 @@ export function createApp({store, env = {}}) {
         '<p><a href="' + esc(link) + '" style="display:inline-block;padding:12px 18px;background:#0E0E0E;color:#fff;border-radius:12px;text-decoration:none">Sign in to m360 OS</a></p><p style="color:#666;font-size:13px">' + life + '</p>');
       await log(known.uid, 'magic', '', 'link sent');
       return {sent: true, minutes: MAGIC_MINUTES};
+    },
+
+    /* ---------- passwords ----------
+       A wrong password counts against the account; after PW_FAILS in PW_WAIT_MS the account waits that long.
+       The answer never says whether the email is known. */
+    async pw(v, body, req) {
+      const email = cleanEmail(body.email), password = typeof body.password === 'string' ? body.password : '';
+      const known = email ? await getJ(emailKey(email)) : null;
+      const uid = known && known.uid;
+      const rec = uid ? await getJ('w/' + uid) : null;
+      const ok = await verifyPassword(uid, rec, password);
+      if (!ok || !(await getJ('p/' + uid))) throw new HttpError(401, 'bad_login', 'That email and password do not match.');
+      const token = await startSession(uid, req.ua);
+      await log(uid, 'pw', '', req.ua);
+      return {__cookie: cookie(token), uid};
+    },
+    /* your own password (the current one when you have one), or the founder setting one for anyone but themselves,
+       which ends that person's sessions everywhere */
+    async setpw(v, body) {
+      if (!v) throw new HttpError(401, 'noid');
+      const target = body.uid && body.uid !== v.uid ? String(body.uid) : v.uid;
+      if (target !== v.uid) {
+        if (v.uid !== (await ownerUid())) throw new HttpError(403, 'invalid_argument');
+        if (!/^u_[A-Za-z0-9]{6,40}$/.test(target) || !(await getJ('p/' + target))) throw new HttpError(404, 'invalid_argument', 'No such person.');
+      }
+      const p = (await getJ('p/' + target)) || {};
+      const password = checkPassword(body.password, p.email || '');
+      if (target === v.uid) {
+        const rec = await getJ('w/' + v.uid);
+        if (rec && rec.hash) {
+          const current = typeof body.current === 'string' ? body.current : '';
+          if (!(await verifyPassword(v.uid, rec, current))) throw new HttpError(403, 'bad_current', 'That current password does not match.');
+        }
+      }
+      await putJ('w/' + target, {...(await hashSecret(password)), at: Date.now()});
+      await store.delete('c/' + target).catch(() => {});
+      if (target !== v.uid) {
+        const n = await endSessions(target, null);
+        await log(v.uid, 'setpw', '', target + ': ' + n + (n === 1 ? ' device' : ' devices') + ' signed out');
+      } else await log(v.uid, 'setpw', '', '');
+      return {ok: true};
+    },
+    /* a 6 digit reset code by email, good for 15 minutes; the answer is the same whether or not the email is known */
+    async reset(v, body) {
+      const email = cleanEmail(body.email);
+      if (!email) throw new HttpError(400, 'invalid_argument', 'That email does not look right.');
+      if (!(await mailConf())) return {sent: false, nomail: true};
+      const known = await getJ(emailKey(email));
+      if (!known || !known.uid || !(await getJ('p/' + known.uid))) return {sent: true};
+      const code = await makeCode(known.uid);
+      const where = String(body.base || '').replace(/[#?].*$/, '');
+      const life = 'It works once, for ' + CODE_MINUTES + ' minutes, and ' + CODE_TRIES + ' wrong tries end it. If you did not ask for it, ignore this email.';
+      await sendMail(email, 'Your m360 OS reset code', 'Your m360 OS reset code is ' + code + '.\n\nType it on the sign-in screen' + (where ? ' at ' + where : '') + ' together with a new password. ' + life,
+        '<p>Your m360 OS reset code is</p><p style="font-size:28px;letter-spacing:.2em;font-weight:600">' + code + '</p><p style="color:#666;font-size:13px">Type it on the sign-in screen' +
+          (where ? ' at <a href="' + esc(where) + '">' + esc(where) + '</a>' : '') + ' together with a new password. ' + life + '</p>');
+      await log(known.uid, 'reset', '', 'code sent');
+      return {sent: true, minutes: CODE_MINUTES};
+    },
+    /* the code from the email (or from the founder) plus a new password: every other device is signed out, this one is in */
+    async resetpw(v, body, req) {
+      const email = cleanEmail(body.email), code = String(body.code || '').replace(/\s+/g, '');
+      if (!/^\d{6}$/.test(code)) throw new HttpError(400, 'invalid_argument', 'The code is 6 digits.');
+      const password = checkPassword(body.password, email);
+      const known = email ? await getJ(emailKey(email)) : null;
+      const uid = known && known.uid;
+      const rec = uid ? await getJ('c/' + uid) : null;
+      const now = Date.now();
+      if (!rec || !(rec.until > now) || !(await getJ('p/' + uid))) throw new HttpError(410, 'expired', 'That code has expired or was never sent. Ask for a new one.');
+      if (!(await checkSecret(code, rec))) {
+        const tries = (Number(rec.tries) || 0) + 1;
+        if (tries >= CODE_TRIES) { await store.delete('c/' + uid).catch(() => {}); throw new HttpError(410, 'expired', 'That code has been tried too many times. Ask for a new one.'); }
+        await putJ('c/' + uid, {...rec, tries});
+        throw new HttpError(403, 'bad_code', 'That code does not match. ' + (CODE_TRIES - tries) + (CODE_TRIES - tries === 1 ? ' try' : ' tries') + ' left.');
+      }
+      await putJ('w/' + uid, {...(await hashSecret(password)), at: now});
+      await store.delete('c/' + uid).catch(() => {});
+      await endSessions(uid, null);
+      const token = await startSession(uid, req.ua);
+      await log(uid, 'resetpw', '', req.ua);
+      return {__cookie: cookie(token), uid};
+    },
+    /* admin+ makes a reset code for anyone but the founder and hands it over in person; shown once, never stored in the clear */
+    async resetcode(v, body) {
+      if (!v || (await levelOf(v.uid)) < LEVEL.admin) throw new HttpError(403, 'invalid_argument');
+      const target = String(body.uid || '');
+      if (!/^u_[A-Za-z0-9]{6,40}$/.test(target)) throw new HttpError(400, 'invalid_argument', 'bad id');
+      if (target === (await ownerUid())) throw new HttpError(403, 'invalid_argument', 'The founder resets by email or from Me.');
+      if (!(await getJ('p/' + target))) throw new HttpError(404, 'invalid_argument', 'No such person.');
+      const code = await makeCode(target);
+      await log(v.uid, 'resetcode', '', target);
+      return {code, minutes: CODE_MINUTES, tries: CODE_TRIES};
     },
 
     async aistatus(v) { return {on: !!(v && await aiKey())}; },

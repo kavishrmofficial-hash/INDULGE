@@ -1,0 +1,14 @@
+/* passwords (EdgeOne build only): the sign-in screen's links, the Sign-in card on Me, the founder's controls in the member drawer */
+.pw-links{margin-top:6px; align-items:flex-start}
+.pw-links .linky{text-align:left}
+.pw-note{padding:10px 12px; background:var(--warm); border-radius:12px; line-height:1.4}
+.pw-form{display:grid; grid-template-columns:1fr 1fr; gap:12px; max-width:560px}
+.pw-form>*{min-width:0}
+.pw-admin{padding-top:12px; border-top:1px solid var(--line)}
+.pw-admin .row{align-items:flex-end}
+.pw-admin .pw-set{display:flex; gap:10px; flex-wrap:wrap}
+.pw-admin .pw-set .field{flex:1 1 200px}
+.reset-code{font-size:22px; font-weight:600; letter-spacing:.18em; padding:6px 12px; background:var(--warm); border-radius:12px; user-select:all}
+@media (max-width:600px){
+  .pw-form{grid-template-columns:1fr}
+}
