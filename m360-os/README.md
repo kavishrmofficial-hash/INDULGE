@@ -27,6 +27,9 @@ src/js/        the app, concatenated in filename order:
                73-log      the activity log tab and client side logging
                74-super    founder super controls
                75-radar    news, awards and watch channels
+               76-base     the contacts and companies database, Apollo import
+               77-safety   export and import a backup (both builds)
+               78-search   master search, connections, the intelligence layer
                51-sections  Work, Accounts, Vibe, Me, Admin
                55-hq    founder intelligence (HQ)
                57-ask   the Ask chat drawer (Cmd or Ctrl K)
@@ -86,6 +89,20 @@ Publish `dist/index.html` with the Artifact tool, title "m360 OS", with the capa
 - **Super controls** in Admin > Super: lock, join policy, an alert banner for everyone, view the OS as any member (preview only), fix anyone's attendance with a reason, offboard in one tap, export everything.
 - **Radar**: a live news stream for agency business (India, awards, campaigns, business, platforms, creators) with watch keywords, save and share to Vibe, an awards season table, and Watch: YouTube channels with their latest videos playing inside m360. The live feeds run on the EdgeOne address; the claude.ai page shows the directories and the awards table.
 - **Phone pass**: bottom sheets with a grab handle, bigger tap targets, snap scrolling board columns, no sideways scroll, and an add to home screen nudge. **Home hero**: a sun that moves with the time of day, a moon at night.
+
+## What is in v6
+
+- **Password sign-in on EdgeOne**: the founder's email is the super admin login; everyone sets their own password; forgotten ones are reset with a six digit code by email, or a code the founder hands over from the team list. Email links still work as an alternative. Passwords are stored only as PBKDF2 hashes on the server.
+- **The safety net**: nothing is erased outright. Deleted documents go to a trash the founder can put back from; every day the server writes a backup of every collection and keeps 45 days; Admin > Backups downloads any day, restores a collection (missing only, or overwrite with the current copies trashed first) and runs an integrity check; the write path refuses malformed payloads and a roster write that would lock everyone out.
+- **Base**: the database of everyone we know. People and companies, searchable by anyone on the roster and editable by anyone (every edit is logged with who and when). Import the monthly Apollo CSV: only the useful columns are mapped, duplicates merge, and a hand edit is never overwritten by an import. Companies map to clients both ways: make a client from a company, or map a company to an existing client, and clients created in Accounts find their company by name or domain.
+- **Master search**: Cmd K searches across people, companies, tasks, projects, clients, pitches, posts, handbook, inbox and (for the founder) the log, with a full results drawer. Every client, company, contact, project and pitch shows its connections.
+- **Intelligence**: Ask m360 can search the Base and everything else, answer "who do we know at", and pull the pipeline for a company. Ask the base on the Base page, quiet lead nudges, and an intro note drafted per contact.
+
+## Keeping it safe
+
+- Claim the EdgeOne project or set `EDGEONE_API_TOKEN` so deploys go to one stable project. An anonymous deploy is removed an hour after it is made unless claimed, and its data with it.
+- The daily backup runs on the server. Download one from Admin > Backups every week and keep it somewhere else too.
+- Admin > Super > Export everything and Admin > Safety > Import a backup work on both builds.
 
 ## The cursor buddy
 
