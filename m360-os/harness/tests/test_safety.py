@@ -81,6 +81,8 @@ def standalone(fails, errors):
             f.goto(base)
             f.wait_for_selector('text=Set up m360 OS')
             f.fill('#signin-name', 'Kaavish Ramchandani')
+            f.fill('#signin-email', 'kaavish@mask360.agency')
+            f.fill('#signin-pw', 'safety-test-pw-2026')
             f.get_by_role('button', name='Set up the workspace').click()
             f.wait_for_selector('.sidebar')
             fuid = f.evaluate('() => window.M360_API("me").then(x => x.uid)')
@@ -216,7 +218,7 @@ def standalone(fails, errors):
             mc, m = device(390)
             m.goto(base)
             m.wait_for_selector('text=Sign in to m360')
-            muid = m.evaluate('() => window.M360_API("signup", {name: "Durvesh Patil"}).then(r => r.uid)')
+            muid = m.evaluate('() => window.M360_API("signup", {name: "Durvesh Patil", email: "durvesh@mask360.agency", password: "safety-test-pw-durvesh"}).then(r => r.uid)')
             f.evaluate('u => window.M360_API("write", {op: "update", path: "roster/team", data: {members: {[u]: {role: "member", empId: "M360-002", title: "Brand Strategist", pod: "", joined: "2026-01-05", start: "", probationEnd: "", active: true}}, updated: Date.now()}})', muid)
             codes = m.evaluate('''d => Promise.all(['trash', 'backups', 'restorecoll', 'backup', 'backupget', 'integrity', 'snapshotall', 'emptytrash', 'restore'].map(a =>
               window.M360_API(a, {ymd: d, coll: 'tasks', mode: 'missing', id: '1~tasks~t1'}).then(() => 'ok', e => e.status)))''', today)
