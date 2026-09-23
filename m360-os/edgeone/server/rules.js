@@ -180,5 +180,20 @@ export const RULES = [
   "path": "join/{self}",
   "read": "interact",
   "write": "interact"
+ },
+ {
+  "path": "fixes",
+  "read": "admin",
+  "write": "admin"
+ },
+ {
+  "path": "fixes/{self}",
+  "read": "interact",
+  "write": "interact"
+ },
+ {
+  "path": "log",
+  "read": "admin",
+  "write": "interact"
  }
 ];

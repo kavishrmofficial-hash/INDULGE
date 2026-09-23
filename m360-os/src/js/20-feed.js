@@ -11,7 +11,10 @@
     {v: 'poll', label: 'Poll'}
   ];
   const ANNOUNCE = {v: 'announce', label: 'Announcement'};
-  const KIND_TEXT = {announce: 'announcement', win: 'win', question: 'question', update: 'update', poll: 'poll'};
+  const KIND_TEXT = {announce: 'announcement', win: 'win', question: 'question', update: 'update', poll: 'poll', link: 'link'};
+  /* link posts (shared from Radar) carry one address; only http(s) ever renders as a link */
+  const safeUrl = u => /^https?:\/\/[^\s<>"']+$/i.test(String(u || '')) ? String(u) : '';
+  const hostOf = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } };
   const KIND_PILL = {announce: 'flame', win: 'ink'};
   const FILTERS = [
     {v: 'all', label: 'All'},
@@ -50,7 +53,7 @@
       for (const p of postsOf(ctx, author)) {
         const key = author + ':' + p.id;
         out.push({key, type: 'post', author, id: p.id, kind: kindOf(p), text: String(p.text || ''), options: p.options || [],
-          at: Number(p.at) || 0, pinned: key === pinned});
+          link: safeUrl(p.link), at: Number(p.at) || 0, pinned: key === pinned});
       }
     }
     const kudos = collMap(ctx, 'kudos');
@@ -259,6 +262,7 @@
         </div>` : null}
       </div>
       <div style=${{whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', margin: '12px 0'}}>${it.text}</div>
+      ${it.kind === 'link' && it.link ? html`<a class="linkchip" href=${it.link} target="_blank" rel="noopener"><${icons.link}/><span>${hostOf(it.link) || 'open the link'}</span></a>` : null}
       ${pollVotes ? html`<div class="poll" role="group" aria-label="Poll">
         ${(it.options || []).map((o, i) => {
           const n = pollVotes.tally[i] || 0, pct = pollVotes.total ? Math.round(100 * n / pollVotes.total) : 0;
