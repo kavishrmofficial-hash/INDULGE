@@ -228,12 +228,16 @@
       return {tally, total, mineVote, who};
     })() : null;
     const vote = i => { W.merge('votes/' + uid, {polls: {[it.key]: i}}).then(() => M.sound.play('tick')).catch(() => {}); };
+    /* the author removes their own post; the founder can remove anyone's */
     const remove = () => {
-      const mineDoc = collMap(ctx, 'feed')[uid] || {};
-      const posts = U.clone(postsOf(ctx, uid)).filter(p => p.id !== it.id);
+      const au = it.author || uid;
+      const mineDoc = collMap(ctx, 'feed')[au] || {};
+      const posts = U.clone(postsOf(ctx, au)).filter(p => p.id !== it.id);
       const doc = {posts};
       if (mineDoc.pinned === it.key) doc.pinned = null;
-      W.merge('feed/' + uid, doc).then(() => M.toast('Deleted')).catch(() => {});
+      const fd = collMap(ctx, 'feed')[founderUid] || {};
+      if (isFounder && fd.pinned === it.key && au !== founderUid) W.merge('feed/' + founderUid, {pinned: null}).catch(() => {});
+      W.merge('feed/' + au, doc).then(() => M.toast('Deleted')).catch(() => {});
     };
 
     return html`<section class=${'card' + (it.pinned ? ' flame' : '')} data-key=${it.key} data-kind=${it.kind}>
@@ -251,7 +255,7 @@
         </div>
         ${(isFounder || isAuthor) ? html`<div class="row nowrap">
           ${isFounder ? html`<${UI.Btn} kind="ghost" sm onClick=${togglePin}><${icons.pin}/>${it.pinned ? 'Unpin' : 'Pin'}<//>` : null}
-          ${isAuthor ? html`<${UI.ConfirmBtn} onConfirm=${remove}>Delete<//>` : null}
+          ${(isAuthor || isFounder) ? html`<${UI.ConfirmBtn} onConfirm=${remove}>Delete<//>` : null}
         </div>` : null}
       </div>
       <div style=${{whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', margin: '12px 0'}}>${it.text}</div>
