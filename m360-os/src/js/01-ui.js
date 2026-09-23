@@ -164,7 +164,13 @@
       onChange=${e => onChange && onChange(e.target.checked)}/><span>${label}</span></label>`;
   };
 
+  /* A side panel on wide screens, a bottom sheet on phones: a grab handle that follows the
+     finger and closes the sheet after an 80px swipe down, and inputs that scroll clear of the
+     keyboard when focused. */
+  const SWIPE_CLOSE = 80;
   UI.Drawer = function Drawer({open, onClose, title, children, footer, head}) {
+    const ref = React.useRef(null);
+    const drag = React.useRef(null);
     React.useEffect(() => {
       if (!open) return;
       const on = e => { if (e.key === 'Escape') onClose(); };
@@ -172,19 +178,65 @@
       return () => window.removeEventListener('keydown', on);
     }, [open, onClose]);
     if (!open) return null;
+    const onDown = e => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      drag.current = {y: e.clientY, dy: 0};
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* old browser */ }
+      if (ref.current) { ref.current.style.animation = 'none'; ref.current.style.transition = 'none'; }
+    };
+    const onMove = e => {
+      const d = drag.current;
+      if (!d || !ref.current) return;
+      d.dy = Math.max(0, e.clientY - d.y);
+      ref.current.style.transform = 'translateY(' + d.dy + 'px)';
+    };
+    const onUp = () => {
+      const d = drag.current;
+      drag.current = null;
+      if (!ref.current) return;
+      if (d && d.dy > SWIPE_CLOSE) { onClose(); return; }
+      ref.current.style.transition = M.reduced() ? '' : 'transform .18s ease';
+      ref.current.style.transform = '';
+    };
+    const onFocus = e => {
+      const t = e.target;
+      if (!t || !/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || window.innerWidth > 860) return;
+      setTimeout(() => { try { t.scrollIntoView({block: 'center', behavior: M.reduced() ? 'auto' : 'smooth'}); } catch (err) { /* fine */ } }, 320);
+    };
     return html`<div>
       <div class="scrim" onClick=${onClose}/>
-      <div class="drawer" role="dialog" aria-modal="true" aria-label=${title}>
+      <div class="drawer" role="dialog" aria-modal="true" aria-label=${title} ref=${ref}>
+        <div class="sheet-handle" aria-hidden="true" onPointerDown=${onDown} onPointerMove=${onMove} onPointerUp=${onUp} onPointerCancel=${onUp}><i/></div>
         <div class="drawer-head">
           <h2>${title}</h2>
           <div class="row nowrap">${head || null}
             <button type="button" class="iconbtn" aria-label="Close" onClick=${onClose}><${M.icons.x}/></button></div>
         </div>
-        <div class="drawer-body">${children}</div>
+        <div class="drawer-body" onFocus=${onFocus}>${children}</div>
         ${footer ? html`<div class="drawer-foot">${footer}</div>` : null}
       </div>
     </div>`;
   };
+
+  /* phones: the section tabs scroll sideways, so the active one is brought into view whenever
+     the tabs change (a new section) or the route does (a new tab) */
+  let lastTabs = null;
+  const tabIntoView = () => {
+    const nav = document.querySelector('.tabs.section-tabs');
+    const tab = nav && nav.querySelector('.tab.active');
+    if (!nav || !tab || nav.scrollWidth <= nav.clientWidth + 1) return;
+    const nr = nav.getBoundingClientRect(), tr = tab.getBoundingClientRect();
+    nav.scrollLeft = Math.max(0, nav.scrollLeft + (tr.left - nr.left) - (nr.width - tr.width) / 2);
+  };
+  M.tabIntoView = tabIntoView;
+  try {
+    window.addEventListener('hashchange', () => setTimeout(tabIntoView, 80));
+    const mo = new MutationObserver(() => {
+      const nav = document.querySelector('.tabs.section-tabs');
+      if (nav && nav !== lastTabs) { lastTabs = nav; setTimeout(tabIntoView, 40); }
+    });
+    mo.observe(document.documentElement, {childList: true, subtree: true});
+  } catch (e) { /* old browser */ }
 
   UI.Avatar = function Avatar({id, size, title}) {
     const ps = M.useProfiles(id ? [id] : []);
