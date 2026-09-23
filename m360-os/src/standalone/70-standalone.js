@@ -26,20 +26,38 @@
     const [busy, setBusy] = useState(false);
     const [sent, setSent] = useState(false);
     const [err, setErr] = useState(window.M360_LOGIN_ERR || '');
+    /* an invite link: who it is for (name only) and whether it still stands */
+    const [invite, setInvite] = useState(window.M360_INVITE || '');
+    const [inv, setInv] = useState(null);           /* {name, title} or {dead: true} */
     useEffect(() => { api('me').then(setInfo, () => setInfo({uid: null, setup: false, down: true})); }, []);
+    useEffect(() => { if (invite) api('invited', {code: invite}).then(setInv, () => setInv({dead: true})); }, [invite]);
     if (!info) return html`<${M.Gate} title="Signing you in" line="One moment."/>`;
     if (info.down) return html`<${M.Gate} title="Workspace unavailable" line="The workspace could not load. Reload in a moment."/>`;
 
     const first = !!info.setup;
+    const joinOpen = info.joinOpen !== false;
     async function go() {
       if (!name.trim()) return;
       setBusy(true); setErr('');
       try { await api(first ? 'setup' : 'signup', {name: name.trim(), email: email.trim()}); location.reload(); }
       catch (e) {
-        setErr(e && e.code === 'taken' ? 'Someone set this workspace up a moment ago. Reload and ask to join.' : 'That did not work. Try again in a moment.');
+        setErr(e && e.code === 'taken' ? 'Someone set this workspace up a moment ago. Reload and ask to join.'
+          : e && e.code === 'closed' ? 'm360 is invite only right now. Ask Kaavish for an invite.' : 'That did not work. Try again in a moment.');
         setBusy(false);
       }
     }
+    /* the invited person confirms the email the invite went to; only then are they signed in and on the team */
+    async function accept() {
+      if (!email.trim()) return;
+      setBusy(true); setErr('');
+      try { await api('accept', {code: invite, email: email.trim()}); window.M360_INVITE = ''; location.reload(); }
+      catch (e) {
+        if (e && e.code === 'expired') setInv({dead: true});
+        else setErr(e && (e.code === 'mismatch' || e.code === 'invalid_argument') && e.message ? e.message : 'That did not work. Try again in a moment.');
+        setBusy(false);
+      }
+    }
+    const leaveInvite = () => { window.M360_INVITE = ''; setInvite(''); setInv(null); setErr(''); };
     async function magic() {
       if (!email.trim()) return;
       setBusy(true); setErr('');
@@ -59,7 +77,22 @@
         ${err ? html`<div class="small flame-t" role="alert">${err}</div>` : null}
       </div>
     <//>`;
-    if (sent) return html`<${M.Gate} title="Check your email" line=${'A sign-in link is on its way to ' + email.trim() + '. It works once, for 24 hours.'}>
+    if (invite && !first) {
+      if (!inv) return html`<${M.Gate} title="Opening your invite" line="One moment."/>`;
+      if (inv.dead) return html`<${M.Gate} title="This invite is no longer valid" line="That invite has expired or was already used. Ask Kaavish for a new one.">
+        <button type="button" class="linky small" onClick=${leaveInvite}>Already on the team? Sign in by email</button>
+      <//>`;
+      return html`<${M.Gate} title="You're invited" line=${(inv.name ? inv.name + ', you' : 'You') + ' have a place on m360 OS, the Mask360 workspace. Type the email your invite went to and you are in.'}>
+        <div class="join-box stack tight" id="invite-box">
+          ${inv.name ? html`<div class="invite-who"><${UI.Pill} kind="ink">${inv.name}<//>${inv.title ? html`<span class="small ink62">${inv.title}</span>` : null}</div>` : null}
+          <${UI.Input} id="signin-email" label="your work email" type="email" value=${email} placeholder="you@mask360.agency" onChange=${setEmail} onEnter=${accept}/>
+          <${UI.Btn} id="invite-go" onClick=${accept} disabled=${busy || !email.trim()}>${busy ? 'One moment' : 'Continue'}<//>
+          ${err ? html`<div class="small flame-t" role="alert">${err}</div>` : null}
+          <button type="button" class="linky small" style=${{alignSelf: 'flex-start'}} onClick=${leaveInvite}>Already on the team? Sign in by email</button>
+        </div>
+      <//>`;
+    }
+    if (sent) return html`<${M.Gate} title="Check your email" line=${'A sign-in link is on its way to ' + email.trim() + '. It works once, for 20 minutes.'}>
       <button type="button" class="linky small" onClick=${() => setSent(false)}>Use a different email</button>
     <//>`;
     if (mode === 'join') return html`<${M.Gate} title="Welcome to m360" line="Type your name to get started. Kaavish lets you in with one tap.">
@@ -76,7 +109,9 @@
         <${UI.Input} id="signin-email" label="your work email" type="email" value=${email} placeholder="you@mask360.agency" onChange=${setEmail} onEnter=${magic}/>
         <${UI.Btn} onClick=${magic} disabled=${busy || !email.trim()}>${busy ? 'Sending' : 'Send me a sign-in link'}<//>
         ${err ? html`<div class="small flame-t" role="alert">${err}</div>` : null}
-        <button type="button" class="linky small" style=${{alignSelf: 'flex-start'}} onClick=${() => { setErr(''); setMode('join'); }}>New here without an invite? Ask to join</button>
+        ${joinOpen
+          ? html`<button type="button" class="linky small" style=${{alignSelf: 'flex-start'}} onClick=${() => { setErr(''); setMode('join'); }}>New here without an invite? Ask to join</button>`
+          : html`<div class="small ink62" id="join-closed">New here? Ask Kaavish for an invite.</div>`}
       </div>
     <//>`;
   }
@@ -94,8 +129,8 @@
       <div class="stack" style=${{gap: '14px'}}>
         <div class="row"><${UI.Avatar} id=${uid || ctx.uid} size=${34}/><span style=${{fontWeight: 500}}><${UI.Name} id=${uid || ctx.uid}/></span></div>
         <p class="small ink62" style=${{margin: 0}}>${self
-          ? 'Open this link on your phone or laptop and you are signed in there too. It works once, for 7 days.'
-          : 'Send this to them. It signs them in on any device, works once, for 7 days.'}</p>
+          ? 'Open this link on your phone or laptop and you are signed in there too. It works once, for 24 hours.'
+          : 'Send this to them. It signs them in on any device, works once, for 24 hours.'}</p>
         ${link ? html`<div class="invite-link num" id="signin-link">${link}</div>
           <div class="row"><${UI.Btn} sm=${true} onClick=${() => copy(link)}>Copy link<//></div>`
           : err ? html`<div class="small flame-t">${err}</div>` : html`<${UI.Empty} text="Making the link."/>`}
@@ -118,20 +153,68 @@
     <//>`;
   }
 
+  /* the sessions of one person, from the server: a short device label, when it signed in, when it was last seen */
+  function useDevices(uid) {
+    const [devs, setDevs] = useState(null);
+    const [err, setErr] = useState('');
+    const load = () => api('devices', uid ? {uid} : {}).then(r => { setDevs(r.devices || []); setErr(''); }, () => { setDevs([]); setErr('The device list could not load.'); });
+    useEffect(() => { load(); }, [uid]);
+    return {devs, err, load};
+  }
+  function DeviceList({devs, onSignout}) {
+    if (!devs) return html`<${UI.Empty} text="Looking up the devices."/>`;
+    if (!devs.length) return html`<${UI.Empty} text="No devices signed in."/>`;
+    return html`<div class="stack tight devlist">${devs.map(d => html`<div class="listrow" key=${d.id}>
+      <span class="grow">
+        <span class="row nowrap"><span class="dev-ua">${d.ua}</span>${d.current ? html`<${UI.Pill} kind="ink">this device<//>` : null}</span>
+        <div class="tiny ink62">signed in ${U.timeAgo(d.at)} · last seen ${U.timeAgo(d.last)}</div>
+      </span>
+      ${onSignout && !d.current ? html`<${UI.ConfirmBtn} kind="ghost" onConfirm=${() => onSignout(d)} label="Tap again to sign it out">Sign out<//>` : null}
+    </div>`)}</div>`;
+  }
+
   function DeviceCard() {
     const [open, setOpen] = useState(false);
     const [canInstall, setCanInstall] = useState(!!window.M360_INSTALL);
+    const {devs, err, load} = useDevices(null);
     useEffect(() => { const on = () => setCanInstall(true); window.addEventListener('m360:installable', on); return () => window.removeEventListener('m360:installable', on); }, []);
     const install = async () => { const e = window.M360_INSTALL; if (!e) return; e.prompt(); try { await e.userChoice; } catch (x) { /* dismissed */ } window.M360_INSTALL = null; setCanInstall(false); };
+    const signoutOne = d => api('signout', {id: d.id}).then(() => { M.toast('Signed out of ' + d.ua); load(); }, e => M.toast((e && e.message) || 'That did not work.', true));
+    const signoutOthers = () => api('signoutall', {keepThis: true}).then(r => { M.toast(r.removed ? 'Signed out everywhere else' : 'No other devices were signed in'); load(); }, e => M.toast((e && e.message) || 'That did not work.', true));
+    const others = (devs || []).filter(d => !d.current).length;
     return html`<${UI.Card} title="This account" id="device-card">
-      <div class="row">
+      <p class="small ink62" style=${{marginTop: 0}}>Every phone and laptop signed in as you. Sign out any you do not recognise.</p>
+      <${DeviceList} devs=${devs} onSignout=${signoutOne}/>
+      ${err ? html`<div class="small flame-t">${err}</div>` : null}
+      <div class="row" style=${{marginTop: '12px'}}>
         ${canInstall ? html`<${UI.Btn} sm=${true} onClick=${install}>Add m360 to this phone<//>` : null}
         <${UI.Btn} kind="sec" sm=${true} onClick=${() => setOpen(true)}>Sign in on another device<//>
+        ${others ? html`<${UI.ConfirmBtn} kind="sec" onConfirm=${signoutOthers} label="Tap again to sign them out">Sign out everywhere else<//>` : null}
         <${UI.ConfirmBtn} kind="ghost" onConfirm=${() => api('logout').then(() => location.reload(), () => location.reload())}
           label="Tap again to sign out">Sign out<//>
       </div>
       ${open ? html`<${LinkDrawer} onClose=${() => setOpen(false)}/>` : null}
     <//>`;
+  }
+
+  /* ---------- Admin: a member's devices, from the roster row ---------- */
+  function MemberDevicesDrawer({uid, onClose}) {
+    const {devs, err, load} = useDevices(uid);
+    const all = () => api('signoutall', {uid}).then(r => { M.toast(r.removed ? 'Signed out of ' + r.removed + (r.removed === 1 ? ' device' : ' devices') : 'No devices were signed in'); load(); }, e => M.toast((e && e.message) || 'That did not work.', true));
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Devices"
+      footer=${html`<${UI.ConfirmBtn} kind="flame" sm=${false} onConfirm=${all} label="Tap again to sign them out">Sign out everywhere<//>`}>
+      <div class="stack" style=${{gap: '14px'}}>
+        <div class="row"><${UI.Avatar} id=${uid} size=${34}/><span style=${{fontWeight: 500}}><${UI.Name} id=${uid}/></span></div>
+        <p class="small ink62" style=${{margin: 0}}>Every device signed in as them. Sign out everywhere ends all of them; they get back in with a fresh link.</p>
+        <div id="member-devices"><${DeviceList} devs=${devs}/></div>
+        ${err ? html`<div class="small flame-t">${err}</div>` : null}
+      </div>
+    <//>`;
+  }
+  function MemberDevices({uid}) {
+    const [open, setOpen] = useState(false);
+    return html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => setOpen(true)}>Devices<//>
+      ${open ? html`<${MemberDevicesDrawer} uid=${uid} onClose=${() => setOpen(false)}/>` : null}`;
   }
 
   /* ---------- Admin: the AI key ---------- */
@@ -182,7 +265,7 @@
     useEffect(() => { refresh(); }, [rosterN]);
     useEffect(() => { const t = setInterval(refresh, 30000); return () => clearInterval(t); }, []);
     if (!ctx.isFounder) return null;
-    const message = link => 'You are on m360 OS, the Mask360 workspace. Open your personal link to get in: ' + link + ' (it works once, for 14 days).';
+    const message = link => 'You are on m360 OS, the Mask360 workspace. Open your personal link and type this email address to get in: ' + link + ' (it works once, for 7 days).';
     async function send() {
       if (!f.email.trim()) return;
       setBusy(true);
@@ -199,8 +282,8 @@
     return html`<${UI.Card} id="invite-email" title="Invite by email"
       action=${mail ? html`<span class=${'pill ' + (mail.on ? 'ink' : 'flame-o')}>${mail.on ? 'email on' : 'email off'}</span>` : null}>
       <p class="small ink62" style=${{marginTop: 0}}>${mail && mail.on
-        ? 'They get an email with a personal link. Opening it signs them in and puts them on the team, no approval needed.'
-        : 'Email sending is off, so you get a personal link to send yourself (WhatsApp works). Switch email on below to send it for you.'}</p>
+        ? 'They get an email with a personal link. They open it, type that same email to confirm it is them, and they are on the team, no approval needed.'
+        : 'Email sending is off, so you get a personal link to send yourself (WhatsApp works). They open it and type the invited email to get in. Switch email on below to send it for you.'}</p>
       <div class="grid2">
         <${UI.Input} id="inv-email" label="email" type="email" value=${f.email} onChange=${set('email')} placeholder="name@mask360.agency" onEnter=${send}/>
         <${UI.Input} id="inv-name" label="name, optional" value=${f.name} onChange=${set('name')} placeholder="First and last name"/>
@@ -265,5 +348,10 @@
   M.parts.SignIn = SignIn;
   M.parts.LinkDrawer = LinkDrawer;
   M.parts.DeviceCard = DeviceCard;
+  M.parts.MemberDevices = MemberDevices;
   M.parts.AiKeyCard = AiKeyCard;
+  /* the activity log lives on the server only; the Log tab reads it a day range at a time */
+  M.logs = M.logs || {};
+  M.logs.read = (ctx, {from, to}) => api('logs', {from, to}).then(r => r.docs || {});
+  M.logs.prune = (ctx, days) => api('prunelogs', {days}).then(r => r.removed || 0);
 })();

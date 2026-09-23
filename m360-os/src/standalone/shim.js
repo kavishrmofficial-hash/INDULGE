@@ -15,10 +15,13 @@
     } catch (e) { throw {code: 'unavailable', message: 'offline'}; }
     let j = {};
     try { j = await r.json(); } catch (e) { j = {}; }
-    if (!r.ok || j.error) throw {code: (j.error && j.error.code) || 'unavailable', message: (j.error && j.error.message) || ('http ' + r.status)};
+    if (!r.ok || j.error) throw {code: (j.error && j.error.code) || 'unavailable', message: (j.error && j.error.message) || ('http ' + r.status), status: r.status};
     return j;
   }
   window.M360_API = call;
+  /* the session ended under the page (signed out from another device, or taken off the roster): back to the sign-in screen */
+  let kicked = false;
+  function kick() { if (kicked) return; kicked = true; try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* keep going */ } location.reload(); }
 
   const clone = x => x === undefined ? undefined : JSON.parse(JSON.stringify(x));
   const freeze = o => { if (o && typeof o === 'object' && !Object.isFrozen(o)) { Object.freeze(o); Object.keys(o).forEach(k => freeze(o[k])); } return o; };
@@ -35,18 +38,18 @@
 
   /* ---------- who is here ---------- */
   let meInfo = null;
-  /* a sign-in link: #login=<code> signs this browser in, then the hash is cleared */
+  /* a sign-in link: #login=<code> signs this browser in, then the hash is cleared.
+     An invite link #invite=<code> signs nobody in by itself: the sign-in screen asks for the invited email first (window.M360_INVITE). */
   const loginCode = (/^#login=([a-z0-9]{10,64})$/.exec(location.hash || '') || [])[1];
   const inviteCode = (/^#invite=([a-z0-9]{10,64})$/.exec(location.hash || '') || [])[1];
+  if (inviteCode) window.M360_INVITE = inviteCode;
   /* a sign-in or invite link opened on top of an already loaded page: start over so it is honoured */
   window.addEventListener('hashchange', () => { if (/^#(login|invite)=[a-z0-9]{10,64}$/.test(location.hash || '')) location.reload(); });
   const clearHash = () => { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* keep going */ } };
   const signedIn = loginCode
     ? call('login', {code: loginCode}).catch(() => { window.M360_LOGIN_ERR = 'That sign-in link has expired or was already used. Ask for a new one.'; }).then(clearHash)
-    : inviteCode
-      ? call('accept', {code: inviteCode}).catch(() => { window.M360_LOGIN_ERR = 'That invite has expired or was already used. Ask Kaavish for a new one.'; }).then(clearHash)
-      : Promise.resolve();
-  const meReady = signedIn.then(() => call('me')).then(m => { meInfo = m; return m; }).catch(() => { meInfo = {uid: null, down: true}; return meInfo; });
+    : Promise.resolve();
+  const meReady = signedIn.then(() => call('me')).then(m => { meInfo = m; if (inviteCode) clearHash(); return m; }).catch(() => { meInfo = {uid: null, down: true}; return meInfo; });
 
   /* ---------- db: a local mirror of every readable collection, kept fresh by polling ---------- */
   const colls = {};          /* path -> {v, docs} */
@@ -101,7 +104,7 @@
       const r = await call('sync', {have});
       applyColls(r.colls);
       if (r.level != null && meInfo && r.level !== meInfo.level) { meInfo.level = r.level; }
-    } catch (e) { /* next tick */ }
+    } catch (e) { if (e && e.status === 401) kick(); /* else next tick */ }
     syncing = false;
   }
   function loop() {
@@ -133,6 +136,7 @@
       inflight[coll]--;
       if (before === undefined) delete c.docs[id]; else c.docs[id] = before;
       notifyColl(coll);
+      if (e && e.status === 401) kick();
       throw e;
     }
   }
@@ -235,7 +239,7 @@
         const r = await call('presence', {page: mine.page || ''});
         const peers = (r.peers || []).concat([{presence: mine, updatedAt: Date.now(), self: true}]);
         fns.forEach(fn => { try { fn({peers}); } catch (e) { /* page handler */ } });
-      } catch (e) { /* offline */ }
+      } catch (e) { if (e && e.status === 401) kick(); /* else offline */ }
     }
     function schedule() { clearTimeout(timer); timer = setTimeout(() => { beat().finally(schedule); }, document.hidden ? 40000 : 15000); }
     return Object.freeze({
