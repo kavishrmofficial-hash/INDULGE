@@ -1,6 +1,6 @@
 /* module: inbox. Everything that happened to you, derived live from the data you can already see:
    tasks handed to you, work sent back or approved, kudos, mentions, leave decisions, announcements,
-   people asking to join (founder). Nothing is stored except when you last looked (me/<uid>.inboxSeen). */
+   people asking to join (founder), correction requests and their decisions. Nothing is stored except when you last looked (me/<uid>.inboxSeen). */
 'use strict';
 (function () {
   const {html, React, U, UI, icons} = M;
@@ -56,6 +56,17 @@
       (M.team ? M.team.requests(ctx) : []).forEach(r => push('join:' + r.uid, 'people', r.at, html`${nm(r.uid)} wants to join the team`, '#admin', r.uid, true));
       if (M.leave && M.leave.pending) M.leave.pending(ctx).forEach(({uid, req}) => push('lvr:' + req.id, 'leave', req.at || 0, html`${nm(uid)} asked for leave, ${M.leave.rangeText(req)}`, '#admin', uid));
     }
+    /* corrections: the founder sees each pending request, the person sees the decision */
+    if (M.fixes && M.fixes.pending) {
+      const kl = M.fixes.KIND_LABEL || {};
+      if (ctx.isFounder) M.fixes.pending(ctx).forEach(({uid, id, req}) => { if (uid !== me) push('fix:' + id, 'fix', req.at || 0, html`${nm(uid)} asked for a correction: ${kl[req.kind] || 'other'}`, '#admin', uid); });
+      const mine = ((ctx.coll.fixes.map[me] || {}).reqs) || {};
+      for (const id of Object.keys(mine)) {
+        const r = mine[id];
+        if (!r || !r.decidedAt || M.fixes.statusOf(r) === 'pending') continue;
+        push('fixd:' + id, 'fix', r.decidedAt, html`Correction ${r.status}, ${kl[r.kind] || 'other'}${r.date ? ' ' + U.fmtDate(r.date) : ''}${r.decidedNote ? ': ' + r.decidedNote : ''}`, '#me', null, r.status === 'declined');
+      }
+    }
     /* celebrations */
     if (M.trophies && M.trophies.today) M.trophies.today(ctx).forEach(c => { if (c.uid !== me) push('cel:' + c.uid + c.kind, 'gift', U.parseYmd(U.todayStr()).getTime(), html`${nm(c.uid)}: ${c.text}`, '#home', c.uid); });
     out.sort((a, b) => b.at - a.at);
@@ -65,7 +76,7 @@
   const seenAt = ctx => Number(((ctx.coll.me.map[ctx.uid] || {}).inboxSeen) || 0);
   const unread = ctx => items(ctx).filter(i => i.at > seenAt(ctx)).length;
 
-  const KIND_ICON = {tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift'};
+  const KIND_ICON = {tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift', fix: 'fix'};
 
   function Inbox({onClose}) {
     const ctx = M.useCtx();
