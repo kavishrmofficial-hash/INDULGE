@@ -449,14 +449,15 @@
             <span class="row nowrap small"><${UI.Avatar} id=${project.owner} size=${24}/><${UI.Name} id=${project.owner}/></span>
             <${UI.AvatarRow} ids=${project.members || []} size=${24}/>
             <span class=${'small num' + (late ? ' flame-t' : ' sub')}>${project.due ? 'due ' + U.fmtDate(project.due) : 'no due date'}</span>
-            ${client ? html`<${UI.Btn} kind="ghost" sm onClick=${() => M.nav('#clients')}><${icons.link}/>${client.name || 'Client'}<//>` : null}
-            ${pitch ? html`<${UI.Btn} kind="ghost" sm onClick=${() => M.nav('#pitches')}><${icons.link}/>${pitch.brand || 'Pitch'}<//>` : null}
+            ${client ? html`<${UI.Btn} kind="ghost" sm onClick=${() => M.nav('#clients/' + project.client)}><${icons.link}/>${client.name || 'Client'}<//>` : null}
+            ${pitch ? html`<${UI.Btn} kind="ghost" sm onClick=${() => M.nav('#pitches/' + project.pitch)}><${icons.link}/>${pitch.brand || 'Pitch'}<//>` : null}
           </div>
           <${Progress} prog=${prog}/>
           <${UI.Seg} options=${TABS} value=${tab} onChange=${setTab} ariaLabel="Project view"/>
         </div>
       <//>
       <${view} ctx=${ctx} project=${project} tasks=${tasks} onOpen=${onOpen}/>
+      ${M.parts.Connections ? html`<${M.parts.Connections} kind="project" id=${id}/>` : null}
       ${(D && openTask) ? html`<${D} taskId=${openTask.taskId} onClose=${() => setOpenTask(null)}
         defaults=${{project: id, section: openTask.section, client: project.client || '', owner: ctx.uid}}/>` : null}
     <//>`;

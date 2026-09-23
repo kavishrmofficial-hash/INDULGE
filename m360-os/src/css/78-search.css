@@ -1,0 +1,25 @@
+/* ---------- master search: connections, the Search drawer, ask the base, nudges ---------- */
+.conn-group{margin-top:8px}
+.conn-group:first-of-type{margin-top:0}
+.conn-row{display:flex; align-items:center; gap:10px; width:100%; min-height:38px; padding:7px 0; border:0; border-bottom:1px solid var(--line); background:transparent; text-align:left; font:inherit; font-size:14px; color:var(--ink); cursor:pointer; border-radius:0}
+.conn-row:last-child{border-bottom:0}
+.conn-row > svg{width:16px; height:16px; flex:none; color:var(--ink62)}
+.conn-row .av{flex:none}
+.conn-row .t{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.conn-row .sub{font-size:12px; white-space:nowrap; flex:none; max-width:45%; overflow:hidden; text-overflow:ellipsis}
+.conn-row:hover .t,.conn-row:focus-visible .t{text-decoration:underline; text-underline-offset:3px}
+.conn-row.nudge{align-items:flex-start; line-height:1.45}
+.conn-row.nudge .spark{color:var(--flame); flex:none; font-size:14px; margin-top:2px}
+.srch-chips{display:flex; gap:8px; flex-wrap:wrap}
+.srch-chips .chip .num{color:var(--ink62); margin-left:2px}
+.srch-chips .chip.on .num{color:inherit}
+.srch-list{display:flex; flex-direction:column; min-width:0}
+.srch-list .micro{margin-top:12px; margin-bottom:2px}
+.srch-list .micro:first-child{margin-top:0}
+.pal-item.more{color:var(--ink62)}
+.askbase .bubble{max-width:100%}
+.askbase.compact{padding:16px}
+@media (max-width:860px){
+  .conn-row{min-height:44px}
+  .conn-row .sub{max-width:40%}
+}

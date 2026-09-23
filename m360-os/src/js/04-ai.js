@@ -41,6 +41,8 @@
     'for luxury and premium brands in Mumbai and the UAE. The founder is Kaavish. The team is small and fast.',
     'Voice: short, warm, direct, a little playful, Gen Z friendly. Zero corporate filler. Numbers over adjectives. No emoji.',
     'Never use em dashes or en dashes. Use names, never internal ids. Today is ' + U.dateLabel(new Date()) + '.',
+    'The Base is the agency contacts database: people and the companies they work at, each with a stage from lead to client.',
+    'When the tools search_base, search_everything, who_do_we_know_at and pipeline_for are offered, use them to look people, companies and pipelines up before answering.',
     ''
   ].join('\n');
 
@@ -293,6 +295,8 @@
         return {ok: true, task: t.title, owner: nm[owner]};
       }
     });
+    /* the Base: look up people, companies and pipelines (78-search.js) */
+    if (M.intel && M.intel.tools) M.intel.tools(ctx, nm).forEach(t => tools.push(t));
     return tools;
   };
 
