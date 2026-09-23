@@ -1,0 +1,5 @@
+/* auth: the invite step on the sign-in screen and the devices lists (Me and Admin) */
+.invite-who{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:4px}
+.devlist .dev-ua{font-weight:500}
+.devlist .listrow{align-items:flex-start}
+.devlist .listrow .tiny{margin-top:3px}

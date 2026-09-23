@@ -7,8 +7,9 @@
      d/<doc path, slashes as ~>          the document                  one blob per document
      a/<collection, slashes as ~>        {docs: {id: {h, data}}}       read cache, rebuilt after writes
      p/<id>                              {name, at}                    people who signed in
-     s/<token>                           {uid, at}                     sessions (cookie m360s)
-     k/<code>                            {uid, until}                  one-time sign-in links
+     s/<token>                           {uid, at, last, ua}           sessions (cookie m360s); ua is a short device label
+     k/<code>                            {uid, until}                  one-time sign-in links (magic: 20 minutes, founder made: 24 hours)
+     d/log~<YYYY-MM-DD>-<uid>            {e: {id: {at, a, p, s}}}      the activity log, written only by the server, read by admin+
      o/owner                             {uid}                         the founder account
      x/ai                                {key}                         Anthropic key, never sent to a page
      x/mail                              {key, from}                   Resend key and sender, never sent to a page
@@ -22,9 +23,18 @@ import {radarActions} from './radar.js';
 
 const LEVEL = {view: 0, interact: 1, admin: 2, owner: 3};
 const SESSION_DAYS = 180;
-const LINK_DAYS = 7;
+const LINK_HOURS = 24;          /* a sign-in link made from Me or by the founder */
+const MAGIC_MINUTES = 20;       /* a sign-in link sent by email */
+const INVITE_DAYS = 7;
+const LAST_SEEN_MS = 3600000;   /* a session's last-seen stamp moves at most once an hour */
 const PRESENCE_MS = 45000;
 const MAX_DOC = 256 * 1024;
+const LOG_SOFT_MAX = 200 * 1024; /* a day's log for one person drops its oldest entries past this */
+const LOG_MAX_DAYS = 31;
+const IST_MS = 330 * 60000;
+/* the calendar day in Asia/Kolkata, the agency's clock */
+const ymdIST = ms => new Date(ms + IST_MS).toISOString().slice(0, 10);
+const YMD = /^\d{4}-\d{2}-\d{2}$/;
 
 const segs = p => String(p || '').split('/').filter(Boolean);
 /* segments never carry ~, which joins them in storage keys */
@@ -61,8 +71,29 @@ function merge(a, b) {
 const cleanName = s => String(s || '').replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
 const cleanEmail = s => { const e = String(s || '').trim().toLowerCase(); return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e.length <= 120 ? e : ''; };
 const emailKey = e => 'e/' + encodeURIComponent(e);
-const INVITE_DAYS = 14;
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+/* a short device label from the user-agent header, for the devices list: "iPhone, Safari", "Windows, Edge" */
+function deviceLabel(ua) {
+  ua = String(ua || '');
+  const os = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android' : /CrOS/.test(ua) ? 'Chromebook'
+    : /Macintosh|Mac OS X/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : /Linux/.test(ua) ? 'Linux' : '';
+  const br = /Edg[eA]?\//.test(ua) || /EdgiOS\//.test(ua) ? 'Edge' : /OPR\/|Opera/.test(ua) ? 'Opera' : /SamsungBrowser/.test(ua) ? 'Samsung Internet'
+    : /Firefox\/|FxiOS\//.test(ua) ? 'Firefox' : /Chrome\/|CriOS\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : '';
+  return [os, br].filter(Boolean).join(', ') || 'Browser';
+}
+/* what a log entry says about a write: a task's or project's title, name and status when present, then the
+   top-level keys. At most 120 characters, never the document. */
+function summarize(path, data) {
+  if (!isObj(data)) return '';
+  const keys = Object.keys(data).join(', ');
+  const coll = segs(path)[0];
+  let s = keys;
+  if (coll === 'tasks' || coll === 'projects') {
+    const extra = ['title', 'name', 'status'].filter(k => typeof data[k] === 'string' && data[k]).map(k => k + ': ' + data[k].slice(0, 40));
+    if (extra.length) s = extra.join(', ') + (keys ? ' · ' + keys : '');
+  }
+  return s.slice(0, 120);
+}
 
 class HttpError extends Error {
   constructor(status, code, message) { super(message || code); this.status = status; this.code = code; }
@@ -133,7 +164,10 @@ export function createApp({store, env = {}}) {
     if (!tok || !/^[a-z0-9]{10,64}$/.test(tok)) return null;
     const s = await getJ('s/' + tok);
     if (!s || !s.uid) return null;
-    if (Date.now() - (s.at || 0) > SESSION_DAYS * 86400000) return null;
+    const now = Date.now();
+    if (now - (s.at || 0) > SESSION_DAYS * 86400000) return null;
+    /* last seen moves at most once an hour, so a busy page does not rewrite its session on every poll */
+    if (now - (s.last || s.at || 0) > LAST_SEEN_MS) await putJ('s/' + tok, {...s, last: now}).catch(() => {});
     return {uid: s.uid, token: tok};
   }
   async function ownerUid() { const o = await getJ('o/owner'); return o && o.uid; }
@@ -149,14 +183,71 @@ export function createApp({store, env = {}}) {
     if (level >= LEVEL.interact) return ruleAccess(path, uid, level);
     return guestAccess(path, uid);
   }
-  const hidden = (coll, uid) => { const s = segs(coll); return s[0] === 'data' && s[1] === 'users' && s[2] !== uid; };
+  /* someone else's private data, and the activity log (read through the logs action only), never reach a page mirror */
+  const hidden = (coll, uid) => { const s = segs(coll); return s[0] === 'log' || (s[0] === 'data' && s[1] === 'users' && s[2] !== uid); };
+  /* may this viewer act on that person's sessions and links? Themselves always; admin+ on anyone but the founder */
+  async function mayManage(v, target) {
+    if (target === v.uid) return true;
+    const [lvl, owner] = await Promise.all([levelOf(v.uid), ownerUid()]);
+    return lvl >= LEVEL.admin && (target !== owner || v.uid === owner);
+  }
+  async function appSettings() { return (await getJ(docKey('settings/app')).catch(() => null)) || {}; }
 
-  async function startSession(uid) {
+  /* ---------- sessions ---------- */
+  /* ua is the short device label the request handler already derived */
+  async function startSession(uid, ua) {
     const token = rand(32).replace(/[^a-z0-9]/g, '').slice(0, 40);
-    await putJ('s/' + token, {uid, at: Date.now()});
+    const now = Date.now();
+    await putJ('s/' + token, {uid, at: now, last: now, ua: String(ua || 'Browser').slice(0, 40)});
     return token;
   }
   const cookie = token => 'm360s=' + token + '; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=' + (SESSION_DAYS * 86400);
+  const CLEAR_COOKIE = 'm360s=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0';
+  /* every live session of one person; dead ones are dropped on the way */
+  async function sessionsOf(uid) {
+    const out = [], now = Date.now();
+    await Promise.all((await listAll('s/')).map(async b => {
+      const s = await getJ(b.key).catch(() => null);
+      if (!s || !s.uid) return;
+      if (now - (s.at || 0) > SESSION_DAYS * 86400000) { await store.delete(b.key).catch(() => {}); return; }
+      if (s.uid === uid) out.push({token: b.key.slice(2), ...s});
+    }));
+    return out.sort((a, b) => (b.last || b.at || 0) - (a.last || a.at || 0));
+  }
+  async function endSessions(uid, keep) {
+    const list = (await sessionsOf(uid)).filter(s => s.token !== keep);
+    await Promise.all(list.map(s => store.delete('s/' + s.token).catch(() => {})));
+    return list.length;
+  }
+
+  /* ---------- the activity log: one document per person per day, appended by the server only ----------
+     An append is get, merge, set on that one document. Appends to the same document from this function
+     instance queue up one after another, so a page firing two writes at once does not lose an entry. */
+  const logQueue = new Map();
+  async function appendLog(key, id, entry) {
+    const cur = (await getJ(key).catch(() => null)) || {};
+    const e = isObj(cur.e) ? {...cur.e} : {};
+    e[id] = entry;
+    let str = JSON.stringify({e});
+    if (str.length > LOG_SOFT_MAX) {
+      const ids = Object.keys(e).sort();
+      while (str.length > LOG_SOFT_MAX && ids.length > 1) { delete e[ids.shift()]; str = JSON.stringify({e}); }
+    }
+    await store.set(key, str);
+  }
+  async function log(uid, a, p, s) {
+    if (!uid) return;
+    try {
+      const at = Date.now();
+      const id = String(at) + Math.random().toString(36).slice(2, 6).padEnd(4, '0');
+      const key = docKey('log/' + ymdIST(at) + '-' + uid);
+      const entry = {at, a: String(a), p: String(p || ''), s: String(s || '').slice(0, 120)};
+      const turn = (logQueue.get(key) || Promise.resolve()).then(() => appendLog(key, id, entry)).catch(() => {});
+      logQueue.set(key, turn);
+      await turn;
+      if (logQueue.get(key) === turn) logQueue.delete(key);
+    } catch (x) { /* the log never blocks the action it records */ }
+  }
 
   async function aiKey() { if (env.ANTHROPIC_API_KEY) return env.ANTHROPIC_API_KEY; const x = await getJ('x/ai'); return x && x.key; }
   async function mailConf() {
@@ -227,15 +318,16 @@ export function createApp({store, env = {}}) {
   /* ---------- actions ---------- */
   const actions = {
     async me(v) {
-      const owner = await ownerUid();
-      if (!v) return {uid: null, setup: !owner};
+      const [owner, app] = await Promise.all([ownerUid(), appSettings()]);
+      const joinOpen = app.joinPolicy !== 'invite';
+      if (!v) return {uid: null, setup: !owner, joinOpen};
       const [p, level, ai, mail] = await Promise.all([getJ('p/' + v.uid), levelOf(v.uid), aiKey(), mailConf()]);
       return {uid: v.uid, name: (p && p.name) || '', email: (p && p.email) || '', isOwner: v.uid === owner, canEdit: level >= LEVEL.admin,
-        level, setup: !owner, ai: !!ai, mail: !!mail};
+        level, setup: !owner, ai: !!ai, mail: !!mail, joinOpen, locked: app.locked === true};
     },
 
     /* the first person to open a fresh deploy becomes the founder, and the workspace is seeded */
-    async setup(v, body) {
+    async setup(v, body, req) {
       const name = cleanName(body.name);
       if (!name) throw new HttpError(400, 'invalid_argument', 'name needed');
       if (await ownerUid()) throw new HttpError(409, 'taken', 'already set up');
@@ -245,48 +337,86 @@ export function createApp({store, env = {}}) {
       if (email) await putJ(emailKey(email), {uid});
       await putJ('o/owner', {uid});
       await Promise.all(Object.keys(SEED).map(path => putJ(docKey(path), SEED[path])));
-      const token = await startSession(uid);
+      const token = await startSession(uid, req.ua);
+      await log(uid, 'setup', '', req.ua);
       return {__cookie: cookie(token), uid};
     },
 
-    async signup(v, body) {
+    /* a name and nothing else: the person waits on the join screen until the founder lets them in */
+    async signup(v, body, req) {
       const name = cleanName(body.name);
       if (!name) throw new HttpError(400, 'invalid_argument', 'name needed');
       if (!(await ownerUid())) throw new HttpError(409, 'not_setup', 'set up first');
+      if ((await appSettings()).joinPolicy === 'invite') throw new HttpError(409, 'closed', 'm360 is invite only right now. Ask Kaavish for an invite.');
       const uid = newId();
       await putJ('p/' + uid, {name, at: Date.now()});
-      const token = await startSession(uid);
+      const token = await startSession(uid, req.ua);
+      await log(uid, 'signup', '', req.ua);
       return {__cookie: cookie(token), uid};
     },
 
-    async login(v, body) {
+    async login(v, body, req) {
       const code = String(body.code || '');
       if (!/^[a-z0-9]{10,64}$/.test(code)) throw new HttpError(400, 'invalid_argument', 'bad link');
       const k = await getJ('k/' + code);
       if (!k || !k.uid || k.until < Date.now()) throw new HttpError(410, 'expired', 'link expired');
       await store.delete('k/' + code).catch(() => {});
-      const token = await startSession(k.uid);
+      const token = await startSession(k.uid, req.ua);
+      await log(k.uid, 'login', '', req.ua);
       return {__cookie: cookie(token), uid: k.uid};
     },
 
     async logout(v) {
-      if (v) await store.delete('s/' + v.token).catch(() => {});
-      return {__cookie: 'm360s=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'};
+      if (v) { await store.delete('s/' + v.token).catch(() => {}); await log(v.uid, 'logout', '', ''); }
+      return {__cookie: CLEAR_COOKIE};
     },
 
-    /* a one-time sign-in link: for yourself (another device), or by the founder for anyone */
+    /* a one-time sign-in link, good for 24 hours: for yourself (another device), or by the founder for anyone */
     async mklink(v, body) {
       if (!v) throw new HttpError(401, 'noid');
       const target = body.uid || v.uid;
-      if (target !== v.uid) {
-        /* the founder makes links for anyone; full access makes links for anyone but the founder */
-        const [lvl, owner] = await Promise.all([levelOf(v.uid), ownerUid()]);
-        if (lvl < LEVEL.admin || (target === owner && v.uid !== owner)) throw new HttpError(403, 'invalid_argument');
-      }
+      if (!(await mayManage(v, target))) throw new HttpError(403, 'invalid_argument');
       if (!(await getJ('p/' + target))) throw new HttpError(404, 'invalid_argument');
       const code = rand(32).replace(/[^a-z0-9]/g, '').slice(0, 32);
-      await putJ('k/' + code, {uid: target, until: Date.now() + LINK_DAYS * 86400000});
-      return {code, days: LINK_DAYS};
+      await putJ('k/' + code, {uid: target, until: Date.now() + LINK_HOURS * 3600000});
+      await log(v.uid, 'mklink', '', target === v.uid ? 'own device' : target);
+      return {code, hours: LINK_HOURS};
+    },
+
+    /* the sessions of one person, newest first: the caller's own, or anyone's for admin+ */
+    async devices(v, body) {
+      if (!v) throw new HttpError(401, 'noid');
+      const target = body.uid || v.uid;
+      if (!(await mayManage(v, target))) throw new HttpError(403, 'invalid_argument');
+      const list = await sessionsOf(target);
+      return {devices: list.map(s => ({id: s.token.slice(0, 8), ua: s.ua || 'Browser', at: s.at || 0, last: s.last || s.at || 0, current: s.token === v.token}))};
+    },
+    /* end one session by its short id */
+    async signout(v, body) {
+      if (!v) throw new HttpError(401, 'noid');
+      const id = String(body.id || '');
+      if (!/^[a-z0-9]{8}$/.test(id)) throw new HttpError(400, 'invalid_argument', 'bad id');
+      let gone = 0, mine = false;
+      for (const b of await listAll('s/' + id)) {
+        const s = await getJ(b.key).catch(() => null);
+        if (!s || !s.uid || !(await mayManage(v, s.uid))) continue;
+        await store.delete(b.key).catch(() => {});
+        gone++;
+        if (b.key.slice(2) === v.token) mine = true;
+        await log(v.uid, 'signout', '', (s.uid === v.uid ? '' : s.uid + ': ') + (s.ua || 'Browser'));
+      }
+      if (!gone) throw new HttpError(404, 'invalid_argument', 'That device is already signed out.');
+      return mine ? {ok: true, __cookie: CLEAR_COOKIE} : {ok: true};
+    },
+    /* end every session of one person: the caller's own (keepThis leaves this one), or anyone's for admin+ */
+    async signoutall(v, body) {
+      if (!v) throw new HttpError(401, 'noid');
+      const target = body.uid || v.uid;
+      if (!(await mayManage(v, target))) throw new HttpError(403, 'invalid_argument');
+      const keep = target === v.uid && body.keepThis ? v.token : null;
+      const removed = await endSessions(target, keep);
+      await log(v.uid, 'signoutall', '', (target === v.uid ? '' : target + ': ') + removed + (removed === 1 ? ' device' : ' devices'));
+      return target === v.uid && !keep ? {removed, __cookie: CLEAR_COOKIE} : {removed};
     },
 
     async rename(v, body) {
@@ -294,6 +424,7 @@ export function createApp({store, env = {}}) {
       const name = cleanName(body.name);
       if (!name) throw new HttpError(400, 'invalid_argument');
       await putJ('p/' + v.uid, {...(await getJ('p/' + v.uid) || {}), name});
+      await log(v.uid, 'rename', '', '');
       return {ok: true};
     },
 
@@ -337,20 +468,71 @@ export function createApp({store, env = {}}) {
       if (!s.length || s.length % 2 !== 0 || s.some(x => !SEG_OK.test(x) || x === '.' || x === '..')) throw new HttpError(400, 'invalid_argument', 'bad path');
       if (op !== 'set' && op !== 'update' && op !== 'delete') throw new HttpError(400, 'invalid_argument', 'bad op');
       if (op !== 'delete' && !isObj(data)) throw new HttpError(400, 'invalid_argument', 'body must be an object');
+      /* the server writes the log itself; a page never does */
+      if (s[0] === 'log') throw new HttpError(403, 'invalid_argument', 'the log is written by the server');
       const level = await levelOf(v.uid);
       if (!access(path, v.uid, level).write) throw new HttpError(403, 'invalid_argument', 'write not allowed');
+      /* the founder can freeze the workspace: below admin only your own join request and your own status still go through */
+      if (level < LEVEL.admin && (await appSettings()).locked === true) {
+        const own = s.length === 2 && s[1] === v.uid && (s[0] === 'join' || s[0] === 'me');
+        if (!own) throw new HttpError(423, 'locked', 'm360 is locked for changes right now');
+      }
       const key = docKey(path);
-      if (op === 'delete') { await store.delete(key).catch(() => {}); return {ok: true, doc: null}; }
-      let next = data;
+      if (op === 'delete') {
+        await store.delete(key).catch(() => {});
+        await log(v.uid, 'delete', path, '');
+        return {ok: true, doc: null};
+      }
+      let next = data, cur = null;
+      if (op === 'update' || path === 'roster/team') cur = await getJ(key);
       if (op === 'update') {
-        const cur = await getJ(key);
         if (cur == null) throw new HttpError(400, 'invalid_argument', 'update on missing document');
         next = merge(cur, data);
       }
       const str = JSON.stringify(next);
       if (str.length > MAX_DOC) throw new HttpError(400, 'invalid_argument', 'document over 256 KiB');
       await store.set(key, str);
+      await log(v.uid, op, path, summarize(path, data));
+      /* someone taken off the roster is signed out of every device at once */
+      if (path === 'roster/team') {
+        const was = (cur && cur.members) || {}, now = (next && next.members) || {};
+        for (const uid of Object.keys(now)) {
+          if (uid === v.uid || !now[uid] || now[uid].active !== false || !was[uid] || was[uid].active === false) continue;
+          const n = await endSessions(uid, null);
+          await log(v.uid, 'signoutall', '', uid + ': ' + n + (n === 1 ? ' device' : ' devices') + ', deactivated');
+        }
+      }
       return {ok: true, doc: next};
+    },
+
+    /* the activity log between two days (inclusive, at most 31), one document per person per day */
+    async logs(v, body) {
+      if (!v || (await levelOf(v.uid)) < LEVEL.admin) throw new HttpError(403, 'invalid_argument');
+      const from = String(body.from || ''), to = String(body.to || from);
+      if (!YMD.test(from) || !YMD.test(to) || to < from) throw new HttpError(400, 'invalid_argument', 'from and to as YYYY-MM-DD');
+      if ((Date.parse(to) - Date.parse(from)) / 86400000 > LOG_MAX_DAYS - 1) throw new HttpError(400, 'invalid_argument', 'at most 31 days at a time');
+      const docs = {};
+      await Promise.all((await listAll('d/log~')).map(async b => {
+        const id = pathOfKey(b.key).slice(4), day = id.slice(0, 10);
+        if (day < from || day > to) return;
+        const d = await getJ(b.key).catch(() => null);
+        if (d) docs[id] = d;
+      }));
+      return {docs};
+    },
+    /* drop log documents older than N days (default 90) */
+    async prunelogs(v, body) {
+      if (!v || (await levelOf(v.uid)) < LEVEL.admin) throw new HttpError(403, 'invalid_argument');
+      const days = Math.max(1, Math.min(3650, Math.floor(Number(body.days) || 90)));
+      const cutoff = ymdIST(Date.now() - days * 86400000);
+      let removed = 0;
+      for (const b of await listAll('d/log~')) {
+        if (pathOfKey(b.key).slice(4, 14) >= cutoff) continue;
+        await store.delete(b.key).catch(() => {});
+        removed++;
+      }
+      await log(v.uid, 'prunelogs', '', removed + (removed === 1 ? ' document' : ' documents') + ' older than ' + days + ' days');
+      return {removed};
     },
 
     /* presence: one beacon key per viewer, listed without reading bodies */
@@ -379,9 +561,10 @@ export function createApp({store, env = {}}) {
     async mailkey(v, body) {
       if (!v || (await levelOf(v.uid)) < LEVEL.admin) throw new HttpError(403, 'invalid_argument');
       const key = String(body.key || '').trim(), from = String(body.from || '').trim().slice(0, 120);
-      if (!key) { await store.delete('x/mail').catch(() => {}); return {on: !!env.RESEND_API_KEY}; }
+      if (!key) { await store.delete('x/mail').catch(() => {}); await log(v.uid, 'mailkey', '', 'removed'); return {on: !!env.RESEND_API_KEY}; }
       if (!/^re_[A-Za-z0-9_\-]{10,200}$/.test(key)) throw new HttpError(400, 'invalid_argument', 'That does not look like a Resend key.');
       await putJ('x/mail', {key, from: from || 'm360 OS <onboarding@resend.dev>', at: Date.now(), by: v.uid});
+      await log(v.uid, 'mailkey', '', 'set');
       return {on: true};
     },
     async mailtest(v) {
@@ -401,9 +584,10 @@ export function createApp({store, env = {}}) {
       if (p.email && p.email !== email) await store.delete(emailKey(p.email)).catch(() => {});
       await putJ('p/' + v.uid, {...p, email});
       await putJ(emailKey(email), {uid: v.uid});
+      await log(v.uid, 'setemail', '', '');
       return {ok: true, email};
     },
-    /* the founder (or full access) invites by email; the link puts them straight on the team */
+    /* the founder (or full access) invites by email; the person opens the link, confirms that email, and is on the team */
     async invite(v, body) {
       if (!v || (await levelOf(v.uid)) < LEVEL.admin) throw new HttpError(403, 'invalid_argument');
       const email = cleanEmail(body.email);
@@ -418,13 +602,22 @@ export function createApp({store, env = {}}) {
       try {
         const by = await getJ('p/' + v.uid);
         sent = await sendMail(email, (by && by.name ? by.name : 'Mask360') + ' invited you to m360 OS',
-          (name ? 'Hi ' + name + ',\n\n' : 'Hi,\n\n') + (by && by.name ? by.name : 'Mask360') + ' has added you to m360 OS, the Mask360 workspace.\n\nOpen your link to get in:\n' + link +
+          (name ? 'Hi ' + name + ',\n\n' : 'Hi,\n\n') + (by && by.name ? by.name : 'Mask360') + ' has added you to m360 OS, the Mask360 workspace.\n\nOpen your link, type this email address to confirm it is you, and you are in:\n' + link +
             '\n\nIt works once and is good for ' + INVITE_DAYS + ' days. Open it on the device you use for work; you can add your phone from inside.',
           '<p>' + (name ? 'Hi ' + esc(name) + ',' : 'Hi,') + '</p><p><b>' + esc(by && by.name ? by.name : 'Mask360') + '</b> has added you to <b>m360 OS</b>, the Mask360 workspace.</p>' +
             '<p><a href="' + esc(link) + '" style="display:inline-block;padding:12px 18px;background:#0E0E0E;color:#fff;border-radius:12px;text-decoration:none">Open m360 OS</a></p>' +
-            '<p style="color:#666;font-size:13px">The link works once and is good for ' + INVITE_DAYS + ' days. Open it on the device you use for work; you can add your phone from inside.</p>');
+            '<p style="color:#666;font-size:13px">Type this email address to confirm it is you. The link works once and is good for ' + INVITE_DAYS + ' days. Open it on the device you use for work; you can add your phone from inside.</p>');
       } catch (e) { why = String((e && e.message) || 'mail failed'); }
+      await log(v.uid, 'invite', '', role + (title ? ', ' + title : '') + (sent ? ', emailed' : ', link'));
       return {code, link, sent, why};
+    },
+    /* what the sign-in screen shows for an invite link: the invited name, never the email */
+    async invited(v, body) {
+      const code = String(body.code || '');
+      if (!/^[a-z0-9]{10,64}$/.test(code)) throw new HttpError(400, 'invalid_argument', 'bad link');
+      const inv = await getJ('i/' + code);
+      if (!inv || inv.until < Date.now()) throw new HttpError(410, 'expired', 'invite expired');
+      return {name: inv.name || '', title: inv.title || '', days: INVITE_DAYS};
     },
     async invites(v) {
       if (!v || (await levelOf(v.uid)) < LEVEL.admin) throw new HttpError(403, 'invalid_argument');
@@ -441,14 +634,18 @@ export function createApp({store, env = {}}) {
       if (!v || (await levelOf(v.uid)) < LEVEL.admin) throw new HttpError(403, 'invalid_argument');
       const code = String(body.code || '');
       if (/^[a-z0-9]{10,64}$/.test(code)) await store.delete('i/' + code).catch(() => {});
+      await log(v.uid, 'uninvite', '', '');
       return {ok: true};
     },
-    /* the invited person opens the link: a person and a roster row exist by the time the page loads */
-    async accept(v, body) {
+    /* the invited person opens the link and types the email it went to: then a person and a roster row exist */
+    async accept(v, body, req) {
       const code = String(body.code || '');
       if (!/^[a-z0-9]{10,64}$/.test(code)) throw new HttpError(400, 'invalid_argument', 'bad link');
       const inv = await getJ('i/' + code);
       if (!inv || inv.until < Date.now()) throw new HttpError(410, 'expired', 'invite expired');
+      const email = cleanEmail(body.email);
+      if (!email) throw new HttpError(400, 'invalid_argument', 'Type the email your invite went to.');
+      if (email !== inv.email) throw new HttpError(403, 'mismatch', 'That email does not match this invite.');
       const known = await getJ(emailKey(inv.email));
       let uid = known && known.uid;
       if (uid && !(await getJ('p/' + uid))) uid = null;
@@ -469,10 +666,11 @@ export function createApp({store, env = {}}) {
         await store.set(docKey('roster/team'), JSON.stringify(team));
       }
       await store.delete('i/' + code).catch(() => {});
-      const token = await startSession(uid);
+      const token = await startSession(uid, req.ua);
+      await log(uid, 'accept', '', (inv.role || 'member') + ', ' + req.ua);
       return {__cookie: cookie(token), uid};
     },
-    /* a sign-in link by email for anyone already on the team */
+    /* a sign-in link by email for anyone already on the team, good for 20 minutes */
     async magic(v, body) {
       const email = cleanEmail(body.email);
       if (!email) throw new HttpError(400, 'invalid_argument', 'That email does not look right.');
@@ -480,11 +678,13 @@ export function createApp({store, env = {}}) {
       const known = await getJ(emailKey(email));
       if (!known || !known.uid || !(await getJ('p/' + known.uid))) return {sent: true};
       const code = rand(32).replace(/[^a-z0-9]/g, '').slice(0, 32);
-      await putJ('k/' + code, {uid: known.uid, until: Date.now() + 86400000});
+      await putJ('k/' + code, {uid: known.uid, until: Date.now() + MAGIC_MINUTES * 60000});
       const link = String(body.base || '').replace(/[#?].*$/, '') + '#login=' + code;
-      await sendMail(email, 'Your m360 OS sign-in link', 'Open this link to sign in to m360 OS:\n' + link + '\n\nIt works once, for 24 hours. If you did not ask for it, ignore this email.',
-        '<p><a href="' + esc(link) + '" style="display:inline-block;padding:12px 18px;background:#0E0E0E;color:#fff;border-radius:12px;text-decoration:none">Sign in to m360 OS</a></p><p style="color:#666;font-size:13px">It works once, for 24 hours. If you did not ask for it, ignore this email.</p>');
-      return {sent: true};
+      const life = 'It works once, for ' + MAGIC_MINUTES + ' minutes. If you did not ask for it, ignore this email.';
+      await sendMail(email, 'Your m360 OS sign-in link', 'Open this link to sign in to m360 OS:\n' + link + '\n\n' + life,
+        '<p><a href="' + esc(link) + '" style="display:inline-block;padding:12px 18px;background:#0E0E0E;color:#fff;border-radius:12px;text-decoration:none">Sign in to m360 OS</a></p><p style="color:#666;font-size:13px">' + life + '</p>');
+      await log(known.uid, 'magic', '', 'link sent');
+      return {sent: true, minutes: MAGIC_MINUTES};
     },
 
     async aistatus(v) { return {on: !!(v && await aiKey())}; },
@@ -492,9 +692,10 @@ export function createApp({store, env = {}}) {
     async aikey(v, body) {
       if (!v || (await levelOf(v.uid)) < LEVEL.admin) throw new HttpError(403, 'invalid_argument');
       const key = String(body.key || '').trim();
-      if (!key) { await store.delete('x/ai').catch(() => {}); return {on: !!env.ANTHROPIC_API_KEY}; }
+      if (!key) { await store.delete('x/ai').catch(() => {}); await log(v.uid, 'aikey', '', 'removed'); return {on: !!env.ANTHROPIC_API_KEY}; }
       if (!/^sk-ant-[A-Za-z0-9_\-]{20,200}$/.test(key)) throw new HttpError(400, 'invalid_argument', 'That does not look like an Anthropic key.');
       await putJ('x/ai', {key, at: Date.now(), by: v.uid});
+      await log(v.uid, 'aikey', '', 'set');
       return {on: true};
     },
 
@@ -539,7 +740,7 @@ export function createApp({store, env = {}}) {
     if (!fn) return json({error: {code: 'invalid_argument', message: 'unknown action'}}, 400);
     try {
       const v = await viewer(request);
-      const out = await fn(v, body);
+      const out = await fn(v, body, {ua: deviceLabel(request.headers.get('user-agent'))});
       const extra = {};
       if (out && out.__cookie) { extra['set-cookie'] = out.__cookie; delete out.__cookie; }
       return json(out || {}, 200, extra);

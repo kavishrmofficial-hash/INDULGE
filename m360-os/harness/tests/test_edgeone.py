@@ -3,7 +3,8 @@
 stand-in server (edgeone/dev/server.mjs) over a file-backed blob store. Two browser contexts are two devices.
 
 Covers first-run setup, a member signing up and asking to join, the founder letting them in, live sync
-between the two, private data, sign-in links, AI through the server with tools, and sign out.
+between the two, private data, sign-in links, invites that ask for the invited email, devices and remote
+sign out, the lock and the join policy, the server activity log, AI through the server with tools, and sign out.
 
 Run: cd m360-os && python3 harness/tests/test_edgeone.py
 """
@@ -209,11 +210,23 @@ def main():
             row.get_by_role('button', name='Tap again to confirm').click()
             f.wait_for_function('() => document.querySelectorAll("#inv-list .listrow").length === 2')
 
-            # Priya opens her link on a fresh device: signed in, on the team, with the invite's title and access
+            # Priya opens her link on a fresh device: nobody is signed in until she types the invited email
             pc, pp = device()
             pp.goto(priya_link)
+            pp.wait_for_selector("text=You're invited")
+            check(pp.evaluate('() => window.M360_INVITE') == priya_link.split('#invite=')[1], 'shim did not expose the invite code')
+            check('Priya Nair' in pp.inner_text('#invite-box'), 'invited name missing')
+            check(pp.locator('.sidebar').count() == 0, 'invite signed Priya in by itself')
+            pp.fill('#signin-email', 'someone@else.com')
+            pp.locator('#invite-go').click()
+            pp.wait_for_selector('text=That email does not match this invite.')
+            check(not [x for x in store_doc('d/roster~team')['members'].values() if x.get('title') == 'Producer'], 'roster row made before the email matched')
+            check(not [k for k in json.loads(urllib.request.urlopen(base + '__store').read()) if k == 'e/priya%40mask360.agency'], 'person made before the email matched')
+            pp.fill('#signin-email', ' Priya@Mask360.agency ')
+            pp.locator('#invite-go').click()
             pp.wait_for_selector('.sidebar')
             check('Priya Nair' in pp.inner_text('.side-foot'), 'invite did not sign Priya in')
+            check('#invite=' not in pp.url, 'invite code left in the address bar')
             team = store_doc('d/roster~team')
             priya = [m for m in team['members'].values() if m.get('title') == 'Producer']
             check(priya and priya[0]['role'] == 'lead' and priya[0]['active'] and priya[0]['empId'].startswith('M360-'), 'Priya roster row %r' % priya)
@@ -222,9 +235,12 @@ def main():
             xc, xp = device()
             xp.goto(priya_link)
             xp.wait_for_selector('text=has expired or was already used')
-            # Arjun's mailed link works too, and the pending list clears
+            # Arjun's mailed link works too (no name on the invite), and the pending list clears
             ac, ap = device()
             ap.goto(arjun_link)
+            ap.wait_for_selector("text=You're invited")
+            ap.fill('#signin-email', 'arjun@mask360.agency')
+            ap.locator('#invite-go').click()
             ap.wait_for_selector('.sidebar')
             f.goto(base + '#admin')
             f.wait_for_selector('#invite-email')
@@ -240,9 +256,66 @@ def main():
             mails = json.loads(urllib.request.urlopen(base + '__mails').read())
             login = [w for w in mails[-1]['text'].split() if '#login=' in w][0]
             check(mails[-1]['to'] == ['priya@mask360.agency'], 'magic link went to %r' % mails[-1]['to'])
+            check('20 minutes' in mails[-1]['text'], 'magic link copy %r' % mails[-1]['text'])
             zp.goto(login)
             zp.wait_for_selector('.sidebar')
             check('Priya Nair' in zp.inner_text('.side-foot'), 'magic link signed in the wrong person')
+
+            # ---- devices: Priya sees both of hers, signs out everywhere else, and the first one drops to the sign-in screen ----
+            zp.goto(base + '#me')
+            zp.wait_for_selector('#device-card .devlist')
+            zp.wait_for_function('() => document.querySelectorAll("#device-card .devlist .listrow").length === 2')
+            devs = zp.evaluate('() => window.M360_API("devices").then(r => r.devices)')
+            check(len(devs) == 2 and sum(1 for x in devs if x['current']) == 1
+                  and all(x['ua'] and x['at'] and x['last'] and len(x['id']) == 8 for x in devs), 'devices %r' % devs)
+            check(all(x['ua'] == 'Linux, Chrome' for x in devs), 'device label %r' % [x['ua'] for x in devs])
+            zp.locator('#device-card').get_by_role('button', name='Sign out everywhere else').click()
+            zp.locator('#device-card').get_by_role('button', name='Tap again to sign them out').click()
+            zp.wait_for_function('() => document.querySelectorAll("#device-card .devlist .listrow").length === 1')
+            pp.wait_for_selector('text=Sign in to m360', timeout=20000)
+            # the founder sees Priya's devices from the roster and can sign her out everywhere
+            f.goto(base + '#admin')
+            f.locator('tr', has_text='Priya Nair').get_by_role('button', name='Devices').click()
+            f.wait_for_selector('#member-devices .listrow')
+            check(f.locator('#member-devices .listrow').count() == 1, 'admin device list')
+            f.locator('.drawer').get_by_role('button', name='Sign out everywhere').click()
+            f.locator('.drawer').get_by_role('button', name='Tap again to sign them out').click()
+            f.wait_for_selector('#member-devices:has-text("No devices signed in.")')
+            f.keyboard.press('Escape')
+            f.wait_for_selector('.drawer', state='detached')
+            zp.wait_for_selector('text=Sign in to m360', timeout=20000)
+            # a member cannot list or end someone else's sessions
+            res4 = m.evaluate('fu => Promise.all([window.M360_API("devices", {uid: fu}).then(() => "ok", e => e.status), window.M360_API("signoutall", {uid: fu}).then(() => "ok", e => e.status)])', fuid)
+            check(res4 == [403, 403], 'member touched founder sessions %r' % res4)
+
+            # ---- lock: the founder freezes changes; a member's write is refused, their own status still goes through ----
+            f.evaluate('() => window.M360_API("write", {op: "update", path: "settings/app", data: {locked: true}})')
+            res5 = m.evaluate('''async () => {
+              const uid = (await window.M360_API('me')).uid, out = {};
+              try { await window.M360_API('write', {op: 'set', path: 'feed/' + uid, data: {posts: []}}); out.feed = 'wrote'; } catch (e) { out.feed = e.code + ':' + e.status + ':' + e.message; }
+              try { await window.M360_API('write', {op: 'set', path: 'me/' + uid, data: {status: 'here'}}); out.me = 'wrote'; } catch (e) { out.me = e.code; }
+              try { await window.M360_API('write', {op: 'set', path: 'log/2026-01-01-' + uid, data: {e: {}}}); out.log = 'wrote'; } catch (e) { out.log = e.code + ':' + e.status; }
+              return out;
+            }''')
+            check(res5 == {'feed': 'locked:423:m360 is locked for changes right now', 'me': 'wrote', 'log': 'invalid_argument:403'}, 'lock %r' % res5)
+            f.evaluate('() => window.M360_API("write", {op: "update", path: "settings/app", data: {locked: false}})')
+            check((store_doc('d/settings~app') or {}).get('locked') is False, 'lock did not clear')
+
+            # ---- join policy: invite only closes signup and hides Ask to join ----
+            f.evaluate('() => window.M360_API("write", {op: "update", path: "settings/app", data: {joinPolicy: "invite"}})')
+            jc, jp = device()
+            jp.goto(base)
+            jp.wait_for_selector('#join-closed')
+            check(jp.locator('text=New here without an invite? Ask to join').count() == 0, 'join button shown while invite only')
+            r3 = urllib.request.Request(base + 'api/m360', data=b'{"a":"signup","name":"Walk In"}', method='POST', headers={'content-type': 'application/json'})
+            try:
+                urllib.request.urlopen(r3)
+                fails.append('signup allowed while invite only')
+            except urllib.error.HTTPError as e:
+                check(e.code == 409 and json.loads(e.read())['error']['code'] == 'closed', 'signup status %d' % e.code)
+            f.evaluate('() => window.M360_API("write", {op: "update", path: "settings/app", data: {joinPolicy: "open"}})')
+            jp.reload()
+            jp.wait_for_selector('text=New here without an invite? Ask to join')
             # an unknown email gets the same calm answer and no mail
             n_before = len(json.loads(urllib.request.urlopen(base + '__mails').read()))
             yc, yp = device()
@@ -277,9 +350,37 @@ def main():
             d.wait_for_function('() => !document.querySelector(".scrim")')
             d.goto(base + '#me')
             d.wait_for_selector('#device-card')
-            d.locator('#device-card').get_by_role('button', name='Sign out').click()
+            d.locator('#device-card').get_by_role('button', name='Sign out', exact=True).last.click()
             d.locator('#device-card').get_by_role('button', name='Tap again to sign out').click()
             d.wait_for_selector('text=Sign in to m360')
+
+            # ---- the activity log: the founder reads today and sees writes and sign-ins; members cannot ----
+            today = time.strftime('%Y-%m-%d', time.gmtime(time.time() + 19800))
+            logs = f.evaluate('d => window.M360_API("logs", {from: d, to: d}).then(r => r.docs)', today)
+            muid = m.evaluate('() => window.M360_API("me").then(x => x.uid)')
+            mine = (logs.get(today + '-' + fuid) or {}).get('e') or {}
+            ents = list(mine.values())
+            check(ents and all(isinstance(x['at'], int) and isinstance(x['a'], str) and isinstance(x['p'], str) and isinstance(x['s'], str) and len(x['s']) <= 120 for x in ents), 'log shape %r' % ents[:2])
+            check(all(k.startswith(str(v['at'])) and len(k) == len(str(v['at'])) + 4 for k, v in mine.items()), 'log ids %r' % list(mine)[:3])
+            check(any(x['a'] == 'update' and x['p'] == 'settings/app' and 'joinPolicy' in x['s'] for x in ents), 'settings write not logged: %r' % [x for x in ents if x['a'] == 'update'][:3])
+            check(any(x['a'] == 'update' and x['p'] == 'roster/team' and x['s'].startswith('members, updated') for x in ents), 'roster write not logged')
+            for a in ('setup', 'invite', 'uninvite', 'mailkey', 'mklink', 'signoutall'):
+                check(any(x['a'] == a for x in ents), a + ' not logged: %r' % sorted(set(x['a'] for x in ents)))
+            dents = list(((logs.get(today + '-' + muid) or {}).get('e') or {}).values())
+            check(any(x['a'] == 'login' for x in dents), 'login not logged: %r' % sorted(set(x['a'] for x in dents)))
+            check(any(x['a'] == 'logout' for x in dents), 'logout not logged: %r' % sorted(set(x['a'] for x in dents)))
+            check(any(x['a'] == 'signup' for x in dents), 'signup not logged')
+            check(any(x['a'] == 'set' and x['p'].startswith('tasks/') and 'title: Cut the teaser' in x['s'] for x in dents), 'task write summary: %r' % [x['s'] for x in dents if x['a'] == 'set'][:4])
+            every = [x for doc in logs.values() for x in (doc.get('e') or {}).values()]
+            check(not any('@' in x['s'] or 'Priya' in x['s'] or 'Durvesh' in x['s'] for x in every), 'a name or email in the log')
+            check(any(x['a'] == 'accept' for x in every) and any(x['a'] == 'magic' for x in every), 'accept or magic not logged')
+            r4 = m.evaluate('d => window.M360_API("logs", {from: d, to: d}).then(() => "read", e => e.code + ":" + e.status)', today)
+            check(r4 == 'invalid_argument:403', 'member read logs %r' % r4)
+            check('log' not in m.evaluate('() => window.M360_API("snapshot")')['colls'], 'log in member snapshot')
+            check('log' not in f.evaluate('() => window.M360_API("snapshot")')['colls'], 'log in founder snapshot')
+            check(f.evaluate('() => window.M360_API("logs", {from: "2026-01-01", to: "2026-03-01"}).then(() => "ok", e => e.code)') == 'invalid_argument', 'range over 31 days accepted')
+            check(f.evaluate('() => window.M360_API("prunelogs", {})') == {'removed': 0}, 'prune removed fresh logs')
+            check(f.evaluate('() => M.logs.read(null, {from: "%s", to: "%s"}).then(d => Object.keys(d).length)' % (today, today)) == len(logs), 'M.logs.read')
 
             # ---- AI key card is founder only; the phone layout holds ----
             f.goto(base + '#admin')
@@ -293,6 +394,19 @@ def main():
             f.wait_for_selector('#setup-card')
             f.screenshot(path=os.path.join(ROOT, 'harness', 'shots', 'edgeone-hq.png'), full_page=False)
             m.screenshot(path=os.path.join(ROOT, 'harness', 'shots', 'edgeone-home-390.png'), full_page=False)
+
+            # ---- taken off the roster: every device of theirs is signed out at once ----
+            f.goto(base + '#admin')
+            row = f.locator('tr', has_text='Durvesh Patil')
+            row.get_by_role('button', name='Remove').click()
+            row.get_by_role('button', name='Tap again to confirm').click()
+            m.wait_for_selector('text=Sign in to m360', timeout=20000)
+            sess = [json.loads(v) for k, v in json.loads(urllib.request.urlopen(base + '__store').read()).items() if k.startswith('s/')]
+            check(not [x for x in sess if x['uid'] == muid], 'deactivated member still has sessions')
+            check(all('ua' in x and 'last' in x and 'at' in x for x in sess), 'session shape %r' % sess[:1])
+            logs = f.evaluate('d => window.M360_API("logs", {from: d, to: d}).then(r => r.docs)', today)
+            ents = list(((logs.get(today + '-' + fuid) or {}).get('e') or {}).values())
+            check(any(x['a'] == 'signoutall' and 'deactivated' in x['s'] for x in ents), 'deactivation sign-out not logged')
             browser.close()
     finally:
         srv.terminate()

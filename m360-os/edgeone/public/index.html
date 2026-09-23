@@ -659,6 +659,13 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .clock{font-variant-numeric:tabular-nums; font-weight:600; letter-spacing:-.02em}
 .hero-clock{display:inline-flex; align-items:baseline; gap:6px; color:rgba(255,255,255,.7); font-size:12px; letter-spacing:.14em}
 .hero-clock .clock{color:#fff; font-size:13px; letter-spacing:0}
+
+/* ==== 76-auth.css ==== */
+/* auth: the invite step on the sign-in screen and the devices lists (Me and Admin) */
+.invite-who{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:4px}
+.devlist .dev-ua{font-weight:500}
+.devlist .listrow{align-items:flex-start}
+.devlist .listrow .tiny{margin-top:3px}
 </style>
 <script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
@@ -678,10 +685,13 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
     } catch (e) { throw {code: 'unavailable', message: 'offline'}; }
     let j = {};
     try { j = await r.json(); } catch (e) { j = {}; }
-    if (!r.ok || j.error) throw {code: (j.error && j.error.code) || 'unavailable', message: (j.error && j.error.message) || ('http ' + r.status)};
+    if (!r.ok || j.error) throw {code: (j.error && j.error.code) || 'unavailable', message: (j.error && j.error.message) || ('http ' + r.status), status: r.status};
     return j;
   }
   window.M360_API = call;
+  /* the session ended under the page (signed out from another device, or taken off the roster): back to the sign-in screen */
+  let kicked = false;
+  function kick() { if (kicked) return; kicked = true; try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* keep going */ } location.reload(); }
 
   const clone = x => x === undefined ? undefined : JSON.parse(JSON.stringify(x));
   const freeze = o => { if (o && typeof o === 'object' && !Object.isFrozen(o)) { Object.freeze(o); Object.keys(o).forEach(k => freeze(o[k])); } return o; };
@@ -698,18 +708,18 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 
   /* ---------- who is here ---------- */
   let meInfo = null;
-  /* a sign-in link: #login=<code> signs this browser in, then the hash is cleared */
+  /* a sign-in link: #login=<code> signs this browser in, then the hash is cleared.
+     An invite link #invite=<code> signs nobody in by itself: the sign-in screen asks for the invited email first (window.M360_INVITE). */
   const loginCode = (/^#login=([a-z0-9]{10,64})$/.exec(location.hash || '') || [])[1];
   const inviteCode = (/^#invite=([a-z0-9]{10,64})$/.exec(location.hash || '') || [])[1];
+  if (inviteCode) window.M360_INVITE = inviteCode;
   /* a sign-in or invite link opened on top of an already loaded page: start over so it is honoured */
   window.addEventListener('hashchange', () => { if (/^#(login|invite)=[a-z0-9]{10,64}$/.test(location.hash || '')) location.reload(); });
   const clearHash = () => { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* keep going */ } };
   const signedIn = loginCode
     ? call('login', {code: loginCode}).catch(() => { window.M360_LOGIN_ERR = 'That sign-in link has expired or was already used. Ask for a new one.'; }).then(clearHash)
-    : inviteCode
-      ? call('accept', {code: inviteCode}).catch(() => { window.M360_LOGIN_ERR = 'That invite has expired or was already used. Ask Kaavish for a new one.'; }).then(clearHash)
-      : Promise.resolve();
-  const meReady = signedIn.then(() => call('me')).then(m => { meInfo = m; return m; }).catch(() => { meInfo = {uid: null, down: true}; return meInfo; });
+    : Promise.resolve();
+  const meReady = signedIn.then(() => call('me')).then(m => { meInfo = m; if (inviteCode) clearHash(); return m; }).catch(() => { meInfo = {uid: null, down: true}; return meInfo; });
 
   /* ---------- db: a local mirror of every readable collection, kept fresh by polling ---------- */
   const colls = {};          /* path -> {v, docs} */
@@ -764,7 +774,7 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
       const r = await call('sync', {have});
       applyColls(r.colls);
       if (r.level != null && meInfo && r.level !== meInfo.level) { meInfo.level = r.level; }
-    } catch (e) { /* next tick */ }
+    } catch (e) { if (e && e.status === 401) kick(); /* else next tick */ }
     syncing = false;
   }
   function loop() {
@@ -796,6 +806,7 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
       inflight[coll]--;
       if (before === undefined) delete c.docs[id]; else c.docs[id] = before;
       notifyColl(coll);
+      if (e && e.status === 401) kick();
       throw e;
     }
   }
@@ -898,7 +909,7 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
         const r = await call('presence', {page: mine.page || ''});
         const peers = (r.peers || []).concat([{presence: mine, updatedAt: Date.now(), self: true}]);
         fns.forEach(fn => { try { fn({peers}); } catch (e) { /* page handler */ } });
-      } catch (e) { /* offline */ }
+      } catch (e) { if (e && e.status === 401) kick(); /* else offline */ }
     }
     function schedule() { clearTimeout(timer); timer = setTimeout(() => { beat().finally(schedule); }, document.hidden ? 40000 : 15000); }
     return Object.freeze({
@@ -1192,6 +1203,9 @@ const profSubs = new Set();
 let profVersion = 0;
 const profSubscribe = fn => { profSubs.add(fn); return () => { profSubs.delete(fn); }; };
 const profSnapshot = () => profVersion;
+M.photos = {};
+M.deskTabs = []; M.meCards = []; M.adminCards = [];
+M.profilesBump = () => { profVersion++; profSubs.forEach(fn => fn()); };
 M.useProfiles = function useProfiles(ids) {
   const user = M.userNs;
   const key = (ids || []).filter(Boolean).sort().join(',');
@@ -1455,6 +1469,12 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     leave: I('<path d="M3.5 19.5h17"/><path d="M12 15.5a6.3 6.3 0 0 0-6.3-6.3A6.3 6.3 0 0 0 12 15.5Zm0 0a6.3 6.3 0 0 1 6.3-6.3A6.3 6.3 0 0 1 12 15.5Zm0 0V6.2"/>'),
     command: I('<circle cx="12" cy="13" r="8.5"/><path d="M12 13l3.6-3.6M8.6 21H4.9M19.1 21h-3.7"/>'),
     desk: I('<path d="M4 8h16M4 8v11M20 8v11M2.8 8 5 4.5h14L21.2 8M8 12h8"/>'),
+    radar: I('<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12l6-6"/><circle cx="12" cy="12" r="1"/>'),
+    camera: I('<path d="M4 8.5A2 2 0 0 1 6 6.5h2.2l1.4-2h4.8l1.4 2H18a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><circle cx="12" cy="12.7" r="3.4"/>'),
+    shield: I('<path d="M12 3 4.5 6v5.5c0 4.6 3.2 8 7.5 9.5 4.3-1.5 7.5-4.9 7.5-9.5V6Z"/><path d="m9 12 2 2 4-4.5"/>'),
+    log: I('<path d="M5 6h14M5 12h14M5 18h9"/>'),
+    fix: I('<path d="M14.5 5.5a4 4 0 0 0 5 5L9 21H4v-5Z"/><path d="M14 9l1 1"/>'),
+    play2: I('<circle cx="12" cy="12" r="8.5"/><path d="m10 8.5 5 3.5-5 3.5Z"/>'),
     more: I('<circle cx="5.5" cy="12" r="1.1"/><circle cx="12" cy="12" r="1.1"/><circle cx="18.5" cy="12" r="1.1"/>'),
     plus: I('<path d="M12 5.5v13M5.5 12h13"/>'),
     x: I('<path d="m6 6 12 12M18 6 6 18"/>'),
@@ -1615,7 +1635,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const p = id ? ps[id] : null;
     const s = size || 28;
     return html`<img class="av" width=${s} height=${s} style=${{width: s + 'px', height: s + 'px'}}
-      src=${p ? p.avatarUrl : M.AV_FALLBACK} alt=${p && p.name ? p.name : 'avatar'} title=${title || (p && p.name) || ''}/>`;
+      src=${(M.photos && M.photos[id]) || (p ? p.avatarUrl : M.AV_FALLBACK)} alt=${p && p.name ? p.name : 'avatar'} title=${title || (p && p.name) || ''}/>`;
   };
   UI.AvatarRow = function AvatarRow({ids, size, max}) {
     const list = (ids || []).slice(0, max || 6);
@@ -1693,7 +1713,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   M.RULE_IDS = ['R01','R02','R03','R04','R05','R06','R07','R08','R09','R10','R11','R12','R13','R14','R15','R16'];
 
   const COLLS = ['checkin','eod','plan','review','rocks','feed','reacts','acks','kudos','leave','leavedec',
-    'tasks','projects','pitches','clients','handbook','candidates','evals','pulse','ideas','votes','access','onboard','me'];
+    'tasks','projects','pitches','clients','handbook','candidates','evals','pulse','ideas','votes','access','onboard','me','fixes'];
 
   /* AppState wraps the whole signed-in app: subscribes once per collection, computes ctx. */
   M.AppState = function AppState({boot, children}) {
@@ -1710,6 +1730,16 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const rm = ((rosterDoc.data || {}).members || {})[uid];
     const founderish = !!me.isOwner || !!(rm && rm.role === 'founder' && rm.active !== false);
     coll.join = M.useColl(db, founderish ? 'join' : null);
+
+    /* profile photos ride in me/<uid>.photo; avatars everywhere read M.photos */
+    React.useEffect(() => {
+      const next = {};
+      let changed = false;
+      for (const id of Object.keys(coll.me.map)) { const ph = coll.me.map[id] && coll.me.map[id].photo; if (ph) next[id] = ph; }
+      const cur = M.photos || {};
+      if (Object.keys(cur).length !== Object.keys(next).length || Object.keys(next).some(k => cur[k] !== next[k])) changed = true;
+      if (changed) { M.photos = next; if (M.profilesBump) M.profilesBump(); }
+    }, [coll.me]);
 
     /* founder auto-added to the roster on first open */
     const seeded = React.useRef(false);
@@ -1841,6 +1871,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     vibe: {label: 'Vibe', icon: 'feed', page: 'Vibe', tabs: [
       {k: 'feed', label: 'Feed', route: 'feed'}, {k: 'crew', label: 'Crew', route: 'people'},
       {k: 'pulse', label: 'Pulse and ideas', route: 'voice'}, {k: 'scores', label: 'Leaderboard', route: 'scores'}]},
+    radar: {label: 'Radar', icon: 'radar', page: 'Radar', tabs: [
+      {k: 'news', label: 'News', route: 'radar'}, {k: 'awards', label: 'Awards', route: 'awards'}, {k: 'watch', label: 'Watch', route: 'watch'}]},
     me: {label: 'Me', icon: 'people', page: 'Me', tabs: [
       {k: 'profile', label: 'Profile', route: 'me'}, {k: 'trophies', label: 'Trophies', route: 'trophies'}, {k: 'leave', label: 'Leave', route: 'leave'},
       {k: 'handbook', label: 'Handbook', route: 'handbook'}, {k: 'hiring', label: 'Hiring', route: 'hiring'}]},
@@ -1867,6 +1899,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       case 'people': case 'crew': return {s: 'vibe', t: 'crew', id};
       case 'voice': case 'pulse': return {s: 'vibe', t: 'pulse'};
       case 'scores': return {s: 'vibe', t: 'scores'};
+      case 'radar': case 'news': return {s: 'radar', t: 'news'};
+      case 'awards': return {s: 'radar', t: 'awards'};
+      case 'watch': return {s: 'radar', t: 'watch'};
       case 'me': case 'profile': return {s: 'me', t: 'profile'};
       case 'tasks': return {s: 'work', t: 'tasks', id};
       case 'leave': return {s: 'me', t: 'leave'};
@@ -2054,7 +2089,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       onTask=${() => setNewTask(true)} onAsk=${() => setAskOpen(true)}/>` : null;
 
     const tabKeys = ctx.isFounder ? ['hq', 'work', 'accounts', 'vibe'] : ['home', 'work', 'accounts', 'vibe', 'me'];
-    const moreKeys = ctx.isFounder ? ['home', 'me', 'admin'] : [];
+    const moreKeys = ctx.isFounder ? ['home', 'radar', 'me', 'admin'] : ['radar'];
     const moreBadge = moreKeys.reduce((n, k) => n + (b[k] || 0), 0);
 
     return html`<div class="app">
@@ -4014,12 +4049,16 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       return {tally, total, mineVote, who};
     })() : null;
     const vote = i => { W.merge('votes/' + uid, {polls: {[it.key]: i}}).then(() => M.sound.play('tick')).catch(() => {}); };
+    /* the author removes their own post; the founder can remove anyone's */
     const remove = () => {
-      const mineDoc = collMap(ctx, 'feed')[uid] || {};
-      const posts = U.clone(postsOf(ctx, uid)).filter(p => p.id !== it.id);
+      const au = it.author || uid;
+      const mineDoc = collMap(ctx, 'feed')[au] || {};
+      const posts = U.clone(postsOf(ctx, au)).filter(p => p.id !== it.id);
       const doc = {posts};
       if (mineDoc.pinned === it.key) doc.pinned = null;
-      W.merge('feed/' + uid, doc).then(() => M.toast('Deleted')).catch(() => {});
+      const fd = collMap(ctx, 'feed')[founderUid] || {};
+      if (isFounder && fd.pinned === it.key && au !== founderUid) W.merge('feed/' + founderUid, {pinned: null}).catch(() => {});
+      W.merge('feed/' + au, doc).then(() => M.toast('Deleted')).catch(() => {});
     };
 
     return html`<section class=${'card' + (it.pinned ? ' flame' : '')} data-key=${it.key} data-kind=${it.kind}>
@@ -4037,7 +4076,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         </div>
         ${(isFounder || isAuthor) ? html`<div class="row nowrap">
           ${isFounder ? html`<${UI.Btn} kind="ghost" sm onClick=${togglePin}><${icons.pin}/>${it.pinned ? 'Unpin' : 'Pin'}<//>` : null}
-          ${isAuthor ? html`<${UI.ConfirmBtn} onConfirm=${remove}>Delete<//>` : null}
+          ${(isAuthor || isFounder) ? html`<${UI.ConfirmBtn} onConfirm=${remove}>Delete<//>` : null}
         </div>` : null}
       </div>
       <div style=${{whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', margin: '12px 0'}}>${it.text}</div>
@@ -7972,6 +8011,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
               <td><span class="row nowrap">
                 <${UI.Btn} kind="ghost" sm=${true} onClick=${() => setAdd({person: {id: r.uid, name: ''}, member: r})}>Edit<//>
                 ${M.parts.LinkDrawer ? html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => setLinkFor(r.uid)}>Sign-in link<//>` : null}
+                ${window.M360_STANDALONE && M.parts.MemberDevices ? html`<${M.parts.MemberDevices} uid=${r.uid}/>` : null}
                 ${r.uid === ctx.uid ? null : (r.active === false
                   ? html`<${UI.Btn} kind="sec" sm=${true} onClick=${() => setActive(r.uid, true)}>Restore<//>`
                   : html`<${UI.ConfirmBtn} onConfirm=${() => setActive(r.uid, false)}>Remove<//>`)}
@@ -8210,7 +8250,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const Approvals = M.parts.LeaveApprovals;
     return html`<div class="stack" style=${{gap: '18px'}}>
       <${UI.PageHead} micro="founder controls" title="Controls">
-        <${UI.Seg} options=${TABS} value=${tab} onChange=${setTab} ariaLabel="Desk section"/>
+        <${UI.Seg} options=${TABS.concat((M.deskTabs || []).map(x => ({v: x.v, label: x.label})))} value=${tab} onChange=${setTab} ariaLabel="Desk section"/>
       <//>
       ${tab === 'roster' ? html`<${Roster}/>` : null}
       ${tab === 'settings' ? html`<${Settings}/>` : null}
@@ -8218,6 +8258,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       ${tab === 'leave' ? (Approvals ? html`<${Approvals}/>` : null) : null}
       ${tab === 'export' ? html`<${Export}/>` : null}
       ${tab === 'cleanup' ? html`<${Cleanup}/>` : null}
+      ${(M.deskTabs || []).map(x => x.v === tab ? html`<${x.render} key=${x.v}/>` : null)}
     </div>`;
   }
 
@@ -9072,6 +9113,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       ${t === 'profile' ? html`<${Prefs}/>` : null}
       ${t === 'profile' && M.parts.EmailCard ? html`<${M.parts.EmailCard}/>` : null}
       ${t === 'profile' && M.parts.DeviceCard ? html`<${M.parts.DeviceCard}/>` : null}
+      ${t === 'profile' ? (M.meCards || []).map((C, i) => html`<${C} key=${i}/>`) : null}
     </div>`;
   }
 
@@ -9108,6 +9150,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         sub="Roster, rules, office location, keeper test, payroll export and cleanup."/>
       ${M.parts.AiKeyCard ? html`<${M.parts.AiKeyCard}/>` : null}
       ${M.parts.MailCard ? html`<${M.parts.MailCard}/>` : null}
+      ${(M.adminCards || []).map((C, i) => html`<${C} key=${i}/>`)}
       <${Embed} page="Desk"/>
     </div>`;
   }
@@ -10938,20 +10981,38 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const [busy, setBusy] = useState(false);
     const [sent, setSent] = useState(false);
     const [err, setErr] = useState(window.M360_LOGIN_ERR || '');
+    /* an invite link: who it is for (name only) and whether it still stands */
+    const [invite, setInvite] = useState(window.M360_INVITE || '');
+    const [inv, setInv] = useState(null);           /* {name, title} or {dead: true} */
     useEffect(() => { api('me').then(setInfo, () => setInfo({uid: null, setup: false, down: true})); }, []);
+    useEffect(() => { if (invite) api('invited', {code: invite}).then(setInv, () => setInv({dead: true})); }, [invite]);
     if (!info) return html`<${M.Gate} title="Signing you in" line="One moment."/>`;
     if (info.down) return html`<${M.Gate} title="Workspace unavailable" line="The workspace could not load. Reload in a moment."/>`;
 
     const first = !!info.setup;
+    const joinOpen = info.joinOpen !== false;
     async function go() {
       if (!name.trim()) return;
       setBusy(true); setErr('');
       try { await api(first ? 'setup' : 'signup', {name: name.trim(), email: email.trim()}); location.reload(); }
       catch (e) {
-        setErr(e && e.code === 'taken' ? 'Someone set this workspace up a moment ago. Reload and ask to join.' : 'That did not work. Try again in a moment.');
+        setErr(e && e.code === 'taken' ? 'Someone set this workspace up a moment ago. Reload and ask to join.'
+          : e && e.code === 'closed' ? 'm360 is invite only right now. Ask Kaavish for an invite.' : 'That did not work. Try again in a moment.');
         setBusy(false);
       }
     }
+    /* the invited person confirms the email the invite went to; only then are they signed in and on the team */
+    async function accept() {
+      if (!email.trim()) return;
+      setBusy(true); setErr('');
+      try { await api('accept', {code: invite, email: email.trim()}); window.M360_INVITE = ''; location.reload(); }
+      catch (e) {
+        if (e && e.code === 'expired') setInv({dead: true});
+        else setErr(e && (e.code === 'mismatch' || e.code === 'invalid_argument') && e.message ? e.message : 'That did not work. Try again in a moment.');
+        setBusy(false);
+      }
+    }
+    const leaveInvite = () => { window.M360_INVITE = ''; setInvite(''); setInv(null); setErr(''); };
     async function magic() {
       if (!email.trim()) return;
       setBusy(true); setErr('');
@@ -10971,7 +11032,22 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         ${err ? html`<div class="small flame-t" role="alert">${err}</div>` : null}
       </div>
     <//>`;
-    if (sent) return html`<${M.Gate} title="Check your email" line=${'A sign-in link is on its way to ' + email.trim() + '. It works once, for 24 hours.'}>
+    if (invite && !first) {
+      if (!inv) return html`<${M.Gate} title="Opening your invite" line="One moment."/>`;
+      if (inv.dead) return html`<${M.Gate} title="This invite is no longer valid" line="That invite has expired or was already used. Ask Kaavish for a new one.">
+        <button type="button" class="linky small" onClick=${leaveInvite}>Already on the team? Sign in by email</button>
+      <//>`;
+      return html`<${M.Gate} title="You're invited" line=${(inv.name ? inv.name + ', you' : 'You') + ' have a place on m360 OS, the Mask360 workspace. Type the email your invite went to and you are in.'}>
+        <div class="join-box stack tight" id="invite-box">
+          ${inv.name ? html`<div class="invite-who"><${UI.Pill} kind="ink">${inv.name}<//>${inv.title ? html`<span class="small ink62">${inv.title}</span>` : null}</div>` : null}
+          <${UI.Input} id="signin-email" label="your work email" type="email" value=${email} placeholder="you@mask360.agency" onChange=${setEmail} onEnter=${accept}/>
+          <${UI.Btn} id="invite-go" onClick=${accept} disabled=${busy || !email.trim()}>${busy ? 'One moment' : 'Continue'}<//>
+          ${err ? html`<div class="small flame-t" role="alert">${err}</div>` : null}
+          <button type="button" class="linky small" style=${{alignSelf: 'flex-start'}} onClick=${leaveInvite}>Already on the team? Sign in by email</button>
+        </div>
+      <//>`;
+    }
+    if (sent) return html`<${M.Gate} title="Check your email" line=${'A sign-in link is on its way to ' + email.trim() + '. It works once, for 20 minutes.'}>
       <button type="button" class="linky small" onClick=${() => setSent(false)}>Use a different email</button>
     <//>`;
     if (mode === 'join') return html`<${M.Gate} title="Welcome to m360" line="Type your name to get started. Kaavish lets you in with one tap.">
@@ -10988,7 +11064,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         <${UI.Input} id="signin-email" label="your work email" type="email" value=${email} placeholder="you@mask360.agency" onChange=${setEmail} onEnter=${magic}/>
         <${UI.Btn} onClick=${magic} disabled=${busy || !email.trim()}>${busy ? 'Sending' : 'Send me a sign-in link'}<//>
         ${err ? html`<div class="small flame-t" role="alert">${err}</div>` : null}
-        <button type="button" class="linky small" style=${{alignSelf: 'flex-start'}} onClick=${() => { setErr(''); setMode('join'); }}>New here without an invite? Ask to join</button>
+        ${joinOpen
+          ? html`<button type="button" class="linky small" style=${{alignSelf: 'flex-start'}} onClick=${() => { setErr(''); setMode('join'); }}>New here without an invite? Ask to join</button>`
+          : html`<div class="small ink62" id="join-closed">New here? Ask Kaavish for an invite.</div>`}
       </div>
     <//>`;
   }
@@ -11006,8 +11084,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       <div class="stack" style=${{gap: '14px'}}>
         <div class="row"><${UI.Avatar} id=${uid || ctx.uid} size=${34}/><span style=${{fontWeight: 500}}><${UI.Name} id=${uid || ctx.uid}/></span></div>
         <p class="small ink62" style=${{margin: 0}}>${self
-          ? 'Open this link on your phone or laptop and you are signed in there too. It works once, for 7 days.'
-          : 'Send this to them. It signs them in on any device, works once, for 7 days.'}</p>
+          ? 'Open this link on your phone or laptop and you are signed in there too. It works once, for 24 hours.'
+          : 'Send this to them. It signs them in on any device, works once, for 24 hours.'}</p>
         ${link ? html`<div class="invite-link num" id="signin-link">${link}</div>
           <div class="row"><${UI.Btn} sm=${true} onClick=${() => copy(link)}>Copy link<//></div>`
           : err ? html`<div class="small flame-t">${err}</div>` : html`<${UI.Empty} text="Making the link."/>`}
@@ -11030,20 +11108,68 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     <//>`;
   }
 
+  /* the sessions of one person, from the server: a short device label, when it signed in, when it was last seen */
+  function useDevices(uid) {
+    const [devs, setDevs] = useState(null);
+    const [err, setErr] = useState('');
+    const load = () => api('devices', uid ? {uid} : {}).then(r => { setDevs(r.devices || []); setErr(''); }, () => { setDevs([]); setErr('The device list could not load.'); });
+    useEffect(() => { load(); }, [uid]);
+    return {devs, err, load};
+  }
+  function DeviceList({devs, onSignout}) {
+    if (!devs) return html`<${UI.Empty} text="Looking up the devices."/>`;
+    if (!devs.length) return html`<${UI.Empty} text="No devices signed in."/>`;
+    return html`<div class="stack tight devlist">${devs.map(d => html`<div class="listrow" key=${d.id}>
+      <span class="grow">
+        <span class="row nowrap"><span class="dev-ua">${d.ua}</span>${d.current ? html`<${UI.Pill} kind="ink">this device<//>` : null}</span>
+        <div class="tiny ink62">signed in ${U.timeAgo(d.at)} · last seen ${U.timeAgo(d.last)}</div>
+      </span>
+      ${onSignout && !d.current ? html`<${UI.ConfirmBtn} kind="ghost" onConfirm=${() => onSignout(d)} label="Tap again to sign it out">Sign out<//>` : null}
+    </div>`)}</div>`;
+  }
+
   function DeviceCard() {
     const [open, setOpen] = useState(false);
     const [canInstall, setCanInstall] = useState(!!window.M360_INSTALL);
+    const {devs, err, load} = useDevices(null);
     useEffect(() => { const on = () => setCanInstall(true); window.addEventListener('m360:installable', on); return () => window.removeEventListener('m360:installable', on); }, []);
     const install = async () => { const e = window.M360_INSTALL; if (!e) return; e.prompt(); try { await e.userChoice; } catch (x) { /* dismissed */ } window.M360_INSTALL = null; setCanInstall(false); };
+    const signoutOne = d => api('signout', {id: d.id}).then(() => { M.toast('Signed out of ' + d.ua); load(); }, e => M.toast((e && e.message) || 'That did not work.', true));
+    const signoutOthers = () => api('signoutall', {keepThis: true}).then(r => { M.toast(r.removed ? 'Signed out everywhere else' : 'No other devices were signed in'); load(); }, e => M.toast((e && e.message) || 'That did not work.', true));
+    const others = (devs || []).filter(d => !d.current).length;
     return html`<${UI.Card} title="This account" id="device-card">
-      <div class="row">
+      <p class="small ink62" style=${{marginTop: 0}}>Every phone and laptop signed in as you. Sign out any you do not recognise.</p>
+      <${DeviceList} devs=${devs} onSignout=${signoutOne}/>
+      ${err ? html`<div class="small flame-t">${err}</div>` : null}
+      <div class="row" style=${{marginTop: '12px'}}>
         ${canInstall ? html`<${UI.Btn} sm=${true} onClick=${install}>Add m360 to this phone<//>` : null}
         <${UI.Btn} kind="sec" sm=${true} onClick=${() => setOpen(true)}>Sign in on another device<//>
+        ${others ? html`<${UI.ConfirmBtn} kind="sec" onConfirm=${signoutOthers} label="Tap again to sign them out">Sign out everywhere else<//>` : null}
         <${UI.ConfirmBtn} kind="ghost" onConfirm=${() => api('logout').then(() => location.reload(), () => location.reload())}
           label="Tap again to sign out">Sign out<//>
       </div>
       ${open ? html`<${LinkDrawer} onClose=${() => setOpen(false)}/>` : null}
     <//>`;
+  }
+
+  /* ---------- Admin: a member's devices, from the roster row ---------- */
+  function MemberDevicesDrawer({uid, onClose}) {
+    const {devs, err, load} = useDevices(uid);
+    const all = () => api('signoutall', {uid}).then(r => { M.toast(r.removed ? 'Signed out of ' + r.removed + (r.removed === 1 ? ' device' : ' devices') : 'No devices were signed in'); load(); }, e => M.toast((e && e.message) || 'That did not work.', true));
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Devices"
+      footer=${html`<${UI.ConfirmBtn} kind="flame" sm=${false} onConfirm=${all} label="Tap again to sign them out">Sign out everywhere<//>`}>
+      <div class="stack" style=${{gap: '14px'}}>
+        <div class="row"><${UI.Avatar} id=${uid} size=${34}/><span style=${{fontWeight: 500}}><${UI.Name} id=${uid}/></span></div>
+        <p class="small ink62" style=${{margin: 0}}>Every device signed in as them. Sign out everywhere ends all of them; they get back in with a fresh link.</p>
+        <div id="member-devices"><${DeviceList} devs=${devs}/></div>
+        ${err ? html`<div class="small flame-t">${err}</div>` : null}
+      </div>
+    <//>`;
+  }
+  function MemberDevices({uid}) {
+    const [open, setOpen] = useState(false);
+    return html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => setOpen(true)}>Devices<//>
+      ${open ? html`<${MemberDevicesDrawer} uid=${uid} onClose=${() => setOpen(false)}/>` : null}`;
   }
 
   /* ---------- Admin: the AI key ---------- */
@@ -11094,7 +11220,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     useEffect(() => { refresh(); }, [rosterN]);
     useEffect(() => { const t = setInterval(refresh, 30000); return () => clearInterval(t); }, []);
     if (!ctx.isFounder) return null;
-    const message = link => 'You are on m360 OS, the Mask360 workspace. Open your personal link to get in: ' + link + ' (it works once, for 14 days).';
+    const message = link => 'You are on m360 OS, the Mask360 workspace. Open your personal link and type this email address to get in: ' + link + ' (it works once, for 7 days).';
     async function send() {
       if (!f.email.trim()) return;
       setBusy(true);
@@ -11111,8 +11237,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     return html`<${UI.Card} id="invite-email" title="Invite by email"
       action=${mail ? html`<span class=${'pill ' + (mail.on ? 'ink' : 'flame-o')}>${mail.on ? 'email on' : 'email off'}</span>` : null}>
       <p class="small ink62" style=${{marginTop: 0}}>${mail && mail.on
-        ? 'They get an email with a personal link. Opening it signs them in and puts them on the team, no approval needed.'
-        : 'Email sending is off, so you get a personal link to send yourself (WhatsApp works). Switch email on below to send it for you.'}</p>
+        ? 'They get an email with a personal link. They open it, type that same email to confirm it is them, and they are on the team, no approval needed.'
+        : 'Email sending is off, so you get a personal link to send yourself (WhatsApp works). They open it and type the invited email to get in. Switch email on below to send it for you.'}</p>
       <div class="grid2">
         <${UI.Input} id="inv-email" label="email" type="email" value=${f.email} onChange=${set('email')} placeholder="name@mask360.agency" onEnter=${send}/>
         <${UI.Input} id="inv-name" label="name, optional" value=${f.name} onChange=${set('name')} placeholder="First and last name"/>
@@ -11177,7 +11303,12 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   M.parts.SignIn = SignIn;
   M.parts.LinkDrawer = LinkDrawer;
   M.parts.DeviceCard = DeviceCard;
+  M.parts.MemberDevices = MemberDevices;
   M.parts.AiKeyCard = AiKeyCard;
+  /* the activity log lives on the server only; the Log tab reads it a day range at a time */
+  M.logs = M.logs || {};
+  M.logs.read = (ctx, {from, to}) => api('logs', {from, to}).then(r => r.docs || {});
+  M.logs.prune = (ctx, days) => api('prunelogs', {days}).then(r => r.removed || 0);
 })();
 
 /* ==== 99-app.js ==== */

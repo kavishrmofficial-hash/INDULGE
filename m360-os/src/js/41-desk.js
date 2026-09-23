@@ -117,6 +117,7 @@
               <td><span class="row nowrap">
                 <${UI.Btn} kind="ghost" sm=${true} onClick=${() => setAdd({person: {id: r.uid, name: ''}, member: r})}>Edit<//>
                 ${M.parts.LinkDrawer ? html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => setLinkFor(r.uid)}>Sign-in link<//>` : null}
+                ${window.M360_STANDALONE && M.parts.MemberDevices ? html`<${M.parts.MemberDevices} uid=${r.uid}/>` : null}
                 ${r.uid === ctx.uid ? null : (r.active === false
                   ? html`<${UI.Btn} kind="sec" sm=${true} onClick=${() => setActive(r.uid, true)}>Restore<//>`
                   : html`<${UI.ConfirmBtn} onConfirm=${() => setActive(r.uid, false)}>Remove<//>`)}
