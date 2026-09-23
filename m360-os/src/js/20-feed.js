@@ -7,10 +7,11 @@
   const KINDS = [
     {v: 'update', label: 'Update'},
     {v: 'win', label: 'Win'},
-    {v: 'question', label: 'Question'}
+    {v: 'question', label: 'Question'},
+    {v: 'poll', label: 'Poll'}
   ];
   const ANNOUNCE = {v: 'announce', label: 'Announcement'};
-  const KIND_TEXT = {announce: 'announcement', win: 'win', question: 'question', update: 'update'};
+  const KIND_TEXT = {announce: 'announcement', win: 'win', question: 'question', update: 'update', poll: 'poll'};
   const KIND_PILL = {announce: 'flame', win: 'ink'};
   const FILTERS = [
     {v: 'all', label: 'All'},
@@ -48,7 +49,7 @@
     for (const author of Object.keys(feed)) {
       for (const p of postsOf(ctx, author)) {
         const key = author + ':' + p.id;
-        out.push({key, type: 'post', author, id: p.id, kind: kindOf(p), text: String(p.text || ''),
+        out.push({key, type: 'post', author, id: p.id, kind: kindOf(p), text: String(p.text || ''), options: p.options || [],
           at: Number(p.at) || 0, pinned: key === pinned});
       }
     }
@@ -109,8 +110,10 @@
     const [text, setText] = useState('');
     const [kind, setKind] = useState('update');
     const [busy, setBusy] = useState(false);
+    const [opts, setOpts] = useState(['', '']);
     const options = isFounder ? [...KINDS, ANNOUNCE] : KINDS;
-    const canPost = !!text.trim() && !busy;
+    const pollOk = kind !== 'poll' || opts.filter(o => o.trim()).length >= 2;
+    const canPost = !!text.trim() && !busy && pollOk;
 
     const post = async () => {
       const t = text.trim();
@@ -120,11 +123,14 @@
       try {
         const id = U.uid();
         const mine = collMap(ctx, 'feed')[uid] || {};
-        const posts = [{id, kind: k, text: t, at: Date.now()}, ...U.clone(postsOf(ctx, uid))].slice(0, KEEP_POSTS);
+        const post = {id, kind: k, text: t, at: Date.now()};
+        if (k === 'poll') post.options = opts.map(o => o.trim()).filter(Boolean).slice(0, 4);
+        const posts = [post, ...U.clone(postsOf(ctx, uid))].slice(0, KEEP_POSTS);
         const pinned = k === 'announce' ? uid + ':' + id : (mine.pinned || null);
         await W.merge('feed/' + uid, {posts, pinned});
         setText('');
-        setKind('update');
+        setKind('update'); setOpts(['', '']);
+        M.sound.play('soft');
         M.toast('Posted');
       } catch (e) { /* the write layer already toasted the failure */ }
       setBusy(false);
@@ -132,7 +138,11 @@
 
     return html`<${UI.Card} id="feed-composer">
       <div class="stack">
-        <${UI.TextArea} id="feed-text" placeholder="Share an update, a win or a question" rows=${3} value=${text} onChange=${setText}/>
+        <${UI.TextArea} id="feed-text" placeholder=${kind === 'poll' ? 'Ask the team something' : 'Share an update, a win or a question'} rows=${3} value=${text} onChange=${setText}/>
+        ${kind === 'poll' ? html`<div class="stack tight" id="poll-options">
+          ${opts.map((o, i) => html`<${UI.Input} key=${i} value=${o} placeholder=${'Option ' + (i + 1)} onChange=${v => setOpts(x => x.map((y, j) => j === i ? v : y))}/>`)}
+          ${opts.length < 4 ? html`<button type="button" class="linky small" style=${{alignSelf: 'flex-start'}} onClick=${() => setOpts(x => x.concat(['']))}>Add an option</button>` : null}
+        </div>` : null}
         <div class="row between">
           <${UI.Seg} ariaLabel="Post kind" value=${kind} onChange=${setKind} options=${options}/>
           <${UI.Btn} disabled=${!canPost} onClick=${post}>Post<//>
@@ -203,6 +213,21 @@
       W.merge('feed/' + founderUid, {pinned: it.pinned ? null : it.key})
         .then(() => M.toast(it.pinned ? 'Unpinned' : 'Pinned')).catch(() => {});
     };
+    /* polls: each vote lives in the voter's own votes document */
+    const pollVotes = it.kind === 'poll' ? (() => {
+      const vm = collMap(ctx, 'votes');
+      const tally = {}, who = {};
+      let mineVote = null, total = 0;
+      for (const v of Object.keys(vm)) {
+        const choice = ((vm[v] || {}).polls || {})[it.key];
+        if (choice == null) continue;
+        tally[choice] = (tally[choice] || 0) + 1; total++;
+        (who[choice] = who[choice] || []).push(v);
+        if (v === uid) mineVote = choice;
+      }
+      return {tally, total, mineVote, who};
+    })() : null;
+    const vote = i => { W.merge('votes/' + uid, {polls: {[it.key]: i}}).then(() => M.sound.play('tick')).catch(() => {}); };
     const remove = () => {
       const mineDoc = collMap(ctx, 'feed')[uid] || {};
       const posts = U.clone(postsOf(ctx, uid)).filter(p => p.id !== it.id);
@@ -230,6 +255,16 @@
         </div>` : null}
       </div>
       <div style=${{whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', margin: '12px 0'}}>${it.text}</div>
+      ${pollVotes ? html`<div class="poll" role="group" aria-label="Poll">
+        ${(it.options || []).map((o, i) => {
+          const n = pollVotes.tally[i] || 0, pct = pollVotes.total ? Math.round(100 * n / pollVotes.total) : 0;
+          return html`<button type="button" key=${i} class=${'poll-opt' + (pollVotes.mineVote === i ? ' on' : '')} aria-pressed=${pollVotes.mineVote === i} onClick=${() => vote(i)}>
+            <i style=${{width: pct + '%'}}/><span>${o}</span>
+            ${pollVotes.total ? html`<span class="pct num">${pct}%</span>` : null}
+          </button>`;
+        })}
+        <div class="tiny ink62 num">${pollVotes.total} ${pollVotes.total === 1 ? 'vote' : 'votes'}${pollVotes.total && (isAuthor || isFounder) ? html`. ${Object.keys(pollVotes.who).map(i => html`<span key=${i}>${(it.options || [])[i]}: <${UI.AvatarRow} ids=${pollVotes.who[i]} size=${16}/> </span>`)}` : ''}</div>
+      </div>` : null}
       <div class="row" role="group" aria-label="Reactions">
         ${EMOJIS.map(e => html`<button key=${e} type="button" class=${'emoji-btn' + (mine === e ? ' on' : '')}
           aria-pressed=${mine === e} aria-label=${'React ' + e} onClick=${() => react(e)}>

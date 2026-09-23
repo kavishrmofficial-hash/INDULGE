@@ -49,6 +49,7 @@ for f, s in JS.items():
 # ---- section 3: design system ----
 COLOUR = re.compile(r'#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)|\b(green|blue|yellow|purple|teal|orange)\b', re.I)
 ALLOWED_HEX = {'#FFFFFF', '#F7F6F2', '#EFEDE7', '#0A0A0A', '#0E0E0E', '#F53901', '#000', '#fff',
+               '#121212', '#181817', '#222220', '#050505', '#F2F1EC',  # the night palette: the same grounds, inverted
                '#d93100', '#000000', '#ffffff', '#BBBBBB', '#EFEDE7'}
 for m in COLOUR.finditer(CSS):
     tok = m.group(0)

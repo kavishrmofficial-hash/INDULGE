@@ -30,6 +30,7 @@
     home: {label: 'Home', icon: 'today', page: 'Home'},
     work: {label: 'Work', icon: 'tasks', page: 'Work', tabs: [
       {k: 'tasks', label: 'My tasks', route: 'tasks'}, {k: 'projects', label: 'Projects', route: 'projects'},
+      {k: 'calendar', label: 'Calendar', route: 'calendar'}, {k: 'reviews', label: 'Reviews', route: 'reviews'},
       {k: 'week', label: 'The week', route: 'week'}]},
     accounts: {label: 'Accounts', icon: 'clients', page: 'Accounts', tabs: [
       {k: 'clients', label: 'Clients', route: 'clients'}, {k: 'pipeline', label: 'Pipeline', route: 'pitches'}]},
@@ -37,7 +38,7 @@
       {k: 'feed', label: 'Feed', route: 'feed'}, {k: 'crew', label: 'Crew', route: 'people'},
       {k: 'pulse', label: 'Pulse and ideas', route: 'voice'}, {k: 'scores', label: 'Leaderboard', route: 'scores'}]},
     me: {label: 'Me', icon: 'people', page: 'Me', tabs: [
-      {k: 'profile', label: 'Profile', route: 'me'}, {k: 'leave', label: 'Leave', route: 'leave'},
+      {k: 'profile', label: 'Profile', route: 'me'}, {k: 'trophies', label: 'Trophies', route: 'trophies'}, {k: 'leave', label: 'Leave', route: 'leave'},
       {k: 'handbook', label: 'Handbook', route: 'handbook'}, {k: 'hiring', label: 'Hiring', route: 'hiring'}]},
     hq: {label: 'HQ', icon: 'command', page: 'HQ', founder: true, tabs: [
       {k: 'brief', label: 'Intelligence', route: 'hq'}, {k: 'dashboard', label: 'Dashboard', route: 'command'},
@@ -50,9 +51,12 @@
   function resolve(page, id, isFounder) {
     switch (page) {
       case 'home': case 'today': return {s: 'home'};
-      case 'work': case 'tasks': return {s: 'work', t: 'tasks'};
+      case 'work': return {s: 'work', t: 'tasks'};
       case 'projects': return {s: 'work', t: 'projects', id};
       case 'week': return {s: 'work', t: 'week'};
+      case 'calendar': return {s: 'work', t: 'calendar'};
+      case 'reviews': case 'review': return {s: 'work', t: 'reviews'};
+      case 'trophies': return {s: 'me', t: 'trophies'};
       case 'accounts': case 'clients': return {s: 'accounts', t: 'clients'};
       case 'pitches': case 'pipeline': return {s: 'accounts', t: 'pipeline'};
       case 'vibe': case 'feed': return {s: 'vibe', t: 'feed'};
@@ -60,6 +64,7 @@
       case 'voice': case 'pulse': return {s: 'vibe', t: 'pulse'};
       case 'scores': return {s: 'vibe', t: 'scores'};
       case 'me': case 'profile': return {s: 'me', t: 'profile'};
+      case 'tasks': return {s: 'work', t: 'tasks', id};
       case 'leave': return {s: 'me', t: 'leave'};
       case 'handbook': return {s: 'me', t: 'handbook', id};
       case 'hiring': return isFounder ? {s: 'hq', t: 'hiring', id} : {s: 'me', t: 'hiring', id};
@@ -83,6 +88,9 @@
       return (c.evaluators || []).includes(ctx.uid) && !c.decision && !myEvals[cid];
     }).length;
     out.handbook = unread; out.hiring = evals; out.me = unread + evals;
+    out.reviews = (M.reviews ? M.reviews.queue(ctx).filter(t => M.reviews.canReview(ctx, t)).length : 0);
+    out.work = out.reviews;
+    out.inbox = M.inbox ? M.inbox.unread(ctx) : 0;
     if (ctx.isFounder) {
       let pend = 0;
       for (const lu of Object.keys(ctx.coll.leave.map)) {
@@ -154,6 +162,17 @@
     </div>`;
   }
 
+  /* ---------- the shortcut sheet ---------- */
+  function Keys({onClose}) {
+    const mod = M.isMac ? '\u2318' : 'Ctrl';
+    const rows = [[mod + ' K', 'Search or do anything'], ['/', 'Same, from anywhere'], ['n', 'New task'], ['i', 'Inbox'], ['f', 'Focus timer'], ['b', 'Take a breather'],
+      ['g then h', 'Home'], ['g then w', 'Work'], ['g then a', 'Accounts'], ['g then v', 'Vibe'], ['g then m', 'Me'], ['g then c', 'Calendar'], ['g then r', 'Reviews'],
+      ['Ctrl + Option, held', 'Talk to the cursor buddy'], ['?', 'This sheet']];
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Keyboard shortcuts">
+      <div class="keys">${rows.map(r => html`<${React.Fragment} key=${r[0]}><span class="kbd">${r[0]}</span><span>${r[1]}</span><//>`)}</div>
+    <//>`;
+  }
+
   /* ---------- shell ---------- */
   M.Shell = function Shell() {
     const ctx = M.useCtx();
@@ -162,20 +181,46 @@
     const [askOpen, setAskOpen] = React.useState(false);
     const [newOpen, setNewOpen] = React.useState(false);
     const [newTask, setNewTask] = React.useState(false);
+    const [palOpen, setPalOpen] = React.useState(false);
+    const [inboxOpen, setInboxOpen] = React.useState(false);
+    const [keysOpen, setKeysOpen] = React.useState(false);
+    const [askInitial, setAskInitial] = React.useState('');
+    const theme = M.useTheme();
 
     React.useEffect(() => {
       if (!route.page) M.nav(ctx.isFounder ? '#hq' : '#home');
       else if (!ctx.isFounder && ['command', 'desk', 'hq', 'admin'].indexOf(route.page) >= 0) M.nav('#home');
     }, [route.page, ctx.isFounder]);
 
+    /* keys: Cmd K for the palette; single letters when nothing is focused */
     React.useEffect(() => {
+      let g = 0;
+      const typing = e => { const t = e.target; return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable); };
       const on = e => {
-        if ((e.metaKey || e.ctrlKey) && String(e.key).toLowerCase() === 'k') { e.preventDefault(); setAskOpen(x => !x); }
+        if ((e.metaKey || e.ctrlKey) && String(e.key).toLowerCase() === 'k') { e.preventDefault(); setPalOpen(x => !x); return; }
+        if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
+        if (document.querySelector('.drawer, .pal, .breathe')) return;
+        const k = e.key;
+        if (g && Date.now() - g < 900) {
+          g = 0;
+          const to = {h: '#home', w: '#tasks', a: '#clients', v: '#feed', m: '#me', c: '#calendar', r: '#reviews', q: '#hq'}[k];
+          if (to) { e.preventDefault(); M.nav(to); }
+          return;
+        }
+        if (k === 'g') { g = Date.now(); return; }
+        if (k === '/') { e.preventDefault(); setPalOpen(true); }
+        else if (k === 'n') { e.preventDefault(); setNewTask(true); }
+        else if (k === 'i') { e.preventDefault(); setInboxOpen(true); }
+        else if (k === 'f') { e.preventDefault(); M.focus && M.focus.open(); }
+        else if (k === 'b') { e.preventDefault(); M.breathe && M.breathe.open(); }
+        else if (k === '?') { e.preventDefault(); setKeysOpen(true); }
       };
       window.addEventListener('keydown', on);
       const open = () => setAskOpen(true);
-      window.addEventListener('m360:ask', open);
-      return () => { window.removeEventListener('keydown', on); window.removeEventListener('m360:ask', open); };
+      const inbox = () => setInboxOpen(true);
+      const keys = () => setKeysOpen(true);
+      window.addEventListener('m360:ask', open); window.addEventListener('m360:inbox', inbox); window.addEventListener('m360:keys', keys);
+      return () => { window.removeEventListener('keydown', on); window.removeEventListener('m360:ask', open); window.removeEventListener('m360:inbox', inbox); window.removeEventListener('m360:keys', keys); };
     }, []);
 
     const r = resolve(route.page, route.id, ctx.isFounder);
@@ -217,10 +262,17 @@
               onClick=${() => setNewOpen(x => x === 'side' ? false : 'side')}><${M.icons.plus}/>New</button>
             ${newMenu('side')}
           </div>
-          <button type="button" class="side-ask" onClick=${() => setAskOpen(true)}>
-            <span class="flame-t" aria-hidden="true">\u2726</span><span class="grow">Ask m360</span><span class="kbd">${M.isMac ? '\u2318K' : 'Ctrl K'}</span>
+          <button type="button" class="side-ask" onClick=${() => setPalOpen(true)}>
+            <${M.icons.search}/><span class="grow">Search or do anything</span><span class="kbd">${M.isMac ? '\u2318K' : 'Ctrl K'}</span>
           </button>
         </div>
+        <div class="side-tools">
+          <button type="button" class="iconbtn bellbtn" aria-label="Inbox" title="Inbox (i)" onClick=${() => setInboxOpen(true)}><${M.icons.bell}/><${Badge} n=${b.inbox || 0}/></button>
+          <button type="button" class="iconbtn" aria-label="Focus timer" title="Focus (f)" onClick=${() => M.focus && M.focus.open()}><${M.icons.timer}/></button>
+          <button type="button" class="iconbtn" aria-label="Ask m360" title="Ask m360" onClick=${() => setAskOpen(true)}><span class="flame-t" aria-hidden="true" style=${{fontSize: '16px'}}>\u2726</span></button>
+          <button type="button" class="iconbtn" aria-label=${'Theme: ' + theme} title="Theme" onClick=${() => M.toast('Theme: ' + M.theme.cycle())}>${M.theme.resolved() === 'dark' ? html`<${M.icons.sun}/>` : html`<${M.icons.moon}/>`}</button>
+        </div>
+        ${M.parts.FocusPill ? html`<${M.parts.FocusPill}/>` : null}
         <nav class="side-scroll">
           ${mainKeys.map(item)}
           ${founderKeys.length ? html`<div class="side-group micro plain">founder</div>` : null}
@@ -237,7 +289,10 @@
 
       <div class="topbar">
         <${M.Mark} width="66px"/>
-        <div class="row nowrap" style=${{gap: '10px'}}>
+        <div class="row nowrap" style=${{gap: '8px'}}>
+          ${M.parts.FocusPill ? html`<${M.parts.FocusPill} compact=${true}/>` : null}
+          <button type="button" class="iconbtn bellbtn" aria-label="Inbox" onClick=${() => setInboxOpen(true)}><${M.icons.bell}/><${Badge} n=${b.inbox || 0}/></button>
+          <button type="button" class="iconbtn" aria-label="Search" onClick=${() => setPalOpen(true)}><${M.icons.search}/></button>
           <div class="new-wrap">
             <button type="button" class="iconbtn new-trigger dark" aria-label="New" onClick=${() => setNewOpen(x => x === 'top' ? false : 'top')}><${M.icons.plus}/></button>
             ${newMenu('top')}
@@ -269,7 +324,12 @@
         <div class="stack tight">${moreKeys.map(item)}</div>
       <//>
 
-      ${askOpen && M.parts.Ask ? html`<${M.parts.Ask} onClose=${() => setAskOpen(false)}/>` : null}
+      ${askOpen && M.parts.Ask ? html`<${M.parts.Ask} initial=${askInitial} onClose=${() => { setAskOpen(false); setAskInitial(''); }}/>` : null}
+      ${palOpen && M.parts.Palette ? html`<${M.parts.Palette} onClose=${() => setPalOpen(false)} onAsk=${q => { setAskInitial(q); setAskOpen(true); }}/>` : null}
+      ${inboxOpen && M.parts.Inbox ? html`<${M.parts.Inbox} onClose=${() => setInboxOpen(false)}/>` : null}
+      ${keysOpen ? html`<${Keys} onClose=${() => setKeysOpen(false)}/>` : null}
+      ${M.parts.FocusHost ? html`<${M.parts.FocusHost}/>` : null}
+      ${M.parts.BreatheHost ? html`<${M.parts.BreatheHost}/>` : null}
       ${newTask && M.parts.TaskDrawer ? html`<${M.parts.TaskDrawer} taskId=${null} defaults=${{owner: ctx.uid}} onClose=${() => setNewTask(false)}/>` : null}
       <${M.ToastHost}/>
     </div>`;

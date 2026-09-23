@@ -176,7 +176,8 @@ def test(h):
     assert len(cs) == 1, cs
     c = list(cs.values())[0]
     assert c['by'] == 'u_founder' and c['t'] == 'Scripts are in the shared folder.' and isinstance(c['at'], int)
-    assert sorted(c.keys()) == ['at', 'by', 't'], 'comments store ids only'
+    assert sorted(c.keys()) in (['at', 'by', 't'], ['at', 'by', 'mentions', 't']), 'comments store ids only'
+    assert all(isinstance(x, str) and x.startswith('u_') for x in c.get('mentions', [])), 'mentions are ids'
     assert page.input_value('#task-comment') == ''
     thread = page.inner_text('.drawer')
     assert 'Kaavish Ramchandani' in thread and 'Scripts are in the shared folder.' in thread

@@ -261,7 +261,7 @@ def test(h):
     view(h, page, 'm1', 1280)
     page.wait_for_selector('#feed-stream .card[data-key="%s"]' % ann_key)
     check(page.locator('[aria-label="Post kind"] .seg-btn', has_text='Announcement').count() == 0, 'member sees the Announcement kind')
-    check(page.locator('[aria-label="Post kind"] .seg-btn').count() == 3, 'member kinds must be Update, Win, Question')
+    check(page.locator('[aria-label="Post kind"] .seg-btn').count() == 4, 'member kinds must be Update, Win, Question, Poll')
     check(page.locator('#feed-stream button', has_text=PIN_RE).count() == 0, 'member sees a Pin button')
     check(page.locator('#feed-stream button', has_text='Delete').count() == 0, 'member sees Delete on posts by others')
     page.wait_for_selector('#feed-stream .card:has-text("Kaavish Ramchandani")')

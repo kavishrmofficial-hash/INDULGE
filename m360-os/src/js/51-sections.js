@@ -119,7 +119,8 @@
         </div>
       <//>
       <${M.SectionTabs} section="work" active=${t}/>
-      ${t === 'projects' ? html`<${Embed} page="Projects" id=${id}/>` : t === 'week' ? html`<${Embed} page="Week"/>` : html`<${Embed} page="Tasks"/>`}
+      ${t === 'projects' ? html`<${Embed} page="Projects" id=${id}/>` : t === 'week' ? html`<${Embed} page="Week"/>`
+        : t === 'calendar' ? html`<${Embed} page="Calendar"/>` : t === 'reviews' ? (M.parts.Reviews ? html`<${M.parts.Reviews}/>` : null) : html`<${Embed} page="Tasks" id=${id}/>`}
       ${b2t ? html`<${BriefToTasks} onClose=${() => setB2t(false)}/>` : null}
     </div>`;
   }
@@ -238,9 +239,37 @@
       <//>
       <${M.SectionTabs} section="me" active=${t}/>
       ${t === 'leave' ? html`<${Embed} page="Leave"/>` : t === 'handbook' ? html`<${Embed} page="Handbook" id=${id}/>`
-        : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>` : html`<${Embed} page="People" id=${ctx.uid}/>`}
+        : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>` : t === 'trophies' ? (M.parts.Trophies ? html`<${M.parts.Trophies}/>` : null) : html`<${Embed} page="People" id=${ctx.uid}/>`}
+      ${t === 'profile' && M.parts.AboutCard ? html`<${M.parts.AboutCard}/>` : null}
+      ${t === 'profile' ? html`<${Prefs}/>` : null}
       ${t === 'profile' && M.parts.DeviceCard ? html`<${M.parts.DeviceCard}/>` : null}
     </div>`;
+  }
+
+  /* ---------- Me: how the OS behaves for you ---------- */
+  function Prefs() {
+    const theme = M.useTheme();
+    const [sound, setSound] = useState(M.sound.on());
+    const wk = U.periodRange('week');
+    const ctx = M.useCtx();
+    const deep = M.focus ? M.focus.minutes(ctx, ctx.uid, wk.from, wk.to) : 0;
+    return html`<${UI.Card} id="prefs-card" title="Your m360">
+      <div class="stack tight">
+        <div class="row between">
+          <span>Look</span>
+          <div class="theme-seg" role="group" aria-label="Theme">
+            ${[['auto', 'Auto'], ['light', 'Paper'], ['dark', 'Ink']].map(([v, l]) => html`<button key=${v} type="button" class=${theme === v ? 'on' : ''} aria-pressed=${theme === v} onClick=${() => M.theme.set(v)}>${l}</button>`)}
+          </div>
+        </div>
+        <div class="row between">
+          <span>Sounds</span>
+          <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${sound ? 'on' : 'off'} ariaLabel="Sounds"
+            onChange=${v => { M.sound.set(v === 'on'); setSound(v === 'on'); if (v === 'on') M.sound.play('chime'); }}/>
+        </div>
+        <div class="row between"><span>Deep work this week</span><span class="num" style=${{fontWeight: 600}}>${Math.round(deep / 6) / 10}h</span></div>
+        <div class="row between"><span>Keyboard shortcuts</span><button type="button" class="linky small" onClick=${() => window.dispatchEvent(new CustomEvent('m360:keys'))}>Show the sheet</button></div>
+      </div>
+    <//>`;
   }
 
   /* ---------- Admin ---------- */

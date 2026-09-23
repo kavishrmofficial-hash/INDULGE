@@ -21,8 +21,24 @@ HEAD = ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E'
         '%3Crect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%230A0A0A%22/%3E%3Ccircle cx=%2223%22 cy=%229%22 r=%223%22 fill=%22%23F53901%22/%3E%3C/svg%3E">'
         '<meta name="theme-color" content="#FFFFFF">'
+        '<link rel="manifest" href="manifest.json"><meta name="apple-mobile-web-app-capable" content="yes">'
+        '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="m360">'
         '<style>body{margin:0;background:#FFFFFF}</style>')
 LOCAL = {builder.CDN[0]: 'vendor/react.js', builder.CDN[1]: 'vendor/react-dom.js', builder.CDN[2]: 'vendor/htm.js'}
+
+
+SW = '''/* m360 OS service worker: the shell loads offline, the API always goes to the network */
+const CACHE = 'm360-v4';
+const SHELL = ['/', '/index.html', '/vendor/react.js', '/vendor/react-dom.js', '/vendor/htm.js', '/manifest.json', '/icon.svg'];
+self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
+self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
+self.addEventListener('fetch', e => {
+  const u = new URL(e.request.url);
+  if (e.request.method !== 'GET' || u.origin !== location.origin || u.pathname.startsWith('/api/')) return;
+  e.respondWith(fetch(e.request).then(r => { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); return r; })
+    .catch(() => caches.match(e.request).then(m => m || caches.match('/index.html'))));
+});
+'''
 
 
 def main():
@@ -41,6 +57,16 @@ def main():
     assert first_script > 0
     with open(os.path.join(PUB, 'index.html'), 'w', encoding='utf-8') as f:
         f.write(doc)
+    # a phone can install it: manifest, icons and a small service worker for the shell
+    icon = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#0A0A0A"/>'
+            '<circle cx="372" cy="140" r="34" fill="#F53901"/><text x="256" y="330" font-family="Arial, sans-serif" font-size="190" font-weight="700" fill="#FFFFFF" text-anchor="middle">m</text></svg>')
+    with open(os.path.join(PUB, 'icon.svg'), 'w') as f:
+        f.write(icon)
+    with open(os.path.join(PUB, 'manifest.json'), 'w') as f:
+        json.dump({'name': 'm360 OS', 'short_name': 'm360', 'start_url': '/', 'display': 'standalone', 'background_color': '#FFFFFF',
+                   'theme_color': '#0A0A0A', 'icons': [{'src': 'icon.svg', 'sizes': 'any', 'type': 'image/svg+xml', 'purpose': 'any'}]}, f)
+    with open(os.path.join(PUB, 'sw.js'), 'w') as f:
+        f.write(SW)
     # the pinned UMD builds are committed under edgeone/public/vendor; refresh them from the harness copy when present
     for name in ('react.js', 'react-dom.js', 'htm.js'):
         src = os.path.join(ROOT, 'harness', 'vendor', name)

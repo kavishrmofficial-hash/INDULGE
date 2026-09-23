@@ -17,6 +17,17 @@
   const reduced = () => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
   const SR = () => window.SpeechRecognition || window.webkitSpeechRecognition || null;
 
+  /* the guided tour: where things live, in order */
+  const TOUR = [
+    {sel: '.side-item, .tabbar .tab-item', say: 'Home is your day: check in, your focus, your numbers.'},
+    {sel: '.sidebar .new-trigger, .topbar .new-trigger', say: 'New makes anything: a task, a post, kudos, a project.'},
+    {sel: '.side-ask, .topbar .iconbtn[aria-label="Search"]', say: 'Search or do anything from here. Cmd K opens it too.'},
+    {sel: '.bellbtn', say: 'Your inbox: assignments, kudos, mentions and decisions.'},
+    {sel: '.side-tools .iconbtn[aria-label="Focus timer"], .quick-btn', say: 'Focus runs a timer on a task and banks deep work.'},
+    {sel: '.side-item:nth-child(2), .tabbar .tab-item:nth-child(2)', say: 'Work: tasks, projects, the calendar and reviews.'},
+    {sel: '.buddy-home', say: 'And that is me. Hold Ctrl and Option to talk, or tap here. Enjoy.'}
+  ];
+
   const SECTIONS = ['home', 'tasks', 'projects', 'week', 'clients', 'pitches', 'feed', 'people', 'voice', 'scores', 'me', 'leave', 'handbook', 'hiring', 'hq', 'command', 'admin'];
 
   /* ---------- the screen, as Claude sees it ---------- */
@@ -65,6 +76,7 @@
     const [err, setErr] = useState('');
     const [anchor, setAnchor] = useState(null);         /* {x, y} the bubble sits by */
     const [ring, setRing] = useState(null);             /* {left, top, width, height} */
+    const [step, setStep] = useState(-1);               /* tour step, or -1 */
     const pointerRef = useRef(null);
     const mouse = useRef({x: window.innerWidth - 90, y: window.innerHeight - 90});
     const pos = useRef({x: window.innerWidth - 90, y: window.innerHeight - 90});
@@ -78,7 +90,7 @@
 
     /* follow the cursor with a little lag; stays put while pointing */
     useEffect(() => {
-      if (!on || hidden) return;
+      if ((!on && mode !== 'tour') || hidden) return;
       let raf = 0;
       const move = e => { mouse.current = {x: e.clientX + 16, y: e.clientY + 14}; };
       const tick = () => {
@@ -98,7 +110,8 @@
       window.addEventListener('pointermove', move, {passive: true});
       raf = requestAnimationFrame(tick);
       return () => { cancelAnimationFrame(raf); window.removeEventListener('pointermove', move); };
-    }, [on, hidden]);
+    }, [on, hidden, mode === 'tour']);
+
 
     const fly = useCallback((x, y) => new Promise(res => {
       pinned.current = true;
@@ -117,6 +130,27 @@
       pinned.current = false; target.current = null;
       setRing(null); setMode('idle'); setAnswer(''); setActs([]); setErr(''); setHeard(''); setQ('');
     }, []);
+
+    /* ---------- the tour ---------- */
+    const showStep = useCallback(async i => {
+      let j = i;
+      let el = null;
+      while (j < TOUR.length && !el) { el = Array.from(document.querySelectorAll(TOUR[j].sel)).find(x => x.getBoundingClientRect().width > 0) || null; if (!el) j++; }
+      if (!el) { reset(); M.toast('That is the tour. Hold Ctrl and Option to ask me anything'); return; }
+      setStep(j); setMode('tour'); setAnswer(TOUR[j].say); setErr(''); setActs([]);
+      el.scrollIntoView({block: 'center', behavior: reduced() ? 'auto' : 'smooth'});
+      await new Promise(r => setTimeout(r, reduced() ? 30 : 260));
+      const r = el.getBoundingClientRect();
+      target.current = el;
+      pinned.current = true;
+      await fly(Math.min(window.innerWidth - 30, r.left + Math.min(r.width * .5, 60)), r.top + r.height * .6);
+      setAnchor({x: pos.current.x, y: pos.current.y});
+    }, [fly]);
+    useEffect(() => {
+      const start = () => { setHidden(false); store.set('buddyHidden', '0'); setTimeout(() => showStep(0), 60); };
+      window.addEventListener('m360:tour', start);
+      return () => window.removeEventListener('m360:tour', start);
+    }, [showStep]);
 
     const speak = t => {
       if (!spoke.current || store.get('buddyVoice') === '0') return;
@@ -237,7 +271,7 @@
       return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('keydown', esc); };
     }, [on, hidden, reset]);
 
-    if (!on) return null;
+    if (!on && mode !== 'tour') return null;
 
     const tapHome = () => {
       if (mode !== 'idle') { reset(); return; }
@@ -261,7 +295,7 @@
       ${ring ? html`<div class="buddy-ring" style=${{left: ring.left + 'px', top: ring.top + 'px', width: ring.width + 'px', height: ring.height + 'px'}}/>` : null}
       ${mode !== 'idle' ? html`<div class="buddy-bubble" role="dialog" aria-label="Ask m360" style=${{left: left + 'px', top: top + 'px'}}>
         <div class="row between" style=${{marginBottom: '8px'}}>
-          <span class="micro">${mode === 'listening' ? 'listening, let go to send' : mode === 'thinking' ? 'thinking' : 'ask m360'}</span>
+          <span class="micro">${mode === 'listening' ? 'listening, let go to send' : mode === 'thinking' ? 'thinking' : mode === 'tour' ? 'the tour' : 'ask m360'}</span>
           <button type="button" class="iconbtn" style=${{color: '#fff', width: '26px', height: '26px'}} aria-label="Close" onClick=${reset}><${M.icons.x}/></button>
         </div>
         ${mode === 'listening' ? html`<div style=${{fontWeight: 500, minHeight: '22px'}}>${heard || 'Go ahead, I\'m listening.'}</div>` : null}
@@ -272,6 +306,13 @@
             <button type="button" class="btn on-dark sm" disabled=${!q.trim()} onClick=${() => ask(q)}>Ask</button></div>
         </div>` : null}
         ${mode === 'thinking' && !answer ? html`<${M.Thinking} label="Looking at your screen"/>` : null}
+        ${mode === 'tour' ? html`<div class="row between" style=${{marginTop: '10px'}}>
+          <span class="tiny" style=${{color: 'rgba(255,255,255,.6)'}}>${step + 1} of ${TOUR.length}</span>
+          <span class="row nowrap">
+            <button type="button" class="linky tiny" onClick=${reset}>Skip</button>
+            <button type="button" class="btn on-dark sm" onClick=${() => step + 1 < TOUR.length ? showStep(step + 1) : (reset(), M.toast('Enjoy m360'))}>${step + 1 < TOUR.length ? 'Next' : 'Done'}</button>
+          </span>
+        </div>` : null}
         ${answer ? html`<${M.AIText} text=${answer}/>` : null}
         ${acts.map((a, i) => html`<div key=${i} class="tiny" style=${{marginTop: '6px'}}><span class="spark">${SPARK}</span> ${a}</div>`)}
         ${err ? html`<div class="small flame-t" style=${{marginTop: '6px'}}>${err}</div>` : null}

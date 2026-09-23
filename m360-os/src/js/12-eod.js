@@ -113,7 +113,9 @@
       </div>`;
     }
 
-    const action = !showForm ? html`<${UI.Btn} kind="sec" sm onClick=${startEdit}>Edit<//>` : null;
+    const Mic = M.parts.MicButton;
+    const action = !showForm ? html`<${UI.Btn} kind="sec" sm onClick=${startEdit}>Edit<//>`
+      : (Mic ? html`<${Mic} label="Say it" onText=${t => setShipped(x => (x ? x + ' ' : '') + t)}/>` : null);
     return html`<${UI.Card} title="EOD line" id="eod-card" flame=${due} action=${action}>${body}<//>`;
   }
 

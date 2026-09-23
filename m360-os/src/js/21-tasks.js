@@ -70,15 +70,77 @@
 
   const revNote = n => n > 0 ? n + (n === 1 ? ' revision' : ' revisions') : 'No revisions yet';
 
+  /* one status change, with the bookkeeping every path shares: review time, revisions, done time */
+  function statusPatch(task, status, uid) {
+    const now = Date.now();
+    const prev = (task && task.status) || 'todo';
+    const patch = {status, updated: now};
+    let msg = 'Moved to ' + (STATUSES.find(x => x.v === status) || {label: status}).label.toLowerCase();
+    if (prev === 'review' && (status === 'doing' || status === 'todo')) {
+      patch.revisions = (Number(task && task.revisions) || 0) + 1;
+      patch.sentBackAt = now; patch.sentBackBy = uid;
+      msg = 'Sent back, revision ' + patch.revisions;
+    }
+    if (status === 'review' && prev !== 'review') patch.reviewAt = now;
+    if (status === 'done') { if (prev !== 'done' || !(task && task.doneAt)) patch.doneAt = now; msg = 'Shipped'; }
+    else patch.doneAt = null;
+    return {patch, msg};
+  }
+  async function moveTask(ctx, task, status, el) {
+    if (!task || task.status === status) return;
+    const {patch, msg} = statusPatch(task, status, ctx.uid);
+    await ctx.W.update('tasks/' + task.id, patch).catch(() => {});
+    if (status === 'done') M.burst(el || document.body); else M.sound.play('tick');
+    M.toast(msg);
+  }
+
+  /* @mentions: names in a comment become ids the inbox can use */
+  function useMentions(text, setText) {
+    const ctx = M.useCtx();
+    const ids = ctx.activeMembers.map(m => m.uid);
+    const profs = M.useProfiles(ids);
+    const people = ids.map(id => ({id, name: (profs[id] && profs[id].name) || (ctx.members[id] || {}).empId || 'Someone'}));
+    const at = /(^|\s)@([\w ]{0,24})$/.exec(text || '');
+    const q = at ? at[2].toLowerCase() : null;
+    const hits = q == null ? [] : people.filter(p => p.name.toLowerCase().startsWith(q)).slice(0, 5);
+    const pick = p => setText(String(text).replace(/(^|\s)@([\w ]{0,24})$/, '$1@' + p.name + ' '));
+    const mentionsIn = t => people.filter(p => String(t || '').includes('@' + p.name)).map(p => p.id);
+    return {hits, pick, mentionsIn};
+  }
+  function MentionMenu({hits, pick}) {
+    if (!hits.length) return null;
+    return html`<div class="mention-menu" style=${{position: 'relative', marginTop: '-4px'}}>
+      ${hits.map((p, i) => html`<button type="button" key=${p.id} class=${i === 0 ? 'on' : ''} onMouseDown=${e => { e.preventDefault(); pick(p); }}>
+        <${UI.Avatar} id=${p.id} size=${20}/>${p.name}</button>`)}
+    </div>`;
+  }
+  /* comment text with @Name runs shown in flame */
+  function CommentText({text, names}) {
+    const parts = String(text || '').split(/(@[A-Z][\w]*(?: [A-Z][\w]*)?)/g);
+    return html`<span>${parts.map((p, i) => p.startsWith('@') && names.some(n => p === '@' + n) ? html`<span key=${i} class="mention">${p}</span>` : p)}</span>`;
+  }
+
   /* ---------- card ---------- */
-  function TaskCard({task, projects, clients, today, onOpen}) {
+  function TaskCard({task, projects, clients, today, onOpen, onDrag}) {
     const pName = nameOf(projects, task.project);
     const cName = nameOf(clients, task.client);
     const overdue = isOverdue(task, today);
     const sc = subCount(task);
     const rev = Number(task.revisions) || 0;
-    return html`<button type="button" class="tcard" onClick=${() => onOpen(task.id)}>
-      <div class="t">${task.title || 'Untitled'}</div>
+    const down = useRef(null);
+    const onDown = e => { if (e.button !== 0 || e.target.closest('.grip')) return; down.current = {x: e.clientX, y: e.clientY, el: e.currentTarget}; };
+    const onMove = e => {
+      const d = down.current;
+      if (!d || !onDrag || e.pointerType !== 'mouse') return;
+      if (Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 6) { down.current = null; onDrag(task, e, d.el); }
+    };
+    const onUp = () => { down.current = null; };
+    return html`<button type="button" class="tcard" data-task=${task.id} onClick=${() => onOpen(task.id)}
+      onPointerDown=${onDown} onPointerMove=${onMove} onPointerUp=${onUp} onPointerCancel=${onUp}>
+      <div class="row between nowrap" style=${{gap: '6px', alignItems: 'flex-start'}}>
+        <div class="t grow">${task.title || 'Untitled'}</div>
+        ${onDrag ? html`<span class="grip" aria-label="Drag" onPointerDown=${e => { e.stopPropagation(); onDrag(task, e, e.currentTarget.closest('.tcard')); }}><${icons.grip}/></span>` : null}
+      </div>
       ${(pName || cName) ? html`<div class="row" style=${{gap: '6px', overflow: 'hidden'}}>
         ${pName ? html`<${UI.Pill} kind="warm">${pName}<//>` : null}
         ${cName ? html`<${UI.Pill} kind="warm">${cName}<//>` : null}
@@ -112,7 +174,7 @@
       title: task ? (task.title || '') : '',
       status: task ? (task.status || 'todo') : 'todo',
       owner: task ? (task.owner || '') : (d.owner || uid),
-      due: task ? (task.due || '') : '',
+      due: task ? (task.due || '') : (d.due || ''),
       priority: task ? (task.priority || 'normal') : 'normal',
       project: task ? (task.project || '') : (d.project || ''),
       section: task ? (task.section || '') : (d.section || ''),
@@ -125,6 +187,8 @@
     const [subText, setSubText] = useState('');
     const [comment, setComment] = useState('');
     const [busy, setBusy] = useState(false);
+    const mention = useMentions(comment, setComment);
+    const memberNames = Object.values(M.useProfiles(ctx.activeMembers.map(m => m.uid))).map(p => p.name).filter(Boolean);
     const mounted = useRef(false);
     const hasTask = !!task;
     useEffect(() => {
@@ -192,8 +256,9 @@
       if (!t || isNew) return;
       setBusy(true);
       try {
-        await W.update(path, {comments: {[U.uid()]: {by: uid, t, at: Date.now()}}, updated: Date.now()});
+        await W.update(path, {comments: {[U.uid()]: {by: uid, t, at: Date.now(), mentions: mention.mentionsIn(t)}}, updated: Date.now()});
         setComment('');
+        M.sound.play('soft');
         M.toast('Comment added');
       } catch (e) { /* the write layer toasts the failure */ }
       setBusy(false);
@@ -217,21 +282,13 @@
           M.toast('Task created');
         } else {
           const prev = (task && task.status) || 'todo';
-          let revisions = Number(task && task.revisions) || 0;
-          let doneAt = (task && task.doneAt) || null;
-          let msg = 'Saved';
-          if (prev === 'review' && (f.status === 'doing' || f.status === 'todo')) {
-            revisions += 1;
-            msg = 'Sent back, revision ' + revisions;
-          }
-          if (f.status === 'done') { if (prev !== 'done' || !doneAt) doneAt = now; }
-          else doneAt = null;
+          const sp = prev === f.status ? {patch: {doneAt: (task && task.doneAt) || null}, msg: 'Saved'} : statusPatch(task, f.status, uid);
           await W.update(path, {
             title, owner: f.owner, client: f.client, project: f.project, section: f.section, due: f.due,
-            status: f.status, priority: f.priority, link: f.link.trim(), shown20: !!f.shown20,
-            revisions, doneAt, updated: now
+            status: f.status, priority: f.priority, link: f.link.trim(), shown20: !!f.shown20, ...sp.patch, updated: now
           });
-          M.toast(msg);
+          if (f.status === 'done' && prev !== 'done') M.burst(document.querySelector('.drawer-foot'));
+          M.toast(sp.msg);
         }
         ok = true;
       } catch (e) { /* the write layer toasts the failure */ }
@@ -283,6 +340,7 @@
       <${UI.Check} label="Rough direction shown at the 20% check" checked=${f.shown20} onChange=${set('shown20')}/>
       <div class="row between small">
         <span class="sub">${revNote(rev)}</span>
+        ${!isNew && M.focus && f.owner === uid && f.status !== 'done' ? html`<button type="button" class="linky" onClick=${() => { onClose(); M.focus.open(taskId); }}>Start focus</button>` : null}
         ${href ? html`<a class="linky" href=${href} target="_blank" rel="noopener noreferrer">Open the output</a>` : null}
       </div>
 
@@ -306,10 +364,11 @@
               <b class="small"><${UI.Name} id=${c.by}/></b>
               <span class="sub tiny">${U.timeAgo(c.at || 0)}</span>
             </div>
-            <div class="small" style=${{whiteSpace: 'pre-wrap', overflowWrap: 'anywhere'}}>${c.t}</div>
+            <div class="small" style=${{whiteSpace: 'pre-wrap', overflowWrap: 'anywhere'}}><${CommentText} text=${c.t} names=${memberNames}/></div>
           </div>
         </div>`) : html`<${UI.Empty} text="No comments yet."/>`}
-        <${UI.TextArea} id="task-comment" value=${comment} onChange=${setComment} rows=${2} placeholder="Write a comment"/>
+        <${UI.TextArea} id="task-comment" value=${comment} onChange=${setComment} rows=${2} placeholder="Write a comment. @ mentions a teammate"/>
+        <${MentionMenu} hits=${mention.hits} pick=${mention.pick}/>
         <div class="row" style=${{justifyContent: 'flex-end'}}>
           <${UI.Btn} kind="sec" sm disabled=${busy || !comment.trim()} onClick=${addComment}>Add comment<//>
         </div>
@@ -325,6 +384,43 @@
     const [client, setClient] = useState('');
     const [drawer, setDrawer] = useState(() => (id ? {id} : null));
     useEffect(() => { if (id) setDrawer({id}); }, [id]);
+    M.useIntent('newtask', () => setDrawer({id: null}));
+    const [dueDefault, setDueDefault] = useState('');
+    useEffect(() => {
+      const on = () => { const m = /^newtask:(\d{4}-\d{2}-\d{2})$/.exec(M._intentPeek ? M._intentPeek() : ''); if (m) { M._intentTake(); setDueDefault(m[1]); setDrawer({id: null}); } };
+      on(); window.addEventListener('m360:intent', on);
+      return () => window.removeEventListener('m360:intent', on);
+    }, []);
+
+    /* drag a card between columns */
+    const [over, setOver] = useState(null);
+    const drag = useRef(null);
+    const onDrag = (task, e, cardEl) => {
+      const ghost = document.createElement('div');
+      ghost.className = 'drag-ghost';
+      ghost.innerHTML = cardEl ? cardEl.outerHTML : '';
+      document.body.appendChild(ghost);
+      const move = ev => {
+        ghost.style.left = (ev.clientX + 8) + 'px'; ghost.style.top = (ev.clientY + 8) + 'px';
+        const col = document.elementsFromPoint(ev.clientX, ev.clientY).map(x => x.closest && x.closest('.colm[data-status]')).find(Boolean);
+        setOver(col ? col.getAttribute('data-status') : null);
+        drag.current = {task, status: col ? col.getAttribute('data-status') : null};
+      };
+      const up = ev => {
+        window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+        ghost.remove();
+        const d = drag.current; drag.current = null;
+        setOver(null);
+        if (cardEl) cardEl.classList.remove('dragging');
+        if (d && d.status && d.status !== task.status) moveTask(ctx, task, d.status, document.querySelector('.colm[data-status="' + d.status + '"]'));
+        suppressClick.current = Date.now();
+      };
+      if (cardEl) cardEl.classList.add('dragging');
+      drag.current = {task, status: null};
+      move(e);
+      window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+    };
+    const suppressClick = useRef(0);
 
     const projects = (ctx.coll.projects && ctx.coll.projects.map) || {};
     const clients = (ctx.coll.clients && ctx.coll.clients.map) || {};
@@ -350,8 +446,8 @@
     const myOverdue = mine.filter(t => isOverdue(t, today)).length;
     const micro = mine.length + ' open' + (myOverdue ? ', ' + myOverdue + ' overdue' : '');
 
-    const closeDrawer = () => { setDrawer(null); if (id) M.nav('#tasks'); };
-    const openTask = tid => setDrawer({id: tid});
+    const closeDrawer = () => { setDrawer(null); setDueDefault(''); if (id) M.nav('#tasks'); };
+    const openTask = tid => { if (Date.now() - suppressClick.current < 300) return; setDrawer({id: tid}); };
 
     return html`<${React.Fragment}>
       <${UI.PageHead} micro=${micro} title="My tasks">
@@ -366,20 +462,20 @@
       </div>
       <${UI.Card}>
         <div class="board-wrap"><div class="board">
-          ${cols.map(c => html`<div key=${c.v} class="colm">
+          ${cols.map(c => html`<div key=${c.v} class=${'colm' + (over === c.v ? ' over' : '')} data-status=${c.v}>
             <div class="col-head"><span>${c.label}</span><span class="num">${c.list.length}</span></div>
             ${c.list.length
-              ? c.list.map(t => html`<${TaskCard} key=${t.id} task=${t} projects=${projects} clients=${clients} today=${today} onOpen=${openTask}/>`)
+              ? c.list.map(t => html`<${TaskCard} key=${t.id} task=${t} projects=${projects} clients=${clients} today=${today} onOpen=${openTask} onDrag=${onDrag}/>`)
               : html`<div style=${{padding: '2px 6px 6px'}}><${UI.Empty} text="Nothing here."/></div>`}
           </div>`)}
         </div></div>
       <//>
       ${drawer ? html`<${TaskDrawer} key=${drawer.id || 'new'} taskId=${drawer.id} onClose=${closeDrawer}
-        defaults=${{project: proj, client, owner: ctx.uid}}/>` : null}
+        defaults=${{project: proj, client, owner: ctx.uid, due: dueDefault}}/>` : null}
     <//>`;
   }
 
   M.pages.Tasks = Tasks;
   M.parts.TaskDrawer = TaskDrawer;
-  M.tasks = {isOverdue, progress, open, STATUSES, PRIORITIES, dueLabel, revNote};
+  M.tasks = {isOverdue, progress, open, STATUSES, PRIORITIES, dueLabel, revNote, moveTask, statusPatch};
 })();

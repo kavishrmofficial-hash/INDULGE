@@ -82,9 +82,9 @@
     </div>`;
   }
 
-  function Ask({onClose}) {
+  function Ask({onClose, initial}) {
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Ask m360">
-      <${AskPanel}/>
+      <${AskPanel} initial=${initial || ''}/>
       <div class="hint">Runs on your own Claude account. It sees what you can see in m360, and nothing else.</div>
     <//>`;
   }

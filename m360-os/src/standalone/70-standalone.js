@@ -74,8 +74,12 @@
   /* ---------- Me: devices and sign out ---------- */
   function DeviceCard() {
     const [open, setOpen] = useState(false);
+    const [canInstall, setCanInstall] = useState(!!window.M360_INSTALL);
+    useEffect(() => { const on = () => setCanInstall(true); window.addEventListener('m360:installable', on); return () => window.removeEventListener('m360:installable', on); }, []);
+    const install = async () => { const e = window.M360_INSTALL; if (!e) return; e.prompt(); try { await e.userChoice; } catch (x) { /* dismissed */ } window.M360_INSTALL = null; setCanInstall(false); };
     return html`<${UI.Card} title="This account" id="device-card">
       <div class="row">
+        ${canInstall ? html`<${UI.Btn} sm=${true} onClick=${install}>Add m360 to this phone<//>` : null}
         <${UI.Btn} kind="sec" sm=${true} onClick=${() => setOpen(true)}>Sign in on another device<//>
         <${UI.ConfirmBtn} kind="ghost" onConfirm=${() => api('logout').then(() => location.reload(), () => location.reload())}
           label="Tap again to sign out">Sign out<//>

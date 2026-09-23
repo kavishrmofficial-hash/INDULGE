@@ -277,6 +277,8 @@ M.intend = (hash, what) => {
   if (location.hash !== hash) M.nav(hash);
   setTimeout(() => window.dispatchEvent(new CustomEvent('m360:intent')), 0);
 };
+M._intentPeek = () => pendingIntent;
+M._intentTake = () => { pendingIntent = null; };
 M.useIntent = function useIntent(what, fn) {
   const ref = React.useRef(fn);
   ref.current = fn;
@@ -307,5 +309,119 @@ M.useNow = function useNow() {
   return n;
 };
 
-/* celebrations stay quiet in the m360 system: hover and state changes only */
-M.burst = function burst() {};
+/* ---------- preferences (this browser only) ---------- */
+M.prefs = {
+  get: (k, d) => { try { const v = localStorage.getItem('m360.' + k); return v == null ? d : v; } catch (e) { return d; } },
+  set: (k, v) => { try { localStorage.setItem('m360.' + k, String(v)); } catch (e) { /* private window */ } }
+};
+M.reduced = () => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
+
+/* ---------- theme: paper by day, ink by night, or follow the system ---------- */
+const themeSubs = new Set();
+M.theme = {
+  get: () => M.prefs.get('theme', 'auto'),
+  resolved() {
+    const t = M.theme.get();
+    if (t === 'light' || t === 'dark') return t;
+    try { return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; } catch (e) { return 'light'; }
+  },
+  apply() {
+    const r = M.theme.resolved();
+    document.documentElement.setAttribute('data-theme', r);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', r === 'dark' ? '#121212' : '#FFFFFF');
+    themeSubs.forEach(fn => fn(r));
+  },
+  set(t) { M.prefs.set('theme', t); M.theme.apply(); },
+  cycle() { const t = M.theme.get(); M.theme.set(t === 'auto' ? 'dark' : t === 'dark' ? 'light' : 'auto'); return M.theme.get(); },
+  subscribe(fn) { themeSubs.add(fn); return () => themeSubs.delete(fn); }
+};
+M.theme.apply();
+try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => M.theme.apply()); } catch (e) { /* old browser */ }
+M.useTheme = function useTheme() {
+  const [t, set] = React.useState(M.theme.get());
+  React.useEffect(() => M.theme.subscribe(() => set(M.theme.get())), []);
+  return t;
+};
+
+/* ---------- sounds: tiny synthesized tones, off with one toggle ---------- */
+let audioCtx = null;
+const TONES = {
+  tick: [[1320, 0.05, 0.05]],
+  done: [[660, 0.08, 0.05], [990, 0.12, 0.06]],
+  chime: [[523, 0.1, 0.05], [659, 0.1, 0.05], [784, 0.16, 0.06]],
+  start: [[440, 0.08, 0.05], [554, 0.1, 0.05]],
+  soft: [[880, 0.04, 0.03]]
+};
+M.sound = {
+  on: () => M.prefs.get('sound', '1') !== '0',
+  set: v => M.prefs.set('sound', v ? '1' : '0'),
+  play(name) {
+    if (!M.sound.on() || !TONES[name]) return;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      audioCtx = audioCtx || new AC();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      let t = audioCtx.currentTime + 0.01;
+      for (const [freq, dur, gain] of TONES[name]) {
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.type = 'sine'; o.frequency.value = freq;
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t + dur + 0.02);
+        t += dur * 0.9;
+      }
+    } catch (e) { /* no audio here */ }
+  }
+};
+
+/* ---------- spark: a burst of flame from an element, the m360 way to celebrate ---------- */
+M.spark = function spark(el, n) {
+  if (M.reduced()) return;
+  const r = el && el.getBoundingClientRect ? el.getBoundingClientRect() : {left: window.innerWidth / 2, top: window.innerHeight / 2, width: 0, height: 0};
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  const wrap = document.createElement('div');
+  wrap.className = 'sparks';
+  const count = n || 12;
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement('i');
+    const a = (i / count) * Math.PI * 2 + Math.random() * 0.5;
+    const d = 46 + Math.random() * 54;
+    p.style.setProperty('--dx', Math.cos(a) * d + 'px');
+    p.style.setProperty('--dy', Math.sin(a) * d + 'px');
+    p.style.setProperty('--s', (0.5 + Math.random() * 0.9).toFixed(2));
+    p.style.left = cx + 'px'; p.style.top = cy + 'px';
+    if (i % 3 === 0) p.className = 'ink';
+    wrap.appendChild(p);
+  }
+  document.body.appendChild(wrap);
+  setTimeout(() => wrap.remove(), 900);
+};
+M.burst = function burst(el) { M.spark(el, 14); M.sound.play('chime'); };
+
+/* ---------- count up: numbers that roll to their value ---------- */
+M.useCountUp = function useCountUp(value, ms) {
+  const n = Number(value);
+  const [v, set] = React.useState(n);
+  const prev = React.useRef(n);
+  React.useEffect(() => {
+    if (!isFinite(n) || M.reduced() || prev.current === n) { prev.current = n; set(n); return; }
+    const from = prev.current, to = n, t0 = performance.now(), dur = ms || 650;
+    let raf = 0;
+    const step = now => {
+      const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      set(Math.round(from + (to - from) * e));
+      if (k < 1) raf = requestAnimationFrame(step); else prev.current = to;
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [n, ms]);
+  return isFinite(n) ? v : value;
+};
+
+/* ---------- a ticking clock (one re-render a second) ---------- */
+M.useClock = function useClock() {
+  const [n, set] = React.useState(() => Date.now());
+  React.useEffect(() => { const t = setInterval(() => set(Date.now()), 1000); return () => clearInterval(t); }, []);
+  return n;
+};

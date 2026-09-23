@@ -45,7 +45,21 @@
     mail: I('<rect x="3" y="5" width="18" height="14" rx="3.5"/><path d="m3.8 7.5 8.2 6 8.2-6"/>'),
     drive: I('<path d="M4 19.5h16a1.5 1.5 0 0 0 1.5-1.5V8A1.5 1.5 0 0 0 20 6.5h-8L9.8 4H4A1.5 1.5 0 0 0 2.5 5.5V18A1.5 1.5 0 0 0 4 19.5Z"/>'),
     out: I('<path d="M14 4.5h4A1.5 1.5 0 0 1 19.5 6v12a1.5 1.5 0 0 1-1.5 1.5h-4M12.5 12H3.5M6.7 8.5 3.2 12l3.5 3.5"/>'),
-    map: I('<path d="m9 4-5.5 2v14L9 18l6 2 5.5-2V4L15 6 9 4Z"/><path d="M9 4v14M15 6v14"/>')
+    map: I('<path d="m9 4-5.5 2v14L9 18l6 2 5.5-2V4L15 6 9 4Z"/><path d="M9 4v14M15 6v14"/>'),
+    bell: I('<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15l1.5-2Z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>'),
+    timer: I('<circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.6 1.8M9.5 3h5M12 3v3"/>'),
+    moon: I('<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/>'),
+    sun: I('<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M18.7 5.3l-1.8 1.8M7.1 16.9l-1.8 1.8"/>'),
+    play: I('<path d="M7 4.5v15l12-7.5-12-7.5Z"/>'),
+    stop: I('<rect x="6" y="6" width="12" height="12" rx="2.5"/>'),
+    grip: I('<circle cx="9" cy="6" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="18" r="1.2"/>'),
+    trophy: I('<path d="M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4.5a2.5 2.5 0 0 0 2.6 2.8M17 6h2.5a2.5 2.5 0 0 1-2.6 2.8M12 14v4M8.5 20.5h7"/>'),
+    flame: I('<path d="M12 3c1 3.5 4.5 5 4.5 9.5A4.5 4.5 0 0 1 12 17a4.5 4.5 0 0 1-4.5-4.5C7.5 9 10 7.5 10 4.5c1 .8 2 2 2 3.5Z"/><path d="M12 17v4"/>'),
+    breath: I('<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/>'),
+    cmd: I('<path d="M9 9V6.5a2.5 2.5 0 1 0-2.5 2.5H9Zm0 0v6m0-6h6m-6 6H6.5A2.5 2.5 0 1 0 9 17.5V15Zm6-6V6.5A2.5 2.5 0 1 1 17.5 9H15Zm0 0v6m0 0h2.5a2.5 2.5 0 1 1-2.5 2.5V15Z"/>'),
+    calendar: I('<rect x="3.5" y="5" width="17" height="15.5" rx="4"/><path d="M3.5 9.8h17M8 2.8V6M16 2.8V6M8 13h2M12 13h2M8 16.5h2M12 16.5h2"/>'),
+    review: I('<path d="M4 6.5h16M4 12h10M4 17.5h7"/><path d="m15.5 15.5 2 2 3.5-4"/>'),
+    gift: I('<rect x="3.5" y="9" width="17" height="11.5" rx="2.5"/><path d="M3.5 13h17M12 9v11.5M12 9c-2.5 0-5-1.4-5-3.2C7 4.5 8.2 3.6 9.3 3.6c1.6 0 2.7 2.5 2.7 5.4Zm0 0c2.5 0 5-1.4 5-3.2 0-1.3-1.2-2.2-2.3-2.2-1.6 0-2.7 2.5-2.7 5.4Z"/>')
   };
 
   /* the m360 mark: injected by the build as M.MARK_SVG */
@@ -195,6 +209,28 @@
     return html`<span class=${'bar grow' + (thin ? ' thin' : '')}>
       <i style=${{width: wa + '%'}}/>${b != null ? html`<i class="warmfill" style=${{width: wb + '%'}}/>` : null}
     </span>`;
+  };
+
+  /* a sparkline: points scaled into a small SVG, flame dot on the last value */
+  UI.Spark = function Spark({values, width, height, hot}) {
+    const vs = (values || []).map(v => (v == null ? null : Number(v)));
+    const w = width || 120, h = height || 32, pad = 3;
+    const nums = vs.filter(v => v != null && isFinite(v));
+    if (nums.length < 2) return html`<svg class="sparkline" viewBox=${'0 0 ' + w + ' ' + h} width=${w} height=${h} aria-hidden="true"/>`;
+    const min = Math.min(...nums), max = Math.max(...nums), span = max - min || 1;
+    const pts = vs.map((v, i) => v == null ? null : [pad + (i / (vs.length - 1)) * (w - pad * 2), h - pad - ((v - min) / span) * (h - pad * 2)]);
+    let d = '', last = null;
+    pts.forEach(p => { if (!p) return; d += (d ? ' L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); last = p; });
+    return html`<svg class=${'sparkline' + (hot ? ' hot' : '')} viewBox=${'0 0 ' + w + ' ' + h} width=${w} height=${h} aria-hidden="true">
+      <path d=${d} fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      ${last ? html`<circle cx=${last[0]} cy=${last[1]} r="2.6" fill="var(--flame)"/>` : null}
+    </svg>`;
+  };
+
+  /* a number that rolls up to its value */
+  UI.Num = function Num({value, className}) {
+    const v = M.useCountUp(value);
+    return html`<span class=${'num' + (className ? ' ' + className : '')}>${v}</span>`;
   };
 
   UI.PageHead = function PageHead({micro, title, children}) {

@@ -64,6 +64,7 @@
       if (mood) entry.mood = mood;
       days[U.todayStr()] = entry;
       await ctx.W.merge('checkin/' + ctx.uid, {days: U.pruneDays(days)});
+      M.burst(document.getElementById('tapin'));
       M.toast('Checked in at ' + U.hhmm(entry.in));
     }
     async function tap() {
@@ -78,7 +79,7 @@
       await save({lat: null, lng: null, acc: null, dist: null, verified: false, place: p.v, src: 'self'}, mode).catch(() => {});
       setBusy(false); setPick(false);
     }
-    return html`<div class="stack" style=${{gap: '14px'}}>
+    return html`<div class="stack" id="tapin" style=${{gap: '14px'}}>
       <div class="row between">
         <div style=${{fontWeight: 500}}>Start is ${ctx.startFor(ctx.uid)}. How's today?</div>
         <${UI.Seg} options=${[{v: 'office', label: 'Office'}, {v: 'wfh', label: 'WFH'}]} value=${mode} ariaLabel="Where"
@@ -108,6 +109,7 @@
       days[U.todayStr()] = e;
       await ctx.W.merge('checkin/' + ctx.uid, {days: U.pruneDays(days)}).catch(() => {});
       setBusy(false);
+      M.sound.play('done');
       M.toast('Checked out. See you tomorrow');
     }
     return html`<div class="row between" style=${{alignItems: 'flex-end'}}>
@@ -120,6 +122,12 @@
       </div>
       ${a.out ? null : html`<button type="button" class="btn on-dark sec sm" disabled=${busy} onClick=${out}>Check out</button>`}
     </div>`;
+  }
+
+  function Clock() {
+    const t = M.useClock();
+    const d = new Date(t);
+    return html`<div class="hero-clock"><span class="clock">${U.hhmm(t)}</span>${U.DAYS_S[d.getDay()]}</div>`;
   }
 
   /* ---------- hero ---------- */
@@ -137,10 +145,11 @@
     const st = todayStatus(ctx, ctx.uid);
     const special = a.status === 'leave' ? "You're on approved leave today. Log off."
       : a.status === 'holiday' ? 'Today is a holiday.' : a.status === 'sunday' ? 'Sunday. The OS rests too.' : '';
-    return html`<header class="hero ink">
+    return html`<header class="hero ink" id="home-hero">
       <span class="ring" style=${{width: '340px', height: '340px', right: '-120px', top: '-150px'}}/>
       <span class="ring" style=${{width: '220px', height: '220px', right: '-60px', top: '-90px'}}/>
       <span class="dot" style=${{right: '96px', top: '58px'}}/>
+      <${Clock}/>
       <div class="split" style=${{position: 'relative', alignItems: 'end'}}>
         <div>
           <${UI.Micro}>${U.dateLabel(now)}<//>
@@ -377,7 +386,7 @@
     const hit = Object.values(marks).filter(x => x === 'hit').length;
     const overdue = mine.filter(t => t.status !== 'done' && t.due && t.due < U.todayStr()).length;
     const tile = (v, l, to, hot) => html`<button type="button" class=${'stat' + (hot ? ' hot' : '')} onClick=${() => M.nav(to)}>
-      <span class="v num">${v}</span><span class="l">${l}</span></button>`;
+      <span class="v num">${typeof v === 'number' ? html`<${UI.Num} value=${v}/>` : v}</span><span class="l">${l}</span></button>`;
     return html`<div class="grid4 two">
       ${tile(doneWk.length, 'shipped this week', '#tasks')}
       ${tile(overdue, 'overdue on you', '#tasks', overdue > 0)}
@@ -433,12 +442,12 @@
     const ctx = M.useCtx();
     const items = [
       {k: 'task', label: 'New task', icon: 'tasks', go: onTask},
+      {k: 'focus', label: 'Focus', icon: 'timer', go: () => M.focus && M.focus.open()},
       {k: 'post', label: 'Post an update', icon: 'feed', go: () => M.intend('#feed', 'post')},
       {k: 'kudos', label: 'Give kudos', icon: 'scores', go: () => M.intend('#feed', 'kudos')},
-      {k: 'leave', label: 'Request leave', icon: 'leave', go: () => M.nav('#leave')},
-      {k: 'project', label: 'New project', icon: 'projects', go: () => M.intend('#projects', 'project')},
+      {k: 'breathe', label: 'Breathe', icon: 'breath', go: () => M.breathe && M.breathe.open()},
       ctx.isFounder ? {k: 'pitch', label: 'New pitch', icon: 'pitches', go: () => M.intend('#pitches', 'pitch')}
-        : {k: 'book', label: 'Handbook', icon: 'handbook', go: () => M.nav('#handbook')}
+        : {k: 'leave', label: 'Request leave', icon: 'leave', go: () => M.nav('#leave')}
     ];
     return html`<nav class="quick" aria-label="Quick actions">
       ${items.map(it => html`<button key=${it.k} type="button" class="quick-btn" onClick=${it.go}>
@@ -551,17 +560,21 @@
     const working = a.status !== 'leave' && a.status !== 'holiday' && a.status !== 'sunday';
     const eodFirst = working && (hour >= 16 || !!a.out || eodPosted);
     const Drawer = M.parts.TaskDrawer, Outcomes = M.parts.OutcomesCard, Day = M.parts.YourDay, Onboard = M.parts.Onboarding;
+    M.useIntent('checkin', () => setTimeout(() => { const el = document.getElementById('tapin') || document.getElementById('home-hero'); if (el) el.scrollIntoView({block: 'center', behavior: M.reduced() ? 'auto' : 'smooth'}); const b = el && el.querySelector('.btn'); if (b) b.focus(); }, 80));
+    const Celebrate = M.parts.Celebrate, Reviews = M.parts.Reviews;
     const newHire = (M.people && M.people.isNewHire) ? M.people.isNewHire(ctx, ctx.uid) : false;
 
     return html`<div class="stack" style=${{gap: '18px'}}>
       <${Hero} onStatus=${() => setStatus(true)}/>
       ${M.parts.JoinBanner ? html`<${M.parts.JoinBanner}/>` : null}
       <${Announcement}/>
+      ${Celebrate ? html`<${Celebrate}/>` : null}
       <${Quick} onTask=${() => setTask('new')}/>
       <div class="split">
         <div class="stack" style=${{gap: '18px'}}>
           ${eodFirst ? html`<${Wrap}/>` : null}
           <${Focus} onOpen=${setTask}/>
+          ${Reviews ? html`<${Reviews} compact=${true}/>` : null}
           <${Brief}/>
           <${MyProjects}/>
           ${Outcomes ? html`<${Outcomes}/>` : null}

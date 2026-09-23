@@ -297,6 +297,12 @@
   });
   const permissions = Object.freeze({state: () => Promise.resolve('granted'), request: () => Promise.resolve({})});
 
+  /* ---------- installable: the shell caches itself ---------- */
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+  }
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); window.M360_INSTALL = e; window.dispatchEvent(new CustomEvent('m360:installable')); });
+
   /* ---------- the contract ---------- */
   let roomNs = null, sampleNs = null, started = false;
   window.claude = Object.freeze({

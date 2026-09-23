@@ -78,6 +78,7 @@
       <${UI.TextArea} label="approvals" value=${f.approvals} onChange=${v => set('approvals', v)}/>
       <${UI.TextArea} label="lines never to cross" value=${f.never} onChange=${v => set('never', v)}/>
       <${UI.TextArea} label="links, one per line" value=${f.links} onChange=${v => set('links', v)}/>
+      ${id && M.parts.ClientUpdate ? html`<${M.parts.ClientUpdate} id=${id} name=${f.name}/>` : null}
       ${ctx.isFounder ? html`<${UI.Input} label="monthly revenue" type="number" value=${f.monthly}
         onChange=${v => set('monthly', v)} hint="Private to you."/>` : null}
     <//>`;
@@ -129,6 +130,39 @@
       ${open ? html`<${ClientDrawer} id=${open === 'new' ? null : open} onClose=${() => setOpen(null)}/>` : null}
     </div>`;
   }
+
+  /* AI: a client-ready status note from this client's projects and tasks */
+  function ClientUpdate({id, name}) {
+    const ctx = M.useCtx();
+    const r = M.ai.useRun();
+    if (!M.ai.on(ctx)) return null;
+    async function go() {
+      const nm = await M.ai.names(ctx);
+      const td = U.todayStr();
+      const projects = Object.keys(ctx.coll.projects.map).map(k => ({id: k, ...ctx.coll.projects.map[k]})).filter(p => p.client === id && !p.archived);
+      const tasks = Object.keys(ctx.coll.tasks.map).map(k => ({id: k, ...ctx.coll.tasks.map[k]})).filter(t => t.client === id || projects.some(p => p.id === t.project));
+      const lines = tasks.slice(0, 60).map(t => '- ' + t.title + ' (' + t.status + (t.due ? ', due ' + t.due : '') + ', ' + (nm[t.owner] || 'unassigned') + ')');
+      const out = await r.run(o => M.ai.text(ctx,
+        'Write a short WhatsApp status update for the client ' + name + ' from Mask360, in the agency\'s warm and confident voice. Today is ' + td + '. ' +
+        'Structure: one friendly opening line, then "Done" and "Next" as short bullet lists, then one line on what we need from them (or "Nothing needed from your side"). ' +
+        'Never mention internal statuses, revisions, lateness or people\'s workloads. Under 120 words. No emoji.\n\nPROJECTS:\n' +
+        (projects.map(p => '- ' + p.name + ' (' + p.status + (p.due ? ', due ' + p.due : '') + ')').join('\n') || '- none') + '\n\nTASKS:\n' + (lines.join('\n') || '- none'),
+        {signal: o.signal, onText: o.onText, cache: false}));
+      return out;
+    }
+    const busy = r.state === 'thinking' || r.state === 'streaming';
+    return html`<div class="ai-card" id="client-update">
+      <div class="row between">
+        <div class="grow"><${UI.Micro}>m360 ai<//><div class="card-title" style=${{marginTop: '4px'}}>Client update</div></div>
+        <button type="button" class="btn sm" disabled=${busy} onClick=${go}>${busy ? html`<${M.Thinking}/>` : html`<span class="spark">\u2726</span> ${r.text ? 'Write it again' : 'Write an update'}`}</button>
+      </div>
+      ${r.text ? html`<div style=${{marginTop: '12px'}}><${M.AIText} text=${r.text}/>
+        <button type="button" class="linky small" style=${{marginTop: '8px'}} onClick=${() => navigator.clipboard.writeText(r.text).then(() => M.toast('Copied'), () => M.toast('Copy is blocked here', true))}>Copy for WhatsApp</button></div>`
+        : html`<div class="small ink62" style=${{marginTop: '8px'}}>${busy ? 'Reading this client\'s projects and tasks.' : 'A client-ready note on what shipped and what is next, in one tap.'}</div>`}
+      ${r.state === 'error' ? html`<div class="small flame-t" style=${{marginTop: '8px'}}>${M.ai.errCopy(r.err)}</div>` : null}
+    </div>`;
+  }
+  M.parts.ClientUpdate = ClientUpdate;
 
   M.pages.Clients = Clients;
   M.clients = {completeness, shares, openTaskCount, STATUS};

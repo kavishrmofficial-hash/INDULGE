@@ -216,11 +216,14 @@
         <div class="split">
           <div class="stack" style=${{gap: '20px'}}>
             <${Workload}/>
+            ${M.parts.MoodHeat ? html`<${M.parts.MoodHeat}/>` : null}
             ${Panel && M.ai.on(ctx) ? html`<section class="card"><div class="card-head"><h2 class="card-title">Ask HQ anything</h2></div><${Panel} inline=${true}/></section>` : null}
           </div>
           <div class="stack" style=${{gap: '20px'}}>
             <${LiveNow}/>
+            ${M.parts.Reviews ? html`<${M.parts.Reviews} compact=${true}/>` : null}
             ${M.parts.LeaveApprovals ? html`<${M.parts.LeaveApprovals}/>` : null}
+            ${M.parts.Tape ? html`<${M.parts.Tape}/>` : null}
           </div>
         </div>
       </div>`}

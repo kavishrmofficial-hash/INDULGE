@@ -13,6 +13,15 @@ src/js/        the app, concatenated in filename order:
                05-rules 06-points                  (engines)
                11..41   feature pages and parts
                50-home  your dashboard (Home)
+               59-mic   a talk button (speech to text)
+               62-palette  Cmd K: search anything, run anything, or ask AI
+               63-inbox    what happened to you, derived live
+               64-focus    the focus timer and deep work hours
+               65-reviews  the creative approval queue
+               66-calendar a month of everything with a date
+               67-badges   the trophy case and celebrations
+               68-breathe  sixty seconds of box breathing
+               69-tape     HQ's live tape and the mood heatmap
                51-sections  Work, Accounts, Vibe, Me, Admin
                55-hq    founder intelligence (HQ)
                57-ask   the Ask chat drawer (Cmd or Ctrl K)
@@ -48,6 +57,20 @@ python3 harness/shot.py               # screenshots into harness/shots
 ## Publish
 
 Publish `dist/index.html` with the Artifact tool, title "m360 OS", with the capabilities in `capabilities.json`, then seed the database with `seed/seed.json` (one batch write) and read it back.
+
+## What is in v4
+
+- **Cmd K palette**: find any task, project, client, person or handbook section, run any action (check in, new task, focus, breathe, theme), or hand the line to m360 AI.
+- **Inbox**: assignments, approvals and send backs, kudos, mentions, leave decisions, announcements, polls and join requests, derived from data you can already see. Only "last looked" is stored.
+- **Reviews**: everything in review with Approve and Send back (a note, a revision, an inbox item for the owner). Founder and project owners review.
+- **Board drag and drop** with the same bookkeeping as the drawer; **@mentions** in comments.
+- **Focus timer**: 25, 45 or 90 minutes on a task, banked as deep work in `me/<uid>.focus`.
+- **Calendar**: due dates, project deadlines, approved leave, holidays, birthdays and anniversaries.
+- **Polls** on the feed, votes in each voter's `votes/<uid>.polls`.
+- **Trophy case** (14 trophies earned from real work), **birthdays and anniversaries** with one tap wishes.
+- **Breathe**: a one minute box breathing screen. **The tour**: the cursor buddy walks you around.
+- **HQ**: the tape (today, newest first) and a three week mood heatmap. **Client update**: an AI written, client ready status note.
+- **Look and feel**: paper by day and ink by night (auto, or pick), entrance motion, rolling numbers, a flame spark when something ships, tiny synthesized sounds (off in one tap), keyboard shortcuts (`?`), and on EdgeOne an installable phone app.
 
 ## The cursor buddy
 
