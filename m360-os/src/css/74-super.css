@@ -1,0 +1,12 @@
+/* super controls: the lock line, the alert bar, the preview bar and the fix attendance grid */
+.lockbar{padding:9px 14px; border-radius:12px; background:var(--warm); border:1px solid var(--line); font-size:13px; color:var(--ink); min-width:0}
+.alertbar{display:flex; align-items:center; gap:10px; padding:8px 8px 8px 14px; border-radius:12px; background:var(--paper); border:1px solid var(--line); border-left:4px solid var(--flame); font-size:14px; min-width:0}
+.previewbar{position:sticky; top:0; z-index:45; display:flex; align-items:center; gap:10px; padding:8px 8px 8px 12px; border-radius:14px; background:var(--ink); color:var(--on-ink); font-size:14px; min-width:0; box-shadow:0 8px 24px var(--shadow)}
+.previewbar b{font-weight:500}
+.previewbar .btn{background:var(--on-ink); color:var(--ink)}
+.previewbar .btn:hover{background:var(--warm)}
+@media (max-width:860px){ .previewbar{top:calc(56px + env(safe-area-inset-top,0px) + 8px)} }
+.super-day{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; padding:12px 14px; border-radius:14px; background:var(--warm)}
+.super-day .kpi .v{font-size:20px}
+@media (max-width:600px){ .super-day{grid-template-columns:repeat(2,minmax(0,1fr))} }
+.danger{border-top:1px solid var(--line); padding-top:18px; margin-top:6px}
