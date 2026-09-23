@@ -96,7 +96,7 @@ def t(h):
     row = p.locator('tr', has_text='Aanya Mehta')
     row.get_by_role('button', name='Edit').click()
     p.get_by_role('tab', name='Full access').click()
-    p.get_by_role('button', name='Save').click()
+    p.get_by_role('button', name='Save', exact=True).click()
     p.wait_for_timeout(300)
     check(p.evaluate('window.__db.get("roster/team").members.u_m2.role') == 'founder', 'full access not saved')
     h.go(p, 'm2', hash='#hq', width=1280)
@@ -104,7 +104,7 @@ def t(h):
     # editing the founder keeps founder
     h.go(p, 'founder', hash='#admin', width=1280)
     p.locator('tr', has_text='Kaavish Ramchandani').get_by_role('button', name='Edit').click()
-    p.get_by_role('button', name='Save').click()
+    p.get_by_role('button', name='Save', exact=True).click()
     p.wait_for_timeout(300)
     check(p.evaluate('window.__db.get("roster/team").members.u_founder.role') == 'founder', 'founder demoted on edit')
 
