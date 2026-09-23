@@ -278,7 +278,7 @@
   function Admin() {
     return html`<div class="stack" style=${{gap: '20px'}}>
       <${M.SectionHero} color="ink" micro="founder" title="Admin"
-        sub="Roster, rules, office location, keeper test, payroll export and cleanup."/>
+        sub="Team, rules, corrections, the activity log, payroll export and your super controls."/>
       ${M.parts.AiKeyCard ? html`<${M.parts.AiKeyCard}/>` : null}
       ${M.parts.MailCard ? html`<${M.parts.MailCard}/>` : null}
       ${(M.adminCards || []).map((C, i) => html`<${C} key=${i}/>`)}
