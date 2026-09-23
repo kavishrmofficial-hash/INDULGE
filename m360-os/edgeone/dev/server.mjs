@@ -76,6 +76,8 @@ http.createServer(async (req, res) => {
   if (url.pathname === '/__reset') { data = {}; save(); res.end('ok'); return; }
   if (url.pathname === '/__mails') { res.writeHead(200, {'content-type': 'application/json'}); res.end(JSON.stringify(globalThis.__mails)); return; }
   if (url.pathname === '/__store') { res.writeHead(200, {'content-type': 'application/json'}); res.end(JSON.stringify(data)); return; }
+  /* tests only: overwrite one blob with text that is not JSON, the way a half-written blob would look */
+  if (url.pathname === '/__corrupt') { const k = url.searchParams.get('key') || ''; if (k) { data[k] = '{"broken": tru'; save(); } res.end(k ? 'ok' : 'key?'); return; }
   const rel = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
   const f = path.join(PUB, path.normalize(rel));
   if (!f.startsWith(PUB) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); res.end('not found'); return; }
