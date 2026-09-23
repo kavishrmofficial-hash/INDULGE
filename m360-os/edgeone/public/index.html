@@ -953,6 +953,22 @@ a.pill.prof-link svg{width:13px; height:13px; flex:none}
 .tbl td.wk-cell{padding:4px 6px}
 @media (max-width:600px){ .tbl td.wk-cell{padding:0} }
 
+/* ==== 79-pw.css ==== */
+/* passwords (EdgeOne build only): the sign-in screen's links, the Sign-in card on Me, the founder's controls in the member drawer */
+.pw-links{margin-top:6px; align-items:flex-start}
+.pw-links .linky{text-align:left}
+.pw-note{padding:10px 12px; background:var(--warm); border-radius:12px; line-height:1.4}
+.pw-form{display:grid; grid-template-columns:1fr 1fr; gap:12px; max-width:560px}
+.pw-form>*{min-width:0}
+.pw-admin{padding-top:12px; border-top:1px solid var(--line)}
+.pw-admin .row{align-items:flex-end}
+.pw-admin .pw-set{display:flex; gap:10px; flex-wrap:wrap}
+.pw-admin .pw-set .field{flex:1 1 200px}
+.reset-code{font-size:22px; font-weight:600; letter-spacing:.18em; padding:6px 12px; background:var(--warm); border-radius:12px; user-select:all}
+@media (max-width:600px){
+  .pw-form{grid-template-columns:1fr}
+}
+
 /* ==== 80-safety.css ==== */
 /* ---------- safety: backups, trash and the safety card ---------- */
 .bk-kpis{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; padding:12px 14px; border-radius:14px; background:var(--warm); margin-bottom:12px}
@@ -976,10 +992,13 @@ a.pill.prof-link svg{width:13px; height:13px; flex:none}
 (function () {
   'use strict';
   window.M360_STANDALONE = true;
+  let meInfo = null;         /* the me answer, once it is in */
 
   /* anonymous EdgeOne previews carry an access token in the query; every call must keep it */
   const QS = location.search || '';
   const API = '/api/m360' + QS;
+  /* actions the sign-in screen calls before anyone is signed in: a 401 from these is an answer, never a lost session */
+  const OPEN = new Set(['me', 'setup', 'signup', 'login', 'accept', 'invited', 'magic', 'pw', 'reset', 'resetpw']);
   async function call(a, body) {
     let r;
     try {
@@ -988,7 +1007,11 @@ a.pill.prof-link svg{width:13px; height:13px; flex:none}
     } catch (e) { throw {code: 'unavailable', message: 'offline'}; }
     let j = {};
     try { j = await r.json(); } catch (e) { j = {}; }
-    if (!r.ok || j.error) throw {code: (j.error && j.error.code) || 'unavailable', message: (j.error && j.error.message) || ('http ' + r.status), status: r.status};
+    if (!r.ok || j.error) {
+      /* a signed-in page that gets a 401 anywhere has lost its session: back to the sign-in screen */
+      if (r.status === 401 && !OPEN.has(a) && meInfo && meInfo.uid) kick();
+      throw {code: (j.error && j.error.code) || 'unavailable', message: (j.error && j.error.message) || ('http ' + r.status), status: r.status};
+    }
     return j;
   }
   window.M360_API = call;
@@ -1010,7 +1033,6 @@ a.pill.prof-link svg{width:13px; height:13px; flex:none}
   const segs = p => String(p || '').split('/').filter(Boolean);
 
   /* ---------- who is here ---------- */
-  let meInfo = null;
   /* a sign-in link: #login=<code> signs this browser in, then the hash is cleared.
      An invite link #invite=<code> signs nobody in by itself: the sign-in screen asks for the invited email first (window.M360_INVITE). */
   const loginCode = (/^#login=([a-z0-9]{10,64})$/.exec(location.hash || '') || [])[1];
@@ -13349,8 +13371,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 })();
 
 /* ==== 70-standalone.js ==== */
-/* module: standalone. Only in the EdgeOne build: first-run setup, sign in by name,
-   sign-in links for other devices, sign out, and the founder's AI key. */
+/* module: standalone. Only in the EdgeOne build: first-run setup, sign in by email and password,
+   reset codes, email links, sign-in links for other devices, sign out, and the founder's AI key. */
 'use strict';
 (function () {
   const {html, React, U, UI} = M;
@@ -13367,13 +13389,29 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     catch (e) { M.toast('Copy is blocked here. Select the text and copy it.', true); }
   }
 
-  /* ---------- sign in: by email link, or set up, or ask to join by name ---------- */
+  /* ---------- sign in: email and password first; an email link, a reset code, setup and join are the other doors ---------- */
   const base = () => location.origin + location.pathname;
+  const GENERIC = 'That did not work. Try again in a moment.';
+  /* the server's own line when it is one meant for people, else the calm default */
+  const said = (e, codes) => (e && e.message && codes.includes(e.code)) ? e.message : GENERIC;
+  /* a password field with the right autocomplete hint, in the same dress as UI.Input */
+  function PwInput({id, label, value, onChange, onEnter, auto, hint, placeholder}) {
+    return html`<div class="field">
+      <label for=${id}>${label}</label>
+      <input id=${id} class="input" type="password" autocomplete=${auto || 'current-password'} value=${value} placeholder=${placeholder || ''}
+        onInput=${e => onChange(e.target.value)} onKeyDown=${e => { if (onEnter && e.key === 'Enter') onEnter(); }}/>
+      ${hint ? html`<div class="hint">${hint}</div>` : null}
+    </div>`;
+  }
   function SignIn() {
     const [info, setInfo] = useState(null);
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
-    const [mode, setMode] = useState('email');            /* email, join */
+    const [pw, setPw] = useState('');
+    const [code, setCode] = useState('');
+    const [mode, setMode] = useState('pw');            /* pw, magic, reset, join */
+    const [step, setStep] = useState('ask');           /* reset: ask, then code */
+    const [nomail, setNomail] = useState(false);
     const [busy, setBusy] = useState(false);
     const [sent, setSent] = useState(false);
     const [err, setErr] = useState(window.M360_LOGIN_ERR || '');
@@ -13387,82 +13425,152 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 
     const first = !!info.setup;
     const joinOpen = info.joinOpen !== false;
+    const em = email.trim();
+    const swap = m => { setErr(''); setMode(m); setStep('ask'); setPw(''); setCode(''); setNomail(false); setSent(false); };
+    const ready = first ? !!(name.trim() && em && pw) : !!(em && pw);
+    /* setup (the founder) or signup (ask to join): name, email and a password */
     async function go() {
-      if (!name.trim()) return;
+      if (!name.trim() || !em || !pw) return;
       setBusy(true); setErr('');
-      try { await api(first ? 'setup' : 'signup', {name: name.trim(), email: email.trim()}); location.reload(); }
+      try { await api(first ? 'setup' : 'signup', {name: name.trim(), email: em, password: pw}); location.reload(); }
       catch (e) {
-        setErr(e && e.code === 'taken' ? 'Someone set this workspace up a moment ago. Reload and ask to join.'
-          : e && e.code === 'closed' ? 'm360 is invite only right now. Ask Kaavish for an invite.' : 'That did not work. Try again in a moment.');
+        setErr(e && e.code === 'taken' && first ? 'Someone set this workspace up a moment ago. Reload and sign in.'
+          : e && e.code === 'closed' ? 'm360 is invite only right now. Ask Kaavish for an invite.'
+          : said(e, ['taken', 'weak', 'invalid_argument']));
         setBusy(false);
       }
     }
-    /* the invited person confirms the email the invite went to; only then are they signed in and on the team */
-    async function accept() {
-      if (!email.trim()) return;
+    async function signin() {
+      if (!em || !pw) return;
       setBusy(true); setErr('');
-      try { await api('accept', {code: invite, email: email.trim()}); window.M360_INVITE = ''; location.reload(); }
+      try { await api('pw', {email: em, password: pw}); location.reload(); }
+      catch (e) { setErr(said(e, ['bad_login', 'slow_down'])); setBusy(false); }
+    }
+    /* the invited person confirms the email the invite went to and picks a password; only then are they on the team */
+    async function accept() {
+      if (!em || !pw) return;
+      setBusy(true); setErr('');
+      try { await api('accept', {code: invite, email: em, password: pw}); window.M360_INVITE = ''; location.reload(); }
       catch (e) {
         if (e && e.code === 'expired') setInv({dead: true});
-        else setErr(e && (e.code === 'mismatch' || e.code === 'invalid_argument') && e.message ? e.message : 'That did not work. Try again in a moment.');
+        else setErr(said(e, ['mismatch', 'invalid_argument', 'weak']));
         setBusy(false);
       }
     }
     const leaveInvite = () => { window.M360_INVITE = ''; setInvite(''); setInv(null); setErr(''); };
     async function magic() {
-      if (!email.trim()) return;
+      if (!em) return;
       setBusy(true); setErr('');
       try {
-        const r = await api('magic', {email: email.trim(), base: base()});
-        if (r.nomail) setErr('Email sign-in is not switched on yet. Ask Kaavish for a sign-in link, or open your invite link again.');
+        const r = await api('magic', {email: em, base: base()});
+        if (r.nomail) setErr('Email sign-in is not switched on yet. Sign in with your password, or ask Kaavish for a sign-in link.');
         else setSent(true);
-      } catch (e) { setErr((e && e.message) || 'That did not work. Try again in a moment.'); }
+      } catch (e) { setErr(said(e, ['invalid_argument'])); }
       setBusy(false);
     }
+    /* reset: a code by email (or from Kaavish when email is off), then the code and a new password */
+    async function askCode() {
+      if (!em) return;
+      setBusy(true); setErr('');
+      try {
+        const r = await api('reset', {email: em, base: base()});
+        setNomail(!!r.nomail);
+        setStep('code');
+      } catch (e) { setErr(said(e, ['invalid_argument'])); }
+      setBusy(false);
+    }
+    async function finishReset() {
+      if (!em || !code.trim() || !pw) return;
+      setBusy(true); setErr('');
+      try { await api('resetpw', {email: em, code: code.trim(), password: pw}); location.reload(); }
+      catch (e) { setErr(said(e, ['expired', 'bad_code', 'weak', 'invalid_argument'])); setBusy(false); }
+    }
+    const errLine = err ? html`<div class="small flame-t" role="alert">${err}</div>` : null;
+    const backToSignIn = html`<button type="button" class="linky small" style=${{alignSelf: 'flex-start'}} onClick=${() => swap('pw')}>Back to sign in</button>`;
     if (first) return html`<${M.Gate} title="Set up m360 OS" line="You are the first one here, so this workspace is yours. You get HQ, Admin and every number.">
       <div class="join-box stack tight">
         <${UI.Input} id="signin-name" label="your name" value=${name} placeholder="First and last name" onChange=${setName} onEnter=${go}/>
         <${UI.Input} id="signin-email" label="your email" type="email" value=${email} placeholder="you@mask360.agency" onChange=${setEmail} onEnter=${go}
-          hint="For sign-in links on other devices. Never shown to the team."/>
-        <${UI.Btn} onClick=${go} disabled=${busy || !name.trim()}>${busy ? 'One moment' : 'Set up the workspace'}<//>
-        ${err ? html`<div class="small flame-t" role="alert">${err}</div>` : null}
+          hint="This is what you sign in with. Never shown to the team."/>
+        <${PwInput} id="signin-pw" label="a password" value=${pw} onChange=${setPw} onEnter=${go} auto="new-password" hint="At least 8 characters."/>
+        <div class="small ink62 pw-note">This is the super admin account. Keep the password somewhere safe.</div>
+        <${UI.Btn} onClick=${go} disabled=${busy || !ready}>${busy ? 'One moment' : 'Set up the workspace'}<//>
+        ${errLine}
       </div>
     <//>`;
     if (invite && !first) {
       if (!inv) return html`<${M.Gate} title="Opening your invite" line="One moment."/>`;
       if (inv.dead) return html`<${M.Gate} title="This invite is no longer valid" line="That invite has expired or was already used. Ask Kaavish for a new one.">
-        <button type="button" class="linky small" onClick=${leaveInvite}>Already on the team? Sign in by email</button>
+        <button type="button" class="linky small" onClick=${leaveInvite}>Already on the team? Sign in</button>
       <//>`;
-      return html`<${M.Gate} title="You're invited" line=${(inv.name ? inv.name + ', you' : 'You') + ' have a place on m360 OS, the Mask360 workspace. Type the email your invite went to and you are in.'}>
+      return html`<${M.Gate} title="You're invited" line=${(inv.name ? inv.name + ', you' : 'You') + ' have a place on m360 OS, the Mask360 workspace. Type the email your invite went to, pick a password, and you are in.'}>
         <div class="join-box stack tight" id="invite-box">
           ${inv.name ? html`<div class="invite-who"><${UI.Pill} kind="ink">${inv.name}<//>${inv.title ? html`<span class="small ink62">${inv.title}</span>` : null}</div>` : null}
           <${UI.Input} id="signin-email" label="your work email" type="email" value=${email} placeholder="you@mask360.agency" onChange=${setEmail} onEnter=${accept}/>
-          <${UI.Btn} id="invite-go" onClick=${accept} disabled=${busy || !email.trim()}>${busy ? 'One moment' : 'Continue'}<//>
-          ${err ? html`<div class="small flame-t" role="alert">${err}</div>` : null}
-          <button type="button" class="linky small" style=${{alignSelf: 'flex-start'}} onClick=${leaveInvite}>Already on the team? Sign in by email</button>
+          <${PwInput} id="signin-pw" label="a password" value=${pw} onChange=${setPw} onEnter=${accept} auto="new-password" hint="At least 8 characters. You sign in with your email and this."/>
+          <${UI.Btn} id="invite-go" onClick=${accept} disabled=${busy || !ready}>${busy ? 'One moment' : 'Continue'}<//>
+          ${errLine}
+          <button type="button" class="linky small" style=${{alignSelf: 'flex-start'}} onClick=${leaveInvite}>Already on the team? Sign in</button>
         </div>
       <//>`;
     }
-    if (sent) return html`<${M.Gate} title="Check your email" line=${'A sign-in link is on its way to ' + email.trim() + '. It works once, for 20 minutes.'}>
+    if (sent) return html`<${M.Gate} title="Check your email" line=${'A sign-in link is on its way to ' + em + '. It works once, for 20 minutes.'}>
       <button type="button" class="linky small" onClick=${() => setSent(false)}>Use a different email</button>
     <//>`;
-    if (mode === 'join') return html`<${M.Gate} title="Welcome to m360" line="Type your name to get started. Kaavish lets you in with one tap.">
+    if (mode === 'join') return html`<${M.Gate} title="Welcome to m360" line="Your name, your email and a password to get started. Kaavish lets you in with one tap.">
       <div class="join-box stack tight">
         <${UI.Input} id="signin-name" label="your name" value=${name} placeholder="First and last name" onChange=${setName} onEnter=${go}/>
-        <${UI.Input} id="signin-email" label="your email, optional" type="email" value=${email} placeholder="you@mask360.agency" onChange=${setEmail} onEnter=${go}/>
-        <${UI.Btn} onClick=${go} disabled=${busy || !name.trim()}>${busy ? 'One moment' : 'Continue'}<//>
-        ${err ? html`<div class="small flame-t" role="alert">${err}</div>` : null}
-        <button type="button" class="linky small" style=${{alignSelf: 'flex-start'}} onClick=${() => setMode('email')}>Already on the team? Sign in by email</button>
+        <${UI.Input} id="signin-email" label="your email" type="email" value=${email} placeholder="you@mask360.agency" onChange=${setEmail} onEnter=${go}/>
+        <${PwInput} id="signin-pw" label="a password" value=${pw} onChange=${setPw} onEnter=${go} auto="new-password" hint="At least 8 characters."/>
+        <${UI.Btn} onClick=${go} disabled=${busy || !(name.trim() && em && pw)}>${busy ? 'One moment' : 'Continue'}<//>
+        ${errLine}
+        <button type="button" class="linky small" style=${{alignSelf: 'flex-start'}} onClick=${() => swap('pw')}>Already on the team? Sign in</button>
       </div>
     <//>`;
-    return html`<${M.Gate} title="Sign in to m360" line="Your work email gets you a sign-in link. No password, ever.">
+    if (mode === 'magic') return html`<${M.Gate} title="Sign in to m360" line="Your work email gets you a one-time sign-in link.">
       <div class="join-box stack tight">
         <${UI.Input} id="signin-email" label="your work email" type="email" value=${email} placeholder="you@mask360.agency" onChange=${setEmail} onEnter=${magic}/>
-        <${UI.Btn} onClick=${magic} disabled=${busy || !email.trim()}>${busy ? 'Sending' : 'Send me a sign-in link'}<//>
-        ${err ? html`<div class="small flame-t" role="alert">${err}</div>` : null}
-        ${joinOpen
-          ? html`<button type="button" class="linky small" style=${{alignSelf: 'flex-start'}} onClick=${() => { setErr(''); setMode('join'); }}>New here without an invite? Ask to join</button>`
-          : html`<div class="small ink62" id="join-closed">New here? Ask Kaavish for an invite.</div>`}
+        <${UI.Btn} onClick=${magic} disabled=${busy || !em}>${busy ? 'Sending' : 'Send me a sign-in link'}<//>
+        ${errLine}
+        <button type="button" class="linky small" style=${{alignSelf: 'flex-start'}} onClick=${() => swap('pw')}>Sign in with a password instead</button>
+      </div>
+    <//>`;
+    if (mode === 'reset') {
+      if (step === 'ask') return html`<${M.Gate} title="Reset your password" line="Type your work email and a 6 digit code comes to you. It works for 15 minutes.">
+        <div class="join-box stack tight" id="reset-box">
+          <${UI.Input} id="reset-email" label="your work email" type="email" value=${email} placeholder="you@mask360.agency" onChange=${setEmail} onEnter=${askCode}/>
+          <${UI.Btn} id="reset-send" onClick=${askCode} disabled=${busy || !em}>${busy ? 'One moment' : 'Send me a code'}<//>
+          ${errLine}
+          <button type="button" class="linky small" style=${{alignSelf: 'flex-start'}} onClick=${() => { setErr(''); setStep('code'); }}>I already have a code</button>
+          ${backToSignIn}
+        </div>
+      <//>`;
+      return html`<${M.Gate} title="Reset your password" line=${nomail ? '' : 'If ' + em + ' is on the team, a 6 digit code is on its way there. It works once, for 15 minutes.'}>
+        <div class="join-box stack tight" id="reset-box">
+          ${nomail ? html`<div class="small pw-note" id="reset-nomail">Email is off here. Ask Kaavish for a reset code.</div>` : null}
+          <${UI.Input} id="reset-email" label="your work email" type="email" value=${email} placeholder="you@mask360.agency" onChange=${setEmail}/>
+          <${UI.Input} id="reset-code" label="the 6 digit code" value=${code} placeholder="123456" onChange=${setCode} onEnter=${finishReset}/>
+          <${PwInput} id="reset-pw" label="a new password" value=${pw} onChange=${setPw} onEnter=${finishReset} auto="new-password" hint="At least 8 characters. Every other device is signed out."/>
+          <${UI.Btn} id="reset-go" onClick=${finishReset} disabled=${busy || !em || !code.trim() || !pw}>${busy ? 'One moment' : 'Set the new password'}<//>
+          ${errLine}
+          ${nomail ? null : html`<button type="button" class="linky small" style=${{alignSelf: 'flex-start'}} onClick=${() => { setErr(''); setCode(''); setStep('ask'); }}>Send another code</button>`}
+          ${backToSignIn}
+        </div>
+      <//>`;
+    }
+    return html`<${M.Gate} title="Sign in to m360" line="Your work email and your password.">
+      <div class="join-box stack tight" id="signin-box">
+        <${UI.Input} id="signin-email" label="your work email" type="email" value=${email} placeholder="you@mask360.agency" onChange=${setEmail} onEnter=${signin}/>
+        <${PwInput} id="signin-pw" label="your password" value=${pw} onChange=${setPw} onEnter=${signin} auto="current-password"/>
+        <${UI.Btn} id="signin-go" onClick=${signin} disabled=${busy || !ready}>${busy ? 'One moment' : 'Sign in'}<//>
+        ${errLine}
+        <div class="stack tight pw-links">
+          <button type="button" class="linky small" id="pw-forgot" onClick=${() => swap('reset')}>Forgot it? Get a reset code</button>
+          <button type="button" class="linky small" id="pw-magic" onClick=${() => swap('magic')}>Sign in with an email link instead</button>
+          ${joinOpen
+            ? html`<button type="button" class="linky small" onClick=${() => swap('join')}>New here without an invite? Ask to join</button>`
+            : html`<div class="small ink62" id="join-closed">New here? Ask Kaavish for an invite.</div>`}
+        </div>
       </div>
     <//>`;
   }
@@ -13503,6 +13611,41 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       </div>
     <//>`;
   }
+
+  /* your password: change it, or set one when the account is from before passwords existed */
+  function PwCard() {
+    const [has, setHas] = useState(null);
+    const [cur, setCur] = useState('');
+    const [nw, setNw] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState('');
+    useEffect(() => { api('me').then(m => setHas(!!m.hasPw), () => setHas(false)); }, []);
+    if (has === null) return null;
+    async function save() {
+      if (!nw || (has && !cur)) return;
+      setBusy(true); setErr('');
+      try {
+        await api('setpw', has ? {current: cur, password: nw} : {password: nw});
+        M.toast(has ? 'Password changed' : 'Password set');
+        setHas(true); setCur(''); setNw('');
+      } catch (e) { setErr(said(e, ['weak', 'bad_current', 'slow_down'])); }
+      setBusy(false);
+    }
+    return html`<${UI.Card} id="pw-card" title="Sign-in">
+      <p class="small ink62" style=${{marginTop: 0}}>${has
+        ? 'Your email and this password sign you in on any device. Forgot it? The sign-in screen sends you a reset code.'
+        : 'This account has no password yet. Set one and you can sign in with your email on any device.'}</p>
+      <div class="pw-form">
+        ${has ? html`<${PwInput} id="pw-current" label="current password" value=${cur} onChange=${setCur} onEnter=${save} auto="current-password"/>` : null}
+        <${PwInput} id="pw-new" label=${has ? 'new password' : 'a password'} value=${nw} onChange=${setNw} onEnter=${save} auto="new-password" hint="At least 8 characters."/>
+      </div>
+      <div class="row" style=${{marginTop: '12px'}}>
+        <${UI.Btn} id="pw-save" sm=${true} disabled=${busy || !nw || (has && !cur)} onClick=${save}>${busy ? 'One moment' : has ? 'Change password' : 'Set a password'}<//>
+      </div>
+      ${err ? html`<div class="small flame-t" role="alert" style=${{marginTop: '8px'}}>${err}</div>` : null}
+    <//>`;
+  }
+  M.meCards.push(PwCard);
 
   /* the sessions of one person, from the server: a short device label, when it signed in, when it was last seen */
   function useDevices(uid) {
@@ -13550,22 +13693,45 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 
   /* ---------- Admin: a member's devices, from the roster row ---------- */
   function MemberDevicesDrawer({uid, onClose}) {
+    const ctx = M.useCtx();
     const {devs, err, load} = useDevices(uid);
+    const [code, setCode] = useState('');       /* a reset code, shown once */
+    const [npw, setNpw] = useState('');
+    const [pwErr, setPwErr] = useState('');
+    const owner = !!(ctx.me && ctx.me.isOwner);
     const all = () => api('signoutall', {uid}).then(r => { M.toast(r.removed ? 'Signed out of ' + r.removed + (r.removed === 1 ? ' device' : ' devices') : 'No devices were signed in'); load(); }, e => M.toast((e && e.message) || 'That did not work.', true));
+    const resetCode = () => api('resetcode', {uid}).then(r => { setCode(r.code); setPwErr(''); }, e => setPwErr(said(e, ['invalid_argument'])));
+    const setFor = () => !npw ? setPwErr('Type the password first.') : api('setpw', {uid, password: npw}).then(() => { M.toast('Password set. They are signed out everywhere.'); setNpw(''); setPwErr(''); load(); }, e => setPwErr(said(e, ['weak', 'invalid_argument'])));
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Devices"
       footer=${html`<${UI.ConfirmBtn} kind="flame" sm=${false} onConfirm=${all} label="Tap again to sign them out">Sign out everywhere<//>`}>
       <div class="stack" style=${{gap: '14px'}}>
         <div class="row"><${UI.Avatar} id=${uid} size=${34}/><span style=${{fontWeight: 500}}><${UI.Name} id=${uid}/></span></div>
-        <p class="small ink62" style=${{margin: 0}}>Every device signed in as them. Sign out everywhere ends all of them; they get back in with a fresh link.</p>
+        <p class="small ink62" style=${{margin: 0}}>Every device signed in as them. Sign out everywhere ends all of them; they get back in with their password or a fresh link.</p>
         <div id="member-devices"><${DeviceList} devs=${devs}/></div>
         ${err ? html`<div class="small flame-t">${err}</div>` : null}
+        ${uid === ctx.uid ? html`<div class="pw-admin" id="member-pw"><${UI.Micro} plain>password<//><p class="small ink62" style=${{margin: 0}}>Your own password changes from Me.</p></div>` : html`<div class="pw-admin stack tight" id="member-pw">
+          <${UI.Micro} plain>password<//>
+          <p class="small ink62" style=${{margin: 0}}>A reset code is 6 digits they type on the sign-in screen under Forgot it, with a new password. It works once, for 15 minutes. Hand it over in person or on WhatsApp; it is shown here only once.</p>
+          <div class="row">
+            <${UI.ConfirmBtn} kind="sec" onConfirm=${resetCode} label="Tap again to make a code">Reset code<//>
+            ${code ? html`<span class="reset-code num" id="reset-code-out">${code}</span><${UI.Btn} kind="ghost" sm=${true} onClick=${() => copy(code)}>Copy<//>` : null}
+          </div>
+          ${owner ? html`<div class="row pw-set">
+            <${PwInput} id="member-pw-new" label="set a password for them" value=${npw} onChange=${setNpw} auto="off" placeholder="At least 8 characters"/>
+            <${UI.ConfirmBtn} kind="sec" onConfirm=${setFor} label="Tap again to set it">Set a password for them<//>
+          </div>
+          <div class="tiny ink62">Setting it signs them out everywhere. Tell them the new one yourself.</div>` : null}
+          ${pwErr ? html`<div class="small flame-t" role="alert">${pwErr}</div>` : null}
+        </div>`}
       </div>
     <//>`;
   }
+  /* the button sits in a roster row; the drawer itself is mounted on the body so a card's motion cannot pin it in place */
   function MemberDevices({uid}) {
     const [open, setOpen] = useState(false);
+    const drawer = open ? html`<${MemberDevicesDrawer} uid=${uid} onClose=${() => setOpen(false)}/>` : null;
     return html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => setOpen(true)}>Devices<//>
-      ${open ? html`<${MemberDevicesDrawer} uid=${uid} onClose=${() => setOpen(false)}/>` : null}`;
+      ${drawer && window.ReactDOM && ReactDOM.createPortal ? ReactDOM.createPortal(drawer, document.body) : drawer}`;
   }
 
   /* ---------- Admin: the AI key ---------- */
