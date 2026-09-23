@@ -37,10 +37,15 @@
   let meInfo = null;
   /* a sign-in link: #login=<code> signs this browser in, then the hash is cleared */
   const loginCode = (/^#login=([a-z0-9]{10,64})$/.exec(location.hash || '') || [])[1];
+  const inviteCode = (/^#invite=([a-z0-9]{10,64})$/.exec(location.hash || '') || [])[1];
+  /* a sign-in or invite link opened on top of an already loaded page: start over so it is honoured */
+  window.addEventListener('hashchange', () => { if (/^#(login|invite)=[a-z0-9]{10,64}$/.test(location.hash || '')) location.reload(); });
+  const clearHash = () => { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* keep going */ } };
   const signedIn = loginCode
-    ? call('login', {code: loginCode}).catch(() => { window.M360_LOGIN_ERR = 'That sign-in link has expired or was already used. Ask for a new one.'; })
-      .then(() => { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* keep going */ } })
-    : Promise.resolve();
+    ? call('login', {code: loginCode}).catch(() => { window.M360_LOGIN_ERR = 'That sign-in link has expired or was already used. Ask for a new one.'; }).then(clearHash)
+    : inviteCode
+      ? call('accept', {code: inviteCode}).catch(() => { window.M360_LOGIN_ERR = 'That invite has expired or was already used. Ask Kaavish for a new one.'; }).then(clearHash)
+      : Promise.resolve();
   const meReady = signedIn.then(() => call('me')).then(m => { meInfo = m; return m; }).catch(() => { meInfo = {uid: null, down: true}; return meInfo; });
 
   /* ---------- db: a local mirror of every readable collection, kept fresh by polling ---------- */

@@ -88,12 +88,14 @@ edgeone/dev/server.mjs               a local stand-in with a file-backed store, 
 ```
 
 - Storage is the project's EdgeOne Pages Blob store, one blob per document, so writes to different documents never collide. Pages poll every 3 seconds for changed collections.
-- The first person to open a fresh deployment types their name and becomes the founder; the workspace is seeded from `seed/seed.json`. Everyone after that types their name, taps Ask to join, and the founder lets them in. A session is an HttpOnly cookie; a new device signs in with a one-time link from Me (or from the founder, on the team list).
+- The first person to open a fresh deployment types their name and email and becomes the founder; the workspace is seeded from `seed/seed.json`. A session is an HttpOnly cookie; a new device signs in by email (a one-time link lands in the inbox) or with a one-time link from Me (or from the founder, on the team list).
+- Members join by invite. In Admin the founder types an email, an optional name, title and role, and gets a personal link (one use, 14 days). Opening it signs the person in and puts them on the team with an employee id, no approval step. With email switched on the invite is sent for them; without it the founder sends the link by hand (WhatsApp works). Anyone without an invite can still tap Ask to join and wait for the founder.
+- Email goes through Resend: the `RESEND_API_KEY` and `MAIL_FROM` environment variables, or a key pasted once by the founder in Admin (kept on the server, never sent to a page). Without it, sign-in by email is off and the invite card hands out links instead.
 - AI runs through the function with an Anthropic key: the `ANTHROPIC_API_KEY` environment variable in the EdgeOne console, or pasted once by the founder in Admin (kept on the server, never sent to a page). Without a key the AI buttons stay hidden.
 - Google connectors exist only inside Claude, so the Your day card is hidden here.
 
 Deploys run from `.github/workflows/deploy-edgeone.yml`. With the `EDGEONE_API_TOKEN` repository secret, every push updates the project named by the `EDGEONE_PROJECT` variable (default `m360os`). Without it, a commit message containing `[deploy]` makes an anonymous deployment that has to be claimed within an hour from the link in the run summary.
 
 ```
-python3 harness/tests/test_edgeone.py   # two browsers against the local stand-in: setup, join, sync, rules, links, AI
+python3 harness/tests/test_edgeone.py   # browsers against the local stand-in: setup, join, sync, rules, links, invites, email sign-in, AI
 ```

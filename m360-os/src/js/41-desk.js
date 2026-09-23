@@ -87,10 +87,11 @@
 
     return html`<div class="stack" style=${{gap: '18px'}}>
       ${M.parts.JoinRequests ? html`<${M.parts.JoinRequests} onApprove=${r => setAdd({person: {id: r.uid, name: ''}, member: null, title: r.title, join: true})}/>` : null}
-      ${M.parts.InviteCard ? html`<${M.parts.InviteCard} open=${onlyFounder}/>` : null}
+      ${M.parts.InviteByEmail ? html`<${M.parts.InviteByEmail}/>` : null}
+      ${M.parts.InviteCard ? html`<${M.parts.InviteCard} open=${onlyFounder && !M.parts.InviteByEmail}/>` : null}
 
       <${UI.Card} title="Add someone directly">
-        <p class="small ink62" style=${{marginTop: 0}}>Works for people in your Claude organisation. Everyone else uses the invite link above.</p>
+        <p class="small ink62" style=${{marginTop: 0}}>${window.M360_STANDALONE ? 'For people who already signed in here. New people get an invite by email above.' : 'Works for people in your Claude organisation. Everyone else uses the invite link above.'}</p>
         <${UI.Input} id="desk-search" label="search the organisation" value=${q} placeholder="Search the organisation"
           onChange=${search} onFocus=${() => search('')}/>
         <div class="stack tight" style=${{marginTop: '10px'}}>

@@ -242,6 +242,7 @@
         : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>` : t === 'trophies' ? (M.parts.Trophies ? html`<${M.parts.Trophies}/>` : null) : html`<${Embed} page="People" id=${ctx.uid}/>`}
       ${t === 'profile' && M.parts.AboutCard ? html`<${M.parts.AboutCard}/>` : null}
       ${t === 'profile' ? html`<${Prefs}/>` : null}
+      ${t === 'profile' && M.parts.EmailCard ? html`<${M.parts.EmailCard}/>` : null}
       ${t === 'profile' && M.parts.DeviceCard ? html`<${M.parts.DeviceCard}/>` : null}
     </div>`;
   }
@@ -278,6 +279,7 @@
       <${M.SectionHero} color="ink" micro="founder" title="Admin"
         sub="Roster, rules, office location, keeper test, payroll export and cleanup."/>
       ${M.parts.AiKeyCard ? html`<${M.parts.AiKeyCard}/>` : null}
+      ${M.parts.MailCard ? html`<${M.parts.MailCard}/>` : null}
       <${Embed} page="Desk"/>
     </div>`;
   }

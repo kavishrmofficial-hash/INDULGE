@@ -176,7 +176,8 @@ button.card.rowbtn:hover{border-color:var(--line2)}
 .btn.on-dark:hover{background:var(--col)}
 .btn.on-dark.sec{background:transparent; color:#fff; border:1px solid rgba(255,255,255,.35)}
 .btn.on-dark.sec:hover{background:rgba(255,255,255,.08)}
-.btn:disabled{opacity:.4; cursor:default; pointer-events:none}
+.btn:disabled,.btn.disabled{opacity:.4; cursor:default; pointer-events:none}
+a.btn{text-decoration:none}
 .btn svg{width:18px; height:18px}
 .iconbtn{width:34px; height:34px; padding:0; border-radius:var(--r-sm); border:0; background:transparent; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; color:var(--ink)}
 .iconbtn:hover{background:rgba(14,14,14,.06)}

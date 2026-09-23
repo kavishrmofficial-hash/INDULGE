@@ -11,6 +11,9 @@
      k/<code>                            {uid, until}                  one-time sign-in links
      o/owner                             {uid}                         the founder account
      x/ai                                {key}                         Anthropic key, never sent to a page
+     x/mail                              {key, from}                   Resend key and sender, never sent to a page
+     e/<email>                           {uid}                         email to person
+     i/<code>                            {email, name, title, role, by, until}   pending invites
      r/<uid>~<ms>~<page>                 ""                            presence beacons
 */
 import {RULES} from './rules.js';
@@ -55,6 +58,10 @@ function merge(a, b) {
   return out;
 }
 const cleanName = s => String(s || '').replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+const cleanEmail = s => { const e = String(s || '').trim().toLowerCase(); return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e.length <= 120 ? e : ''; };
+const emailKey = e => 'e/' + encodeURIComponent(e);
+const INVITE_DAYS = 14;
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 
 class HttpError extends Error {
   constructor(status, code, message) { super(message || code); this.status = status; this.code = code; }
@@ -151,6 +158,22 @@ export function createApp({store, env = {}}) {
   const cookie = token => 'm360s=' + token + '; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=' + (SESSION_DAYS * 86400);
 
   async function aiKey() { if (env.ANTHROPIC_API_KEY) return env.ANTHROPIC_API_KEY; const x = await getJ('x/ai'); return x && x.key; }
+  async function mailConf() {
+    if (env.RESEND_API_KEY) return {key: env.RESEND_API_KEY, from: env.MAIL_FROM || 'm360 OS <onboarding@resend.dev>'};
+    const x = await getJ('x/mail');
+    return x && x.key ? x : null;
+  }
+  /* one email through Resend; false when mail is not set up, throws when Resend refuses */
+  async function sendMail(to, subject, text, htmlBody) {
+    const c = await mailConf();
+    if (!c) return false;
+    const r = await (env.fetch || fetch)('https://api.resend.com/emails', {
+      method: 'POST', headers: {'content-type': 'application/json', authorization: 'Bearer ' + c.key},
+      body: JSON.stringify({from: c.from, to: [to], subject, text, html: htmlBody})
+    });
+    if (!r.ok) { const j = await r.json().catch(() => ({})); throw new HttpError(502, 'mail_failed', (j && j.message) || ('mail ' + r.status)); }
+    return true;
+  }
 
   /* ---------- documents ---------- */
   /* every document key with its etag, grouped by collection */
@@ -205,9 +228,9 @@ export function createApp({store, env = {}}) {
     async me(v) {
       const owner = await ownerUid();
       if (!v) return {uid: null, setup: !owner};
-      const [p, level, ai] = await Promise.all([getJ('p/' + v.uid), levelOf(v.uid), aiKey()]);
-      return {uid: v.uid, name: (p && p.name) || '', isOwner: v.uid === owner, canEdit: level >= LEVEL.admin,
-        level, setup: !owner, ai: !!ai};
+      const [p, level, ai, mail] = await Promise.all([getJ('p/' + v.uid), levelOf(v.uid), aiKey(), mailConf()]);
+      return {uid: v.uid, name: (p && p.name) || '', email: (p && p.email) || '', isOwner: v.uid === owner, canEdit: level >= LEVEL.admin,
+        level, setup: !owner, ai: !!ai, mail: !!mail};
     },
 
     /* the first person to open a fresh deploy becomes the founder, and the workspace is seeded */
@@ -216,7 +239,9 @@ export function createApp({store, env = {}}) {
       if (!name) throw new HttpError(400, 'invalid_argument', 'name needed');
       if (await ownerUid()) throw new HttpError(409, 'taken', 'already set up');
       const uid = newId();
-      await putJ('p/' + uid, {name, at: Date.now()});
+      const email = cleanEmail(body.email);
+      await putJ('p/' + uid, {name, email, at: Date.now()});
+      if (email) await putJ(emailKey(email), {uid});
       await putJ('o/owner', {uid});
       await Promise.all(Object.keys(SEED).map(path => putJ(docKey(path), SEED[path])));
       const token = await startSession(uid);
@@ -342,6 +367,123 @@ export function createApp({store, env = {}}) {
       await store.set('r/' + v.uid + '~' + now + '~' + page, '');
       await Promise.all(stale.slice(0, 40).map(k => store.delete(k).catch(() => {})));
       return {peers};
+    },
+
+    /* ---------- email: invites and sign-in links ---------- */
+    async mailstatus(v) {
+      if (!v || (await levelOf(v.uid)) < LEVEL.admin) throw new HttpError(403, 'invalid_argument');
+      const c = await mailConf();
+      return {on: !!c, from: c ? c.from : '', env: !!env.RESEND_API_KEY};
+    },
+    async mailkey(v, body) {
+      if (!v || (await levelOf(v.uid)) < LEVEL.admin) throw new HttpError(403, 'invalid_argument');
+      const key = String(body.key || '').trim(), from = String(body.from || '').trim().slice(0, 120);
+      if (!key) { await store.delete('x/mail').catch(() => {}); return {on: !!env.RESEND_API_KEY}; }
+      if (!/^re_[A-Za-z0-9_\-]{10,200}$/.test(key)) throw new HttpError(400, 'invalid_argument', 'That does not look like a Resend key.');
+      await putJ('x/mail', {key, from: from || 'm360 OS <onboarding@resend.dev>', at: Date.now(), by: v.uid});
+      return {on: true};
+    },
+    async mailtest(v) {
+      if (!v || (await levelOf(v.uid)) < LEVEL.admin) throw new HttpError(403, 'invalid_argument');
+      const p = await getJ('p/' + v.uid);
+      if (!p || !p.email) throw new HttpError(400, 'invalid_argument', 'Add your own email first, under Me.');
+      await sendMail(p.email, 'm360 OS test', 'Email from m360 OS works. That is all.', '<p>Email from m360 OS works. That is all.</p>');
+      return {ok: true};
+    },
+    async setemail(v, body) {
+      if (!v) throw new HttpError(401, 'noid');
+      const email = cleanEmail(body.email);
+      if (!email) throw new HttpError(400, 'invalid_argument', 'That email does not look right.');
+      const taken = await getJ(emailKey(email));
+      if (taken && taken.uid !== v.uid) throw new HttpError(409, 'taken', 'That email belongs to someone else on the team.');
+      const p = (await getJ('p/' + v.uid)) || {};
+      if (p.email && p.email !== email) await store.delete(emailKey(p.email)).catch(() => {});
+      await putJ('p/' + v.uid, {...p, email});
+      await putJ(emailKey(email), {uid: v.uid});
+      return {ok: true, email};
+    },
+    /* the founder (or full access) invites by email; the link puts them straight on the team */
+    async invite(v, body) {
+      if (!v || (await levelOf(v.uid)) < LEVEL.admin) throw new HttpError(403, 'invalid_argument');
+      const email = cleanEmail(body.email);
+      if (!email) throw new HttpError(400, 'invalid_argument', 'That email does not look right.');
+      const name = cleanName(body.name), title = cleanName(body.title);
+      const role = ['member', 'lead', 'founder'].includes(body.role) ? body.role : 'member';
+      const code = rand(32).replace(/[^a-z0-9]/g, '').slice(0, 32);
+      const inv = {email, name, title, role, by: v.uid, at: Date.now(), until: Date.now() + INVITE_DAYS * 86400000};
+      await putJ('i/' + code, inv);
+      const link = String(body.base || '').replace(/[#?].*$/, '') + '#invite=' + code;
+      let sent = false, why = '';
+      try {
+        const by = await getJ('p/' + v.uid);
+        sent = await sendMail(email, (by && by.name ? by.name : 'Mask360') + ' invited you to m360 OS',
+          (name ? 'Hi ' + name + ',\n\n' : 'Hi,\n\n') + (by && by.name ? by.name : 'Mask360') + ' has added you to m360 OS, the Mask360 workspace.\n\nOpen your link to get in:\n' + link +
+            '\n\nIt works once and is good for ' + INVITE_DAYS + ' days. Open it on the device you use for work; you can add your phone from inside.',
+          '<p>' + (name ? 'Hi ' + esc(name) + ',' : 'Hi,') + '</p><p><b>' + esc(by && by.name ? by.name : 'Mask360') + '</b> has added you to <b>m360 OS</b>, the Mask360 workspace.</p>' +
+            '<p><a href="' + esc(link) + '" style="display:inline-block;padding:12px 18px;background:#0E0E0E;color:#fff;border-radius:12px;text-decoration:none">Open m360 OS</a></p>' +
+            '<p style="color:#666;font-size:13px">The link works once and is good for ' + INVITE_DAYS + ' days. Open it on the device you use for work; you can add your phone from inside.</p>');
+      } catch (e) { why = String((e && e.message) || 'mail failed'); }
+      return {code, link, sent, why};
+    },
+    async invites(v) {
+      if (!v || (await levelOf(v.uid)) < LEVEL.admin) throw new HttpError(403, 'invalid_argument');
+      const out = [];
+      for (const b of await listAll('i/')) {
+        const inv = await getJ(b.key).catch(() => null);
+        if (!inv) continue;
+        if (inv.until < Date.now()) { await store.delete(b.key).catch(() => {}); continue; }
+        out.push({code: b.key.slice(2), email: inv.email, name: inv.name, title: inv.title, role: inv.role, at: inv.at, until: inv.until});
+      }
+      return {invites: out.sort((a, b) => b.at - a.at)};
+    },
+    async uninvite(v, body) {
+      if (!v || (await levelOf(v.uid)) < LEVEL.admin) throw new HttpError(403, 'invalid_argument');
+      const code = String(body.code || '');
+      if (/^[a-z0-9]{10,64}$/.test(code)) await store.delete('i/' + code).catch(() => {});
+      return {ok: true};
+    },
+    /* the invited person opens the link: a person and a roster row exist by the time the page loads */
+    async accept(v, body) {
+      const code = String(body.code || '');
+      if (!/^[a-z0-9]{10,64}$/.test(code)) throw new HttpError(400, 'invalid_argument', 'bad link');
+      const inv = await getJ('i/' + code);
+      if (!inv || inv.until < Date.now()) throw new HttpError(410, 'expired', 'invite expired');
+      const known = await getJ(emailKey(inv.email));
+      let uid = known && known.uid;
+      if (uid && !(await getJ('p/' + uid))) uid = null;
+      if (!uid) {
+        uid = newId();
+        await putJ('p/' + uid, {name: inv.name || inv.email.split('@')[0], email: inv.email, at: Date.now()});
+        await putJ(emailKey(inv.email), {uid});
+      }
+      const team = (await getJ(docKey('roster/team'))) || {members: {}, nextEmp: 2, updated: 0};
+      team.members = team.members || {};
+      const cur = team.members[uid];
+      if (!cur || cur.active === false) {
+        const empId = (cur && cur.empId) || ('M360-' + String(team.nextEmp || 2).padStart(3, '0'));
+        team.members[uid] = {...(cur || {}), role: inv.role || 'member', empId, title: inv.title || (cur && cur.title) || '', pod: (cur && cur.pod) || '',
+          joined: (cur && cur.joined) || new Date().toISOString().slice(0, 10), start: (cur && cur.start) || '', probationEnd: (cur && cur.probationEnd) || '', active: true};
+        if (!cur) team.nextEmp = (team.nextEmp || 2) + 1;
+        team.updated = Date.now();
+        await store.set(docKey('roster/team'), JSON.stringify(team));
+      }
+      await store.delete('i/' + code).catch(() => {});
+      const token = await startSession(uid);
+      return {__cookie: cookie(token), uid};
+    },
+    /* a sign-in link by email for anyone already on the team */
+    async magic(v, body) {
+      const email = cleanEmail(body.email);
+      if (!email) throw new HttpError(400, 'invalid_argument', 'That email does not look right.');
+      if (!(await mailConf())) return {sent: false, nomail: true};
+      const known = await getJ(emailKey(email));
+      if (!known || !known.uid || !(await getJ('p/' + known.uid))) return {sent: true};
+      const code = rand(32).replace(/[^a-z0-9]/g, '').slice(0, 32);
+      await putJ('k/' + code, {uid: known.uid, until: Date.now() + 86400000});
+      const link = String(body.base || '').replace(/[#?].*$/, '') + '#login=' + code;
+      await sendMail(email, 'Your m360 OS sign-in link', 'Open this link to sign in to m360 OS:\n' + link + '\n\nIt works once, for 24 hours. If you did not ask for it, ignore this email.',
+        '<p><a href="' + esc(link) + '" style="display:inline-block;padding:12px 18px;background:#0E0E0E;color:#fff;border-radius:12px;text-decoration:none">Sign in to m360 OS</a></p><p style="color:#666;font-size:13px">It works once, for 24 hours. If you did not ask for it, ignore this email.</p>');
+      return {sent: true};
     },
 
     async aistatus(v) { return {on: !!(v && await aiKey())}; },

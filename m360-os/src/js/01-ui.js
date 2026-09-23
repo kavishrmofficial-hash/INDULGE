@@ -84,9 +84,9 @@
     return html`<div class=${'micro' + (plain ? ' plain' : '')}>${children}</div>`;
   };
 
-  UI.Btn = function Btn({kind, sm, disabled, onClick, children, type, title, ariaLabel}) {
+  UI.Btn = function Btn({kind, sm, disabled, onClick, children, type, title, ariaLabel, id}) {
     const cls = 'btn' + (kind === 'sec' ? ' sec' : kind === 'ghost' ? ' ghost' : kind === 'flame' ? ' flame' : '') + (sm ? ' sm' : '');
-    return html`<button type=${type || 'button'} class=${cls} disabled=${!!disabled} onClick=${onClick} title=${title} aria-label=${ariaLabel}>${children}</button>`;
+    return html`<button type=${type || 'button'} id=${id} class=${cls} disabled=${!!disabled} onClick=${onClick} title=${title} aria-label=${ariaLabel}>${children}</button>`;
   };
 
   UI.ConfirmBtn = function ConfirmBtn({onConfirm, children, label, sm, kind}) {

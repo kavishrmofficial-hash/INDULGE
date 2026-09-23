@@ -98,8 +98,10 @@ def main():
             # ---- a teammate signs up on their phone and asks to join ----
             mc, m = device(390)
             m.goto(base)
-            m.wait_for_selector('text=Welcome to m360')
+            m.wait_for_selector('text=Sign in to m360')
             check(m.locator('text=Set up m360 OS').count() == 0, 'member offered setup')
+            m.get_by_role('button', name='New here without an invite? Ask to join').click()
+            m.wait_for_selector('text=Welcome to m360')
             m.fill('#signin-name', 'Durvesh Patil')
             m.get_by_role('button', name='Continue').click()
             m.wait_for_selector('text=Ask to join')
@@ -162,6 +164,8 @@ def main():
             f.wait_for_selector('#signin-link')
             link = f.inner_text('#signin-link').strip()
             check('#login=' in link, 'link %r' % link)
+            f.keyboard.press('Escape')
+            f.wait_for_selector('#signin-link', state='detached')
             dc, d = device()
             d.goto(link)
             d.wait_for_selector('.sidebar')
@@ -172,6 +176,87 @@ def main():
             ec, e2 = device()
             e2.goto(link)
             e2.wait_for_selector('text=has expired or was already used')
+
+            # ---- invite by email: link only, then through mail ----
+            f.goto(base + '#admin')
+            f.wait_for_selector('#invite-email')
+            f.fill('#inv-email', 'priya@mask360.agency')
+            f.fill('#inv-name', 'Priya Nair')
+            f.fill('#inv-title', 'Producer')
+            f.locator('#invite-email').get_by_role('tab', name='Pod lead').click()
+            f.locator('#inv-send').click()
+            f.wait_for_selector('#inv-last:has-text("Link for priya@mask360.agency")')
+            priya_link = f.inner_text('#inv-last .invite-link').strip()
+            check('#invite=' in priya_link, 'invite link %r' % priya_link)
+            check(f.locator('#inv-list .listrow').count() == 1, 'pending invite list')
+            # switch email on, then an invite goes out by mail
+            f.fill('#mail-card input[type="password"]', 're_testkey_1234567890')
+            f.locator('#mail-card').get_by_role('button', name='Save').click()
+            f.wait_for_selector('#mail-card .pill:has-text("on")')
+            f.fill('#inv-email', 'arjun@mask360.agency')
+            f.locator('#inv-send').click()
+            f.wait_for_selector('#inv-last:has-text("Emailed to")')
+            mails = json.loads(urllib.request.urlopen(base + '__mails').read())
+            check(len(mails) == 1 and mails[0]['to'] == ['arjun@mask360.agency'] and '#invite=' in mails[0]['text'], 'invite mail %r' % mails)
+            arjun_link = [w for w in mails[0]['text'].split() if '#invite=' in w][0]
+            # a revoked invite stops working
+            f.fill('#inv-email', 'nope@mask360.agency')
+            f.locator('#inv-send').click()
+            f.wait_for_selector('#inv-last:has-text("Emailed to nope@")')
+            f.wait_for_function('() => document.querySelectorAll("#inv-list .listrow").length === 3')
+            row = f.locator('#inv-list .listrow', has_text='nope@mask360.agency')
+            row.get_by_role('button', name='Revoke').click()
+            row.get_by_role('button', name='Tap again to confirm').click()
+            f.wait_for_function('() => document.querySelectorAll("#inv-list .listrow").length === 2')
+
+            # Priya opens her link on a fresh device: signed in, on the team, with the invite's title and access
+            pc, pp = device()
+            pp.goto(priya_link)
+            pp.wait_for_selector('.sidebar')
+            check('Priya Nair' in pp.inner_text('.side-foot'), 'invite did not sign Priya in')
+            team = store_doc('d/roster~team')
+            priya = [m for m in team['members'].values() if m.get('title') == 'Producer']
+            check(priya and priya[0]['role'] == 'lead' and priya[0]['active'] and priya[0]['empId'].startswith('M360-'), 'Priya roster row %r' % priya)
+            check(pp.locator('.side-item', has_text='HQ').count() == 0, 'pod lead sees HQ')
+            # the same link a second time is dead
+            xc, xp = device()
+            xp.goto(priya_link)
+            xp.wait_for_selector('text=has expired or was already used')
+            # Arjun's mailed link works too, and the pending list clears
+            ac, ap = device()
+            ap.goto(arjun_link)
+            ap.wait_for_selector('.sidebar')
+            f.goto(base + '#admin')
+            f.wait_for_selector('#invite-email')
+            f.wait_for_function('() => !document.querySelector("#inv-list .listrow")', timeout=20000)
+
+            # ---- sign in by email link on another device ----
+            zc, zp = device()
+            zp.goto(base)
+            zp.wait_for_selector('#signin-email')
+            zp.fill('#signin-email', 'priya@mask360.agency')
+            zp.get_by_role('button', name='Send me a sign-in link').click()
+            zp.wait_for_selector('text=Check your email')
+            mails = json.loads(urllib.request.urlopen(base + '__mails').read())
+            login = [w for w in mails[-1]['text'].split() if '#login=' in w][0]
+            check(mails[-1]['to'] == ['priya@mask360.agency'], 'magic link went to %r' % mails[-1]['to'])
+            zp.goto(login)
+            zp.wait_for_selector('.sidebar')
+            check('Priya Nair' in zp.inner_text('.side-foot'), 'magic link signed in the wrong person')
+            # an unknown email gets the same calm answer and no mail
+            n_before = len(json.loads(urllib.request.urlopen(base + '__mails').read()))
+            yc, yp = device()
+            yp.goto(base)
+            yp.fill('#signin-email', 'stranger@example.com')
+            yp.get_by_role('button', name='Send me a sign-in link').click()
+            yp.wait_for_selector('text=Check your email')
+            check(len(json.loads(urllib.request.urlopen(base + '__mails').read())) == n_before, 'mail sent to a stranger')
+            # Durvesh adds his email under Me
+            d.goto(base + '#me')
+            d.wait_for_selector('#email-card')
+            d.fill('#email-card input[type="email"]', 'durvesh@mask360.agency')
+            d.locator('#email-card').get_by_role('button', name='Save').click()
+            d.wait_for_function('() => fetch("/__store").then(r => r.json()).then(s => Object.keys(s).some(k => k === "e/durvesh%40mask360.agency"))')
 
             # ---- AI runs through the server, tools run in the page ----
             d.goto(base + '#home')
@@ -194,7 +279,7 @@ def main():
             d.wait_for_selector('#device-card')
             d.locator('#device-card').get_by_role('button', name='Sign out').click()
             d.locator('#device-card').get_by_role('button', name='Tap again to sign out').click()
-            d.wait_for_selector('text=Welcome to m360')
+            d.wait_for_selector('text=Sign in to m360')
 
             # ---- AI key card is founder only; the phone layout holds ----
             f.goto(base + '#admin')

@@ -128,12 +128,16 @@
   /* ---------- founder: how to invite ---------- */
   function InviteCard({open}) {
     const [show, setShow] = useState(!!open);
-    return html`<${UI.Card} id="invite-card" title="Invite your team"
+    const [email, setEmail] = useState('');
+    const mailBody = () => window.M360_STANDALONE ? INVITE()
+      : 'You are on m360 OS, the Mask360 workspace.\n\n1. Accept the Claude organisation invite that follows this email.\n2. Open ' + M.APP_URL + ' and sign in to Claude.\n3. Tap Ask to join. You are in once Kaavish lets you in.';
+    const mailto = () => 'mailto:' + encodeURIComponent(email.trim()) + '?subject=' + encodeURIComponent('Your m360 OS invite') + '&body=' + encodeURIComponent(mailBody());
+    return html`<${UI.Card} id="invite-card" title=${window.M360_STANDALONE ? 'Without an email invite' : 'Invite your team'}
       action=${show ? null : html`<${UI.Btn} kind="sec" sm=${true} onClick=${() => setShow(true)}>Show how<//>`}>
       ${show ? html`<div class="stack" style=${{gap: '14px'}}>
         ${window.M360_STANDALONE ? html`<ol class="steps">
-          <li><b>Send them the link.</b> Copy the message below into WhatsApp or Slack.</li>
-          <li><b>They ask to join.</b> They open it, type their name and tap Ask to join. Nothing to install.</li>
+          <li><b>Send them the page.</b> Copy the message below into WhatsApp or Slack.</li>
+          <li><b>They ask to join.</b> They open it, tap Ask to join and type their name. Nothing to install.</li>
           <li><b>Let them in.</b> Their request lands here and on HQ, you tap Let them in. For a new phone, send them a sign-in link from the team list.</li>
         </ol>` : html`<ol class="steps">
           <li><b>Give them a seat.</b> Everyone signs in with a Claude account inside the same Claude organisation as this page. Add them as members in your Claude organisation settings. People outside it can only look.</li>
@@ -145,6 +149,11 @@
         <div class="row">
           <${UI.Btn} sm=${true} onClick=${() => copy(INVITE())}>Copy invite message<//>
           <${UI.Btn} kind="sec" sm=${true} onClick=${() => copy(M.APP_URL)}>Copy link<//>
+        </div>
+        <div class="row" id="invite-mail">
+          <input class="input" type="email" style=${{maxWidth: '300px'}} placeholder="name@mask360.agency" aria-label="Invite email" value=${email} onInput=${e => setEmail(e.target.value)}/>
+          <a class=${'btn sm' + (email.trim() ? '' : ' disabled')} href=${email.trim() ? mailto() : '#'} aria-disabled=${!email.trim()}
+            onClick=${e => { if (!email.trim()) e.preventDefault(); }}>Email the invite</a>
         </div>
       </div>` : html`<p class="small ink62" style=${{margin: 0}}>Share the page, send the link, approve each request in one tap.</p>`}
     <//>`;

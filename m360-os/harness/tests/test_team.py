@@ -88,6 +88,9 @@ def t(h):
         p.locator('#invite-card').get_by_role('button', name='Show how').click()
     inv = p.inner_text('#invite-card')
     check('claude.ai/artifact/' in inv and 'Can interact' in inv and 'organisation' in inv, 'invite card: ' + inv)
+    p.fill('#invite-mail input', 'new.person@mask360.agency')
+    href = p.locator('#invite-mail a').get_attribute('href')
+    check(href.startswith('mailto:new.person%40mask360.agency') and 'Ask%20to%20join' in href and 'claude.ai' in href, 'mailto invite: ' + href[:120])
 
     # ---- full access role ----
     row = p.locator('tr', has_text='Aanya Mehta')

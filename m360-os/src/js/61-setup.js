@@ -28,7 +28,7 @@
       {k: 'holidays', done: (s.holidays || []).length > 0, title: 'Add holidays',
         sub: 'Nobody gets flagged on a holiday.'},
       {k: 'team', done: ctx.activeMembers.length > 1 && !reqs, title: reqs ? 'Let your team in' : 'Invite your team',
-        sub: reqs ? reqs + (reqs === 1 ? ' person is' : ' people are') + ' waiting to join.' : (window.M360_STANDALONE ? 'Send the link, approve each request in one tap.' : 'Share the page, send the link, approve each request in one tap.')},
+        sub: reqs ? reqs + (reqs === 1 ? ' person is' : ' people are') + ' waiting to join.' : (window.M360_STANDALONE ? 'Invite them by email from Admin. They are in the moment they open the link.' : 'Share the page, send the link, approve each request in one tap.')},
       {k: 'client', done: clients > 0, title: 'Add your first client', sub: 'Projects, tasks and pitches hang off clients.'},
       {k: 'hello', done: posted, title: 'Say hello on the feed', sub: 'Your first post sets the tone for the team.'}
     ];
@@ -67,6 +67,7 @@
     const addHolidays = () => merge({holidays: Array.from(new Set((ctx.settings.holidays || []).concat(hol.map(h => h.d)))).sort()},
       hol.length + ' holidays added');
     const copyInvite = async () => {
+      if (window.M360_STANDALONE) { M.nav('#admin'); return; }
       try { await navigator.clipboard.writeText('You are on m360 OS, the Mask360 workspace. Open ' + M.APP_URL + (window.M360_STANDALONE ? ', type your name' : ', sign in to Claude') + ', tap Ask to join and you are in once Kaavish lets you in.'); M.toast('Invite copied'); }
       catch (e) { M.nav('#admin'); }
     };

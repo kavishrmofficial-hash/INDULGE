@@ -31,8 +31,14 @@ const store = {
 };
 
 /* a canned model: plain answers, JSON when asked, and one tool call when a tool fits */
+globalThis.__mails = [];
 async function fakeFetch(url, init) {
   const body = JSON.parse(init.body);
+  if (String(url).includes('api.resend.com')) {
+    if (!/^Bearer re_/.test(init.headers.authorization || '')) return new Response(JSON.stringify({message: 'bad key'}), {status: 401});
+    globalThis.__mails.push({to: body.to, subject: body.subject, text: body.text});
+    return new Response(JSON.stringify({id: 'm' + globalThis.__mails.length}), {status: 200, headers: {'content-type': 'application/json'}});
+  }
   const last = body.messages[body.messages.length - 1];
   const text = typeof last.content === 'string' ? last.content : '';
   let content;
@@ -65,6 +71,7 @@ http.createServer(async (req, res) => {
     return;
   }
   if (url.pathname === '/__reset') { data = {}; save(); res.end('ok'); return; }
+  if (url.pathname === '/__mails') { res.writeHead(200, {'content-type': 'application/json'}); res.end(JSON.stringify(globalThis.__mails)); return; }
   if (url.pathname === '/__store') { res.writeHead(200, {'content-type': 'application/json'}); res.end(JSON.stringify(data)); return; }
   const rel = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
   const f = path.join(PUB, path.normalize(rel));
