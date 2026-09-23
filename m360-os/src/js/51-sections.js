@@ -238,9 +238,9 @@
         </div>
       <//>
       <${M.SectionTabs} section="me" active=${t}/>
+      ${t === 'profile' && M.parts.ProfileCard ? html`<${M.parts.ProfileCard}/>` : null}
       ${t === 'leave' ? html`<${Embed} page="Leave"/>` : t === 'handbook' ? html`<${Embed} page="Handbook" id=${id}/>`
         : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>` : t === 'trophies' ? (M.parts.Trophies ? html`<${M.parts.Trophies}/>` : null) : html`<${Embed} page="People" id=${ctx.uid}/>`}
-      ${t === 'profile' && M.parts.AboutCard ? html`<${M.parts.AboutCard}/>` : null}
       ${t === 'profile' ? html`<${Prefs}/>` : null}
       ${t === 'profile' && M.parts.EmailCard ? html`<${M.parts.EmailCard}/>` : null}
       ${t === 'profile' && M.parts.DeviceCard ? html`<${M.parts.DeviceCard}/>` : null}

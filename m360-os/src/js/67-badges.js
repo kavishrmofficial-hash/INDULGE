@@ -107,25 +107,9 @@
     <//>`;
   }
 
-  /* ---------- about you: birthday and a fun fact ---------- */
-  function AboutCard() {
-    const ctx = M.useCtx();
-    const me = ctx.coll.me.map[ctx.uid] || {};
-    const [bd, setBd] = useState(me.birthday ? '2000-' + me.birthday : '');
-    const [fact, setFact] = useState(me.fact || '');
-    useEffect(() => { setBd(me.birthday ? '2000-' + me.birthday : ''); setFact(me.fact || ''); }, [me.birthday, me.fact]);
-    const save = () => ctx.W.merge('me/' + ctx.uid, {birthday: bd ? bd.slice(5) : '', fact: fact.trim().slice(0, 120)}).then(() => M.toast('Saved')).catch(() => {});
-    return html`<${UI.Card} id="about-card" title="About you">
-      <div class="grid2">
-        <${UI.Input} label="birthday" type="date" value=${bd} onChange=${setBd} hint="Only the day and month show. The team gets a nudge to wish you."/>
-        <${UI.Input} label="one fun fact" value=${fact} onChange=${setFact} placeholder="Makes a mean filter coffee"/>
-      </div>
-      <div class="row" style=${{marginTop: '10px'}}><${UI.Btn} sm=${true} onClick=${save}>Save<//></div>
-    <//>`;
-  }
+  /* birthday and the fun fact are edited on the profile card (71-profile.js); celebrations read me.birthday */
 
   M.trophies = {DEFS, stats, earned, celebrations, today};
   M.parts.Celebrate = Celebrate;
   M.parts.Trophies = Trophies;
-  M.parts.AboutCard = AboutCard;
 })();

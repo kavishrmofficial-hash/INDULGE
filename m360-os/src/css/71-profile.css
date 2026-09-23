@@ -1,0 +1,16 @@
+/* ---------- profile: your photo and details on Me, and what teammates see ---------- */
+.prof-preview{display:flex; align-items:center; gap:14px; padding:14px 16px; border-radius:16px; background:var(--warm); min-width:0}
+.prof-preview .nm{font-weight:500; font-size:16px; line-height:1.25}
+.prof-preview .ti{font-size:13px; color:var(--ink62)}
+.prof-file{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; opacity:0}
+.prof-pn{font-weight:300}
+.prof-details{margin-top:6px}
+.prof-bio{margin:0; line-height:1.5; white-space:pre-wrap}
+.prof-facts{display:grid; gap:5px; font-size:14px}
+.prof-facts .k{font-size:12px; letter-spacing:.14em; text-transform:lowercase; color:var(--micro); margin-right:8px}
+.prof-tel{color:inherit; text-decoration:underline; text-underline-offset:3px}
+.prof-links{display:flex; gap:6px; flex-wrap:wrap}
+a.pill.prof-link{text-decoration:none; color:var(--ink); height:28px; max-width:100%; overflow:hidden; text-overflow:ellipsis}
+a.pill.prof-link:hover{background:var(--warm)}
+a.pill.prof-link .k{color:var(--micro); letter-spacing:.1em}
+a.pill.prof-link svg{width:13px; height:13px; flex:none}

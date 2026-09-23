@@ -170,6 +170,7 @@
         ${list.map(m => {
           const st = statusOf(ctx, m.uid, today);
           const line = [m.title, m.pod].filter(Boolean).join(' · ');
+          const city = String(docOf(ctx, 'me', m.uid).city || '').trim();
           return html`<button key=${m.uid} type="button" class="rowbtn" onClick=${() => M.nav('#people/' + m.uid)}>
             <div class="card clickable">
               <div class="row nowrap">
@@ -178,6 +179,7 @@
                   <div class="row between nowrap"><b class="grow">${nameIn(names, m.uid)}</b><${UI.Pill} kind=${st.kind}>${st.label}<//></div>
                   <div class="tiny num sub">${m.empId || ''}</div>
                   ${line ? html`<div class="small sub">${line}</div>` : null}
+                  ${city ? html`<div class="tiny sub person-city">${city}</div>` : null}
                 </div>
               </div>
             </div>
@@ -517,6 +519,11 @@
     const st = statusOf(ctx, uid, todayOf(ctx));
     const isFounderMember = m.role === 'founder' || uid === ctx.founderUid;
     const line = [m.title, m.pod].filter(Boolean).join(' · ');
+    /* what the person chose to share on Me: pronouns, city, bio, links. Private detail stays with canSee. */
+    const prof = docOf(ctx, 'me', uid);
+    const pronouns = String(prof.pronouns || '').trim();
+    const city = String(prof.city || '').trim();
+    const Details = M.parts.ProfileDetails;
     return html`<${React.Fragment}>
       <${UI.PageHead} micro="team" title="People">${back}<//>
       <${UI.Card} id="person-head">
@@ -525,11 +532,13 @@
           <div class="grow stack tight" style=${{gap: '3px'}}>
             <div class="row">
               <h2 class="card-title">${nameIn(names, uid)}</h2>
+              ${pronouns ? html`<span class="small sub prof-pn" id="person-pronouns">${pronouns}</span>` : null}
               ${inactive ? html`<${UI.Pill} kind="warm">off the roster<//>` : html`<${UI.Pill} kind=${st.kind}>${st.label}<//>`}
               ${!inactive && isNewHire(ctx, uid) ? html`<${UI.Pill} kind="warm">new hire<//>` : null}
             </div>
             <div class="small sub"><span class="num">${m.empId || ''}</span>${line ? (m.empId ? ' · ' : '') + line : ''}</div>
-            <div class="small sub">${okDate(m.joined) ? 'Joined ' + U.fmtDate(m.joined) : 'Joined date missing'}</div>
+            <div class="small sub">${okDate(m.joined) ? 'Joined ' + U.fmtDate(m.joined) : 'Joined date missing'}${city ? html`<span> · <span id="person-city">${city}</span></span>` : null}</div>
+            ${Details ? html`<${Details} uid=${uid}/>` : null}
           </div>
         </div>
       <//>
