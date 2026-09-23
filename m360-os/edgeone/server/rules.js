@@ -194,6 +194,11 @@ export const RULES = [
  {
   "path": "log",
   "read": "admin",
+  "write": "admin"
+ },
+ {
+  "path": "log/{self}",
+  "read": "interact",
   "write": "interact"
  }
 ];
