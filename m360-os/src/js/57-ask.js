@@ -43,7 +43,8 @@
         const data = ctx.isFounder ? await M.ai.teamSlice(ctx) : (await M.ai.meSlice(ctx)) + '\n\n' + (await M.ai.teamSlice(ctx));
         const lim = ctx.sample.limits ? await ctx.sample.limits().catch(() => null) : null;
         const actions = [];
-        const tools = lim && lim.tools ? M.ai.tools(ctx, nm, a => { actions.push(a); setTurns(ts => [...ts, {role: 'assistant', content: a, act: true}]); }) : undefined;
+        const toolsAll = lim && lim.tools ? M.ai.tools(ctx, nm, a => { actions.push(a); setTurns(ts => [...ts, {role: 'assistant', content: a, act: true}]); }) : undefined;
+        const tools = toolsAll ? toolsAll.slice(0, (lim.tools.maxCount && lim.tools.maxCount > 0) ? lim.tools.maxCount : toolsAll.length) : undefined;
         const lead = M.ai.VOICE + instructions(ctx, nm[ctx.uid] || 'a teammate') + '\n\nDATA:\n' + data.slice(0, 40000);
         /* the page keeps the chat; Claude sees the lead turn, the recent turns and the new message */
         const convo = [{role: 'user', content: lead}];

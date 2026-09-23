@@ -214,7 +214,7 @@
           'then answer. If it lives in another section, call go_to, then point_at. Never invent ids. You never click for them. ' +
           'When they ask you to create or move a task, use those tools and confirm in one line.\n\n' +
           'SCREEN (id | kind | label | area):\n' + screen.slice(0, 9000) + '\n\nTHEIR DATA:\n' + data.slice(0, 16000) + '\n\nTHEY SAID: ' + question;
-        const out = await ctx.sample(prompt, {signal: c.signal, modelTier: 'quick', tools: lim && lim.tools ? tools : undefined,
+        const out = await ctx.sample(prompt, {signal: c.signal, modelTier: 'quick', tools: lim && lim.tools ? tools.slice(0, (lim.tools.maxCount && lim.tools.maxCount > 0) ? lim.tools.maxCount : tools.length) : undefined,
           onText: ({text: t}) => setAnswer(t.replace(/\u2014|\u2013/g, ', '))});
         const final = out.text.replace(/\u2014|\u2013/g, ', ');
         setAnswer(final); setMode('answer'); speak(final);

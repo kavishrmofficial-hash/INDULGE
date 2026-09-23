@@ -218,6 +218,7 @@
       <${M.SectionTabs} section="hq" active=${t}/>
       ${t === 'dashboard' ? html`<${Embed} page="Command"/>` : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>` : html`<div class="stack" style=${{gap: '20px'}}>
         <${IntelBrief}/>
+        ${M.parts.BaseNudges ? html`<${M.parts.BaseNudges}/>` : null}
         <div class="split">
           <div class="stack" style=${{gap: '20px'}}>
             <${UI.Fold} title="Workload" summary=${ctx.activeMembers.length + ' people, open tasks and late marks'} id="fold-workload"><${Workload}/><//>
