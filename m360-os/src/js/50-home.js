@@ -126,8 +126,7 @@
 
   function Clock() {
     const t = M.useClock();
-    const d = new Date(t);
-    return html`<div class="hero-clock"><span class="clock">${U.hhmm(t)}</span>${U.DAYS_S[d.getDay()]}</div>`;
+    return html`<span class="hero-clock"><span aria-hidden="true">\u00b7</span><span class="clock num">${U.hhmm(t)}</span></span>`;
   }
 
   /* ---------- hero ---------- */
@@ -149,10 +148,9 @@
       <span class="ring" style=${{width: '340px', height: '340px', right: '-120px', top: '-150px'}}/>
       <span class="ring" style=${{width: '220px', height: '220px', right: '-60px', top: '-90px'}}/>
       <span class="dot" style=${{right: '96px', top: '58px'}}/>
-      <${Clock}/>
       <div class="split" style=${{position: 'relative', alignItems: 'end'}}>
         <div>
-          <${UI.Micro}>${U.dateLabel(now)}<//>
+          <${UI.Micro}>${U.dateLabel(now)} <${Clock}/><//>
           <h1 class="hi">${U.greeting(now)},<br/>${first}.</h1>
           <div class="row" style=${{marginTop: '20px', gap: '8px'}}>
             <span class="chipline on-dark"><b class="flame-t num">${inStreak}</b> day streak</span>

@@ -113,8 +113,7 @@ def main():
             check(not snap['colls'].get('handbook', {}).get('docs'), 'guest reads the handbook')
 
             # ---- the founder sees the request live and lets them in ----
-            f.wait_for_selector('.join-banner', timeout=15000)
-            check('Durvesh Patil wants to join the team' in f.inner_text('.join-banner'), 'banner: ' + f.inner_text('.join-banner'))
+            f.wait_for_selector('.join-banner:has-text("Durvesh Patil wants to join the team")', timeout=15000)
             f.click('.join-banner')
             f.wait_for_selector('#join-requests')
             f.locator('#join-requests').get_by_role('button', name='Let them in').click()
@@ -179,10 +178,13 @@ def main():
             d.get_by_role('button', name='Brief me').click()
             d.wait_for_selector('text=finish the hero reel script', timeout=15000)
             before = len([k for k in json.loads(urllib.request.urlopen(base + '__store').read()) if k.startswith('d/tasks~')])
+            # the palette hands a question to Ask m360
             d.keyboard.press('Control+k')
-            d.wait_for_selector('.drawer')
-            d.locator('.drawer textarea, .drawer input').first.fill('add a task to cut the teaser')
+            d.wait_for_selector('#pal-input')
+            d.fill('#pal-input', 'add a task to cut the teaser')
+            d.wait_for_selector('.pal-item.ai')
             d.keyboard.press('Enter')
+            d.wait_for_selector('.drawer:has-text("Ask m360")')
             d.wait_for_function('n => fetch("/__store").then(r => r.json()).then(s => Object.keys(s).filter(k => k.startsWith("d/tasks~")).length > n)', arg=before, timeout=15000)
 
             # ---- sign out ----

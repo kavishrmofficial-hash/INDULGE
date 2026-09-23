@@ -66,7 +66,7 @@ def test(h):
     check(t and t[0]['owner'] == 'u_m2' and t[0]['priority'] == 'high', 'AI quick add assigned the task to Aanya: %r' % t)
 
     # ---- member AI: Ask m360 creates a task through a tool ----
-    page.keyboard.press('Control+k')
+    page.locator('.side-tools').get_by_role('button', name='Ask m360').click()
     page.get_by_role('button', name='Add a task for me to follow up with the client tomorrow').click()
     page.wait_for_timeout(800)
     t = [x for x in tasks(page) if x['title'] == 'Follow up with the client']

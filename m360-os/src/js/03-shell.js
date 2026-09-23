@@ -263,7 +263,7 @@
             ${newMenu('side')}
           </div>
           <button type="button" class="side-ask" onClick=${() => setPalOpen(true)}>
-            <${M.icons.search}/><span class="grow">Search or do anything</span><span class="kbd">${M.isMac ? '\u2318K' : 'Ctrl K'}</span>
+            <${M.icons.search}/><span class="grow">Search anything</span><span class="kbd">${M.isMac ? '\u2318K' : 'Ctrl K'}</span>
           </button>
         </div>
         <div class="side-tools">

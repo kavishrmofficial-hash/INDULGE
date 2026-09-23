@@ -48,7 +48,7 @@
     const [s, set] = useState(state);
     const now = M.useClock();
     useEffect(() => focus.subscribe(set), []);
-    return {s, left: s ? Math.max(0, s.mins * 60000 - (now - s.start)) : 0};
+    return {s, left: s ? Math.min(s.mins * 60000, Math.max(0, s.mins * 60000 - (now - s.start))) : 0};
   }
   const mmss = ms => { const t = Math.ceil(ms / 1000); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
 
@@ -89,7 +89,7 @@
         <div style=${{fontWeight: 500}}>${s.title}</div>
         <div class="row">
           <${UI.Btn} kind="sec" onClick=${() => { focus.stop(); M.toast('Focus stopped'); }}>Stop<//>
-          <${UI.Btn} onClick=${() => { focus.finish(ctx); }}>Done early<//>
+          <${UI.Btn} onClick=${() => { focus.finish(ctx); onClose(); }}>Done early<//>
         </div>
       </div>` : html`<div class="stack">
         <p class="small ink62" style=${{margin: 0}}>Pick what you are on. m360 keeps the time, quietly, and banks it as deep work.</p>

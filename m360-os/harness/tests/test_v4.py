@@ -34,7 +34,8 @@ def t(h):
     p.fill('#pal-input', 'shot list')
     p.wait_for_selector('.pal-item:has-text("Lock the shot list")')
     p.keyboard.press('Enter')
-    p.wait_for_selector('.drawer:has-text("Lock the shot list")')
+    p.wait_for_selector('.drawer #task-title')
+    check(p.input_value('#task-title') == 'Lock the shot list', 'palette opened the wrong task: ' + p.input_value('#task-title'))
     check(p.evaluate('location.hash') == '#tasks/t2', 'palette did not open the task: ' + p.evaluate('location.hash'))
     p.keyboard.press('Escape')
     p.wait_for_function('() => !document.querySelector(".drawer")')
@@ -120,11 +121,13 @@ def t(h):
     p.locator('#focus-pill').get_by_role('button', name='Stop focus').click()
     p.wait_for_function('() => !document.querySelector("#focus-pill")')
     p.locator('.quick').get_by_role('button', name='Focus').click()
+    p.locator('.lens').get_by_role('button', name='45 min').click()
     p.get_by_role('button', name='Start 45 minutes').click()
     p.wait_for_selector('#focus-pill')
     p.locator('.side-tools').get_by_role('button', name='Focus timer').click()
     p.get_by_role('button', name='Done early').click()
     p.wait_for_function('() => (((window.__db.get("me/u_m1") || {}).focus || {}).sessions || []).length === 1')
+    p.wait_for_function('() => !document.querySelector(".drawer")')
     check(doc(p, 'me/u_m1')['focus']['sessions'][0]['mins'] == 45, 'session minutes')
 
     # ---- calendar ----
@@ -191,7 +194,7 @@ def t(h):
     p.wait_for_selector('.buddy-bubble:has-text("Home is your day")')
     p.locator('.buddy-bubble').get_by_role('button', name='Next').click()
     p.wait_for_selector('.buddy-bubble:has-text("New makes anything")')
-    check(p.locator('.buddy-ring').count() == 1, 'tour ring missing')
+    p.wait_for_selector('.buddy-ring')
     p.locator('.buddy-bubble').get_by_role('button', name='Skip').click()
     p.wait_for_function('() => !document.querySelector(".buddy-bubble")')
 
