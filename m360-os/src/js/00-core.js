@@ -137,17 +137,48 @@ const WRITE_MSG = {
   invalid_argument: 'That could not be saved here.',
   revoked: 'Your access changed. Reload the page.'
 };
-M.makeWrites = db => {
+/* the activity log: one document per person per day, log/<YYYY-MM-DD>-<uid>, entries {at, a, p, s}.
+   Written after every successful write that is not itself a log write. Never throws into the caller.
+   On the standalone build the server keeps the log, so the page writes none. */
+const LOG_KEYS = ['title', 'name', 'status'];
+function logSummary(d) {
+  if (!d || typeof d !== 'object') return '';
+  const keys = Object.keys(d);
+  const vals = LOG_KEYS.filter(k => typeof d[k] === 'string' && d[k]).map(k => k + ' ' + d[k]);
+  return (keys.join(', ') + (vals.length ? ' (' + vals.join(', ') + ')' : '')).slice(0, 120);
+}
+/* once the rules refuse this viewer's log writes, stop trying for the rest of the visit */
+let logRefused = false;
+M.logWrite = function logWrite(db, uid, a, p, d) {
+  try {
+    if (window.M360_STANDALONE || logRefused || !db || !uid || !p || /^log(\/|$)/.test(String(p))) return;
+    const at = Date.now();
+    const id = String(at) + Math.random().toString(36).slice(2, 6).padEnd(4, '0');
+    const path = 'log/' + U.todayStr() + '-' + uid;
+    const body = {e: {[id]: {at, a, p: String(p), s: a === 'delete' ? '' : logSummary(d)}}};
+    queued(path, () => db.doc(path).update(body).catch(e => {
+      if (e && e.code === 'invalid_argument') return db.doc(path).set(body).catch(e2 => { if (e2 && e2.code === 'invalid_argument') logRefused = true; throw e2; });
+      throw e;
+    })).catch(() => { /* the log never gets in the way */ });
+  } catch (e) { /* same */ }
+};
+/* uidGetter is optional: without it the writer is read from the live context */
+M.makeWrites = (db, uidGetter) => {
   const fail = e => { M.toast(WRITE_MSG[e && e.code] || 'That did not save. Try again in a moment.', true); throw e; };
+  const who = () => {
+    try { if (typeof uidGetter === 'function') { const u = uidGetter(); if (u) return u; } } catch (e) { /* fall through */ }
+    return (M.lastCtx && M.lastCtx.uid) || null;
+  };
+  const log = (a, p, d) => M.logWrite(db, who(), a, p, d);
   return {
-    set: (p, d) => queued(p, () => db.doc(p).set(d)).catch(fail),
-    update: (p, d) => queued(p, () => db.doc(p).update(d)).catch(fail),
+    set: (p, d) => queued(p, () => db.doc(p).set(d).then(r => { log('set', p, d); return r; })).catch(fail),
+    update: (p, d) => queued(p, () => db.doc(p).update(d).then(r => { log('update', p, d); return r; })).catch(fail),
     /* merge-or-create: update first, set when the document is missing */
-    merge: (p, d) => queued(p, () => db.doc(p).update(d).catch(e => {
-      if (e && e.code === 'invalid_argument') return db.doc(p).set(d);
+    merge: (p, d) => queued(p, () => db.doc(p).update(d).then(r => { log('update', p, d); return r; }).catch(e => {
+      if (e && e.code === 'invalid_argument') return db.doc(p).set(d).then(r => { log('set', p, d); return r; });
       throw e;
     })).catch(fail),
-    del: p => queued(p, () => db.doc(p).delete()).catch(fail)
+    del: p => queued(p, () => db.doc(p).delete().then(r => { log('delete', p); return r; })).catch(fail)
   };
 };
 

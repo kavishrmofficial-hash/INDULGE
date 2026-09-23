@@ -1,0 +1,9 @@
+/* ---------- corrections: the member card and the founder queue ---------- */
+.fix-row{display:flex; flex-wrap:wrap; gap:10px 12px; align-items:flex-start; padding:12px 0; border-bottom:1px solid var(--line); min-width:0}
+.fix-row>.grow{flex:1 1 220px; min-width:0}
+.fix-row>.acts{margin-left:auto}
+.fix-row:last-child{border-bottom:0}
+.fix-item{display:flex; flex-direction:column; gap:4px; padding:10px 0; border-bottom:1px solid var(--line); min-width:0}
+.fix-item:last-child{border-bottom:0}
+.fix-want{font-weight:500; overflow-wrap:anywhere}
+.fix-note{color:var(--ink); border-left:2px solid var(--flame); padding-left:8px}
