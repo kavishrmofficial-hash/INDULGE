@@ -20,6 +20,7 @@
 import {RULES} from './rules.js';
 import {SEED} from './seed.js';
 import {radarActions} from './radar.js';
+import {safetyActions} from './safety.js';
 
 const LEVEL = {view: 0, interact: 1, admin: 2, owner: 3};
 const SESSION_DAYS = 180;
@@ -142,6 +143,7 @@ function guestAccess(path, uid) {
 }
 
 export function createApp({store, env = {}}) {
+  const hooks = {};
   /* ---------- store helpers ---------- */
   const getJ = async key => {
     const v = await store.get(key, {type: 'json', consistency: 'strong'});
@@ -479,6 +481,8 @@ export function createApp({store, env = {}}) {
       }
       const key = docKey(path);
       if (op === 'delete') {
+        /* nothing is erased outright: safety.js keeps a copy in the trash first */
+        if (hooks.beforeDelete) await hooks.beforeDelete(key, path, v.uid).catch(() => {});
         await store.delete(key).catch(() => {});
         await log(v.uid, 'delete', path, '');
         return {ok: true, doc: null};
@@ -725,6 +729,8 @@ export function createApp({store, env = {}}) {
   };
   /* radar actions (news, awards, watch) live in radar.js and share the store helpers */
   Object.assign(actions, radarActions({store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, isObj}));
+  /* safety: trash, daily backups, restore. It may register hooks.beforeDelete and hooks.upkeep. */
+  Object.assign(actions, safetyActions({store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, pathOfKey, isObj, hooks, log}));
 
   const json = (obj, status = 200, extra = {}) => new Response(JSON.stringify(obj), {
     status, headers: {'content-type': 'application/json', 'cache-control': 'no-store', ...extra}

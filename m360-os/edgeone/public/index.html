@@ -1787,6 +1787,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     leave: I('<path d="M3.5 19.5h17"/><path d="M12 15.5a6.3 6.3 0 0 0-6.3-6.3A6.3 6.3 0 0 0 12 15.5Zm0 0a6.3 6.3 0 0 1 6.3-6.3A6.3 6.3 0 0 1 12 15.5Zm0 0V6.2"/>'),
     command: I('<circle cx="12" cy="13" r="8.5"/><path d="M12 13l3.6-3.6M8.6 21H4.9M19.1 21h-3.7"/>'),
     desk: I('<path d="M4 8h16M4 8v11M20 8v11M2.8 8 5 4.5h14L21.2 8M8 12h8"/>'),
+    database: I('<ellipse cx="12" cy="6" rx="7.5" ry="3"/><path d="M4.5 6v12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6M4.5 12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3"/>'),
+    lock: I('<rect x="5" y="10.5" width="14" height="10" rx="3"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>'),
+    upload: I('<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v2.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V16"/>'),
     radar: I('<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12l6-6"/><circle cx="12" cy="12" r="1"/>'),
     camera: I('<path d="M4 8.5A2 2 0 0 1 6 6.5h2.2l1.4-2h4.8l1.4 2H18a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><circle cx="12" cy="12.7" r="3.4"/>'),
     shield: I('<path d="M12 3 4.5 6v5.5c0 4.6 3.2 8 7.5 9.5 4.3-1.5 7.5-4.9 7.5-9.5V6Z"/><path d="m9 12 2 2 4-4.5"/>'),
@@ -2133,7 +2136,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   M.RULE_IDS = ['R01','R02','R03','R04','R05','R06','R07','R08','R09','R10','R11','R12','R13','R14','R15','R16'];
 
   const COLLS = ['checkin','eod','plan','review','rocks','feed','reacts','acks','kudos','leave','leavedec',
-    'tasks','projects','pitches','clients','handbook','candidates','evals','pulse','ideas','votes','access','onboard','me','fixes'];
+    'tasks','projects','pitches','clients','handbook','candidates','evals','pulse','ideas','votes','access','onboard','me','fixes','contacts','orgs'];
 
   /* AppState wraps the whole signed-in app: subscribes once per collection, computes ctx. */
   M.AppState = function AppState({boot, children}) {
@@ -2309,6 +2312,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     vibe: {label: 'Vibe', icon: 'feed', page: 'Vibe', tabs: [
       {k: 'feed', label: 'Feed', route: 'feed'}, {k: 'crew', label: 'Crew', route: 'people'},
       {k: 'pulse', label: 'Pulse and ideas', route: 'voice'}, {k: 'scores', label: 'Leaderboard', route: 'scores'}]},
+    base: {label: 'Base', icon: 'database', page: 'Base', tabs: [
+      {k: 'people', label: 'People', route: 'base'}, {k: 'companies', label: 'Companies', route: 'companies'}, {k: 'import', label: 'Import', route: 'import'}]},
     radar: {label: 'Radar', icon: 'radar', page: 'Radar', tabs: [
       {k: 'news', label: 'News', route: 'radar'}, {k: 'awards', label: 'Awards', route: 'awards'}, {k: 'watch', label: 'Watch', route: 'watch'}]},
     me: {label: 'Me', icon: 'people', page: 'Me', tabs: [
@@ -2337,6 +2342,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       case 'people': case 'crew': return {s: 'vibe', t: 'crew', id};
       case 'voice': case 'pulse': return {s: 'vibe', t: 'pulse'};
       case 'scores': return {s: 'vibe', t: 'scores'};
+      case 'base': case 'contacts': case 'people-base': return {s: 'base', t: 'people', id};
+      case 'companies': case 'orgs': return {s: 'base', t: 'companies', id};
+      case 'import': return {s: 'base', t: 'import'};
       case 'radar': case 'news': return {s: 'radar', t: 'news'};
       case 'awards': return {s: 'radar', t: 'awards'};
       case 'watch': return {s: 'radar', t: 'watch'};
@@ -2567,7 +2575,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       onTask=${() => setNewTask(true)} onAsk=${() => setAskOpen(true)}/>` : null;
 
     const tabKeys = ctx.isFounder ? ['home', 'hq', 'work', 'vibe'] : ['home', 'work', 'accounts', 'vibe', 'me'];
-    const moreKeys = ctx.isFounder ? ['accounts', 'radar', 'me', 'admin'] : ['radar'];
+    const moreKeys = ctx.isFounder ? ['accounts', 'base', 'radar', 'me', 'admin'] : ['base', 'radar'];
     const moreBadge = moreKeys.reduce((n, k) => n + (b[k] || 0), 0);
 
     return html`<div class="app">

@@ -44,7 +44,9 @@ self.addEventListener('fetch', e => {
 def main():
     os.makedirs(os.path.join(PUB, 'vendor'), exist_ok=True)
     tmp = os.path.join(builder.DIST, 'index.edgeone.html')
-    builder.build(extra=[os.path.join(ROOT, 'src', 'standalone', '70-standalone.js')], out_path=tmp)
+    sa = os.path.join(ROOT, 'src', 'standalone')
+    extra = [os.path.join(sa, f) for f in sorted(os.listdir(sa)) if f.endswith('.js') and f != 'shim.js']
+    builder.build(extra=extra, out_path=tmp)
     page = open(tmp, encoding='utf-8').read()
     for url, local in LOCAL.items():
         assert url in page, 'CDN tag missing: ' + url

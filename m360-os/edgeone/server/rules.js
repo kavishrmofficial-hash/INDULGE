@@ -200,5 +200,15 @@ export const RULES = [
   "path": "log/{self}",
   "read": "interact",
   "write": "interact"
+ },
+ {
+  "path": "contacts",
+  "read": "interact",
+  "write": "interact"
+ },
+ {
+  "path": "orgs",
+  "read": "interact",
+  "write": "interact"
  }
 ];

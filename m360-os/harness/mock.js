@@ -33,6 +33,7 @@
     {path: 'evals/{self}', read: 'interact', write: 'interact'},
     {path: 'fixes', read: 'admin', write: 'admin'}, {path: 'fixes/{self}', read: 'interact', write: 'interact'},
     {path: 'log', read: 'admin', write: 'admin'}, {path: 'log/{self}', read: 'interact', write: 'interact'},
+    {path: 'contacts', read: 'interact', write: 'interact'}, {path: 'orgs', read: 'interact', write: 'interact'},
     {path: 'checkin', read: 'interact', write: 'admin'}, {path: 'checkin/{self}', write: 'interact'},
     {path: 'eod', read: 'interact', write: 'admin'}, {path: 'eod/{self}', write: 'interact'},
     {path: 'plan', read: 'interact', write: 'admin'}, {path: 'plan/{self}', write: 'interact'},
