@@ -952,6 +952,23 @@ a.pill.prof-link svg{width:13px; height:13px; flex:none}
 
 .tbl td.wk-cell{padding:4px 6px}
 @media (max-width:600px){ .tbl td.wk-cell{padding:0} }
+
+/* ==== 80-safety.css ==== */
+/* ---------- safety: backups, trash and the safety card ---------- */
+.bk-kpis{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; padding:12px 14px; border-radius:14px; background:var(--warm); margin-bottom:12px}
+.bk-kpis .kpi .v{font-size:20px; overflow-wrap:anywhere}
+.bk-row .bk-day{font-weight:500}
+.bk-row .row.nowrap{flex:none}
+.trash-row .num{overflow-wrap:anywhere}
+.safety-file{position:relative; overflow:hidden; cursor:pointer; align-self:flex-start}
+.safety-file input{position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%}
+.safety-counts{display:flex; flex-wrap:wrap; gap:6px 14px; font-size:13px; color:var(--ink62)}
+.safety-counts b{color:var(--ink)}
+@media (max-width:600px){
+  .bk-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .bk-row .row.nowrap, .trash-row .btn{width:100%}
+  .bk-row .row.nowrap .btn{flex:1}
+}
 </style>
 <script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
@@ -1468,11 +1485,34 @@ M.makeWrites = (db, uidGetter) => {
     return (M.lastCtx && M.lastCtx.uid) || null;
   };
   const log = (a, p, d) => M.logWrite(db, who(), a, p, d);
+  /* the guard: a payload that could corrupt a document never leaves the page. A plain object only,
+     no top-level undefined, no functions, no string over 200000 characters, and the two singletons
+     everyone depends on keep their shape (a roster without members would lock everyone out). */
+  const STR_MAX = 200000;
+  const plain = x => !!x && typeof x === 'object' && !Array.isArray(x) && (Object.getPrototypeOf(x) === Object.prototype || Object.getPrototypeOf(x) === null);
+  const scan = (x, depth) => {
+    if (typeof x === 'function') return 'a function';
+    if (typeof x === 'string') return x.length > STR_MAX ? 'a value over ' + STR_MAX + ' characters' : '';
+    if (!x || typeof x !== 'object' || depth > 40) return '';
+    for (const k of Object.keys(x)) { const why = scan(x[k], depth + 1); if (why) return why; }
+    return '';
+  };
+  const check = (op, p, d) => {
+    let why = '';
+    if (!plain(d)) why = 'the body is not a plain object';
+    else if (Object.keys(d).some(k => d[k] === undefined)) why = 'a field is undefined';
+    else why = scan(d, 0);
+    if (!why && op === 'set' && p === 'roster/team' && !plain(d.members)) why = 'the roster has no members';
+    if (!why && op === 'set' && p === 'settings/app' && !Object.keys(d).length) why = 'the settings are empty';
+    if (!why) return null;
+    M.toast('That change looked wrong and was not saved: ' + why + '.', true);
+    return Promise.reject({code: 'refused', message: why});
+  };
   return {
-    set: (p, d) => queued(p, () => db.doc(p).set(d).then(r => { log('set', p, d); return r; })).catch(fail),
-    update: (p, d) => queued(p, () => db.doc(p).update(d).then(r => { log('update', p, d); return r; })).catch(fail),
+    set: (p, d) => check('set', p, d) || queued(p, () => db.doc(p).set(d).then(r => { log('set', p, d); return r; })).catch(fail),
+    update: (p, d) => check('update', p, d) || queued(p, () => db.doc(p).update(d).then(r => { log('update', p, d); return r; })).catch(fail),
     /* merge-or-create: update first, set when the document is missing */
-    merge: (p, d) => queued(p, () => db.doc(p).update(d).then(r => { log('update', p, d); return r; }).catch(e => {
+    merge: (p, d) => check('merge', p, d) || queued(p, () => db.doc(p).update(d).then(r => { log('update', p, d); return r; }).catch(e => {
       if (e && e.code === 'invalid_argument') return db.doc(p).set(d).then(r => { log('set', p, d); return r; });
       throw e;
     })).catch(fail),
@@ -13155,6 +13195,159 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   M.radar = {SOURCES, CHANNELS, AWARDS, sourcesOf, channelsOf, handleFrom, withHits, postLink};
 })();
 
+/* ==== 77-safety.js ==== */
+/* module: safety card. A small Safety card at the end of Admin > Controls > Super, on both builds.
+   On claude.ai: the data lives in the artifact's database; download everything, or import a backup
+   file (the Export everything shape, an EdgeOne day backup, or one collection) and add only what is
+   missing. On the standalone build: the last backup time and a way into the Backups tab. */
+'use strict';
+(function () {
+  const {html, React, U, UI} = M;
+  const {useState, useEffect, useRef} = React;
+
+  const isObj = x => !!x && typeof x === 'object' && !Array.isArray(x);
+  const COLL_OK = /^[A-Za-z0-9_\-.:@+]+(\/[A-Za-z0-9_\-.:@+]+)*$/;
+  const ID_OK = /^[A-Za-z0-9_\-.:@+]+$/;
+  const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
+
+  /* the documents in a backup file, as {path: doc}. Understands the Export everything shape
+     ({roster, settings, collections}), a day backup ({colls: {name: {docs}}}) and one collection ({coll, docs}). */
+  function parseBackup(text) {
+    const j = JSON.parse(text);
+    if (!isObj(j)) throw new Error('not an object');
+    const out = {};
+    const add = (coll, id, doc) => { if (isObj(doc) && COLL_OK.test(coll) && ID_OK.test(id)) out[coll + '/' + id] = doc; };
+    const addColl = (coll, docs) => { if (isObj(docs)) for (const id of Object.keys(docs)) add(coll, id, docs[id]); };
+    if (isObj(j.collections)) for (const coll of Object.keys(j.collections)) addColl(coll, j.collections[coll]);
+    if (isObj(j.roster)) add('roster', 'team', j.roster);
+    if (isObj(j.settings)) add('settings', 'app', j.settings);
+    if (isObj(j.colls)) for (const coll of Object.keys(j.colls)) addColl(coll, isObj(j.colls[coll]) ? j.colls[coll].docs : null);
+    if (typeof j.coll === 'string' && isObj(j.docs)) addColl(j.coll, j.docs);
+    return out;
+  }
+  const collOf = path => path.split('/').slice(0, -1).join('/');
+  /* the log is the server's, and another person's private notes are theirs */
+  const skip = (path, uid) => {
+    const s = path.split('/');
+    return s[0] === 'log' || (s[0] === 'data' && s[1] === 'users' && s[2] !== uid);
+  };
+
+  function ExportPart({ctx}) {
+    const [busy, setBusy] = useState(false);
+    const count = Object.keys(ctx.coll).reduce((n, k) => n + Object.keys(ctx.coll[k].map).length, 0);
+    async function run() {
+      setBusy(true);
+      try {
+        const out = {app: 'm360 OS', exported: new Date().toISOString(), roster: ctx.roster, settings: ctx.settings, collections: {}};
+        for (const k of Object.keys(ctx.coll)) out.collections[k] = ctx.coll[k].map;
+        const r = await ctx.downloads.save({filename: 'm360-everything-' + U.todayStr() + '.json', data: JSON.stringify(out, null, 2)});
+        M.toast(r && r.status === 'delivered' ? 'Sent' : 'Downloaded');
+      } catch (e) { M.toast(e && e.code === 'declined' ? 'Download cancelled' : 'That did not download. Try again in a moment.', true); }
+      setBusy(false);
+    }
+    if (!ctx.downloads) return html`<${UI.Empty} text="Downloads are unavailable here."/>`;
+    return html`<div class="row">
+      <${UI.Btn} id="safety-export" sm=${true} disabled=${busy} onClick=${run}>Download everything<//>
+      <span class="tiny ink62"><span class="num">${count}</span> ${count === 1 ? 'document' : 'documents'} right now. Ids only, no names.</span>
+    </div>`;
+  }
+
+  function ImportPart({ctx}) {
+    const [file, setFile] = useState(null);      /* {name, docs: {path: doc}, counts: {coll: n}, skipped} */
+    const [err, setErr] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [done, setDone] = useState(null);
+    const input = useRef(null);
+    async function pick(e) {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      setErr(''); setDone(null); setFile(null);
+      try {
+        const docs = parseBackup(await f.text());
+        const counts = {};
+        let skipped = 0;
+        for (const p of Object.keys(docs)) {
+          if (skip(p, ctx.uid)) { skipped++; delete docs[p]; continue; }
+          counts[collOf(p)] = (counts[collOf(p)] || 0) + 1;
+        }
+        if (!Object.keys(docs).length) setErr('No documents found in that file.');
+        else setFile({name: f.name, docs, counts, skipped});
+      } catch (x) { setErr('That file could not be read as an m360 backup.'); }
+      if (input.current) input.current.value = '';
+    }
+    async function run() {
+      if (!file || busy) return;
+      setBusy(true);
+      let written = 0, present = 0, failed = 0;
+      for (const path of Object.keys(file.docs).sort()) {
+        try {
+          const snap = await ctx.db.doc(path).get();
+          if (snap && snap.exists) { present++; continue; }
+          await ctx.W.set(path, file.docs[path]);
+          written++;
+        } catch (e) { failed++; }
+      }
+      setDone({written, present, failed});
+      M.toast(written ? 'Added ' + plural(written, 'document', 'documents') : 'Nothing was missing');
+      setBusy(false);
+    }
+    const colls = file ? Object.keys(file.counts).sort() : [];
+    return html`<div class="stack tight" id="safety-import">
+      <label class="btn sec sm safety-file">
+        <input ref=${input} type="file" accept=".json,application/json" aria-label="Import a backup" onChange=${pick}/>
+        Import a backup
+      </label>
+      ${err ? html`<div class="small flame-t">${err}</div>` : null}
+      ${file ? html`<div class="small"><b>${file.name}</b>: ${plural(Object.keys(file.docs).length, 'document', 'documents')} in ${plural(colls.length, 'collection', 'collections')}${file.skipped ? ', ' + plural(file.skipped, 'entry', 'entries') + ' left out (the log and other people\'s private notes)' : ''}.</div>
+        <div class="safety-counts num" id="safety-counts">${colls.map(c => html`<span key=${c}>${c} <b>${file.counts[c]}</b></span>`)}</div>
+        <div class="small ink62">Only documents that do not exist here are added. Nothing is replaced.</div>
+        <div class="row">
+          <${UI.ConfirmBtn} kind="sec" onConfirm=${run} label="Tap again to add them">${busy ? 'Adding' : 'Add the missing documents'}<//>
+          <${UI.Btn} kind="ghost" sm=${true} onClick=${() => { setFile(null); setDone(null); }}>Clear<//>
+        </div>` : null}
+      ${done ? html`<div class="small" id="safety-import-result"><span class="num">${done.written}</span> added, <span class="num">${done.present}</span> already here${done.failed ? html`, <span class="num">${done.failed}</span> refused` : null}.</div>` : null}
+    </div>`;
+  }
+
+  /* the standalone build: the server backs up on its own; this card points at the tab */
+  function StandalonePart() {
+    const [info, setInfo] = useState(null);
+    useEffect(() => { window.M360_API('backups').then(setInfo, () => setInfo({days: [], last: 0})); }, []);
+    const openTab = () => {
+      const tab = Array.from(document.querySelectorAll('.seg [role="tab"]')).find(b => b.textContent.trim() === 'Backups');
+      if (tab) tab.click();
+    };
+    return html`<div class="stack tight">
+      <div class="small">Last backup: <span class="num" id="safety-last">${info == null ? 'looking' : info.last ? U.timeAgo(info.last) : 'none yet'}</span>${info && info.days ? ' · ' + plural(info.days.length, 'day', 'days') + ' kept' : ''}</div>
+      <div class="row"><${UI.Btn} id="safety-open" kind="sec" sm=${true} onClick=${openTab}>Open Backups<//></div>
+    </div>`;
+  }
+
+  function SafetyCard() {
+    const ctx = M.useCtx();
+    if (!ctx.isFounder) return null;
+    const standalone = !!window.M360_STANDALONE && typeof window.M360_API === 'function';
+    return html`<${UI.Card} id="safety-card" title="Safety">
+      <p class="small ink62" style=${{marginTop: 0}}>${standalone
+        ? 'Once a day the server copies every document into a backup kept for 45 days, and every deleted document waits in the trash for 30 days. The Backups tab has the list, restore and the trash.'
+        : 'Your data lives in this page\'s database on claude.ai. Download a full copy now and then and keep it somewhere safe; a copy can be imported here to add back anything that went missing.'}</p>
+      ${standalone ? html`<${StandalonePart}/>` : html`<div class="stack"><${ExportPart} ctx=${ctx}/><${ImportPart} ctx=${ctx}/></div>`}
+    <//>`;
+  }
+
+  /* at the end of the Super tab; M.adminCards would fold it under the Radar settings heading on phones */
+  const superTab = (M.deskTabs || []).find(t => t.v === 'super');
+  if (superTab) {
+    const Inner = superTab.render;
+    superTab.render = function SuperWithSafety() {
+      const ctx = M.useCtx();
+      return html`<${Inner}/>${ctx.isFounder ? html`<${SafetyCard}/>` : null}`;
+    };
+  } else M.adminCards.push(SafetyCard);
+  M.parts.SafetyCard = SafetyCard;
+  M.safety = {parseBackup};
+})();
+
 /* ==== 70-standalone.js ==== */
 /* module: standalone. Only in the EdgeOne build: first-run setup, sign in by name,
    sign-in links for other devices, sign out, and the founder's AI key. */
@@ -13512,6 +13705,229 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   M.logs = M.logs || {};
   M.logs.read = (ctx, {from, to}) => api('logs', {from, to}).then(r => r.docs || {});
   M.logs.prune = (ctx, days) => api('prunelogs', {days}).then(r => r.removed || 0);
+})();
+
+/* ==== 72-safety.js ==== */
+/* module: safety (standalone only). Admin > Controls > Backups, for the founder: the daily backups the
+   server keeps for 45 days (download a day, restore a collection from it), the trash where every
+   deleted document waits for 30 days, a health line from the integrity check, and a full download. */
+'use strict';
+(function () {
+  const {html, React, U, UI} = M;
+  const {useState, useEffect} = React;
+  if (!window.M360_STANDALONE) return;
+  const api = window.M360_API;
+
+  const MODES = [{v: 'missing', label: 'Only add what is missing'}, {v: 'overwrite', label: 'Overwrite'}];
+  const fmtBytes = n => { n = Number(n) || 0; return n < 1024 ? n + ' B' : n < 1048576 ? Math.round(n / 102.4) / 10 + ' KB' : Math.round(n / 104857.6) / 10 + ' MB'; };
+  const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
+  const oops = e => M.toast((e && e.message) || 'That did not work. Try again in a moment.', true);
+
+  /* a JSON file to the person: the downloads capability, or a plain link when it is missing */
+  async function download(ctx, filename, obj) {
+    const data = JSON.stringify(obj, null, 2);
+    try {
+      if (ctx.downloads && ctx.downloads.save) {
+        const r = await ctx.downloads.save({filename, data});
+        M.toast(r && r.status === 'delivered' ? 'Sent' : 'Downloaded');
+        return;
+      }
+      const url = URL.createObjectURL(new Blob([data], {type: 'application/json'}));
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      M.toast('Downloaded');
+    } catch (e) { M.toast(e && e.code === 'declined' ? 'Download cancelled' : 'That did not download. Try again in a moment.', true); }
+  }
+  /* a whole day, or one file per collection when the day is over the 4 MB the server sends at once */
+  async function downloadDay(ctx, ymd) {
+    const r = await api('backupget', {ymd});
+    if (!r.tooBig) return download(ctx, 'm360-backup-' + ymd + '.json', r);
+    M.toast('That day is large, so it comes as one file per collection.');
+    for (const coll of Object.keys(r.colls || {})) {
+      const part = await api('backupget', {ymd, coll});
+      if (part.tooBig) { M.toast(coll + ' is over 4 MB and cannot be downloaded from here.', true); continue; }
+      await download(ctx, 'm360-backup-' + ymd + '-' + coll.split('/').join('-') + '.json', part);
+    }
+  }
+  async function downloadAll(ctx) {
+    const r = await api('snapshotall');
+    const stamp = U.todayStr();
+    if (!r.tooBig) return download(ctx, 'm360-everything-' + stamp + '.json', r);
+    M.toast('The workspace is large, so it comes as one file per collection.');
+    for (const coll of Object.keys(r.colls || {})) {
+      const part = await api('snapshotall', {coll});
+      if (part.tooBig) { M.toast(coll + ' is over 4 MB and cannot be downloaded from here.', true); continue; }
+      await download(ctx, 'm360-everything-' + stamp + '-' + coll.split('/').join('-') + '.json', part);
+    }
+  }
+
+  /* ---------- status: last backup, health, back up now ---------- */
+  function StatusCard({info, onRefresh}) {
+    const [health, setHealth] = useState(null);
+    const [busy, setBusy] = useState('');
+    const check = () => { setBusy('check'); setHealth(null); return api('integrity').then(setHealth, () => setHealth({failed: true})).finally(() => setBusy('')); };
+    useEffect(() => { check(); }, []);
+    async function backupNow() {
+      setBusy('backup');
+      try {
+        const r = await api('backup', {force: true});
+        M.toast(r.skipped ? 'A backup is already running. Look again in a minute.' : 'Backed up ' + plural(Object.keys(r.colls || {}).length, 'collection', 'collections'));
+        onRefresh();
+      } catch (e) { oops(e); }
+      setBusy('');
+    }
+    let line = null;
+    if (health && !health.failed) {
+      const n = Object.keys(health.colls || {}).length;
+      const problems = [];
+      if (health.bad && health.bad.length) problems.push(plural(health.bad.length, 'document cannot be read', 'documents cannot be read') + ': ' + health.bad.map(k => k.slice(2).split('~').join('/')).join(', '));
+      if (health.orphans && health.orphans.sessions) problems.push(plural(health.orphans.sessions, 'session belongs', 'sessions belong') + ' to nobody on record');
+      const caches = health.caches && health.caches.stale.length ? plural(health.caches.stale.length, 'read cache was', 'read caches were') + ' out of step and rebuilt: ' + health.caches.stale.join(', ') + '.' : '';
+      line = html`<div id="bk-health" class=${'small' + (problems.length ? ' flame-t' : '')}>
+        ${plural(health.docs || 0, 'document', 'documents')} in ${plural(n, 'collection', 'collections')}${problems.length ? '. ' + problems.join('. ') + '.' : ', all readable.'}
+        ${caches ? html` <span class="ink62">${caches}</span>` : null}
+      </div>`;
+    } else if (health && health.failed) line = html`<div id="bk-health" class="small flame-t">The health check could not run. Try again in a moment.</div>`;
+    else line = html`<div id="bk-health" class="small ink62">Checking every document.</div>`;
+    const stale = !!(health && health.caches && health.caches.stale.length);
+    return html`<${UI.Card} id="bk-status" title="Backups"
+      action=${info && info.lastError ? html`<${UI.Pill} kind="flame-o">last run failed<//>` : info && info.last ? html`<${UI.Pill} kind="ink">daily<//>` : null}>
+      <p class="small ink62" style=${{marginTop: 0}}>Once a day the server copies every document into a backup and keeps ${info ? info.keepDays : 45} days of them. Deleted documents wait in the trash for ${info ? info.trashDays : 30} days.</p>
+      <div class="bk-kpis">
+        <div class="kpi"><span class="v num" id="bk-last">${info == null ? 'loading' : info.last ? U.timeAgo(info.last) : 'none yet'}</span><span class="l">last backup</span></div>
+        <div class="kpi"><span class="v num">${info == null ? '' : info.days.length}</span><span class="l">days kept</span></div>
+        <div class="kpi"><span class="v num">${health && !health.failed ? health.docs : ''}</span><span class="l">documents</span></div>
+      </div>
+      ${info && info.lastError ? html`<div class="small flame-t">The last automatic backup failed ${U.timeAgo(info.lastError.at)}: ${info.lastError.message}</div>` : null}
+      ${line}
+      <div class="row" style=${{marginTop: '12px'}}>
+        <${UI.Btn} id="bk-now" sm=${true} disabled=${busy === 'backup'} onClick=${backupNow}>${busy === 'backup' ? 'Backing up' : 'Back up now'}<//>
+        ${stale ? html`<${UI.Btn} id="bk-rebuild" kind="sec" sm=${true} disabled=${busy === 'check'} onClick=${check}>Rebuild caches<//>`
+          : html`<${UI.Btn} kind="ghost" sm=${true} disabled=${busy === 'check'} onClick=${check}>Check again<//>`}
+      </div>
+    <//>`;
+  }
+
+  /* ---------- restore one collection from one day ---------- */
+  function RestoreDrawer({day, onClose, onDone}) {
+    const names = Object.keys(day.colls || {}).sort();
+    const [coll, setColl] = useState(names[0] || '');
+    const [mode, setMode] = useState('missing');
+    const [busy, setBusy] = useState(false);
+    const [result, setResult] = useState(null);
+    async function run() {
+      if (!coll || busy) return;
+      setBusy(true); setResult(null);
+      try {
+        const r = await api('restorecoll', {ymd: day.ymd, coll, mode});
+        setResult(r);
+        M.toast(r.written ? 'Restored ' + plural(r.written, 'document', 'documents') : 'Nothing to restore');
+        onDone();
+      } catch (e) { oops(e); }
+      setBusy(false);
+    }
+    const opts = names.map(n => ({v: n, label: n + ' (' + day.colls[n] + ')'}));
+    const footer = mode === 'overwrite'
+      ? html`<${UI.ConfirmBtn} kind="flame" sm=${false} onConfirm=${run} label="Tap again to overwrite">${busy ? 'Restoring' : 'Overwrite from this backup'}<//>`
+      : html`<${UI.Btn} id="bk-restore-run" disabled=${busy || !coll} onClick=${run}>${busy ? 'Restoring' : 'Add the missing documents'}<//>`;
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${'Restore from ' + U.fmtDate(day.ymd)} footer=${footer}>
+      <div class="stack" id="bk-restore-drawer">
+        <p class="small ink62" style=${{margin: 0}}>Pick a collection from this day's backup. Adding what is missing touches nothing that exists now.</p>
+        <${UI.Select} id="bk-restore-coll" label="collection" value=${coll} options=${opts} onChange=${setColl}/>
+        <${UI.Field} label="how"><${UI.Seg} options=${MODES} value=${mode} onChange=${setMode} ariaLabel="Restore mode"/><//>
+        ${mode === 'overwrite' ? html`<div class="small flame-t" id="bk-restore-warn">Every document in ${coll || 'this collection'} is replaced by the backed up copy. Each current one goes to the trash first, so it can be put back.</div>` : null}
+        ${result ? html`<div class="small" id="bk-restore-result">
+          <span class="num">${result.written}</span> written, <span class="num">${result.skipped}</span> skipped${result.trashed ? html`, <span class="num">${result.trashed}</span> moved to the trash` : null}.
+        </div>` : null}
+      </div>
+    <//>`;
+  }
+
+  /* ---------- the list of days ---------- */
+  function BackupList({info, onChanged}) {
+    const ctx = M.useCtx();
+    const [restore, setRestore] = useState(null);
+    const [busy, setBusy] = useState('');
+    const dl = async d => { setBusy(d.ymd); try { await downloadDay(ctx, d.ymd); } catch (e) { oops(e); } setBusy(''); };
+    return html`<${UI.Card} title="Days">
+      ${info == null ? html`<${UI.Empty} text="Loading the list."/>`
+        : !info.days.length ? html`<${UI.Empty} text="No backups yet. The first one runs on its own today, or tap Back up now."/>`
+        : html`<div class="stack tight" id="bk-list">${info.days.map(d => html`<div class="listrow bk-row" key=${d.ymd} id=${'bk-row-' + d.ymd}>
+          <span class="grow">
+            <span class="bk-day">${U.fmtDate(d.ymd)}</span>
+            <div class="tiny ink62 num">${plural(Object.keys(d.colls).length, 'collection', 'collections')} · ${fmtBytes(d.bytes)} · ${d.at ? U.timeAgo(d.at) : ''}${d.bad ? ' · ' + plural(d.bad, 'unreadable document', 'unreadable documents') : ''}</div>
+          </span>
+          <span class="row nowrap">
+            <${UI.Btn} kind="sec" sm=${true} disabled=${busy === d.ymd} onClick=${() => dl(d)}>Download<//>
+            <${UI.Btn} kind="ghost" sm=${true} onClick=${() => setRestore(d)}>Restore<//>
+          </span>
+        </div>`)}</div>`}
+      ${restore ? html`<${RestoreDrawer} day=${restore} onClose=${() => setRestore(null)} onDone=${onChanged}/>` : null}
+    <//>`;
+  }
+
+  /* ---------- the trash ---------- */
+  function TrashCard({tick}) {
+    const [items, setItems] = useState(null);
+    const [conflict, setConflict] = useState('');
+    const load = () => api('trash').then(r => setItems(r.items || []), () => setItems([]));
+    useEffect(() => { load(); }, [tick]);
+    async function putBack(it, force) {
+      try {
+        await api('restore', {id: it.id, force: !!force});
+        M.toast('Put back ' + it.path);
+        setConflict('');
+        load();
+      } catch (e) {
+        if (e && e.status === 409) { setConflict(it.id); M.toast('Something is already at ' + it.path + '. Replace it, or leave both.', true); }
+        else oops(e);
+      }
+    }
+    async function empty() {
+      try { const r = await api('emptytrash', {days: 30}); M.toast(r.removed ? 'Removed ' + plural(r.removed, 'entry', 'entries') : 'Nothing older than 30 days'); load(); }
+      catch (e) { oops(e); }
+    }
+    return html`<${UI.Card} id="trash-card" title="Trash"
+      action=${items && items.length ? html`<${UI.ConfirmBtn} kind="sec" onConfirm=${empty} label="Tap again to empty">Empty trash older than 30 days<//>` : null}>
+      <p class="small ink62" style=${{marginTop: 0}}>Every deleted document lands here first and can be put back for 30 days.</p>
+      ${items == null ? html`<${UI.Empty} text="Loading the trash."/>`
+        : !items.length ? html`<${UI.Empty} text="The trash is empty."/>`
+        : html`<div class="stack tight" id="trash-list">${items.map(it => html`<div class="listrow trash-row" key=${it.id} data-path=${it.path}>
+          <span class="grow">
+            <span class="num">${it.path}</span>
+            <div class="tiny ink62">${it.by ? html`<${UI.Name} id=${it.by}/>` : 'the server'} · ${U.timeAgo(it.at)}</div>
+          </span>
+          ${conflict === it.id
+            ? html`<${UI.ConfirmBtn} kind="flame" onConfirm=${() => putBack(it, true)} label="Tap again to replace">Replace the current one<//>`
+            : html`<${UI.ConfirmBtn} kind="sec" onConfirm=${() => putBack(it, false)} label="Tap again to put back">Put back<//>`}
+        </div>`)}</div>`}
+    <//>`;
+  }
+
+  /* ---------- the tab ---------- */
+  function BackupsTab() {
+    const ctx = M.useCtx();
+    const [info, setInfo] = useState(null);
+    const [tick, setTick] = useState(0);
+    const [busy, setBusy] = useState(false);
+    const refresh = () => { api('backups').then(setInfo, () => setInfo({days: [], last: 0, lastError: null, keepDays: 45, trashDays: 30})); setTick(t => t + 1); };
+    useEffect(() => { refresh(); }, []);
+    if (!ctx.isFounder) return null;
+    const all = async () => { setBusy(true); try { await downloadAll(ctx); } catch (e) { oops(e); } setBusy(false); };
+    return html`<div class="stack" id="backups-tab" style=${{gap: '18px'}}>
+      <${StatusCard} info=${info} onRefresh=${refresh}/>
+      <${BackupList} info=${info} onChanged=${refresh}/>
+      <${TrashCard} tick=${tick}/>
+      <${UI.Card} title="A copy for your own drive">
+        <p class="small ink62" style=${{marginTop: 0}}>One JSON file with every document as it is right now. Keep it somewhere safe, away from this server.</p>
+        <div class="row"><${UI.Btn} id="bk-all" sm=${true} disabled=${busy} onClick=${all}>Download everything now<//></div>
+      <//>
+    </div>`;
+  }
+
+  M.deskTabs.push({v: 'backups', label: 'Backups', render: BackupsTab});
+  M.parts.BackupsTab = BackupsTab;
 })();
 
 /* ==== 99-app.js ==== */

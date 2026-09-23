@@ -171,11 +171,34 @@ M.makeWrites = (db, uidGetter) => {
     return (M.lastCtx && M.lastCtx.uid) || null;
   };
   const log = (a, p, d) => M.logWrite(db, who(), a, p, d);
+  /* the guard: a payload that could corrupt a document never leaves the page. A plain object only,
+     no top-level undefined, no functions, no string over 200000 characters, and the two singletons
+     everyone depends on keep their shape (a roster without members would lock everyone out). */
+  const STR_MAX = 200000;
+  const plain = x => !!x && typeof x === 'object' && !Array.isArray(x) && (Object.getPrototypeOf(x) === Object.prototype || Object.getPrototypeOf(x) === null);
+  const scan = (x, depth) => {
+    if (typeof x === 'function') return 'a function';
+    if (typeof x === 'string') return x.length > STR_MAX ? 'a value over ' + STR_MAX + ' characters' : '';
+    if (!x || typeof x !== 'object' || depth > 40) return '';
+    for (const k of Object.keys(x)) { const why = scan(x[k], depth + 1); if (why) return why; }
+    return '';
+  };
+  const check = (op, p, d) => {
+    let why = '';
+    if (!plain(d)) why = 'the body is not a plain object';
+    else if (Object.keys(d).some(k => d[k] === undefined)) why = 'a field is undefined';
+    else why = scan(d, 0);
+    if (!why && op === 'set' && p === 'roster/team' && !plain(d.members)) why = 'the roster has no members';
+    if (!why && op === 'set' && p === 'settings/app' && !Object.keys(d).length) why = 'the settings are empty';
+    if (!why) return null;
+    M.toast('That change looked wrong and was not saved: ' + why + '.', true);
+    return Promise.reject({code: 'refused', message: why});
+  };
   return {
-    set: (p, d) => queued(p, () => db.doc(p).set(d).then(r => { log('set', p, d); return r; })).catch(fail),
-    update: (p, d) => queued(p, () => db.doc(p).update(d).then(r => { log('update', p, d); return r; })).catch(fail),
+    set: (p, d) => check('set', p, d) || queued(p, () => db.doc(p).set(d).then(r => { log('set', p, d); return r; })).catch(fail),
+    update: (p, d) => check('update', p, d) || queued(p, () => db.doc(p).update(d).then(r => { log('update', p, d); return r; })).catch(fail),
     /* merge-or-create: update first, set when the document is missing */
-    merge: (p, d) => queued(p, () => db.doc(p).update(d).then(r => { log('update', p, d); return r; }).catch(e => {
+    merge: (p, d) => check('merge', p, d) || queued(p, () => db.doc(p).update(d).then(r => { log('update', p, d); return r; }).catch(e => {
       if (e && e.code === 'invalid_argument') return db.doc(p).set(d).then(r => { log('set', p, d); return r; });
       throw e;
     })).catch(fail),
