@@ -916,6 +916,42 @@ a.pill.prof-link svg{width:13px; height:13px; flex:none}
   .quick{grid-auto-columns:120px}
 }
 @keyframes boardpos{from{background-position:0% 50%, 0 50%} to{background-position:100% 50%, 0 50%}}
+
+/* ==== 78-fold.css ==== */
+/* ---------- folds: phone sections behind a one line summary ---------- */
+.fold{border:1px solid var(--line); border-radius:var(--r-card); background:var(--card, var(--paper)); overflow:hidden}
+.fold.hot{border-color:var(--flame)}
+.fold-head{display:flex; align-items:center; gap:12px; width:100%; min-height:56px; padding:12px 16px; border:0; background:transparent; color:var(--ink); font:inherit; text-align:left; cursor:pointer}
+.fold-head .grow{display:flex; flex-direction:column; gap:2px; min-width:0}
+.fold-title{font-weight:600; font-size:16px; letter-spacing:-.01em}
+.fold-sum{font-size:13px; color:var(--ink62); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.fold.hot .fold-sum{color:var(--flame)}
+.fold-chev{flex:none; width:32px; height:32px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; color:var(--ink62); background:var(--warm)}
+.fold-chev svg{width:18px; height:18px; transition:transform .18s ease}
+.fold.open .fold-chev svg{transform:rotate(180deg)}
+.fold-body{padding:0 16px 16px}
+.fold-body > .card, .fold-body > .ai-card, .fold-body > section.card{border:0; border-radius:0; padding:0; background:transparent; box-shadow:none}
+.fold-body > .card > .card-head .card-title, .fold-body > .ai-card > .card-head .card-title, .fold-body > .ai-card > .card-head .micro{display:none}
+.fold-body > .card > .card-head, .fold-body > .ai-card > .card-head{justify-content:flex-end; margin-top:-4px}
+.fold-body > .card > .card-head:empty{display:none}
+@media (prefers-reduced-motion:reduce){ .fold-chev svg{transition:none} }
+
+/* ---------- tables become stacked cards on phones ---------- */
+@media (max-width:600px){
+  .tbl-wrap{overflow:visible; padding-right:0; -webkit-mask-image:none; mask-image:none}
+  table.tbl, .tbl tbody{display:block; width:100%}
+  .tbl thead{display:none}
+  .tbl tr{display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; padding:12px 0; border-bottom:1px solid var(--line)}
+  .tbl tr:last-child{border-bottom:0}
+  .tbl td{display:inline-flex; align-items:center; gap:4px; padding:0; border:0; white-space:normal; max-width:100%}
+  .tbl td:empty{display:none}
+  .tbl td[data-label]::before{content:attr(data-label); font-size:11px; letter-spacing:.12em; text-transform:lowercase; color:var(--micro); margin-right:2px}
+  .tbl td.lead{flex-basis:100%; font-weight:500}
+  .tbl tr.dark{border-radius:12px; padding:12px}
+}
+
+.tbl td.wk-cell{padding:4px 6px}
+@media (max-width:600px){ .tbl td.wk-cell{padding:0} }
 </style>
 <script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
@@ -1812,6 +1848,39 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     </section>`;
   };
 
+  /* phones: one column, thumbs, short attention. Sections fold behind a one line summary. */
+  const phoneMq = () => { try { return window.matchMedia('(max-width: 860px)'); } catch (e) { return null; } };
+  M.usePhone = function usePhone() {
+    const [p, set] = React.useState(() => { const m = phoneMq(); return !!(m && m.matches); });
+    React.useEffect(() => {
+      const m = phoneMq();
+      if (!m) return undefined;
+      const on = () => set(m.matches);
+      try { m.addEventListener('change', on); } catch (e) { m.addListener(on); }
+      return () => { try { m.removeEventListener('change', on); } catch (e) { m.removeListener(on); } };
+    }, []);
+    return p;
+  };
+  /* On desktop a Fold is invisible: the children render as they are. On a phone it is a header row
+     (title, summary, chevron) that opens the section. `open` sets the phone default; `hot` marks it. */
+  UI.Fold = function Fold({title, summary, open, hot, id, children}) {
+    const phone = M.usePhone();
+    const [on, setOn] = React.useState(!!open);
+    const [touched, setTouched] = React.useState(false);
+    const show = touched ? on : !!open;
+    if (!phone) return children;
+    return html`<section class=${'fold' + (show ? ' open' : '') + (hot ? ' hot' : '')} id=${id}>
+      <button type="button" class="fold-head" aria-expanded=${show} onClick=${() => { setTouched(true); setOn(!show); }}>
+        <span class="grow">
+          <span class="fold-title">${title}</span>
+          ${summary ? html`<span class="fold-sum">${summary}</span>` : null}
+        </span>
+        <span class="fold-chev"><${M.icons.chevD}/></span>
+      </button>
+      ${show ? html`<div class="fold-body">${children}</div>` : null}
+    </section>`;
+  };
+
   UI.Micro = function Micro({children, plain}) {
     return html`<div class=${'micro' + (plain ? ' plain' : '')}>${children}</div>`;
   };
@@ -2497,8 +2566,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const newMenu = where => newOpen === where ? html`<${NewMenu} onClose=${() => setNewOpen(false)}
       onTask=${() => setNewTask(true)} onAsk=${() => setAskOpen(true)}/>` : null;
 
-    const tabKeys = ctx.isFounder ? ['hq', 'work', 'accounts', 'vibe'] : ['home', 'work', 'accounts', 'vibe', 'me'];
-    const moreKeys = ctx.isFounder ? ['home', 'radar', 'me', 'admin'] : ['radar'];
+    const tabKeys = ctx.isFounder ? ['home', 'hq', 'work', 'vibe'] : ['home', 'work', 'accounts', 'vibe', 'me'];
+    const moreKeys = ctx.isFounder ? ['accounts', 'radar', 'me', 'admin'] : ['radar'];
     const moreBadge = moreKeys.reduce((n, k) => n + (b[k] || 0), 0);
 
     return html`<div class="app">
@@ -6167,8 +6236,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           <thead><tr><th>person</th>${days.map(d => html`<th key=${d}>${U.fmtDay(d).toLowerCase()}</th>`)}</tr></thead>
           <tbody>
             ${ctx.activeMembers.map(m => html`<tr key=${m.uid}>
-              <td><span class="row nowrap"><${UI.Avatar} id=${m.uid} size=${26}/><${UI.Name} id=${m.uid}/></span></td>
-              ${days.map(d => html`<td key=${d} style=${{padding: '4px 6px'}}>
+              <td class="lead"><span class="row nowrap"><${UI.Avatar} id=${m.uid} size=${26}/><${UI.Name} id=${m.uid}/></span></td>
+              ${days.map(d => html`<td key=${d} class="wk-cell" data-label=${U.fmtDay(d).toLowerCase().slice(0, 3)}>
                 <${Cell} uid=${m.uid} date=${d} today=${today} onOpen=${setCell}/></td>`)}
             </tr>`)}
           </tbody>
@@ -6578,11 +6647,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           <thead><tr><th>week</th><th>on time</th><th>revisions per task</th><th>quality</th><th>outcomes hit</th></tr></thead>
           <tbody>
             ${rows.map(r => html`<tr key=${r.week}>
-              <td class="num">${r.week}</td>
-              <td class="num">${num(r.s && r.s.onTimePct, '%')}</td>
-              <td class="num">${num(r.s && r.s.revPerTask)}</td>
-              <td class="num">${num(r.s && r.s.quality)}</td>
-              <td class="num">${hitText(r.s)}</td>
+              <td class="num lead">${r.week}</td>
+              <td class="num" data-label="on time">${num(r.s && r.s.onTimePct, '%')}</td>
+              <td class="num" data-label="revisions">${num(r.s && r.s.revPerTask)}</td>
+              <td class="num" data-label="quality">${num(r.s && r.s.quality)}</td>
+              <td class="num" data-label="outcomes">${hitText(r.s)}</td>
             </tr>`)}
           </tbody>
         </table></div>
@@ -8161,27 +8230,27 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       </div>
 
       <div class="grid2">
-        <div style=${full}><${UI.Card} title="Attendance today" id="attendance">
+        <div style=${full}><${UI.Fold} title="Attendance today" summary=${(Array.isArray(k.inToday) ? k.inToday.length : k.inToday) + " of " + members.length + " in" + (k.late ? ", " + k.late + " late" : "")} hot=${k.late > 0}><${UI.Card} title="Attendance today" id="attendance">
           <div class="tbl-wrap"><table class="tbl">
             <thead><tr><th>id</th><th>person</th><th>status</th><th>in</th><th>place</th><th>out</th><th>hours</th><th>map</th></tr></thead>
             <tbody>
               ${k.rows.map(({m, d}) => html`<tr key=${m.uid}>
                 <td class="num tiny">${m.empId || ''}</td>
-                <td><span class="row nowrap"><${UI.Avatar} id=${m.uid} size=${24}/><${UI.Name} id=${m.uid}/></span></td>
+                <td class="lead"><span class="row nowrap"><${UI.Avatar} id=${m.uid} size=${24}/><${UI.Name} id=${m.uid}/></span></td>
                 <td>${d.status === 'none' ? 'not in yet' : d.status}</td>
-                <td class=${'num' + (d.late ? ' flame-t' : '')}>${d.in ? U.hhmm(d.in) : ''}</td>
+                <td class=${'num' + (d.late ? ' flame-t' : '')} data-label=${d.in ? 'in' : null}>${d.in ? U.hhmm(d.in) : ''}</td>
                 <td><span class="row nowrap">${d.place || ''}${d.verified ? html`<${UI.Pill} kind="ink">verified<//>` : null}</span></td>
-                <td class="num">${d.out ? U.hhmm(d.out) : ''}</td>
-                <td class="num">${d.hours ? U.durText(d.hours) : ''}</td>
+                <td class="num" data-label=${d.out ? 'out' : null}>${d.out ? U.hhmm(d.out) : ''}</td>
+                <td class="num" data-label=${d.hours ? 'hours' : null}>${d.hours ? U.durText(d.hours) : ''}</td>
                 <td>${d.loc && d.loc.lat != null ? html`<a class="linky" target="_blank" rel="noopener"
                   href=${'https://www.google.com/maps?q=' + d.loc.lat + ',' + d.loc.lng}>map</a>` : ''}</td>
               </tr>`)}
             </tbody>
           </table></div>
           ${k.rows.length ? null : html`<${UI.Empty} text="Nobody on the roster yet."/>`}
-        <//></div>
+        <//><//></div>
 
-        <div style=${full}><${UI.Card} title="Flags"
+        <div style=${full}><${UI.Fold} title="Flags" summary=${flags.length + (flags.length === 1 ? " flag" : " flags")} hot=${flags.some(f => f.severity === "high")}><${UI.Card} title="Flags"
           action=${html`<select class="input" style=${{width: 'auto', maxWidth: '100%', minWidth: 0, minHeight: '34px'}} value=${rule}
             onChange=${e => setRule(e.target.value)} aria-label="Rule filter">
             <option value="">All rules</option>
@@ -8204,8 +8273,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
               </div>
             </div>`;
           }) : html`<${UI.Empty} text="All clear."/>`}
-        <//></div>
+        <//><//></div>
 
+        <${UI.Fold} title="Leaderboard" summary=${"top " + board.length + " this week"}>
         <${UI.Card} title="Leaderboard" action=${html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => M.nav('#scores')}>Scores<//>`}>
           ${board.length ? html`<div class="stack tight">
             ${board.map((r, i) => html`<div class="listrow" key=${r.uid}>
@@ -8216,7 +8286,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
             </div>`)}
           </div>` : html`<${UI.Empty} text="No points yet."/>`}
         <//>
+        <//>
 
+        <${UI.Fold} title="Pipeline" summary=${U.inr(k.pm.weighted) + " weighted"}>
         <${UI.Card} title="Pipeline" action=${html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => M.nav('#pitches')}>Pitches<//>`}>
           <div class="tbl-wrap"><table class="tbl">
             <tbody>
@@ -8231,7 +8303,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           <div class=${'small' + ((k.pm.overdue || []).length ? ' flame-t' : ' ink62')} style=${{marginTop: '10px'}}>
             ${(k.pm.overdue || []).length} next steps overdue</div>
         <//>
+        <//>
 
+        <${UI.Fold} title="Projects health" summary=${projList.length + " live, " + atRisk.length + " at risk"}>
         <${UI.Card} title="Projects health" action=${html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => M.nav('#projects')}>Projects<//>`}>
           <div class="grid3">
             <div class="kpi"><span class="v num">${health.on}</span><span class="l">on track</span></div>
@@ -8245,7 +8319,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
             </div>`)}
           </div>` : null}
         <//>
+        <//>
 
+        <${UI.Fold} title="People" summary=${members.length + " on the roster"}>
         <${UI.Card} title="People" action=${html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => M.nav('#people')}>People<//>`}>
           ${members.length ? html`<div class="stack tight">
             ${members.map(m => {
@@ -8265,7 +8341,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
             })}
           </div>` : html`<${UI.Empty} text="Nobody on the roster yet."/>`}
         <//>
+        <//>
 
+        <${UI.Fold} title="Hiring" summary=${panel.length + " on your panel"}>
         <${UI.Card} title="Hiring" action=${html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => M.nav('#hiring')}>Hiring<//>`}>
           ${panel.length ? html`<div class="stack tight">
             ${panel.map(p => html`<div class="listrow" key=${p.id}>
@@ -8274,9 +8352,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
             </div>`)}
           </div>` : html`<${UI.Empty} text="No candidates in panel."/>`}
         <//>
+        <//>
 
         <div style=${full}>${Approvals ? html`<${Approvals}/>` : null}</div>
 
+        <${UI.Fold} title="Voice" summary=${"pulse and energy"}>
         <${UI.Card} title="Voice" action=${html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => M.nav('#voice')}>Voice<//>`}>
           <div class="vbars">
             ${(k.energy || []).map(e => html`<div key=${e.week} class=${'vb' + (e.avg != null && e.avg < 3 ? ' low' : '')}
@@ -8290,7 +8370,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
             </div>`) : html`<${UI.Empty} text="No responses yet."/>`}
           </div>
         <//>
+        <//>
 
+        <${UI.Fold} title="Clients" summary=${k.sh.length + " clients, " + k.topShare + "% top share"}>
         <${UI.Card} title="Clients" action=${html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => M.nav('#clients')}>Clients<//>`}>
           <div class="tbl-wrap"><table class="tbl">
             <thead><tr><th>client</th><th>monthly</th><th>share</th><th>open tasks</th><th>brain</th></tr></thead>
@@ -8300,14 +8382,15 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
                 const comp = (M.clients && M.clients.completeness) ? M.clients.completeness(c) : {filled: 0, total: 3};
                 const openN = (M.clients && M.clients.openTaskCount) ? M.clients.openTaskCount(ctx, r.id) : 0;
                 return html`<tr key=${r.id}>
-                  <td>${r.name}</td><td class="num">${U.inr(r.monthly)}</td>
-                  <td class="num">${r.share}%</td><td class="num">${openN}</td>
-                  <td class=${'num' + (comp.filled < comp.total ? ' flame-t' : '')}>${comp.filled} of ${comp.total}</td>
+                  <td class="lead">${r.name}</td><td class="num" data-label="monthly">${U.inr(r.monthly)}</td>
+                  <td class="num" data-label="share">${r.share}%</td><td class="num" data-label="open tasks">${openN}</td>
+                  <td class=${'num' + (comp.filled < comp.total ? ' flame-t' : '')} data-label="brain">${comp.filled} of ${comp.total}</td>
                 </tr>`;
               })}
             </tbody>
           </table></div>
           ${k.sh.length ? null : html`<${UI.Empty} text="No clients yet."/>`}
+        <//>
         <//>
       </div>
     </div>`;
@@ -8425,11 +8508,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 
       <${UI.Card} title="Roster">
         <div class="tbl-wrap"><table class="tbl">
-          <thead><tr><th>id</th><th>person</th><th>title</th><th>pod</th><th>role</th><th>status</th><th/></tr></thead>
+          <thead><tr><th>person</th><th>title</th><th>pod</th><th>role</th><th>status</th><th/></tr></thead>
           <tbody>
             ${rows.map(r => html`<tr key=${r.uid}>
-              <td class="num tiny">${r.empId}</td>
-              <td><span class="row nowrap"><${UI.Avatar} id=${r.uid} size=${24}/><${UI.Name} id=${r.uid}/></span></td>
+              <td class="lead"><span class="row nowrap"><${UI.Avatar} id=${r.uid} size=${24}/><${UI.Name} id=${r.uid}/><span class="num tiny ink62">${r.empId}</span></span></td>
               <td>${r.title || ''}</td><td>${r.pod || ''}</td>
               <td><${UI.Pill}>${r.role}<//></td>
               <td>${r.active === false ? html`<${UI.Pill} kind="warm">inactive<//>` : html`<${UI.Pill} kind="ink">active<//>`}</td>
@@ -9336,6 +9418,18 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     M.useIntent('checkin', () => setTimeout(() => { const el = document.getElementById('tapin') || document.getElementById('home-hero'); if (el) el.scrollIntoView({block: 'center', behavior: M.reduced() ? 'auto' : 'smooth'}); const b = el && el.querySelector('.btn'); if (b) b.focus(); }, 80));
     const Celebrate = M.parts.Celebrate, Reviews = M.parts.Reviews;
     const newHire = (M.people && M.people.isNewHire) ? M.people.isNewHire(ctx, ctx.uid) : false;
+    /* one line summaries for the phone folds */
+    const F = UI.Fold;
+    const myOpen = (M.tasks && M.tasks.open) ? M.tasks.open(ctx).filter(t => t.owner === ctx.uid) : [];
+    const myLate = myOpen.filter(t => t.due && t.due < td).length;
+    const revN = (M.reviews && M.reviews.queue) ? M.reviews.queue(ctx).filter(t => M.reviews.canReview(ctx, t)).length : 0;
+    const pmap = ctx.coll.projects.map;
+    const projN = Object.keys(pmap).filter(id => { const p = pmap[id]; return p && !p.archived && p.status !== 'done' && (p.owner === ctx.uid || (p.members || []).includes(ctx.uid)); }).length;
+    const flagN = (ctx.myFlags || []).length;
+    const inN = ctx.activeMembers.filter(m => { const s = M.att.dayStatus(ctx, m.uid, td).status; return s === 'office' || s === 'wfh'; }).length;
+    const wk = U.periodRange('week', new Date(ctx.now));
+    const ptsWk = (M.points && M.points.pointsFor) ? M.points.pointsFor(ctx, ctx.uid, wk.from, wk.to).total : 0;
+    const n = (k, one, many) => k + ' ' + (k === 1 ? one : many);
 
     return html`<div class="stack" style=${{gap: '18px'}}>
       <${Hero} onStatus=${() => setStatus(true)}/>
@@ -9346,23 +9440,23 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       <${InstallHint}/>
       <div class="split">
         <div class="stack" style=${{gap: '18px'}}>
-          ${eodFirst ? html`<${Wrap}/>` : null}
-          <${Focus} onOpen=${setTask}/>
-          ${Reviews ? html`<${Reviews} compact=${true}/>` : null}
-          <${Brief}/>
-          <${MyProjects}/>
-          ${Outcomes ? html`<${Outcomes}/>` : null}
-          ${!eodFirst && working ? html`<${Wrap}/>` : null}
-          ${newHire && Onboard ? html`<${Onboard} uid=${ctx.uid} compact=${true}/>` : null}
+          ${eodFirst ? html`<${F} title="EOD line" summary=${eodPosted ? 'posted for today' : 'due by ' + (ctx.settings.eodCut || '19:30')} open=${!eodPosted} hot=${!eodPosted} id="fold-eod"><${Wrap}/><//>` : null}
+          <${F} title="Today's focus" summary=${n(myOpen.length, 'open task', 'open tasks') + (myLate ? ', ' + n(myLate, 'overdue', 'overdue') : '')} open=${true} hot=${myLate > 0} id="fold-focus"><${Focus} onOpen=${setTask}/><//>
+          ${Reviews && revN ? html`<${F} title="Waiting on your review" summary=${n(revN, 'piece', 'pieces')} open=${true} hot=${true} id="fold-reviews"><${Reviews} compact=${true}/><//>` : null}
+          ${Outcomes ? html`<${F} title="This week's outcomes" summary="what you said you would ship" id="fold-outcomes"><${Outcomes}/><//>` : null}
+          ${!eodFirst && working ? html`<${F} title="EOD line" summary=${'three lines before ' + (ctx.settings.eodCut || '19:30')} id="fold-eod"><${Wrap}/><//>` : null}
+          ${newHire && Onboard ? html`<${F} title="Onboarding" summary="your first weeks, step by step" id="fold-onboard"><${Onboard} uid=${ctx.uid} compact=${true}/><//>` : null}
+          ${M.ai.on(ctx) ? html`<${F} title="Your day, sorted" summary="an AI plan for the rest of today" id="fold-brief"><${Brief}/><//>` : null}
+          <${F} title="My projects" summary=${n(projN, 'active project', 'active projects')} id="fold-projects"><${MyProjects}/><//>
         </div>
         <div class="stack" style=${{gap: '18px'}}>
-          <${Numbers}/>
-          <${MyWeek}/>
-          <${HeadsUp}/>
+          <${F} title="My numbers" summary=${ptsWk + ' points this week'} id="fold-numbers"><${Numbers}/><//>
+          <${F} title="My week" summary="check-ins and EOD lines, Monday to Saturday" id="fold-week"><${MyWeek}/><//>
+          <${F} title="Rule box" summary=${flagN ? n(flagN, 'flag on you', 'flags on you') : 'all clear'} hot=${flagN > 0} open=${flagN > 0} id="fold-rules"><${HeadsUp}/><//>
           <${Nudges}/>
-          <${Crew}/>
-          <${Buzz}/>
-          ${Day ? html`<${Day}/>` : null}
+          <${F} title="Who's in today" summary=${inN + ' of ' + ctx.activeMembers.length + ' in'} id="fold-crew"><${Crew}/><//>
+          <${F} title="Around the studio" summary="the feed and this week's ladder" id="fold-buzz"><${Buzz}/><//>
+          ${Day ? html`<${F} title="Your day" summary="calendar, mail and files" id="fold-day"><${Day}/><//>` : null}
         </div>
       </div>
       ${task && Drawer ? html`<${Drawer} taskId=${task === 'new' ? null : task} defaults=${{owner: ctx.uid}} onClose=${() => setTask(null)}/>` : null}
@@ -9614,12 +9708,12 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         </div>
       <//>
       <${M.SectionTabs} section="me" active=${t}/>
-      ${t === 'profile' && M.parts.ProfileCard ? html`<${M.parts.ProfileCard}/>` : null}
+      ${t === 'profile' && M.parts.ProfileCard ? html`<${UI.Fold} title="Your profile" summary="photo, pronouns, city, bio, links, birthday" id="fold-profile"><${M.parts.ProfileCard}/><//>` : null}
       ${t === 'leave' ? html`<${Embed} page="Leave"/>` : t === 'handbook' ? html`<${Embed} page="Handbook" id=${id}/>`
         : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>` : t === 'trophies' ? (M.parts.Trophies ? html`<${M.parts.Trophies}/>` : null) : html`<${Embed} page="People" id=${ctx.uid}/>`}
-      ${t === 'profile' ? html`<${Prefs}/>` : null}
-      ${t === 'profile' && M.parts.EmailCard ? html`<${M.parts.EmailCard}/>` : null}
-      ${t === 'profile' && M.parts.DeviceCard ? html`<${M.parts.DeviceCard}/>` : null}
+      ${t === 'profile' ? html`<${UI.Fold} title="Your m360" summary="look, sounds, shortcuts" id="fold-prefs"><${Prefs}/><//>` : null}
+      ${t === 'profile' && M.parts.EmailCard ? html`<${UI.Fold} title="Your email" summary="for sign-in links" id="fold-email"><${M.parts.EmailCard}/><//>` : null}
+      ${t === 'profile' && M.parts.DeviceCard ? html`<${UI.Fold} title="Your devices" summary="where you are signed in" id="fold-devices"><${M.parts.DeviceCard}/><//>` : null}
       ${t === 'profile' ? (M.meCards || []).map((C, i) => html`<${C} key=${i}/>`) : null}
     </div>`;
   }
@@ -9655,9 +9749,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     return html`<div class="stack" style=${{gap: '20px'}}>
       <${M.SectionHero} color="ink" micro="founder" title="Admin"
         sub="Team, rules, corrections, the activity log, payroll export and your super controls."/>
-      ${M.parts.AiKeyCard ? html`<${M.parts.AiKeyCard}/>` : null}
-      ${M.parts.MailCard ? html`<${M.parts.MailCard}/>` : null}
-      ${(M.adminCards || []).map((C, i) => html`<${C} key=${i}/>`)}
+      ${M.parts.AiKeyCard ? html`<${UI.Fold} title="m360 AI" summary="your Anthropic key switches the AI on" id="fold-ai"><${M.parts.AiKeyCard}/><//>` : null}
+      ${M.parts.MailCard ? html`<${UI.Fold} title="Email sending" summary="Resend key and sender" id="fold-mail"><${M.parts.MailCard}/><//>` : null}
+      ${(M.adminCards || []).map((C, i) => html`<${UI.Fold} key=${i} title="Radar settings" summary="keywords, sources, channels" id=${'fold-admin-' + i}><${C}/><//>`)}
       <${Embed} page="Desk"/>
     </div>`;
   }
@@ -9859,6 +9953,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const n = useNumbers(ctx);
     const t = tab || 'brief';
     const Panel = M.parts.AskPanel;
+    const hqRev = (M.reviews && M.reviews.queue) ? M.reviews.queue(ctx).filter(x => M.reviews.canReview(ctx, x)).length : 0;
+    const hqLeave = (M.leave && M.leave.pending) ? M.leave.pending(ctx).length : 0;
+    const setupSteps = (M.setup && M.setup.steps) ? M.setup.steps(ctx) : [];
+    const setupDone = !setupSteps.length || setupSteps.every(x => x.done) || !!(ctx.settings.setup && ctx.settings.setup.dismissed);
+    const setupSum = setupSteps.length ? setupSteps.filter(x => x.done).length + ' of ' + setupSteps.length + ' done' : 'your first-run checklist';
     return html`<div class="stack" style=${{gap: '20px'}}>
       <header class="hero ink">
         <span class="ring" style=${{width: '380px', height: '380px', right: '-140px', top: '-190px'}}/>
@@ -9881,21 +9980,21 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         </div>
       </header>
       ${M.parts.JoinBanner ? html`<${M.parts.JoinBanner}/>` : null}
-      ${M.parts.SetupCard ? html`<${M.parts.SetupCard}/>` : null}
+      ${M.parts.SetupCard && !setupDone ? html`<${UI.Fold} title="Get m360 ready" summary=${setupSum} open=${false} id="fold-setup"><${M.parts.SetupCard}/><//>` : null}
       <${M.SectionTabs} section="hq" active=${t}/>
       ${t === 'dashboard' ? html`<${Embed} page="Command"/>` : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>` : html`<div class="stack" style=${{gap: '20px'}}>
         <${IntelBrief}/>
         <div class="split">
           <div class="stack" style=${{gap: '20px'}}>
-            <${Workload}/>
-            ${M.parts.MoodHeat ? html`<${M.parts.MoodHeat}/>` : null}
-            ${Panel && M.ai.on(ctx) ? html`<section class="card"><div class="card-head"><h2 class="card-title">Ask HQ anything</h2></div><${Panel} inline=${true}/></section>` : null}
+            <${UI.Fold} title="Workload" summary=${ctx.activeMembers.length + ' people, open tasks and late marks'} id="fold-workload"><${Workload}/><//>
+            ${M.parts.MoodHeat ? html`<${UI.Fold} title="Mood, three weeks" summary="every check-in mood, one box a day" id="fold-mood"><${M.parts.MoodHeat}/><//>` : null}
+            ${Panel && M.ai.on(ctx) ? html`<${UI.Fold} title="Ask HQ anything" summary="anyone, any client, any number" id="fold-askhq"><section class="card"><div class="card-head"><h2 class="card-title">Ask HQ anything</h2></div><${Panel} inline=${true}/></section><//>` : null}
           </div>
           <div class="stack" style=${{gap: '20px'}}>
-            <${LiveNow}/>
-            ${M.parts.Reviews ? html`<${M.parts.Reviews} compact=${true}/>` : null}
-            ${M.parts.LeaveApprovals ? html`<${M.parts.LeaveApprovals}/>` : null}
-            ${M.parts.Tape ? html`<${M.parts.Tape}/>` : null}
+            <${UI.Fold} title="Live now" summary=${Object.keys(ctx.online).length + ' online'} id="fold-live"><${LiveNow}/><//>
+            ${M.parts.Reviews ? html`<${UI.Fold} title="Waiting on your review" summary=${hqRev + (hqRev === 1 ? ' piece' : ' pieces')} open=${hqRev > 0} hot=${hqRev > 0} id="fold-hqreviews"><${M.parts.Reviews} compact=${true}/><//>` : null}
+            ${M.parts.LeaveApprovals ? html`<${UI.Fold} title="Leave approvals" summary=${hqLeave + ' pending'} open=${hqLeave > 0} hot=${hqLeave > 0} id="fold-approvals"><${M.parts.LeaveApprovals}/><//>` : null}
+            ${M.parts.Tape ? html`<${UI.Fold} title="The tape" summary="today, newest first" id="fold-tape"><${M.parts.Tape}/><//>` : null}
           </div>
         </div>
       </div>`}
