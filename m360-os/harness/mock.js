@@ -346,6 +346,18 @@
         if (opts.onText) opts.onText({text: said, delta: said});
         return res({text: said, truncated: false, modelTierApplied: 'quick'});
       }
+      /* the Base: "who do we know at <company>" goes through the who_do_we_know_at tool and answers with the names it returns */
+      const wdwk = tools.find(x => x.name === 'who_do_we_know_at');
+      const m = /who do we know at\s+(.+?)\s*[?.]?\s*$/i.exec(String(last).trim());
+      if (wdwk && m) {
+        const r = await wdwk.execute({company: m[1]}, {signal: new AbortController().signal});
+        const people = (r && r.people) || [];
+        const out = people.length
+          ? 'At ' + m[1] + ' we know ' + people.length + (people.length === 1 ? ' person' : ' people') + ':\n' + people.map(p => '- ' + p.name + (p.title ? ', ' + p.title : '') + (p.stage ? ' (' + p.stage + ')' : '')).join('\n')
+          : 'Nobody at ' + m[1] + ' in the Base yet.';
+        if (opts.onText) opts.onText({text: out, delta: out});
+        return res({text: out, truncated: false, modelTierApplied: 'default'});
+      }
       if (tools.length && /add a task/i.test(last)) {
         const t = tools.find(x => x.name === 'create_task');
         await t.execute({title: 'Follow up with the client', owner: 'me', due: tomorrow}, {signal: new AbortController().signal});

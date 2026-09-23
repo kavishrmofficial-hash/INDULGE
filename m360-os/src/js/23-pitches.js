@@ -153,10 +153,13 @@
     const finReady = !!(ctx.priv && ctx.priv.finance && ctx.priv.finance.ready);
     const fe = pitchId ? financeOf(ctx)[pitchId] : null;
 
-    const blank = () => ({brand: '', category: '', contact: '', source: '', stage: 'lead', owner: ctx.uid,
+    /* pitch.contact holds a Base contact id when one is picked, else a typed name and role */
+    const baseContact = cid => (cid && M.search && M.search.contactById) ? M.search.contactById(ctx, cid) : null;
+    const blank = () => ({brand: '', category: '', contact: '', contactId: '', source: '', stage: 'lead', owner: ctx.uid,
       next: '', nextDate: '', lost: '', value: '', prob: ''});
     const fromDoc = (p, e) => ({
-      brand: p.brand || '', category: p.category || '', contact: p.contact || '', source: p.source || '',
+      brand: p.brand || '', category: p.category || '', contact: baseContact(p.contact) ? '' : (p.contact || ''), contactId: baseContact(p.contact) ? p.contact : '',
+      source: p.source || '',
       stage: stageOf(p).v, owner: p.owner || ctx.uid, next: p.next || '', nextDate: p.nextDate || '', lost: p.lost || '',
       value: valueOf(e) > 0 ? String(valueOf(e)) : '', prob: hasProb(e) ? String(Number(e.prob)) : ''
     });
@@ -184,12 +187,23 @@
     const clientId = pitch ? clientFor(ctx, pitch.brand) : null;
     const canSave = !!f.brand.trim() && !busy;
 
+    /* contacts from the Base: the ones at this pitch's client company when it is linked, else everyone */
+    const contactOpts = useMemo(() => {
+      if (!M.search || !M.search.contacts) return [];
+      const all = M.search.contacts(ctx);
+      const cid = clientFor(ctx, f.brand);
+      const org = cid ? M.search.orgOfClient(ctx, cid) : null;
+      const list = org ? all.filter(c => c.org === org.id) : all;
+      return list.map(c => ({v: c.id, label: M.search.nameOf(c) + (c.title ? ', ' + c.title : '') + (!org && c.orgName ? ' (' + c.orgName + ')' : '')}))
+        .sort((a, b) => a.label.localeCompare(b.label)).slice(0, 200);
+    }, [ctx.coll.contacts, ctx.coll.orgs, ctx.coll.clients, f.brand]);
+
     const save = () => {
       if (!canSave) return;
       setBusy(true);
       const now = Date.now();
       const id = isNew ? U.uid() : pitchId;
-      const body = {brand: f.brand.trim(), category: f.category.trim(), contact: f.contact.trim(),
+      const body = {brand: f.brand.trim(), category: f.category.trim(), contact: f.contactId || f.contact.trim(),
         source: f.source.trim(), owner: f.owner || ctx.uid, updated: now};
       let p;
       if (isNew) {
@@ -249,7 +263,7 @@
     const actions = isNew ? null : html`<div class="grow row">
       ${!pitch.project ? html`<${UI.Btn} kind="sec" sm disabled=${!canCreateProject || busy} onClick=${startProject}>Start pitch project<//>` : null}
       ${won ? (clientId
-        ? html`<${UI.Btn} kind="sec" sm onClick=${() => M.nav('#clients')}><${icons.link}/>Open client page<//>`
+        ? html`<${UI.Btn} kind="sec" sm onClick=${() => M.nav('#clients/' + clientId)}><${icons.link}/>Open client page<//>`
         : html`<${UI.Btn} kind="sec" sm disabled=${busy} onClick=${createClient}>Create client page<//>`) : null}
       ${won ? html`<${UI.Btn} kind="sec" sm disabled=${!canCreateProject || busy} onClick=${createRetainer}>Create retainer project<//>` : null}
     </div>`;
@@ -263,7 +277,9 @@
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${isNew ? 'New pitch' : 'Pitch'} head=${stagePill} footer=${footer}>
       <${UI.Input} id="pitch-brand" label="brand" value=${f.brand} onChange=${set('brand')} placeholder="Brand name" onEnter=${save}/>
       <${UI.Input} id="pitch-category" label="category" value=${f.category} onChange=${set('category')} placeholder="Fine jewellery, hospitality, wellness"/>
-      <${UI.Input} id="pitch-contact" label="contact, name and role" value=${f.contact} onChange=${set('contact')} placeholder="Name and role"/>
+      ${contactOpts.length ? html`<${UI.Select} id="pitch-contact-pick" label="contact from the Base" value=${f.contactId} onChange=${set('contactId')}
+        options=${[{v: '', label: f.contact ? 'Typed below' : 'Pick a contact'}].concat(contactOpts)}/>` : null}
+      ${!f.contactId ? html`<${UI.Input} id="pitch-contact" label=${contactOpts.length ? 'or type a contact, name and role' : 'contact, name and role'} value=${f.contact} onChange=${set('contact')} placeholder="Name and role"/>` : null}
       <${UI.Input} id="pitch-source" label="source" value=${f.source} onChange=${set('source')} placeholder="Referral, inbound, event"/>
       ${!isNew ? html`<${UI.Field} label="stage">
         <${UI.Seg} sm options=${STAGE_OPTS} value=${f.stage} onChange=${set('stage')} ariaLabel="Stage"/>
@@ -276,6 +292,7 @@
         ${pitch.project ? html`<${UI.Field} label="project">
           <div><${UI.Btn} kind="sec" sm onClick=${() => M.nav('#projects/' + pitch.project)}><${icons.link}/>${project ? (project.name || 'Project') : 'Open project'}<//></div>
         <//>` : null}
+        ${M.parts.Connections ? html`<${M.parts.Connections} kind="pitch" id=${pitchId}/>` : null}
       <//>` : null}
       ${ctx.isFounder ? html`<${React.Fragment}>
         <hr class="hair"/>
@@ -293,6 +310,11 @@
     const ctx = M.useCtx();
     const [open, setOpen] = useState(null);
     M.useIntent('pitch', () => setOpen('new'));
+    /* #pitches/<id> opens that pitch (search results and Connections land here) */
+    const route = M.useRoute();
+    const routeId = route.page === 'pitches' ? route.id : null;
+    useEffect(() => { if (routeId) setOpen(routeId); }, [routeId]);
+    const close = () => { setOpen(null); if (routeId) M.nav('#pitches'); };
     const map = ctx.coll.pitches.map;
     const all = Object.keys(map).map(id => ({id, ...map[id]}));
     const fin = financeOf(ctx);
@@ -305,7 +327,7 @@
       ${m ? html`<${MetricsBar} m=${m}/>` : null}
       ${!ctx.coll.pitches.ready ? html`<${UI.Empty} text="Loading pitches."/>`
         : html`<${Board} ctx=${ctx} all=${all} fin=${fin} onOpen=${setOpen}/>`}
-      ${open ? html`<${PitchDrawer} pitchId=${open === 'new' ? null : open} onClose=${() => setOpen(null)}/>` : null}
+      ${open ? html`<${PitchDrawer} pitchId=${open === 'new' ? null : open} onClose=${close}/>` : null}
     <//>`;
   }
 

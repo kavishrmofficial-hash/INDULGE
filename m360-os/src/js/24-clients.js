@@ -43,16 +43,22 @@
       pod: (existing && existing.pod) || '', owner: (existing && existing.owner) || ctx.uid,
       memory: (existing && existing.memory) || '', approvals: (existing && existing.approvals) || '',
       never: (existing && existing.never) || '', links: (existing && existing.links) || '',
+      org: (existing && existing.org) || '',
       monthly: id && fin[id] ? String(fin[id].monthly || '') : ''
     }));
     const set = (k, v) => setF(x => ({...x, [k]: v}));
     const owners = ctx.activeMembers.map(m => ({v: m.uid, label: m.title ? m.empId + ' ' + m.title : m.empId}));
+    /* the company in the Base this client is, when the Base has companies */
+    const orgOpts = useMemo(() => {
+      const list = (M.search && M.search.orgs) ? M.search.orgs(ctx) : [];
+      return list.map(o => ({v: o.id, label: o.name || o.id})).sort((a, b) => a.label.localeCompare(b.label));
+    }, [ctx.coll.orgs]);
 
     async function save() {
       if (!f.name.trim()) return;
       const cid = id || U.uid();
       const doc = {name: f.name.trim(), status: f.status, pod: f.pod, owner: f.owner,
-        memory: f.memory, approvals: f.approvals, never: f.never, links: f.links,
+        memory: f.memory, approvals: f.approvals, never: f.never, links: f.links, org: f.org || '',
         updated: Date.now(), by: ctx.uid};
       if (id) await ctx.W.update('clients/' + id, doc);
       else await ctx.W.set('clients/' + cid, doc);
@@ -78,6 +84,10 @@
       <${UI.TextArea} label="approvals" value=${f.approvals} onChange=${v => set('approvals', v)}/>
       <${UI.TextArea} label="lines never to cross" value=${f.never} onChange=${v => set('never', v)}/>
       <${UI.TextArea} label="links, one per line" value=${f.links} onChange=${v => set('links', v)}/>
+      ${orgOpts.length ? html`<${UI.Select} id="client-org" label="company in the Base" value=${f.org} onChange=${v => set('org', v)}
+        options=${[{v: '', label: 'Not linked yet'}].concat(orgOpts)} hint="Links this client to its company and people in the Base."/>` : null}
+      ${id && M.parts.PeopleAtClient ? html`<${M.parts.PeopleAtClient} id=${id}/>` : null}
+      ${id && M.parts.Connections ? html`<${M.parts.Connections} kind="client" id=${id}/>` : null}
       ${id && M.parts.ClientUpdate ? html`<${M.parts.ClientUpdate} id=${id} name=${f.name}/>` : null}
       ${ctx.isFounder ? html`<${UI.Input} label="monthly revenue" type="number" value=${f.monthly}
         onChange=${v => set('monthly', v)} hint="Private to you."/>` : null}
@@ -88,6 +98,11 @@
     const ctx = M.useCtx();
     const [open, setOpen] = useState(null); /* id, or 'new' */
     M.useIntent('client', () => setOpen('new'));
+    /* #clients/<id> opens that client (search results and Connections land here) */
+    const route = M.useRoute();
+    const routeId = route.page === 'clients' ? route.id : null;
+    useEffect(() => { if (routeId) setOpen(routeId); }, [routeId]);
+    const close = () => { setOpen(null); if (routeId) M.nav('#clients'); };
     const map = ctx.coll.clients.map;
     const sh = useMemo(() => {
       const out = {};
@@ -127,7 +142,7 @@
           </button>`;
         })}
       </div>` : html`<${UI.Card}><${UI.Empty} text="No clients yet."/><//>`}
-      ${open ? html`<${ClientDrawer} id=${open === 'new' ? null : open} onClose=${() => setOpen(null)}/>` : null}
+      ${open ? html`<${ClientDrawer} id=${open === 'new' ? null : open} onClose=${close}/>` : null}
     </div>`;
   }
 
