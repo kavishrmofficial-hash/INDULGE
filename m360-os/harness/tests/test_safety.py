@@ -12,6 +12,7 @@ Run: cd m360-os && python3 harness/tests/test_safety.py
 """
 import json
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -63,6 +64,17 @@ def standalone(fails, errors):
         return json.loads(data[key]) if key in data else None
 
     today = time.strftime('%Y-%m-%d', time.gmtime(time.time() + 19800))
+    srv2, store2 = None, None
+
+    def api_at(base_url, body):
+        """one API call with no cookie jar: (status, json)"""
+        req = urllib.request.Request(base_url + 'api/m360', data=json.dumps(body).encode('utf-8'), method='POST', headers={'content-type': 'application/json'})
+        try:
+            r = urllib.request.urlopen(req)
+            return r.status, json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read())
+
     try:
         with sync_playwright() as pw:
             exe = os.environ.get('PW_CHROMIUM')
@@ -245,7 +257,9 @@ def standalone(fails, errors):
             check(f.evaluate('() => window.M360_API("trash").then(r => r.items.length)') == 0, 'trash not empty')
             check(not [k for k in store_all() if k.startswith('t/')], 'trash blobs left')
             check(store_doc('d/tasks~t1') is not None and store_doc('bk/%s/tasks' % today) is not None, 'emptytrash touched documents or backups')
-            f.locator('#bk-status').get_by_role('button', name='Check again').click()
+            # the button reads Rebuild caches when the page's last health check saw the corrupt blob before the poll
+            # rebuilt the cache, and Check again otherwise; both run the same check
+            f.locator('#bk-status').get_by_role('button', name=re.compile('Check again|Rebuild caches')).click()
             f.wait_for_selector('#bk-health:has-text("all readable")')
 
             # ---- phone ----
@@ -255,13 +269,163 @@ def standalone(fails, errors):
             check(ov <= 0, 'phone overflow %d' % ov)
             os.makedirs(os.path.join(ROOT, 'harness', 'shots'), exist_ok=True)
             f.screenshot(path=os.path.join(ROOT, 'harness', 'shots', 'safety-backups-390.png'), full_page=True)
+
+            # ---- moving to a new address: the site backup (the Backups tab is still open) ----
+            f.set_viewport_size({'width': 1280, 'height': 900})
+            f.wait_for_selector('#site-move')
+            card = f.inner_text('#site-move')
+            check('Restore a site backup' in card and 'AI key' in card and 'restore a site backup here' in card, 'move card: ' + card[:300])
+            with f.expect_download() as dl3:
+                f.locator('#site-backup-dl').click()
+            check(dl3.value.suggested_filename == 'm360-site-%s.json' % today, 'site filename %r' % dl3.value.suggested_filename)
+            site_text = open(dl3.value.path(), encoding='utf-8').read()
+            site = json.loads(site_text)
+            check(site['app'] == 'm360' and site['kind'] == 'site' and site['exported'] and sorted(site) == ['app', 'bad', 'colls', 'exported', 'identity', 'kind', 'settingsKeys'], 'site shape %r' % sorted(site))
+            check(site['colls']['tasks']['docs']['t1']['title'] == 'Write hero reel script' and 'roster' in site['colls'] and 'settings' in site['colls'], 'site colls %r' % sorted(site['colls']))
+            idn = site['identity']
+            check(idn['people'][fuid]['name'] == 'Kaavish Ramchandani' and idn['people'][fuid]['email'] == 'kaavish@mask360.agency' and idn['people'][muid]['name'] == 'Durvesh Patil', 'site people %r' % idn['people'])
+            check(idn['owner'] == {'uid': fuid} and idn['emails'].get('kaavish%40mask360.agency') == {'uid': fuid} and idn['emails'].get('durvesh%40mask360.agency') == {'uid': muid}, 'site owner or emails %r' % [idn['owner'], sorted(idn['emails'])])
+            check(set(idn['passwords']) == {fuid, muid} and all(set(w) == {'salt', 'hash', 'iter', 'at'} and w['iter'] > 0 and len(w['hash']) > 20 for w in idn['passwords'].values()), 'site passwords %r' % idn['passwords'])
+            check('safety-test-pw-2026' not in site_text and 'safety-test-pw-durvesh' not in site_text, 'a plain password in the site backup')
+            skeys = [k for k in store_all() if k.startswith('s/')]
+            check(skeys and not any(k[2:] in site_text for k in skeys), 'a session token in the site backup')
+            check(site['settingsKeys'] == {'ai': True, 'mail': False} and 'sk-ant' not in site_text, 'settings keys %r' % site.get('settingsKeys'))
+            latest = store_doc('bk/site/latest')
+            check(latest and latest['kind'] == 'site' and store_doc('bk/site/index')['digest'] and store_doc('bk/site/index')['bytes'] > 0, 'bk/site/latest missing')
+            f.wait_for_selector('#site-latest:has-text("Daily site copy")')
+            ident = f.evaluate('() => window.M360_API("siteidentity")')
+            check(ident['kind'] == 'site' and ident['colls'] == {} and ident['identity']['owner'] == {'uid': fuid} and fuid in ident['identity']['passwords'], 'siteidentity %r' % sorted(ident))
+            # a member gets 403 on all three
+            codes3 = m.evaluate('''() => Promise.all(['sitebackup', 'siteidentity', 'siterestore'].map(a => window.M360_API(a, {backup: {kind: 'site'}, mode: 'missing'}).then(() => 'ok', e => e.status)))''')
+            check(codes3 == [403] * 3, 'member site codes %r' % codes3)
+            # the owner restoring the unchanged backup in missing mode writes nothing
+            before = sorted(k for k in store_all() if k.startswith(('d/', 'p/', 'w/', 'e/', 'o/')))
+            same = f.evaluate('b => window.M360_API("siterestore", {backup: b, mode: "missing"})', site)
+            check(same['docs'] == 0 and same['people'] == 0 and same['colls'] == 0 and same['skipped'] >= 2 and same['mode'] == 'missing' and same['fresh'] is False, 'restore of an unchanged backup %r' % same)
+            check(sorted(k for k in store_all() if k.startswith(('d/', 'p/', 'w/', 'e/', 'o/'))) == before, 'a missing-mode restore added keys')
+            # replace mode puts a renamed task back, trashing the edited copy, and leaves the log alone
+            f.evaluate('() => window.M360_API("write", {op: "update", path: "tasks/t1", data: {title: "Renamed since the backup"}})')
+            n_trash = len([k for k in store_all() if k.startswith('t/')])
+            rep = f.evaluate('b => window.M360_API("siterestore", {backup: b, mode: "replace"})', site)
+            check(rep['mode'] == 'replace' and rep['docs'] >= 1 and rep['trashed'] >= 1 and store_doc('d/tasks~t1')['title'] == 'Write hero reel script', 'replace %r' % rep)
+            tkeys = sorted(k for k in store_all() if k.startswith('t/'))
+            check(len(tkeys) == n_trash + rep['trashed'] and any(store_doc(k)['doc'].get('title') == 'Renamed since the backup' for k in tkeys), 'replace did not trash the edited copy')
+            logs = f.evaluate('d => window.M360_API("logs", {from: d, to: d}).then(r => r.docs)', today)
+            ents = list(((logs.get(today + '-' + fuid) or {}).get('e') or {}).values())
+            check(any(x['a'] == 'restore' and x['s'].startswith('site, replace') for x in ents) and any(x['a'] == 'sitebackup' for x in ents), 'site restore or backup not logged: %r' % [x['s'] for x in ents if x['a'] in ('restore', 'sitebackup')][-3:])
+            # the replace-mode restore is itself in the log, so the log document was never rolled back
+            check(any(x['a'] == 'restore' and x['s'].startswith('site, missing') for x in ents), 'the log was rolled back by replace mode')
+
+            # ---- a brand new deployment: the site backup restored on its setup screen ----
+            port2 = free_port()
+            store2 = tempfile.mktemp(suffix='.json')
+            srv2 = subprocess.Popen(['node', os.path.join(ROOT, 'edgeone', 'dev', 'server.mjs'), str(port2), store2], env=env,
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            base2 = 'http://localhost:%d/' % port2
+            for _ in range(50):
+                try:
+                    urllib.request.urlopen(base2, timeout=1)
+                    break
+                except Exception:
+                    time.sleep(0.1)
+
+            def store2_all():
+                return json.loads(urllib.request.urlopen(base2 + '__store').read())
+
+            def store2_doc(key):
+                data = store2_all()
+                return json.loads(data[key]) if key in data else None
+
+            check(api_at(base2, {'a': 'me'})[1].get('setup') is True, 'the second server is not fresh')
+            # a malformed file is refused with 400 and nothing is written
+            bads = [
+                'not an object',
+                {'kind': 'nope', 'colls': {}, 'identity': idn},
+                {'kind': 'site', 'colls': {'tasks': {'docs': {'..': {'title': 'x'}}}}, 'identity': idn},
+                {'kind': 'site', 'colls': {'tasks': {'docs': {'t1': [1, 2]}}}, 'identity': idn},
+                {'kind': 'site', 'colls': {'odd': {'docs': {'a/b': {'x': 1}}}}, 'identity': idn},
+                {'kind': 'site', 'colls': {'tasks': {'docs': {'t~1': {'x': 1}}}}, 'identity': idn},
+                {'kind': 'site', 'colls': {'tasks': 'docs'}, 'identity': idn},
+                {'kind': 'site', 'colls': {}, 'identity': {'people': {'bad id': {'name': 'x', 'email': '', 'at': 1}}, 'emails': {}, 'owner': {}, 'passwords': {}}},
+                {'kind': 'site', 'colls': {}, 'identity': {'people': {}, 'emails': {}, 'owner': {'uid': fuid}, 'passwords': {}}},
+                {'kind': 'site', 'colls': {}, 'identity': {'people': idn['people'], 'emails': {'kaavish@mask360.agency': {'uid': fuid}}, 'owner': {}, 'passwords': {}}},
+                {'kind': 'site', 'colls': {}, 'identity': {'people': idn['people'], 'emails': {}, 'owner': {}, 'passwords': {fuid: {'salt': 'x'}}}},
+                {'kind': 'site', 'colls': {}, 'identity': {'people': {fuid: {'name': 'K', 'email': 'nope', 'at': 1}}, 'emails': {}, 'owner': {}, 'passwords': {}}},
+            ]
+            for b in bads:
+                st, j = api_at(base2, {'a': 'siterestore', 'backup': b, 'mode': 'missing'})
+                check(st == 400 and j['error']['code'] == 'invalid_argument', 'malformed accepted: %r -> %r' % (str(b)[:70], (st, j)))
+            st, j = api_at(base2, {'a': 'siterestore', 'mode': 'missing'})
+            check(st == 400, 'no backup accepted: %r' % j)
+            leaked = [k for k in store2_all() if k.startswith(('d/', 'p/', 'w/', 'e/', 'o/'))]
+            check(not leaked, 'a refused restore wrote something: %r' % leaked[:5])
+            check(api_at(base2, {'a': 'me'})[1].get('setup') is True, 'a refused restore ended setup')
+
+            # the setup screen: choose Restore a site backup, pick the file, restore, sign in with the old email and password
+            nc, n = device()
+            n.goto(base2)
+            n.wait_for_selector('text=Set up m360 OS')
+            n.locator('#site-restore-open').click()
+            n.wait_for_selector('#site-restore-box')
+            check('never in a backup' in n.inner_text('.gate') and '!' not in n.inner_text('.gate'), 'setup restore copy: ' + n.inner_text('.gate')[:300])
+            n.set_input_files('#site-restore-file', {'name': 'notes.json', 'mimeType': 'application/json', 'buffer': b'{"hello": 1}'})
+            n.wait_for_selector('#site-restore-err')
+            check(n.locator('#site-restore-counts').count() == 0, 'a file with nothing in it showed counts')
+            n.set_input_files('#site-restore-file', {'name': dl3.value.suggested_filename, 'mimeType': 'application/json', 'buffer': site_text.encode('utf-8')})
+            n.wait_for_selector('#site-restore-counts')
+            counts = n.inner_text('#site-restore-counts')
+            check('2 people' in counts and 'exported' in counts and 'tasks' in n.inner_text('#site-restore'), 'restore counts: ' + counts + ' / ' + n.inner_text('#site-restore')[:200])
+            n.locator('#site-restore-go').get_by_role('button', name='Restore everything').click()
+            n.locator('#site-restore-go').get_by_role('button', name='Tap again to restore').click()
+            n.wait_for_selector('#site-restored')
+            check('Sign in with the email and password you used before' in n.inner_text('#site-restored'), 'restored line: ' + n.inner_text('#site-restored'))
+            check(store2_doc('o/owner') == {'uid': fuid} and store2_doc('p/' + muid)['name'] == 'Durvesh Patil' and store2_doc('d/tasks~t1')['title'] == 'Write hero reel script', 'new site store')
+            check(store2_doc('w/' + fuid) == idn['passwords'][fuid] and store2_doc('e/kaavish%40mask360.agency') == {'uid': fuid}, 'password hash or email index not carried across')
+            check(not [k for k in store2_all() if k.startswith(('s/', 'x/', 'k/', 'i/', 'c/', 'a/'))], 'sessions, keys or stale caches on the new site')
+            st, j = api_at(base2, {'a': 'setup', 'name': 'Intruder', 'email': 'intruder@example.com', 'password': 'intruder-pw-77'})
+            check(st == 409, 'setup still open after a restore: %d' % st)
+            n.fill('#signin-email', 'kaavish@mask360.agency')
+            n.fill('#signin-pw', 'safety-test-pw-2026')
+            n.locator('#signin-go').click()
+            n.wait_for_selector('.sidebar')
+            me2 = n.evaluate('() => window.M360_API("me")')
+            check(me2['uid'] == fuid and me2['isOwner'] is True and me2['name'] == 'Kaavish Ramchandani' and me2['hasPw'] is True, 'me on the new site %r' % me2)
+            titles1 = sorted(t['title'] for t in site['colls']['tasks']['docs'].values())
+            titles2 = n.evaluate('() => window.M360_API("snapshot").then(r => Object.values(r.colls.tasks.docs).map(t => t.title).sort())')
+            check(titles1 == titles2 == ['Write hero reel script'], 'task titles %r vs %r' % (titles1, titles2))
+            n.goto(base2 + '#tasks')
+            n.wait_for_selector('text=Write hero reel script')
+            # the member signs in with their old password too; a wrong one is still refused
+            check(api_at(base2, {'a': 'pw', 'email': 'durvesh@mask360.agency', 'password': 'safety-test-pw-durvesh'})[0] == 200, 'member cannot sign in on the new site')
+            check(api_at(base2, {'a': 'pw', 'email': 'durvesh@mask360.agency', 'password': 'wrong-pw-000000'})[0] == 401, 'a wrong password signs in on the new site')
+            logs2 = n.evaluate('d => window.M360_API("logs", {from: d, to: d}).then(r => r.docs)', today)
+            ents2 = list(((logs2.get(today + '-' + fuid) or {}).get('e') or {}).values())
+            check(any(x['a'] == 'restore' and x['s'].startswith('site, missing, fresh site') and '2 people' in x['s'] for x in ents2), 'restore not logged on the new site: %r' % [x['s'] for x in ents2 if x['a'] == 'restore'])
+            integ4 = n.evaluate('() => window.M360_API("integrity")')
+            check(integ4['ok'] is True and integ4['colls']['tasks']['count'] == 1 and integ4['docs'] >= sum(len(c['docs']) for c in site['colls'].values()), 'integrity on the new site %r' % integ4)
+            # the new site's own site backup carries the same people and documents
+            site2 = n.evaluate('() => window.M360_API("sitebackup")')
+            check(site2['kind'] == 'site' and set(site2['identity']['people']) == {fuid, muid} and sorted(site2['colls']) == sorted(site['colls']), 'site backup on the new site %r' % sorted(site2.get('colls', {})))
+            n.goto(base2 + '#admin')
+            n.wait_for_selector('#invite-email')
+            n.get_by_role('tab', name='Backups').click()
+            n.wait_for_selector('#site-restore-here')
+            n.set_viewport_size({'width': 390, 'height': 800})
+            n.wait_for_timeout(300)
+            ov = n.evaluate('() => document.documentElement.scrollWidth - document.documentElement.clientWidth')
+            check(ov <= 0, 'phone overflow on the move card %d' % ov)
+            nc.close()
             browser.close()
     finally:
         srv.terminate()
-        try:
-            os.remove(store)
-        except OSError:
-            pass
+        if srv2:
+            srv2.terminate()
+        for fpath in (store, store2):
+            try:
+                if fpath:
+                    os.remove(fpath)
+            except OSError:
+                pass
 
 
 def mock(h):

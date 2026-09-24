@@ -6,14 +6,30 @@
      bk/<ymd>/index                  {at, colls: {name: count}, bytes, bad}
      bk/<ymd>/<coll, slashes as ~>   {docs: {id: data}}           one blob per collection per day
      bk/<ymd>/lock                   {at, id}                     best effort guard against two instances backing up at once
+     bk/site/latest                  the site backup (see below)   written once a day after the daily backup, at most 8 MB
+     bk/site/index                   {at, bytes, digest, lastError}   when it was written and the d/ inventory it matches
 
-   Nothing here erases a d/ blob except restorecoll in overwrite mode, and that copies the current
-   document to the trash first through the same hook every delete goes through. */
+   The site backup is the whole workspace in one JSON, made for moving m360 from one address to
+   another: every document plus the people, their emails, the owner and the password hashes.
+     {app: 'm360', kind: 'site', exported, colls: {name: {docs}}, identity: {people, emails, owner, passwords}, settingsKeys: {ai, mail}}
+   Sessions, sign-in links, invites, reset codes and the AI and mail keys never travel; the founder
+   re-enters the keys after a move. siterestore writes it into a store with no owner yet (a fresh
+   deployment, nobody signed in) or, for the owner, merges it into a live site.
+
+   Nothing here erases a d/ blob except restorecoll in overwrite mode and siterestore in replace mode,
+   and both copy the current document to the trash first through the same hook every delete goes through. */
 
 const TRASH_DAYS = 30;
 const BACKUP_DAYS = 45;
 const TRASH_LIST = 300;
 const RESPONSE_CAP = 4 * 1024 * 1024;
+const SITE_CAP = 8 * 1024 * 1024;
+const SITE_FRESH_MS = 3600000;    /* a cached site backup younger than this, over an unchanged inventory, is served as is */
+const SITE_BODY_MAX = 32 * 1024 * 1024;
+const DOC_MAX = 256 * 1024;       /* the same document cap core.js applies to writes */
+const UID_OK = /^u_[A-Za-z0-9]{6,40}$/;
+const SEG_OK = /^[A-Za-z0-9_\-.:@+]{1,200}$/;
+const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const LOCK_MS = 10 * 60000;
 const RECHECK_MS = 5 * 60000;
 const CHUNK = 25;
@@ -35,7 +51,7 @@ async function eachChunk(list, fn) {
 }
 
 export function safetyActions(h) {
-  const {store, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, pathOfKey, isObj, hooks, log} = h;
+  const {store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, pathOfKey, isObj, hooks, log} = h;
   const raw = key => store.get(key, {type: 'text', consistency: 'strong'});
   const admin = async v => { if (!v || (await levelOf(v.uid)) < LEVEL.admin) throw new HttpError(403, 'invalid_argument'); };
   const owner = async v => { if (!v || v.uid !== (await ownerUid())) throw new HttpError(403, 'invalid_argument'); };
@@ -78,6 +94,135 @@ export function safetyActions(h) {
     return {colls, bad, bytes};
   }
 
+  /* ---------- the site backup: documents plus identity ---------- */
+  /* who is on this site: people with a record, their email index entries, the owner and the password hashes.
+     Only the fields a fresh site needs; lockout counters (fails, since, until) stay behind. */
+  async function readIdentity() {
+    const people = {}, emails = {}, passwords = {};
+    await eachChunk(await listAll('p/'), async b => {
+      const uid = b.key.slice(2);
+      if (!UID_OK.test(uid)) return;
+      const p = await getJ(b.key).catch(() => null);
+      if (!p) return;
+      people[uid] = {name: String(p.name || ''), email: String(p.email || ''), at: Number(p.at) || 0};
+    });
+    await eachChunk(await listAll('e/'), async b => {
+      const e = await getJ(b.key).catch(() => null);
+      if (e && e.uid && people[e.uid]) emails[b.key.slice(2)] = {uid: e.uid};
+    });
+    await eachChunk(await listAll('w/'), async b => {
+      const uid = b.key.slice(2);
+      if (!people[uid]) return;
+      const w = await getJ(b.key).catch(() => null);
+      if (w && typeof w.salt === 'string' && typeof w.hash === 'string') passwords[uid] = {salt: w.salt, hash: w.hash, iter: Number(w.iter) || 0, at: Number(w.at) || 0};
+    });
+    const o = await getJ('o/owner').catch(() => null);
+    return {people, emails, owner: o && o.uid && people[o.uid] ? {uid: o.uid} : {}, passwords};
+  }
+  async function settingsKeys() {
+    const [ai, mail] = await Promise.all([getJ('x/ai').catch(() => null), getJ('x/mail').catch(() => null)]);
+    return {ai: !!(env && env.ANTHROPIC_API_KEY) || !!(ai && ai.key), mail: !!(env && env.RESEND_API_KEY) || !!(mail && mail.key)};
+  }
+  /* a fingerprint of every d/ blob and its etag: the same inventory gives the same digest */
+  async function siteDigest() {
+    const pairs = (await listAll('d/')).map(b => b.key + ':' + normTag(b.etag)).sort();
+    const str = pairs.join('|');
+    let x = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; }
+    return x.toString(16) + ':' + pairs.length;
+  }
+  const wrapColls = colls => { const out = {}; for (const c of Object.keys(colls).sort()) out[c] = {docs: colls[c]}; return out; };
+  const countColls = colls => { const out = {}; for (const c of Object.keys(colls).sort()) out[c] = Object.keys(colls[c]).length; return out; };
+  async function buildSite(colls, bad) {
+    const [identity, keys] = await Promise.all([readIdentity(), settingsKeys()]);
+    return {app: 'm360', kind: 'site', exported: new Date().toISOString(), colls: wrapColls(colls), identity, settingsKeys: keys, bad: bad || []};
+  }
+  /* bk/site/latest from a site already built; over the cap it is skipped and bk/site/index says so. Never throws. */
+  async function keepSite(site) {
+    const index = (await getJ('bk/site/index').catch(() => null)) || {};
+    try {
+      const str = JSON.stringify(site);
+      if (str.length > SITE_CAP) {
+        await putJ('bk/site/index', {...index, lastError: {at: Date.now(), message: 'The site backup is over 8 MB (' + str.length + ' bytes), so it was not kept. Download it per collection.'}});
+        return false;
+      }
+      const digest = await siteDigest();
+      await store.set('bk/site/latest', str);
+      await putJ('bk/site/index', {at: Date.now(), bytes: str.length, digest, lastError: null});
+      return true;
+    } catch (e) {
+      await putJ('bk/site/index', {...index, lastError: {at: Date.now(), message: String((e && e.message) || e).slice(0, 200)}}).catch(() => {});
+      return false;
+    }
+  }
+  const writeSiteLatest = async (colls, bad) => keepSite(await buildSite(colls, bad));
+  /* the newest site backup: the daily copy when it is under an hour old and no document changed since, else a fresh
+     read that also refreshes the copy. Identity and the key flags are always read live, so a rename or a new password
+     from the last hour is in. */
+  async function currentSite() {
+    const index = (await getJ('bk/site/index').catch(() => null)) || {};
+    if (index.at && Date.now() - index.at < SITE_FRESH_MS && index.digest && index.digest === (await siteDigest())) {
+      const cached = await getJ('bk/site/latest').catch(() => null);
+      if (cached && cached.kind === 'site' && isObj(cached.colls)) {
+        const [identity, keys] = await Promise.all([readIdentity(), settingsKeys()]);
+        return {site: {...cached, identity, settingsKeys: keys}, counts: null};
+      }
+    }
+    const {colls, bad} = await readEverything();
+    const site = await buildSite(colls, bad);
+    if (!(await keepSite(site))) return {site: null, counts: countColls(colls)};
+    return {site, counts: null};
+  }
+
+  /* ---------- checking a site backup before a single write ---------- */
+  const bad400 = why => new HttpError(400, 'invalid_argument', 'That is not an m360 site backup: ' + why);
+  const goodPath = path => { const s = segs(path); return s.length >= 2 && s.length % 2 === 0 && s.every(x => SEG_OK.test(x) && x !== '.' && x !== '..'); };
+  /* the backup as the restore will write it, or a 400 naming the first thing wrong */
+  function checkSite(backup) {
+    if (!isObj(backup)) throw bad400('no backup in the request');
+    if (backup.kind !== 'site') throw bad400('kind is not site');
+    const colls = isObj(backup.colls) ? backup.colls : {};
+    const identity = isObj(backup.identity) ? backup.identity : {};
+    const people = isObj(identity.people) ? identity.people : {};
+    const emails = isObj(identity.emails) ? identity.emails : {};
+    const passwords = isObj(identity.passwords) ? identity.passwords : {};
+    const owner = isObj(identity.owner) ? identity.owner : {};
+    for (const uid of Object.keys(people)) {
+      const p = people[uid];
+      if (!UID_OK.test(uid) || !isObj(p) || typeof p.name !== 'string' || typeof p.email !== 'string') throw bad400('a person record is off');
+      if (p.email && (!EMAIL_OK.test(p.email) || p.email.length > 120)) throw bad400('a person has an email that does not look right');
+    }
+    for (const key of Object.keys(emails)) {
+      const e = emails[key];
+      let plain = '';
+      try { plain = decodeURIComponent(key); } catch (x) { throw bad400('an email index key is off'); }
+      if (!EMAIL_OK.test(plain) || plain.length > 120 || encodeURIComponent(plain) !== key) throw bad400('an email index key is off');
+      if (!isObj(e) || !UID_OK.test(String(e.uid)) || !people[e.uid]) throw bad400('an email points at nobody');
+    }
+    for (const uid of Object.keys(passwords)) {
+      const w = passwords[uid];
+      if (!UID_OK.test(uid) || !people[uid]) throw bad400('a password entry belongs to nobody');
+      if (!isObj(w) || typeof w.salt !== 'string' || typeof w.hash !== 'string' || !w.salt || !w.hash || w.salt.length > 200 || w.hash.length > 200 || !(Number(w.iter) > 0)) throw bad400('a password entry is off');
+    }
+    if (Object.keys(owner).length && (!UID_OK.test(String(owner.uid)) || !people[owner.uid])) throw bad400('the owner is nobody on the list');
+    const docs = {};
+    let count = 0;
+    for (const coll of Object.keys(colls)) {
+      const c = colls[coll];
+      if (!isObj(c) || !isObj(c.docs)) throw bad400('a collection is off');
+      for (const id of Object.keys(c.docs)) {
+        const path = coll + '/' + id;
+        if (!goodPath(path)) throw bad400('a document path is off');
+        if (!isObj(c.docs[id])) throw bad400('a document is not an object');
+        const str = JSON.stringify(c.docs[id]);
+        if (str.length > DOC_MAX) throw bad400('a document is over 256 KiB');
+        docs[path] = str;
+        count++;
+      }
+    }
+    return {people, emails, passwords, owner, docs, count};
+  }
+
   /* ---------- backups ---------- */
   async function readIndex() {
     const idx = (await getJ('bk/index').catch(() => null)) || {};
@@ -110,6 +255,8 @@ export function safetyActions(h) {
       const days = [ymd].concat(index.days.filter(d => d !== ymd)).sort().reverse();
       for (const d of days) if (d < cutoff) await dropDay(d);
       await putJ('bk/index', {...index, days: days.filter(d => d >= cutoff), last: manifest.at, lastError: null});
+      /* the site backup rides on the same read; its own index records a skip when it is over the cap */
+      await writeSiteLatest(colls, bad);
       return {ymd, ...manifest};
     } finally {
       await store.delete(lockKey).catch(() => {});
@@ -221,7 +368,75 @@ export function safetyActions(h) {
       const days = [];
       await eachChunk(index.days, async ymd => { const m = await dayManifest(ymd); if (m) days.push(m); });
       days.sort((a, b) => (a.ymd < b.ymd ? 1 : -1));
-      return {days, last: index.last || 0, lastError: index.lastError || null, keepDays: BACKUP_DAYS, trashDays: TRASH_DAYS};
+      const site = (await getJ('bk/site/index').catch(() => null)) || {};
+      return {days, last: index.last || 0, lastError: index.lastError || null, keepDays: BACKUP_DAYS, trashDays: TRASH_DAYS,
+        site: {at: site.at || 0, bytes: site.bytes || 0, lastError: site.lastError || null, cap: SITE_CAP}};
+    },
+
+    /* ---------- moving to a new address: the whole site as one JSON, and writing one back ---------- */
+    /* the owner's site backup: every document plus identity; over 8 MB it says so and lists the collections,
+       so the page fetches them one at a time through snapshotall and the identity through siteidentity */
+    async sitebackup(v) {
+      await owner(v);
+      const {site, counts} = await currentSite();
+      if (!site) { await log(v.uid, 'sitebackup', '', 'over the cap, per collection'); return {tooBig: true, limit: SITE_CAP, colls: counts}; }
+      await log(v.uid, 'sitebackup', '', Object.keys(site.identity.people).length + ' people, ' + Object.keys(site.colls).length + ' collections');
+      return site;
+    },
+    /* the identity part alone, in the same shape with no documents, for a site over the cap */
+    async siteidentity(v) {
+      await owner(v);
+      const [identity, keys] = await Promise.all([readIdentity(), settingsKeys()]);
+      await log(v.uid, 'siteidentity', '', Object.keys(identity.people).length + ' people');
+      return {app: 'm360', kind: 'site', exported: new Date().toISOString(), colls: {}, identity, settingsKeys: keys, bad: []};
+    },
+    /* a site backup written into this store. With no owner yet (a fresh deployment) anyone may, and only what is
+       missing is written; on a live site only the owner may, adding what is missing or replacing documents (each
+       current copy goes to the trash first) and overwriting people, emails and password hashes. The owner pointer is
+       written only when there is none, so a merge never hands the site to someone else. Nothing is written until the
+       whole file has been checked. Read caches for the touched collections are dropped; core rebuilds them on the next read. */
+    async siterestore(v, body) {
+      const ownerNow = await ownerUid();
+      if (ownerNow && (!v || v.uid !== ownerNow)) throw new HttpError(403, 'invalid_argument');
+      const mode = ownerNow && body.mode === 'replace' ? 'replace' : 'missing';
+      if (JSON.stringify(body.backup === undefined ? null : body.backup).length > SITE_BODY_MAX) throw new HttpError(400, 'invalid_argument', 'That backup is over 32 MB. Restore it per collection.');
+      const site = checkSite(body.backup);
+      const by = (v && v.uid) || (site.owner.uid || '');
+      let people = 0, docs = 0, skipped = 0, trashed = 0;
+      const exists = async key => (await raw(key).catch(() => null)) != null;
+      for (const uid of Object.keys(site.people)) {
+        if (mode === 'missing' && await exists('p/' + uid)) { skipped++; continue; }
+        await putJ('p/' + uid, site.people[uid]);
+        people++;
+      }
+      for (const key of Object.keys(site.emails)) {
+        if (mode === 'missing' && await exists('e/' + key)) continue;
+        await putJ('e/' + key, site.emails[key]);
+      }
+      if (!ownerNow && site.owner.uid) await putJ('o/owner', {uid: site.owner.uid});
+      for (const uid of Object.keys(site.passwords)) {
+        if (mode === 'missing' && await exists('w/' + uid)) continue;
+        await putJ('w/' + uid, site.passwords[uid]);
+      }
+      const touched = new Set();
+      for (const path of Object.keys(site.docs).sort()) {
+        const key = docKey(path);
+        const cur = await raw(key).catch(() => null);
+        if (cur != null) {
+          /* the activity log is history the server appends to: a merge adds missing days and never rolls one back */
+          if (mode === 'missing' || cur === site.docs[path] || segs(path)[0] === 'log') { skipped++; continue; }
+          await hooks.beforeDelete(key, path, by);
+          trashed++;
+        }
+        await store.set(key, site.docs[path]);
+        touched.add(segs(path).slice(0, -1).join('/'));
+        docs++;
+      }
+      for (const coll of touched) await store.delete(aggKey(coll)).catch(() => {});
+      const colls = touched.size;
+      await log(by, 'restore', '', 'site, ' + mode + (ownerNow ? '' : ', fresh site') + ': ' + people + (people === 1 ? ' person' : ' people') + ', ' + docs + (docs === 1 ? ' document' : ' documents') +
+        ' in ' + colls + (colls === 1 ? ' collection' : ' collections') + ', ' + skipped + ' skipped' + (trashed ? ', ' + trashed + ' to the trash' : ''));
+      return {mode, people, docs, colls, skipped, trashed, fresh: !ownerNow};
     },
     async backup(v, body) {
       await admin(v);

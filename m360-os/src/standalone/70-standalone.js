@@ -42,6 +42,8 @@
     const [busy, setBusy] = useState(false);
     const [sent, setSent] = useState(false);
     const [err, setErr] = useState(window.M360_LOGIN_ERR || '');
+    const [siteMode, setSiteMode] = useState(false);    /* first run: restoring a site backup from another address */
+    const [restored, setRestored] = useState(false);
     /* an invite link: who it is for (name only) and whether it still stands */
     const [invite, setInvite] = useState(window.M360_INVITE || '');
     const [inv, setInv] = useState(null);           /* {name, title} or {dead: true} */
@@ -114,6 +116,19 @@
     }
     const errLine = err ? html`<div class="small flame-t" role="alert">${err}</div>` : null;
     const backToSignIn = html`<button type="button" class="linky small" style=${{alignSelf: 'flex-start'}} onClick=${() => swap('pw')}>Back to sign in</button>`;
+    /* a fresh deployment: set up from nothing, or bring a site backup across from the old address.
+       After a restore the store has an owner, so me says setup is over and the sign-in form takes over. */
+    const afterRestore = async () => {
+      const m = await api('me').catch(() => null);
+      if (m && !m.setup) { setRestored(true); setSiteMode(false); setErr(''); setInfo(m); }
+    };
+    if (first && siteMode) return html`<${M.Gate} title="Set up m360 OS" line="Bringing m360 from another address: pick the site backup you downloaded there and everything comes across, sign-ins included.">
+      <div class="join-box stack tight" id="site-restore-box">
+        ${M.parts.SiteRestore ? html`<${M.parts.SiteRestore} mode="missing" fresh=${true} onDone=${afterRestore}/>` : null}
+        <div class="small ink62 pw-note">The AI key and the email key are never in a backup. Add them again in Admin once you are in.</div>
+        <button type="button" class="linky small" id="site-restore-back" style=${{alignSelf: 'flex-start'}} onClick=${() => { setErr(''); setSiteMode(false); }}>Set up a fresh workspace</button>
+      </div>
+    <//>`;
     if (first) return html`<${M.Gate} title="Set up m360 OS" line="You are the first one here, so this workspace is yours. You get HQ, Admin and every number.">
       <div class="join-box stack tight">
         <${UI.Input} id="signin-name" label="your name" value=${name} placeholder="First and last name" onChange=${setName} onEnter=${go}/>
@@ -123,6 +138,7 @@
         <div class="small ink62 pw-note">This is the super admin account. Keep the password somewhere safe.</div>
         <${UI.Btn} onClick=${go} disabled=${busy || !ready}>${busy ? 'One moment' : 'Set up the workspace'}<//>
         ${errLine}
+        <button type="button" class="linky small" id="site-restore-open" style=${{alignSelf: 'flex-start'}} onClick=${() => { setErr(''); setSiteMode(true); }}>Bringing m360 from another address? Restore a site backup</button>
       </div>
     <//>`;
     if (invite && !first) {
@@ -187,6 +203,7 @@
     }
     return html`<${M.Gate} title="Sign in to m360" line="Your work email and your password.">
       <div class="join-box stack tight" id="signin-box">
+        ${restored ? html`<div class="small pw-note" id="site-restored">Restored. Sign in with the email and password you used before.</div>` : null}
         <${UI.Input} id="signin-email" label="your work email" type="email" value=${email} placeholder="you@mask360.agency" onChange=${setEmail} onEnter=${signin}/>
         <${PwInput} id="signin-pw" label="your password" value=${pw} onChange=${setPw} onEnter=${signin} auto="current-password"/>
         <${UI.Btn} id="signin-go" onClick=${signin} disabled=${busy || !ready}>${busy ? 'One moment' : 'Sign in'}<//>
