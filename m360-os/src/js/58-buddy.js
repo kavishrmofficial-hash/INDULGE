@@ -42,8 +42,17 @@
       let label = el.getAttribute('aria-label') || (el.innerText || '').replace(/\s+/g, ' ').trim() || el.getAttribute('placeholder') || el.value || '';
       label = String(label).slice(0, 70);
       if (!label) continue;
-      const tag = el.matches('h1, h2, .card-title') ? 'heading' : el.matches('input, textarea, select') ? 'field'
+      const tag = el.matches('h1, h2, .card-title') ? 'heading' : el.matches('select') ? 'select' : el.matches('input, textarea') ? 'field'
         : el.getAttribute('role') === 'tab' || el.classList.contains('tab') ? 'tab' : el.tagName === 'A' ? 'link' : 'button';
+      /* what state it is in, so answers can read the screen instead of guessing */
+      let st = '';
+      if (tag === 'tab' && (el.getAttribute('aria-selected') === 'true' || el.classList.contains('active'))) st = 'selected';
+      else if (tag === 'field' && el.type === 'checkbox') st = el.checked ? 'checked' : 'unchecked';
+      else if (tag === 'field' && el.value) st = 'value: ' + String(el.value).slice(0, 40);
+      else if (tag === 'select' && el.selectedOptions && el.selectedOptions[0]) st = 'value: ' + String(el.selectedOptions[0].textContent).trim().slice(0, 40);
+      else if (el.disabled) st = 'disabled';
+      else if (el.getAttribute('aria-pressed') === 'true' || el.getAttribute('aria-expanded') === 'true') st = 'on';
+      if (st) label += ' [' + st + ']';
       const box = el.closest('section, header, .card, .drawer, aside, nav');
       const head = box ? (box.querySelector('.card-title, h1, h2, .drawer-head h2') || {}).innerText || '' : '';
       const id = 'e' + (++n);
@@ -96,8 +105,6 @@
     const [talking, setTalking] = useState(false);
     const [followUp, setFollowUp] = useState(false);
     const pointerRef = useRef(null);
-    const bubbleRef = useRef(null);
-    const bpos = useRef(null);           /* where the bubble is, gliding after the pointer */
     const trailRef = useRef([]);
     const mouse = useRef({x: window.innerWidth - 90, y: window.innerHeight - 90});
     const pos = useRef({x: window.innerWidth - 90, y: window.innerHeight - 90});
@@ -117,6 +124,7 @@
     const modeRef = useRef('idle');
     const tourRun = useRef(0);
     const holdTimer = useRef(0);
+    const walk = useRef(null);
     modeRef.current = mode;
 
     /* the mouth moves while a line is being said */
@@ -172,22 +180,6 @@
           el.style.setProperty('--lx', (target.current ? 0 : lx).toFixed(2));
           el.style.setProperty('--ly', (target.current ? .3 : ly).toFixed(2));
         }
-        /* the bubble rides with the pointer, and holds still while the mouse is over it (so it can be used) */
-        const b = bubbleRef.current;
-        if (b && window.innerWidth > 860) {
-          const W = window.innerWidth, H = window.innerHeight;
-          const bw = b.offsetWidth || 340, bh = b.offsetHeight || 160;
-          const wantL = Math.max(16, Math.min(W - bw - 16, p.x + 22));
-          const wantT = (p.y + 30 + bh + 16 > H) ? Math.max(16, p.y - bh - 12) : p.y + 30;
-          if (!bpos.current) bpos.current = {x: wantL, y: wantT, chase: false};
-          const d = Math.hypot(wantL - bpos.current.x, wantT - bpos.current.y);
-          /* on a leash: it holds still until the pointer wanders off, then catches up. A hand reaching for it
-             brings the pointer closer, which never starts a chase, so it can always be caught. */
-          if (d > 180 || flight.current) bpos.current.chase = true;
-          if (d < 18) bpos.current.chase = false;
-          if (bpos.current.chase) { bpos.current.x += (wantL - bpos.current.x) * .16; bpos.current.y += (wantT - bpos.current.y) * .16; }
-          b.style.left = bpos.current.x + 'px'; b.style.top = bpos.current.y + 'px';
-        }
         if (target.current) {
           const r = target.current.getBoundingClientRect();
           setRing(prev => (prev && Math.abs(prev.left - r.left) < .5 && Math.abs(prev.top - r.top) < .5) ? prev
@@ -240,7 +232,6 @@
       if (M.speech) M.speech.stop();
       pinned.current = false; flight.current = null; target.current = null;
       setRing(null); setMode('idle'); setAnswer(''); setActs([]); setErr(''); setHeard(''); setQ(''); setStep(-1); setFollowUp(false);
-      bpos.current = null;
       if (pointerRef.current) pointerRef.current.classList.remove('flying');
     }, []);
 
@@ -259,10 +250,10 @@
       const s = all[j];
       if (M.speech) M.speech.stop();
       setStep(j); setMode('tour'); setAnswer(M.tour.line(s, ctx)); setErr(''); setActs([]); setRing(null); target.current = null;
-      const saying = speak(M.tour.line(s, ctx));
+      const saying = s.custom && j === 0 ? Promise.resolve(false) : speak(M.tour.line(s, ctx));
       if (s.go && location.hash.split('?')[0] !== s.go) { M.nav(s.go); await wait(520); }
       if (run !== tourRun.current) return;
-      let el = firstVisible(s.sel);
+      let el = s.el || firstVisible(s.sel);
       if (!el) { await wait(400); el = firstVisible(s.sel); }
       if (run !== tourRun.current) return;
       if (el) await flyTo(el);
@@ -279,10 +270,11 @@
     }, [stops, auto, flyTo, ctx]);
 
     const finishTour = useCallback(how => {
-      M.tour.mark(ctx, how);
+      const custom = !!(stops[0] && stops[0].custom);
+      if (!custom) M.tour.mark(ctx, how);
       reset();
-      M.toast(how === 'done' ? 'That is the place. Hold Ctrl and Option to ask me anything' : 'Any time: Me, Prefs, Show me around');
-    }, [ctx, reset]);
+      if (!custom) M.toast(how === 'done' ? 'That is the place. Hold Ctrl and Option to ask me anything' : 'Any time: Me, Prefs, Show me around');
+    }, [ctx, reset, stops]);
 
     const startTour = useCallback(() => {
       const list = M.tour.stops(ctx);
@@ -416,7 +408,55 @@
             log('typed into ' + ((el.getAttribute('aria-label') || el.placeholder || 'the field').slice(0, 30)));
             return 'typed';
           }
-        }].concat(M.ai.tools(ctx, nm, log));
+        }, {
+          name: 'select_option',
+          description: 'Fly to a select (drop down) and choose an option for the person, by its visible text. Returns "selected" and the SCREEN list.',
+          inputSchema: {type: 'object', properties: {id: {type: 'string', description: 'A select id from the SCREEN list'}, option: {type: 'string', description: 'The option text, or part of it'}}, required: ['id', 'option']},
+          execute: async input => {
+            const el = await point(input.id, '');
+            if (!el.matches('select')) throw new Error('not a select');
+            const want = String(input.option || '').toLowerCase();
+            const opt = Array.from(el.options).find(o => String(o.textContent).trim().toLowerCase() === want) || Array.from(el.options).find(o => String(o.textContent).toLowerCase().includes(want));
+            if (!opt) throw new Error('no such option; the options are: ' + Array.from(el.options).map(o => String(o.textContent).trim()).join(', ').slice(0, 300));
+            await tap();
+            el.value = opt.value; el.dispatchEvent(new Event('change', {bubbles: true})); el.dispatchEvent(new Event('input', {bubbles: true}));
+            log('chose ' + String(opt.textContent).trim().slice(0, 30));
+            await wait(320);
+            screen = scan();
+            return 'selected. SCREEN now:\n' + screen.slice(0, 9000);
+          }
+        }, {
+          name: 'press_key',
+          description: 'Press Escape (close a drawer or menu) or Enter (submit the field the buddy just typed into, only when they asked to send or save). Returns the SCREEN list.',
+          inputSchema: {type: 'object', properties: {key: {type: 'string', enum: ['Escape', 'Enter']}}, required: ['key']},
+          execute: async input => {
+            const key = String(input.key);
+            const el = document.activeElement && document.activeElement !== document.body ? document.activeElement : window;
+            const ev = k => new KeyboardEvent(k, {key, code: key, bubbles: true, cancelable: true});
+            el.dispatchEvent(ev('keydown')); el.dispatchEvent(ev('keyup'));
+            if (key === 'Escape') window.dispatchEvent(ev('keydown'));
+            log('pressed ' + key);
+            await wait(380);
+            screen = scan();
+            return 'pressed. SCREEN now:\n' + screen.slice(0, 9000);
+          }
+        }, {
+          name: 'walk_through',
+          description: 'Show how to do something in steps, on screen: the buddy points at each element in turn with your caption and the person taps Next between steps. Use it for "show me how" and multi step how-tos, after any go_to. Two to six steps, ids from the current SCREEN. Returns "walking".',
+          inputSchema: {type: 'object', properties: {title: {type: 'string', description: 'Three words, like "request leave"'}, steps: {type: 'array', items: {type: 'object', properties: {id: {type: 'string'}, say: {type: 'string', description: 'One short sentence'}}, required: ['id', 'say']}}}, required: ['steps']},
+          execute: async input => {
+            const list = (input.steps || []).map(x => ({el: findEl(x.id), say: String(x.say || ''), title: String(input.title || 'how to').slice(0, 40), custom: true})).filter(x => x.el);
+            if (!list.length) throw new Error('none of those ids are on screen');
+            log('showing ' + list.length + ' steps');
+            walk.current = list;
+            return 'walking';
+          }
+        }];
+        const aiTools = M.ai.tools(ctx, nm, log);
+        /* what they want decides which tools ride along first and how hard the model thinks */
+        const doing = /\b(open|create|start|switch|fill|type|make|add|move|do it|set|choose|pick|show me how|how do i|walk me|take me|go to)\b/i.test(question);
+        const looking = /\b(who|how many|what is|what's|whats|overdue|pipeline|know at|find|search|slipping|late|points|score|balance|client|contact|company)\b/i.test(question);
+        const ordered = (doing || !looking) ? tools.concat(aiTools) : aiTools.concat(tools);
         const lim = ctx.sample.limits ? await ctx.sample.limits().catch(() => null) : null;
         const past = history.current.slice(-6).map(h => (h.role === 'user' ? 'They: ' : 'You: ') + h.content).join('\n');
         const prompt = M.ai.VOICE +
@@ -424,15 +464,24 @@
           'They are ' + (nm[ctx.uid] || 'a teammate') + (ctx.isFounder ? ', the founder' : '') + '. They are on the ' + (here.s || 'home') + ' section.\n' +
           'Rules: answer the way a sharp, warm colleague would say it out loud: one to three short sentences, contractions, plain words, a little warmth, no lists, no headings, no markdown. ' +
           'When the answer lives on screen, or they ask where or how, call point_at FIRST with the best element id, then answer. If it lives in another section, call go_to, then point_at. ' +
-          'When they ask you to do something (open, create, start, switch, fill), do it: click and type_into, step by step, reading the SCREEN each tool returns, then tell them in one line what you did. ' +
+          'When they ask you to do something (open, create, start, switch, fill, choose), do it: click, type_into, select_option and press_key, step by step, reading the SCREEN each tool returns, then tell them in one line what you did. ' +
+          'When they ask how to do something with more than one step, go_to the right section if needed, then call walk_through with the steps, then answer in one line. ' +
+          'Read the [state] tags on screen (selected, value, checked, on) before answering about what is set. ' +
           'Never press a risky control; point at it and say so. Never invent ids. ' +
           'When they ask you to create or move a task, use those tools and confirm in one line.\n\n' +
           (past ? 'EARLIER IN THIS CHAT:\n' + past + '\n\n' : '') +
           'SCREEN (id | kind | label | area):\n' + screen.slice(0, 9000) + '\n\nTHEIR DATA:\n' + data.slice(0, 16000) + '\n\nTHEY SAID: ' + question;
-        const out = await ctx.sample(prompt, {signal: c.signal, modelTier: 'quick', tools: lim && lim.tools ? tools.slice(0, (lim.tools.maxCount && lim.tools.maxCount > 0) ? lim.tools.maxCount : tools.length) : undefined,
+        const out = await ctx.sample(prompt, {signal: c.signal, modelTier: doing ? 'default' : 'quick', tools: lim && lim.tools ? ordered.slice(0, (lim.tools.maxCount && lim.tools.maxCount > 0) ? lim.tools.maxCount : ordered.length) : undefined,
           onText: ({text: t}) => setAnswer(t.replace(/\u2014|\u2013/g, ', '))});
         const final = out.text.replace(/\u2014|\u2013/g, ', ');
         history.current.push({role: 'user', content: question}, {role: 'assistant', content: final.slice(0, 300)});
+        if (walk.current) {
+          /* a how-to: the answer becomes a short pointed walk, one step per Next */
+          const list = walk.current; walk.current = null;
+          setStops(list); setTimeout(() => showStep(0, list), 80);
+          if (spoke.current && voiceOn()) speak(final);
+          return;
+        }
         setAnswer(final); setMode('answer');
         if (spoke.current && voiceOn()) {
           const said = await speak(final);
@@ -520,7 +569,7 @@
       ${showPointer ? html`<div ref=${el => { trailRef.current[1] = el; }} class="buddy-trail"/><div ref=${el => { trailRef.current[0] = el; }} class="buddy-trail"/>` : null}
       ${showPointer ? html`<div ref=${pointerRef} class=${cls}><${Face}/></div>` : null}
       ${ring ? html`<div class="buddy-ring" style=${{left: ring.left + 'px', top: ring.top + 'px', width: ring.width + 'px', height: ring.height + 'px'}}/>` : null}
-      ${mode !== 'idle' ? html`<div ref=${bubbleRef} class=${'buddy-bubble' + (mode === 'tour' ? ' tour' : '')} role="dialog" aria-label="Ask m360" style=${{left: left + 'px', top: top + 'px'}}>
+      ${mode !== 'idle' ? html`<div class=${'buddy-bubble' + (mode === 'tour' ? ' tour' : '')} role="dialog" aria-label="Ask m360" style=${{left: left + 'px', top: top + 'px'}}>
         <div class="row between" style=${{marginBottom: '8px'}}>
           <span class="micro">${mode === 'listening' ? 'listening, let go to send' : mode === 'thinking' ? 'thinking' : mode === 'tour' ? (stopHere ? stopHere.title : 'the tour') : mode === 'welcome' ? 'hello' : followUp ? 'listening for a follow up' : 'ask m360'}</span>
           <button type="button" class="iconbtn" style=${{color: '#fff', width: '26px', height: '26px'}} aria-label="Close" onClick=${mode === 'tour' ? () => finishTour('skipped') : mode === 'welcome' ? () => { M.tour.mark(ctx, 'asked'); reset(); } : reset}><${M.icons.x}/></button>
@@ -534,6 +583,9 @@
               ${M.parts.MicButton ? html`<${M.parts.MicButton} sm=${true} label="Talk" onText=${t => { spoke.current = true; ask(t); }}/>` : null}
               <button type="button" class="btn on-dark sm" disabled=${!q.trim()} onClick=${() => ask(q)}>Ask</button>
             </span></div>
+          <div class="row" style=${{gap: '6px', flexWrap: 'wrap'}}>
+            ${['Where do I check in?', 'Open a new task for me', 'Show me how to request leave', ctx.isFounder ? 'Who is slipping this week?' : 'What is overdue on me?'].map(t => html`<button key=${t} type="button" class="pill ghost-dark" onClick=${() => { spoke.current = false; ask(t); }}>${t}</button>`)}
+          </div>
           <button type="button" class="linky tiny" style=${{alignSelf: 'flex-start'}} onClick=${startTour}>Show me around</button>
         </div>` : null}
         ${mode === 'thinking' && !answer ? html`<${M.Thinking} label="Looking at your screen"/>` : null}

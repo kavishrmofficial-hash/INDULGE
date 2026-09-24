@@ -403,6 +403,7 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .buddy-bubble .micro{color:rgba(255,255,255,.6)}
 .buddy-bubble .linky{color:#fff}
 .buddy-bubble .linky[aria-pressed="true"]{text-decoration:underline}
+.buddy-bubble .pill.ghost-dark{border:1px solid rgba(255,255,255,.3); color:#fff; background:transparent; cursor:pointer; height:auto; padding:4px 10px; font:inherit; font-size:12px; line-height:1.3; white-space:normal; text-align:left}
 .buddy-bubble .ai-out b{font-weight:600}
 @keyframes blink{0%,92%,100%{transform:scaleY(1)} 95%{transform:scaleY(.1)}}
 @keyframes talk{from{transform:scaleY(.6)} to{transform:scaleY(1.6) translateY(.4px)}}

@@ -334,7 +334,15 @@
           return ln ? ln.split(' | ')[0] : null;
         };
         let screen = text, said = 'Here.';
-        if (/leave/i.test(last)) {
+        if (/show me how/i.test(last)) {
+          /* a how-to becomes a pointed walk: two steps on the Leave page */
+          screen = await tools.find(x => x.name === 'go_to').execute({section: 'leave'}, sig);
+          const a = pick(screen, /^Request leave/i);
+          const lines = String(screen).split('\n').filter(l => l.split(' | ')[1] === 'field');
+          const b = lines.length ? lines[0].split(' | ')[0] : a;
+          await tools.find(x => x.name === 'walk_through').execute({title: 'request leave', steps: [{id: b, say: 'Pick your dates here.'}, {id: a, say: 'Then tap Request leave.'}]}, sig);
+          said = 'Two steps. Follow the pointer.';
+        } else if (/leave/i.test(last)) {
           screen = await tools.find(x => x.name === 'go_to').execute({section: 'leave'}, sig);
           const id = pick(screen, /^Request leave/i);
           if (id) await pointAt.execute({id, say: 'Request it here'}, sig);

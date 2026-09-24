@@ -49,6 +49,7 @@
     VERSION,
     stops: ctx => STOPS.filter(s => !s.founder || (ctx && ctx.isFounder)),
     line: (stop, ctx) => {
+      if (stop.custom) return String(stop.say || '');
       const full = ctx ? ((ctx.member && ctx.member.name) || (ctx.me && ctx.me.name) || '') : '';
       const nm = String(full).split(' ')[0];
       return String(stop.say).replace('{name}', nm || 'there');
