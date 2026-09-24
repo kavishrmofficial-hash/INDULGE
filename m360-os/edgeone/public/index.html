@@ -806,6 +806,59 @@ a.pill.prof-link svg{width:13px; height:13px; flex:none}
 .devlist .listrow{align-items:flex-start}
 .devlist .listrow .tiny{margin-top:3px}
 
+/* ==== 76-base.css ==== */
+/* ---------- base: the database. Search, rows, company cards, the import mapping ---------- */
+.bs-searchrow{align-items:stretch}
+.bs-search{position:relative; min-width:0}
+.bs-search svg{position:absolute; left:16px; top:50%; width:20px; height:20px; margin-top:-10px; color:var(--ink62); pointer-events:none}
+.bs-search .input{min-height:52px; padding-left:46px; font-size:17px; font-weight:400; border-radius:16px}
+.bs-searchrow .btn{flex:none; height:auto; min-height:52px; border-radius:16px}
+.bs-chips{gap:6px}
+.bs-chips .chip.on{background:var(--ink); color:var(--on-ink); border-color:var(--ink)}
+.bs-filter{width:auto; min-height:32px; height:32px; padding:0 30px 0 12px; font-size:13px; font-weight:400; border-radius:999px; background-position:right 10px center; max-width:180px}
+.bs-orgstrip{gap:6px}
+.bs-orgstrip .chip .num{font-size:11px; opacity:.7}
+.bs-av{display:inline-flex; align-items:center; justify-content:center; flex:none; width:36px; height:36px; border-radius:999px; background:var(--warm); border:1px solid var(--line); color:var(--ink); font-size:12px; font-weight:500; letter-spacing:.02em}
+.bs-row{gap:8px 12px; padding:10px 0}
+.bs-row .bs-main{display:flex; align-items:center; gap:12px; flex:1 1 260px; min-width:0}
+.bs-row .bs-main .grow{display:flex; flex-direction:column; gap:2px}
+.bs-name{font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; max-width:100%}
+.bs-sub{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block}
+.bs-orglink{flex:none; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left}
+.bs-meta{gap:6px; flex:none; margin-left:auto}
+.bs-meta .pill{max-width:120px; overflow:hidden; text-overflow:ellipsis}
+.bs-person{gap:10px; align-items:center}
+.bs-person .grow{display:flex; align-items:baseline; gap:0; min-width:0; flex-wrap:wrap}
+.bs-person .bs-name{display:inline; white-space:normal}
+.bs-cards{gap:12px}
+.bs-card{cursor:pointer}
+.bs-card .pill{max-width:150px; overflow:hidden; text-overflow:ellipsis; display:inline-block; line-height:22px}
+.bs-where{display:flex; flex-direction:column; gap:6px; padding:12px 14px; border-radius:14px; background:var(--warm)}
+.bs-mapbox{padding:12px 14px; border-radius:14px; border:1px solid var(--line2)}
+.bs-file{padding:8px 12px; font-weight:400; cursor:pointer}
+.bs-file::file-selector-button{font:inherit; font-size:13px; border:1px solid var(--line2); background:var(--paper); color:var(--ink); border-radius:999px; padding:5px 12px; margin-right:10px; cursor:pointer}
+.bs-map td{white-space:normal; vertical-align:middle}
+.bs-map td.lead{font-weight:500; min-width:160px}
+.bs-map tr.bs-ignored td.lead{color:var(--ink62); font-weight:400}
+.bs-mapsel{min-height:36px; padding:4px 30px 4px 10px; font-size:13px; min-width:190px}
+.bs-sample{max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px}
+.bs-prev{gap:10px; padding:8px 0}
+.bs-prev .grow{display:flex; flex-direction:column; gap:1px}
+.bs-sum{gap:14px}
+@media (max-width:860px){
+  .bs-searchrow{flex-wrap:wrap}
+  .bs-searchrow .btn{flex:1 1 100%}
+  .bs-search{flex:1 1 100%}
+  .bs-row .bs-main{flex-basis:100%}
+  .bs-orglink{max-width:100%}
+  .bs-meta{margin-left:48px; flex-wrap:wrap}
+  .bs-filter{min-height:40px; height:40px}
+  .bs-map td.lead{min-width:0}
+  .bs-mapsel{min-width:0; width:100%}
+  .bs-sample{max-width:100%; white-space:normal}
+  .bs-sum{grid-template-columns:1fr 1fr}
+}
+
 /* ==== 77-phone.css ==== */
 /* phones: bottom sheets, 40px targets, scrollers with an edge fade, the board as snap panes,
    the compact home hero, and room for the keyboard. Everything here sits under 860px, the
@@ -952,6 +1005,33 @@ a.pill.prof-link svg{width:13px; height:13px; flex:none}
 
 .tbl td.wk-cell{padding:4px 6px}
 @media (max-width:600px){ .tbl td.wk-cell{padding:0} }
+
+/* ==== 78-search.css ==== */
+/* ---------- master search: connections, the Search drawer, ask the base, nudges ---------- */
+.conn-group{margin-top:8px}
+.conn-group:first-of-type{margin-top:0}
+.conn-row{display:flex; align-items:center; gap:10px; width:100%; min-height:38px; padding:7px 0; border:0; border-bottom:1px solid var(--line); background:transparent; text-align:left; font:inherit; font-size:14px; color:var(--ink); cursor:pointer; border-radius:0}
+.conn-row:last-child{border-bottom:0}
+.conn-row > svg{width:16px; height:16px; flex:none; color:var(--ink62)}
+.conn-row .av{flex:none}
+.conn-row .t{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.conn-row .sub{font-size:12px; white-space:nowrap; flex:none; max-width:45%; overflow:hidden; text-overflow:ellipsis}
+.conn-row:hover .t,.conn-row:focus-visible .t{text-decoration:underline; text-underline-offset:3px}
+.conn-row.nudge{align-items:flex-start; line-height:1.45}
+.conn-row.nudge .spark{color:var(--flame); flex:none; font-size:14px; margin-top:2px}
+.srch-chips{display:flex; gap:8px; flex-wrap:wrap}
+.srch-chips .chip .num{color:var(--ink62); margin-left:2px}
+.srch-chips .chip.on .num{color:inherit}
+.srch-list{display:flex; flex-direction:column; min-width:0}
+.srch-list .micro{margin-top:12px; margin-bottom:2px}
+.srch-list .micro:first-child{margin-top:0}
+.pal-item.more{color:var(--ink62)}
+.askbase .bubble{max-width:100%}
+.askbase.compact{padding:16px}
+@media (max-width:860px){
+  .conn-row{min-height:44px}
+  .conn-row .sub{max-width:40%}
+}
 
 /* ==== 79-pw.css ==== */
 /* passwords (EdgeOne build only): the sign-in screen's links, the Sign-in card on Me, the founder's controls in the member drawer */
@@ -2785,6 +2865,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     'for luxury and premium brands in Mumbai and the UAE. The founder is Kaavish. The team is small and fast.',
     'Voice: short, warm, direct, a little playful, Gen Z friendly. Zero corporate filler. Numbers over adjectives. No emoji.',
     'Never use em dashes or en dashes. Use names, never internal ids. Today is ' + U.dateLabel(new Date()) + '.',
+    'The Base is the agency contacts database: people and the companies they work at, each with a stage from lead to client.',
+    'When the tools search_base, search_everything, who_do_we_know_at and pipeline_for are offered, use them to look people, companies and pipelines up before answering.',
     ''
   ].join('\n');
 
@@ -3037,6 +3119,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         return {ok: true, task: t.title, owner: nm[owner]};
       }
     });
+    /* the Base: look up people, companies and pipelines (78-search.js) */
+    if (M.intel && M.intel.tools) M.intel.tools(ctx, nm).forEach(t => tools.push(t));
     return tools;
   };
 
@@ -5648,14 +5732,15 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
             <span class="row nowrap small"><${UI.Avatar} id=${project.owner} size=${24}/><${UI.Name} id=${project.owner}/></span>
             <${UI.AvatarRow} ids=${project.members || []} size=${24}/>
             <span class=${'small num' + (late ? ' flame-t' : ' sub')}>${project.due ? 'due ' + U.fmtDate(project.due) : 'no due date'}</span>
-            ${client ? html`<${UI.Btn} kind="ghost" sm onClick=${() => M.nav('#clients')}><${icons.link}/>${client.name || 'Client'}<//>` : null}
-            ${pitch ? html`<${UI.Btn} kind="ghost" sm onClick=${() => M.nav('#pitches')}><${icons.link}/>${pitch.brand || 'Pitch'}<//>` : null}
+            ${client ? html`<${UI.Btn} kind="ghost" sm onClick=${() => M.nav('#clients/' + project.client)}><${icons.link}/>${client.name || 'Client'}<//>` : null}
+            ${pitch ? html`<${UI.Btn} kind="ghost" sm onClick=${() => M.nav('#pitches/' + project.pitch)}><${icons.link}/>${pitch.brand || 'Pitch'}<//>` : null}
           </div>
           <${Progress} prog=${prog}/>
           <${UI.Seg} options=${TABS} value=${tab} onChange=${setTab} ariaLabel="Project view"/>
         </div>
       <//>
       <${view} ctx=${ctx} project=${project} tasks=${tasks} onOpen=${onOpen}/>
+      ${M.parts.Connections ? html`<${M.parts.Connections} kind="project" id=${id}/>` : null}
       ${(D && openTask) ? html`<${D} taskId=${openTask.taskId} onClose=${() => setOpenTask(null)}
         defaults=${{project: id, section: openTask.section, client: project.client || '', owner: ctx.uid}}/>` : null}
     <//>`;
@@ -5825,10 +5910,13 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const finReady = !!(ctx.priv && ctx.priv.finance && ctx.priv.finance.ready);
     const fe = pitchId ? financeOf(ctx)[pitchId] : null;
 
-    const blank = () => ({brand: '', category: '', contact: '', source: '', stage: 'lead', owner: ctx.uid,
+    /* pitch.contact holds a Base contact id when one is picked, else a typed name and role */
+    const baseContact = cid => (cid && M.search && M.search.contactById) ? M.search.contactById(ctx, cid) : null;
+    const blank = () => ({brand: '', category: '', contact: '', contactId: '', source: '', stage: 'lead', owner: ctx.uid,
       next: '', nextDate: '', lost: '', value: '', prob: ''});
     const fromDoc = (p, e) => ({
-      brand: p.brand || '', category: p.category || '', contact: p.contact || '', source: p.source || '',
+      brand: p.brand || '', category: p.category || '', contact: baseContact(p.contact) ? '' : (p.contact || ''), contactId: baseContact(p.contact) ? p.contact : '',
+      source: p.source || '',
       stage: stageOf(p).v, owner: p.owner || ctx.uid, next: p.next || '', nextDate: p.nextDate || '', lost: p.lost || '',
       value: valueOf(e) > 0 ? String(valueOf(e)) : '', prob: hasProb(e) ? String(Number(e.prob)) : ''
     });
@@ -5856,12 +5944,23 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const clientId = pitch ? clientFor(ctx, pitch.brand) : null;
     const canSave = !!f.brand.trim() && !busy;
 
+    /* contacts from the Base: the ones at this pitch's client company when it is linked, else everyone */
+    const contactOpts = useMemo(() => {
+      if (!M.search || !M.search.contacts) return [];
+      const all = M.search.contacts(ctx);
+      const cid = clientFor(ctx, f.brand);
+      const org = cid ? M.search.orgOfClient(ctx, cid) : null;
+      const list = org ? all.filter(c => c.org === org.id) : all;
+      return list.map(c => ({v: c.id, label: M.search.nameOf(c) + (c.title ? ', ' + c.title : '') + (!org && c.orgName ? ' (' + c.orgName + ')' : '')}))
+        .sort((a, b) => a.label.localeCompare(b.label)).slice(0, 200);
+    }, [ctx.coll.contacts, ctx.coll.orgs, ctx.coll.clients, f.brand]);
+
     const save = () => {
       if (!canSave) return;
       setBusy(true);
       const now = Date.now();
       const id = isNew ? U.uid() : pitchId;
-      const body = {brand: f.brand.trim(), category: f.category.trim(), contact: f.contact.trim(),
+      const body = {brand: f.brand.trim(), category: f.category.trim(), contact: f.contactId || f.contact.trim(),
         source: f.source.trim(), owner: f.owner || ctx.uid, updated: now};
       let p;
       if (isNew) {
@@ -5921,7 +6020,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const actions = isNew ? null : html`<div class="grow row">
       ${!pitch.project ? html`<${UI.Btn} kind="sec" sm disabled=${!canCreateProject || busy} onClick=${startProject}>Start pitch project<//>` : null}
       ${won ? (clientId
-        ? html`<${UI.Btn} kind="sec" sm onClick=${() => M.nav('#clients')}><${icons.link}/>Open client page<//>`
+        ? html`<${UI.Btn} kind="sec" sm onClick=${() => M.nav('#clients/' + clientId)}><${icons.link}/>Open client page<//>`
         : html`<${UI.Btn} kind="sec" sm disabled=${busy} onClick=${createClient}>Create client page<//>`) : null}
       ${won ? html`<${UI.Btn} kind="sec" sm disabled=${!canCreateProject || busy} onClick=${createRetainer}>Create retainer project<//>` : null}
     </div>`;
@@ -5935,7 +6034,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${isNew ? 'New pitch' : 'Pitch'} head=${stagePill} footer=${footer}>
       <${UI.Input} id="pitch-brand" label="brand" value=${f.brand} onChange=${set('brand')} placeholder="Brand name" onEnter=${save}/>
       <${UI.Input} id="pitch-category" label="category" value=${f.category} onChange=${set('category')} placeholder="Fine jewellery, hospitality, wellness"/>
-      <${UI.Input} id="pitch-contact" label="contact, name and role" value=${f.contact} onChange=${set('contact')} placeholder="Name and role"/>
+      ${contactOpts.length ? html`<${UI.Select} id="pitch-contact-pick" label="contact from the Base" value=${f.contactId} onChange=${set('contactId')}
+        options=${[{v: '', label: f.contact ? 'Typed below' : 'Pick a contact'}].concat(contactOpts)}/>` : null}
+      ${!f.contactId ? html`<${UI.Input} id="pitch-contact" label=${contactOpts.length ? 'or type a contact, name and role' : 'contact, name and role'} value=${f.contact} onChange=${set('contact')} placeholder="Name and role"/>` : null}
       <${UI.Input} id="pitch-source" label="source" value=${f.source} onChange=${set('source')} placeholder="Referral, inbound, event"/>
       ${!isNew ? html`<${UI.Field} label="stage">
         <${UI.Seg} sm options=${STAGE_OPTS} value=${f.stage} onChange=${set('stage')} ariaLabel="Stage"/>
@@ -5948,6 +6049,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         ${pitch.project ? html`<${UI.Field} label="project">
           <div><${UI.Btn} kind="sec" sm onClick=${() => M.nav('#projects/' + pitch.project)}><${icons.link}/>${project ? (project.name || 'Project') : 'Open project'}<//></div>
         <//>` : null}
+        ${M.parts.Connections ? html`<${M.parts.Connections} kind="pitch" id=${pitchId}/>` : null}
       <//>` : null}
       ${ctx.isFounder ? html`<${React.Fragment}>
         <hr class="hair"/>
@@ -5965,6 +6067,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const ctx = M.useCtx();
     const [open, setOpen] = useState(null);
     M.useIntent('pitch', () => setOpen('new'));
+    /* #pitches/<id> opens that pitch (search results and Connections land here) */
+    const route = M.useRoute();
+    const routeId = route.page === 'pitches' ? route.id : null;
+    useEffect(() => { if (routeId) setOpen(routeId); }, [routeId]);
+    const close = () => { setOpen(null); if (routeId) M.nav('#pitches'); };
     const map = ctx.coll.pitches.map;
     const all = Object.keys(map).map(id => ({id, ...map[id]}));
     const fin = financeOf(ctx);
@@ -5977,7 +6084,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       ${m ? html`<${MetricsBar} m=${m}/>` : null}
       ${!ctx.coll.pitches.ready ? html`<${UI.Empty} text="Loading pitches."/>`
         : html`<${Board} ctx=${ctx} all=${all} fin=${fin} onOpen=${setOpen}/>`}
-      ${open ? html`<${PitchDrawer} pitchId=${open === 'new' ? null : open} onClose=${() => setOpen(null)}/>` : null}
+      ${open ? html`<${PitchDrawer} pitchId=${open === 'new' ? null : open} onClose=${close}/>` : null}
     <//>`;
   }
 
@@ -6032,16 +6139,22 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       pod: (existing && existing.pod) || '', owner: (existing && existing.owner) || ctx.uid,
       memory: (existing && existing.memory) || '', approvals: (existing && existing.approvals) || '',
       never: (existing && existing.never) || '', links: (existing && existing.links) || '',
+      org: (existing && existing.org) || '',
       monthly: id && fin[id] ? String(fin[id].monthly || '') : ''
     }));
     const set = (k, v) => setF(x => ({...x, [k]: v}));
     const owners = ctx.activeMembers.map(m => ({v: m.uid, label: m.title ? m.empId + ' ' + m.title : m.empId}));
+    /* the company in the Base this client is, when the Base has companies */
+    const orgOpts = useMemo(() => {
+      const list = (M.search && M.search.orgs) ? M.search.orgs(ctx) : [];
+      return list.map(o => ({v: o.id, label: o.name || o.id})).sort((a, b) => a.label.localeCompare(b.label));
+    }, [ctx.coll.orgs]);
 
     async function save() {
       if (!f.name.trim()) return;
       const cid = id || U.uid();
       const doc = {name: f.name.trim(), status: f.status, pod: f.pod, owner: f.owner,
-        memory: f.memory, approvals: f.approvals, never: f.never, links: f.links,
+        memory: f.memory, approvals: f.approvals, never: f.never, links: f.links, org: f.org || '',
         updated: Date.now(), by: ctx.uid};
       if (id) await ctx.W.update('clients/' + id, doc);
       else await ctx.W.set('clients/' + cid, doc);
@@ -6067,6 +6180,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       <${UI.TextArea} label="approvals" value=${f.approvals} onChange=${v => set('approvals', v)}/>
       <${UI.TextArea} label="lines never to cross" value=${f.never} onChange=${v => set('never', v)}/>
       <${UI.TextArea} label="links, one per line" value=${f.links} onChange=${v => set('links', v)}/>
+      ${orgOpts.length ? html`<${UI.Select} id="client-org" label="company in the Base" value=${f.org} onChange=${v => set('org', v)}
+        options=${[{v: '', label: 'Not linked yet'}].concat(orgOpts)} hint="Links this client to its company and people in the Base."/>` : null}
+      ${id && M.parts.PeopleAtClient ? html`<${M.parts.PeopleAtClient} id=${id}/>` : null}
+      ${id && M.parts.Connections ? html`<${M.parts.Connections} kind="client" id=${id}/>` : null}
       ${id && M.parts.ClientUpdate ? html`<${M.parts.ClientUpdate} id=${id} name=${f.name}/>` : null}
       ${ctx.isFounder ? html`<${UI.Input} label="monthly revenue" type="number" value=${f.monthly}
         onChange=${v => set('monthly', v)} hint="Private to you."/>` : null}
@@ -6077,6 +6194,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const ctx = M.useCtx();
     const [open, setOpen] = useState(null); /* id, or 'new' */
     M.useIntent('client', () => setOpen('new'));
+    /* #clients/<id> opens that client (search results and Connections land here) */
+    const route = M.useRoute();
+    const routeId = route.page === 'clients' ? route.id : null;
+    useEffect(() => { if (routeId) setOpen(routeId); }, [routeId]);
+    const close = () => { setOpen(null); if (routeId) M.nav('#clients'); };
     const map = ctx.coll.clients.map;
     const sh = useMemo(() => {
       const out = {};
@@ -6116,7 +6238,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           </button>`;
         })}
       </div>` : html`<${UI.Card}><${UI.Empty} text="No clients yet."/><//>`}
-      ${open ? html`<${ClientDrawer} id=${open === 'new' ? null : open} onClose=${() => setOpen(null)}/>` : null}
+      ${open ? html`<${ClientDrawer} id=${open === 'new' ? null : open} onClose=${close}/>` : null}
     </div>`;
   }
 
@@ -10054,6 +10176,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       <${M.SectionTabs} section="hq" active=${t}/>
       ${t === 'dashboard' ? html`<${Embed} page="Command"/>` : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>` : html`<div class="stack" style=${{gap: '20px'}}>
         <${IntelBrief}/>
+        ${M.parts.BaseNudges ? html`<${M.parts.BaseNudges}/>` : null}
         <div class="split">
           <div class="stack" style=${{gap: '20px'}}>
             <${UI.Fold} title="Workload" summary=${ctx.activeMembers.length + ' people, open tasks and late marks'} id="fold-workload"><${Workload}/><//>
@@ -10120,7 +10243,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         const data = ctx.isFounder ? await M.ai.teamSlice(ctx) : (await M.ai.meSlice(ctx)) + '\n\n' + (await M.ai.teamSlice(ctx));
         const lim = ctx.sample.limits ? await ctx.sample.limits().catch(() => null) : null;
         const actions = [];
-        const tools = lim && lim.tools ? M.ai.tools(ctx, nm, a => { actions.push(a); setTurns(ts => [...ts, {role: 'assistant', content: a, act: true}]); }) : undefined;
+        const toolsAll = lim && lim.tools ? M.ai.tools(ctx, nm, a => { actions.push(a); setTurns(ts => [...ts, {role: 'assistant', content: a, act: true}]); }) : undefined;
+        const tools = toolsAll ? toolsAll.slice(0, (lim.tools.maxCount && lim.tools.maxCount > 0) ? lim.tools.maxCount : toolsAll.length) : undefined;
         const lead = M.ai.VOICE + instructions(ctx, nm[ctx.uid] || 'a teammate') + '\n\nDATA:\n' + data.slice(0, 40000);
         /* the page keeps the chat; Claude sees the lead turn, the recent turns and the new message */
         const convo = [{role: 'user', content: lead}];
@@ -10387,7 +10511,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           'then answer. If it lives in another section, call go_to, then point_at. Never invent ids. You never click for them. ' +
           'When they ask you to create or move a task, use those tools and confirm in one line.\n\n' +
           'SCREEN (id | kind | label | area):\n' + screen.slice(0, 9000) + '\n\nTHEIR DATA:\n' + data.slice(0, 16000) + '\n\nTHEY SAID: ' + question;
-        const out = await ctx.sample(prompt, {signal: c.signal, modelTier: 'quick', tools: lim && lim.tools ? tools : undefined,
+        const out = await ctx.sample(prompt, {signal: c.signal, modelTier: 'quick', tools: lim && lim.tools ? tools.slice(0, (lim.tools.maxCount && lim.tools.maxCount > 0) ? lim.tools.maxCount : tools.length) : undefined,
           onText: ({text: t}) => setAnswer(t.replace(/\u2014|\u2013/g, ', '))});
         const final = out.text.replace(/\u2014|\u2013/g, ', ');
         setAnswer(final); setMode('answer'); speak(final);
@@ -10850,9 +10974,12 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 })();
 
 /* ==== 62-palette.js ==== */
-/* module: palette. Cmd K: one box that finds anything (tasks, projects, clients, people, pages,
-   handbook sections) and runs anything (check in, new task, focus, breathe, theme), or hands the
-   question to m360 AI. Arrow keys move, Enter runs, Escape closes. */
+/* module: palette. Cmd K is the master search: one box that finds anything (people in the Base and
+   on the team, companies, tasks, projects, clients, pitches, posts, handbook, your inbox and leave,
+   saved links, the founder's log) and runs anything (check in, new task, focus, breathe, theme), or
+   hands the question to m360 AI. Results sit under micro headings, ranked: exact prefix first, then
+   word matches, then anything containing the words. Arrow keys move, Enter runs, Escape closes,
+   "Show all" opens the Search drawer with every match and filters. */
 'use strict';
 (function () {
   const {html, React, U, UI, icons} = M;
@@ -10863,14 +10990,18 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     ['Home', 'home', 'today'], ['My tasks', 'tasks', 'tasks'], ['Projects', 'projects', 'projects'], ['The week', 'week', 'week'],
     ['Calendar', 'calendar', 'calendar'], ['Reviews', 'reviews', 'review'], ['Clients', 'clients', 'clients'], ['Pipeline', 'pitches', 'pitches'],
     ['Feed', 'feed', 'feed'], ['Crew', 'people', 'people'], ['Pulse and ideas', 'voice', 'voice'], ['Leaderboard', 'scores', 'scores'],
+    ['Base', 'base', 'database'], ['Companies', 'companies', 'database'], ['Radar', 'radar', 'radar'],
     ['Me', 'me', 'people'], ['Leave', 'leave', 'leave'], ['Handbook', 'handbook', 'handbook'], ['Trophies', 'trophies', 'trophy'],
     ['HQ', 'hq', 'command', true], ['Dashboard', 'command', 'command', true], ['Hiring', 'hiring', 'hiring', true], ['Admin', 'admin', 'desk', true]
   ];
+  /* the order headings appear in */
+  const ORDER = ['people', 'companies', 'tasks', 'projects', 'clients', 'pitches', 'posts', 'handbook', 'inbox', 'leave', 'radar', 'log', 'go to', 'actions', 'more', 'ask'];
 
   const norm = s => String(s || '').toLowerCase();
   /* every word of the query has to appear somewhere in the text */
   const matches = (q, text) => { const t = norm(text); return q.every(w => t.includes(w)); };
 
+  /* actions and pages: the palette's own rows; entities come from the search index */
   function buildItems(ctx, query, closeThen) {
     const q = norm(query).split(/\s+/).filter(Boolean);
     const out = [];
@@ -10901,37 +11032,31 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       PAGES.filter(p => !p[3] || ctx.isFounder).slice(0, 6).forEach(p => go(() => M.nav('#' + p[1]), 'go to', p[0], p[2], '', 'p' + p[1]));
       return out;
     }
-
-    /* pages */
     PAGES.filter(p => (!p[3] || ctx.isFounder) && matches(q, p[0])).forEach(p => go(() => M.nav('#' + p[1]), 'go to', p[0], p[2], '', 'p' + p[1]));
+    return out;
+  }
 
-    /* tasks: mine first, open first */
+  /* the palette's own index while the search module is absent (isolated builds) */
+  function localHits(ctx, query, names) {
+    const q = norm(query).split(/\s+/).filter(Boolean);
+    if (!q.length) return [];
+    const out = [];
     const tmap = ctx.coll.tasks.map;
-    Object.keys(tmap).map(id => ({id, ...tmap[id]}))
-      .filter(t => matches(q, t.title))
-      .sort((x, y) => ((y.owner === ctx.uid) - (x.owner === ctx.uid)) || ((x.status === 'done') - (y.status === 'done')))
-      .slice(0, 6)
-      .forEach(t => go(() => M.nav('#tasks/' + t.id), 'tasks', t.title, 'tasks',
-        (t.status === 'done' ? 'done' : t.due ? 'due ' + M.tasks.dueLabel(t.due) : (t.status || 'to do')), 't' + t.id));
-
+    Object.keys(tmap).map(id => ({id, ...tmap[id]})).filter(t => matches(q, t.title))
+      .sort((x, y) => ((y.owner === ctx.uid) - (x.owner === ctx.uid)) || ((x.status === 'done') - (y.status === 'done'))).slice(0, 6)
+      .forEach(t => out.push({key: 't' + t.id, group: 'tasks', label: t.title, icon: 'tasks', hash: '#tasks/' + t.id,
+        sub: t.status === 'done' ? 'done' : t.due ? 'due ' + M.tasks.dueLabel(t.due) : (t.status || 'to do')}));
     const pmap = ctx.coll.projects.map;
     Object.keys(pmap).filter(id => !pmap[id].archived && matches(q, pmap[id].name)).slice(0, 4)
-      .forEach(id => go(() => M.nav('#projects/' + id), 'projects', pmap[id].name, 'projects', pmap[id].status === 'done' ? 'done' : '', 'pj' + id));
-
+      .forEach(id => out.push({key: 'pj' + id, group: 'projects', label: pmap[id].name, icon: 'projects', hash: '#projects/' + id, sub: pmap[id].status === 'done' ? 'done' : ''}));
     const cmap = ctx.coll.clients.map;
     Object.keys(cmap).filter(id => matches(q, cmap[id].name)).slice(0, 4)
-      .forEach(id => go(() => M.nav('#clients'), 'clients', cmap[id].name, 'clients', cmap[id].status || '', 'c' + id));
-
-    if (ctx.isFounder) {
-      const pi = ctx.coll.pitches.map;
-      Object.keys(pi).filter(id => matches(q, (pi[id].name || '') + ' ' + (pi[id].client || ''))).slice(0, 4)
-        .forEach(id => go(() => M.nav('#pitches'), 'pipeline', pi[id].name || 'Pitch', 'pitches', pi[id].stage || '', 'pi' + id));
-    }
-
+      .forEach(id => out.push({key: 'c' + id, group: 'clients', label: cmap[id].name, icon: 'clients', hash: '#clients/' + id, sub: cmap[id].status || ''}));
     const hb = ctx.coll.handbook.map;
     Object.keys(hb).filter(id => matches(q, hb[id].title + ' ' + String(hb[id].body || '').slice(0, 400))).slice(0, 3)
-      .forEach(id => go(() => M.nav('#handbook/' + id), 'handbook', hb[id].title, 'handbook', '', 'h' + id));
-
+      .forEach(id => out.push({key: 'h' + id, group: 'handbook', label: hb[id].title, icon: 'handbook', hash: '#handbook/' + id, sub: ''}));
+    ctx.activeMembers.filter(m => matches(q, (names[m.uid] && names[m.uid].name) || '')).slice(0, 4)
+      .forEach(m => out.push({key: 'u' + m.uid, group: 'people', label: (names[m.uid] && names[m.uid].name) || 'Someone', icon: 'people', sub: m.title || '', uid: m.uid, hash: '#people/' + m.uid}));
     return out;
   }
 
@@ -10939,22 +11064,24 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const ctx = M.useCtx();
     const [q, setQ] = useState('');
     const [sel, setSel] = useState(0);
+    const [showAll, setShowAll] = useState(null); /* {q, group} while the Search drawer is open */
     const inp = useRef(null);
     const names = M.useProfiles(ctx.activeMembers.map(m => m.uid));
+    const log = M.search ? M.search.useLog(ctx, q) : null;
     const closeThen = fn => { onClose(); setTimeout(fn, 20); };
 
     const items = useMemo(() => {
-      const list = buildItems(ctx, q, closeThen);
-      const words = norm(q).split(/\s+/).filter(Boolean);
-      if (words.length) {
-        ctx.activeMembers.filter(m => matches(words, (names[m.uid] && names[m.uid].name) || '')).slice(0, 4)
-          .forEach(m => list.push({key: 'u' + m.uid, group: 'people', label: (names[m.uid] && names[m.uid].name) || 'Someone', icon: 'people',
-            sub: m.title || '', uid: m.uid, run: () => closeThen(() => M.nav('#people/' + m.uid))}));
-      }
-      if (q.trim() && M.ai.on(ctx)) list.push({key: 'ai', group: 'ask', label: 'Ask m360: ' + q.trim(), icon: null, ai: true,
-        run: () => closeThen(() => onAsk(q.trim()))});
+      const own = buildItems(ctx, q, closeThen);
+      const query = q.trim();
+      const found = query ? (M.search ? M.search.hits(ctx, query, {names, log}) : localHits(ctx, query, names)) : [];
+      const list = own.concat(found.map(h => ({...h, run: h.more ? () => setShowAll({q: query, group: h.more}) : () => closeThen(() => M.nav(h.hash))})));
+      const real = found.filter(h => !h.more).length;
+      if (real > 0 && M.parts.SearchAll) list.push({key: 'more', group: 'more', label: 'Show all ' + real + (real === 1 ? ' result' : ' results'), icon: 'search', more: 'all',
+        run: () => setShowAll({q: query, group: 'all'})});
+      list.sort((a, b) => ORDER.indexOf(a.group) - ORDER.indexOf(b.group));
+      if (query && M.ai.on(ctx)) list.push({key: 'ai', group: 'ask', label: 'Ask m360: ' + query, icon: null, ai: true, run: () => closeThen(() => onAsk(query))});
       return list;
-    }, [q, ctx, names]);
+    }, [q, ctx, names, log]);
 
     useEffect(() => { setSel(0); }, [q]);
     useEffect(() => { if (inp.current) inp.current.focus(); }, []);
@@ -10966,9 +11093,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       else if (e.key === 'Escape') onClose();
     };
 
+    if (showAll && M.parts.SearchAll) return html`<${M.parts.SearchAll} q0=${showAll.q} group0=${showAll.group} onClose=${onClose}/>`;
+
     let lastGroup = '';
     return html`<div class="pal-scrim" onMouseDown=${e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div class="pal" role="dialog" aria-label="Command palette">
+      <div class="pal" role="dialog" aria-label="Search">
         <div class="pal-in">
           <${icons.search}/>
           <input ref=${inp} id="pal-input" value=${q} placeholder="Search anything, or type what you want to do" aria-label="Search or run"
@@ -10977,11 +11106,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         </div>
         <div class="pal-list" id="pal-list">
           ${items.length ? items.map((it, i) => {
-            const head = it.group !== lastGroup ? html`<div class="pal-group" key=${'g' + it.group + i}>${it.group}</div>` : null;
+            const head = it.group !== lastGroup && it.group !== 'more' ? html`<div class="pal-group" key=${'g' + it.group + i}>${it.group}</div>` : null;
             lastGroup = it.group;
             return html`<${React.Fragment} key=${it.key}>
               ${head}
-              <button type="button" class=${'pal-item' + (i === sel ? ' on' : '') + (it.ai ? ' ai' : '')} onMouseEnter=${() => setSel(i)} onClick=${it.run}>
+              <button type="button" class=${'pal-item' + (i === sel ? ' on' : '') + (it.ai ? ' ai' : '') + (it.more ? ' more' : '')} data-group=${it.group} onMouseEnter=${() => setSel(i)} onClick=${it.run}>
                 ${it.ai ? html`<span class="spark">${SPARK}</span>` : it.uid ? html`<${UI.Avatar} id=${it.uid} size=${22}/>` : it.icon && icons[it.icon] ? html`<${icons[it.icon]}/>` : null}
                 <span class="t">${it.label}</span>
                 ${it.sub ? html`<span class="sub">${it.sub}</span>` : null}
@@ -13217,6 +13346,1161 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   M.radar = {SOURCES, CHANNELS, AWARDS, sourcesOf, channelsOf, handleFrom, withHits, postLink};
 })();
 
+/* ==== 76-base.js ==== */
+/* module: base. The database: everyone we know (contacts), who we know them through (orgs),
+   and what we do with them (clients, projects, pitches). Records live in pages of at most 200
+   rows (contacts/p000, orgs/p000, ...) so the database stays fast on both runtimes. A monthly
+   Apollo CSV lands through Import and keeps only the columns that matter; hand edits always win
+   over Apollo. Companies map to client pages both ways. */
+'use strict';
+(function () {
+  const {html, React, U, UI, icons} = M;
+  const {useState, useEffect, useMemo, useRef} = React;
+
+  const PAGE_MAX = 200;
+  const STAGES = [{v: '', label: 'No stage'}, {v: 'lead', label: 'Lead'}, {v: 'contacted', label: 'Contacted'},
+    {v: 'replied', label: 'Replied'}, {v: 'meeting', label: 'Meeting'}, {v: 'client', label: 'Client'}, {v: 'lost', label: 'Lost'}];
+  const STAGE_PILL = {client: 'ink', meeting: 'warm', lost: 'flame-o'};
+  const SOURCES = [{v: 'apollo', label: 'Apollo'}, {v: 'manual', label: 'Added by hand'}, {v: 'client', label: 'From a client'}];
+  /* fields a person may edit by hand; the rest are system fields */
+  const SYS = ['id', 'at', 'updated', 'updatedBy', 'edited', 'source', 'apolloId'];
+  const CONTACT_LIST = ['tags'];
+  const ORG_LIST = ['keywords', 'tags'];
+  const EXPORT_CONTACT = ['name', 'first', 'last', 'title', 'orgName', 'email', 'email2', 'phone', 'mobile', 'linkedin',
+    'city', 'state', 'country', 'seniority', 'dept', 'stage', 'tags', 'source', 'notes'];
+  const EXPORT_ORG = ['name', 'domain', 'website', 'industry', 'size', 'city', 'state', 'country', 'linkedin', 'phone',
+    'keywords', 'tags', 'client', 'notes'];
+
+  const blankContact = () => ({first: '', last: '', name: '', title: '', email: '', email2: '', phone: '', mobile: '', linkedin: '',
+    org: '', orgName: '', city: '', state: '', country: '', seniority: '', dept: '', source: 'manual', apolloId: '', tags: [],
+    stage: '', owner: '', notes: '', edited: {}, archived: false});
+  const blankOrg = () => ({name: '', domain: '', website: '', industry: '', size: '', city: '', state: '', country: '', linkedin: '',
+    phone: '', keywords: [], source: 'manual', apolloId: '', client: '', tags: [], notes: '', edited: {}, archived: false});
+
+  /* ---------- normalisers ---------- */
+  const SUFFIX = /\s+(pvt ltd|private limited|ltd|limited|llp|inc|llc|co|corp|corporation|company|plc|fze|fzco|fz llc|gmbh|sa|ag)$/;
+  const FREE_MAIL = /^(gmail|googlemail|yahoo|hotmail|outlook|live|icloud|me|aol|protonmail|proton|rediffmail|rediff|ymail|msn)\./;
+  const norm = {
+    text: s => String(s == null ? '' : s).replace(/\s+/g, ' ').trim(),
+    mail: s => String(s || '').trim().toLowerCase(),
+    domain: s => {
+      let d = String(s || '').trim().toLowerCase();
+      if (!d) return '';
+      if (d.indexOf('@') >= 0) d = d.split('@').pop();
+      d = d.replace(/^[a-z]+:\/\//, '').replace(/^www\./, '').split(/[/?#]/)[0].split(':')[0];
+      return /^[a-z0-9.-]+\.[a-z]{2,}$/.test(d) ? d : '';
+    },
+    /* company domain from a website, else from a work email (free mail providers give nothing) */
+    orgDomain: (website, email) => {
+      const w = norm.domain(website);
+      if (w) return w;
+      const e = norm.domain(email);
+      return e && !FREE_MAIL.test(e) ? e : '';
+    },
+    name: s => {
+      let n = String(s || '').toLowerCase().replace(/[^a-z0-9\s&]+/g, ' ').replace(/\s+/g, ' ').trim().replace(/^the /, '');
+      for (let i = 0; i < 4; i++) { const m = n.replace(SUFFIX, '').trim(); if (m === n) break; n = m; }
+      return n;
+    },
+    phone: s => String(s || '').replace(/[^\d+]/g, ''),
+    list: s => Array.isArray(s) ? s.map(x => norm.text(x)).filter(Boolean)
+      : String(s || '').split(/[,;|]/).map(x => x.trim()).filter(Boolean)
+  };
+  norm['email'] = norm.mail;
+  const uniq = xs => { const seen = {}; return (xs || []).filter(x => { const k = String(x).toLowerCase(); if (seen[k]) return false; seen[k] = true; return true; }); };
+  const newId = prefix => {
+    let s = '';
+    try { const b = new Uint8Array(10); crypto.getRandomValues(b); s = Array.from(b).map(x => (x % 36).toString(36)).join(''); }
+    catch (e) { s = ''; }
+    while (s.length < 10) s += Math.floor(Math.random() * 36).toString(36);
+    return prefix + s.slice(0, 10);
+  };
+  const initials = name => String(name || '').trim().split(/\s+/).slice(0, 2).map(w => w.charAt(0).toUpperCase()).join('') || '?';
+  const empty = v => v == null || v === '' || (Array.isArray(v) && !v.length);
+
+  /* ---------- the index: every page folded into two sorted lists, memoised on the maps ---------- */
+  let ixCache = {c: null, o: null, out: null};
+  function index(ctx) {
+    const cm = ctx.coll.contacts.map, om = ctx.coll.orgs.map;
+    if (ixCache.out && ixCache.c === cm && ixCache.o === om) return ixCache.out;
+    const fold = (map, prefix) => {
+      const list = [], byId = {}, pageOf = {}, pages = Object.keys(map).sort();
+      for (const pid of pages) {
+        const rows = (map[pid] || {}).rows || {};
+        for (const id of Object.keys(rows)) {
+          const r = {...rows[id], id};
+          list.push(r); byId[id] = r; pageOf[id] = pid;
+        }
+      }
+      list.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+      return {list, byId, pageOf, pages};
+    };
+    const c = fold(cm, 'c'), o = fold(om, 'o');
+    /* search blobs, lowercased once */
+    c.list.forEach(r => {
+      const on = r.org && o.byId[r.org] ? o.byId[r.org].name : r.orgName;
+      r._on = on || '';
+      r._s = [r.name, r.title, r['email'], r.email2, r.phone, r.mobile, on, r.orgName, r.city, r.country, (r.tags || []).join(' '), r.notes]
+        .map(x => String(x || '')).join(' \n ').toLowerCase();
+    });
+    o.list.forEach(r => {
+      r._s = [r.name, r.domain, r.industry, r.city, r.country, (r.tags || []).join(' '), (r.keywords || []).join(' '), r.notes]
+        .map(x => String(x || '')).join(' \n ').toLowerCase();
+    });
+    const out = {contacts: c.list, orgs: o.list, cById: c.byId, oById: o.byId, cPage: c.pageOf, oPage: o.pageOf, cPages: c.pages, oPages: o.pages};
+    ixCache = {c: cm, o: om, out};
+    return out;
+  }
+  const all = ctx => { const ix = index(ctx); return {contacts: ix.contacts, orgs: ix.orgs}; };
+  const contact = (ctx, id) => index(ctx).cById[id] || null;
+  const org = (ctx, id) => index(ctx).oById[id] || null;
+  const peopleAt = (ctx, orgId) => orgId ? index(ctx).contacts.filter(c => c.org === orgId && !c.archived) : [];
+  const orgForClient = (ctx, clientId) => {
+    if (!clientId) return null;
+    const c = ctx.coll.clients.map[clientId];
+    const ix = index(ctx);
+    if (c && c.org && ix.oById[c.org]) return ix.oById[c.org];
+    return ix.orgs.find(o => o.client === clientId) || null;
+  };
+  const pageFor = (ctx, coll, id) => (coll === 'orgs' ? index(ctx).oPage[id] : index(ctx).cPage[id]) || null;
+  /* the last page with room, else the next page id */
+  function roomIn(ctx, coll, counts) {
+    const ix = index(ctx);
+    const map = ctx.coll[coll].map;
+    const pages = uniq((coll === 'orgs' ? ix.oPages : ix.cPages).concat(counts ? Object.keys(counts) : [])).sort();
+    const count = pid => counts && counts[pid] != null ? counts[pid] : Object.keys((map[pid] || {}).rows || {}).length;
+    for (let i = pages.length - 1; i >= 0; i--) { if (count(pages[i]) < PAGE_MAX) return {pid: pages[i], n: count(pages[i]), isNew: !map[pages[i]]}; }
+    let next = 0;
+    for (const p of pages) { const k = parseInt(String(p).slice(1), 10); if (k >= next) next = k + 1; }
+    return {pid: 'p' + String(next).padStart(3, '0'), n: 0, isNew: true};
+  }
+
+  /* rank: exact name start first, then a word start, then anywhere */
+  function rank(r, q) {
+    const nm = String(r.name || '').toLowerCase();
+    if (nm.indexOf(q) === 0) return 0;
+    if (nm.split(/\s+/).some(w => w.indexOf(q) === 0)) return 1;
+    return 2;
+  }
+  function find(ctx, q, opts) {
+    opts = opts || {};
+    const s = String(q || '').trim().toLowerCase();
+    const ix = index(ctx);
+    const keep = r => opts.archived ? true : !r.archived;
+    const lim = opts.limit || 0;
+    let contacts = ix.contacts.filter(keep), orgs = ix.orgs.filter(keep);
+    if (s) {
+      contacts = contacts.filter(r => r._s.indexOf(s) >= 0).map(r => [rank(r, s), r]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
+      orgs = orgs.filter(r => r._s.indexOf(s) >= 0).map(r => [rank(r, s), r]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
+    }
+    if (opts.contacts === false) contacts = [];
+    if (opts.orgs === false) orgs = [];
+    if (lim) { contacts = contacts.slice(0, lim); orgs = orgs.slice(0, lim); }
+    return {contacts, orgs};
+  }
+
+  /* ---------- writes ---------- */
+  function editedOf(patch) {
+    const e = {};
+    Object.keys(patch).forEach(k => { if (SYS.indexOf(k) < 0 && k !== 'archived') e[k] = true; });
+    return e;
+  }
+  async function upsertContact(ctx, patch) {
+    const now = Date.now();
+    const ix = index(ctx);
+    patch = {...patch};
+    if (patch.tags) patch.tags = uniq(norm.list(patch.tags));
+    if (patch.id && ix.cById[patch.id]) {
+      const id = patch.id; delete patch.id;
+      if (patch.org && ix.oById[patch.org]) patch.orgName = ix.oById[patch.org].name;
+      await ctx.W.merge('contacts/' + ix.cPage[id], {rows: {[id]: {...patch, edited: editedOf(patch), updated: now, updatedBy: ctx.uid}}});
+      return id;
+    }
+    const id = patch.id || newId('c_');
+    const doc = {...blankContact(), ...patch, id, at: now, updated: now, updatedBy: ctx.uid};
+    doc.name = norm.text(doc.name || (doc.first + ' ' + doc.last));
+    if (!doc.first && !doc.last && doc.name) { const w = doc.name.split(' '); doc.first = w[0]; doc.last = w.slice(1).join(' '); }
+    if (doc.org && ix.oById[doc.org]) doc.orgName = ix.oById[doc.org].name;
+    const room = roomIn(ctx, 'contacts');
+    await ctx.W.merge('contacts/' + room.pid, {rows: {[id]: doc}, n: room.n + 1});
+    return id;
+  }
+  async function upsertOrg(ctx, patch) {
+    const now = Date.now();
+    const ix = index(ctx);
+    patch = {...patch};
+    if (patch.tags) patch.tags = uniq(norm.list(patch.tags));
+    if (patch.keywords) patch.keywords = uniq(norm.list(patch.keywords));
+    if (patch.website && !patch.domain) patch.domain = norm.domain(patch.website);
+    if (patch.id && ix.oById[patch.id]) {
+      const id = patch.id; delete patch.id;
+      await ctx.W.merge('orgs/' + ix.oPage[id], {rows: {[id]: {...patch, edited: editedOf(patch), updated: now, updatedBy: ctx.uid}}});
+      /* the company name rides on every contact at the company */
+      if (patch.name && patch.name !== ix.oById[id].name) {
+        const byPage = {};
+        peopleAt(ctx, id).forEach(c => { const p = ix.cPage[c.id]; (byPage[p] = byPage[p] || {})[c.id] = {orgName: patch.name}; });
+        for (const p of Object.keys(byPage)) await ctx.W.merge('contacts/' + p, {rows: byPage[p]});
+      }
+      return id;
+    }
+    const id = patch.id || newId('o_');
+    const doc = {...blankOrg(), ...patch, id, at: now, updated: now, updatedBy: ctx.uid};
+    doc.name = norm.text(doc.name);
+    const room = roomIn(ctx, 'orgs');
+    await ctx.W.merge('orgs/' + room.pid, {rows: {[id]: doc}, n: room.n + 1});
+    return id;
+  }
+  async function archive(ctx, coll, id, on) {
+    const pid = pageFor(ctx, coll, id);
+    if (!pid) return;
+    await ctx.W.merge(coll + '/' + pid, {rows: {[id]: {archived: on !== false, updated: Date.now(), updatedBy: ctx.uid}}});
+  }
+
+  /* ---------- clients: two way mapping ---------- */
+  const clientNorm = c => ({name: norm.name(c.name), domain: norm.domain(c.domain || c.website || '')});
+  /* the org that matches a client by name or domain (Pvt Ltd, Ltd, LLP, Inc and friends ignored) */
+  function orgMatching(orgs, client) {
+    const cn = clientNorm(client);
+    if (!cn.name && !cn.domain) return null;
+    return orgs.find(o => !o.archived && ((cn.domain && o.domain === cn.domain) || (cn.name && norm.name(o.name) === cn.name))) || null;
+  }
+  function clientMatching(clientsMap, o) {
+    const on = norm.name(o.name);
+    for (const cid of Object.keys(clientsMap)) {
+      const cn = clientNorm(clientsMap[cid]);
+      if ((o.domain && cn.domain && o.domain === cn.domain) || (on && cn.name === on)) return cid;
+    }
+    return null;
+  }
+  async function linkOrgToClient(ctx, orgId, clientId) {
+    const o = org(ctx, orgId), c = ctx.coll.clients.map[clientId], pid = pageFor(ctx, 'orgs', orgId);
+    if (!o || !c || !pid) return false;
+    const now = Date.now();
+    if (o.client !== clientId) await ctx.W.merge('orgs/' + pid, {rows: {[orgId]: {client: clientId, updated: now, updatedBy: ctx.uid}}});
+    if (c.org !== orgId) await ctx.W.update('clients/' + clientId, {org: orgId, updated: now});
+    return true;
+  }
+  async function unlinkOrg(ctx, orgId) {
+    const o = org(ctx, orgId), pid = pageFor(ctx, 'orgs', orgId);
+    if (!o || !pid) return;
+    const now = Date.now();
+    const c = o.client ? ctx.coll.clients.map[o.client] : null;
+    await ctx.W.merge('orgs/' + pid, {rows: {[orgId]: {client: '', updated: now, updatedBy: ctx.uid}}});
+    if (c && c.org === orgId) await ctx.W.update('clients/' + o.client, {org: '', updated: now});
+  }
+  async function makeClientFromOrg(ctx, orgId) {
+    const o = org(ctx, orgId), pid = pageFor(ctx, 'orgs', orgId);
+    if (!o || !pid) return null;
+    const now = Date.now();
+    const cid = U.uid();
+    const doc = {name: o.name || 'Client', status: 'live', pod: '', owner: ctx.uid, memory: '', approvals: '', never: '',
+      links: o.website || '', updated: now, by: ctx.uid, org: orgId};
+    await ctx.W.set('clients/' + cid, doc);
+    await ctx.W.merge('orgs/' + pid, {rows: {[orgId]: {client: cid, updated: now, updatedBy: ctx.uid}}});
+    const ix = index(ctx);
+    const byPage = {};
+    peopleAt(ctx, orgId).forEach(c => {
+      if (c.stage === 'client') return;
+      const p = ix.cPage[c.id];
+      (byPage[p] = byPage[p] || {})[c.id] = {stage: 'client', updated: now, updatedBy: ctx.uid};
+    });
+    for (const p of Object.keys(byPage)) await ctx.W.merge('contacts/' + p, {rows: byPage[p]});
+    return cid;
+  }
+  /* a client created from Accounts with a matching company name gets linked on the next Base render;
+     a client someone unmapped by hand keeps org '' and is left alone */
+  function useAutoMap(ctx) {
+    const tried = useRef({});
+    useEffect(() => {
+      if (!ctx.coll.clients.ready || !ctx.coll.orgs.ready) return;
+      const cm = ctx.coll.clients.map;
+      const {orgs} = all(ctx);
+      for (const cid of Object.keys(cm)) {
+        const c = cm[cid];
+        /* org missing: never mapped, so look for one. org '': unmapped by hand, so leave it. */
+        if (c.org != null || tried.current[cid]) continue;
+        const o = orgs.find(x => x.client === cid) || orgMatching(orgs, c);
+        if (!o || (o.client && o.client !== cid)) continue;
+        tried.current[cid] = true;
+        linkOrgToClient(ctx, o.id, cid).catch(() => {});
+      }
+    }, [ctx.coll.clients.map, ctx.coll.orgs.map]);
+  }
+
+  /* ---------- CSV: RFC 4180 in, plain rows out ---------- */
+  function parseCsv(text) {
+    let s = String(text || '');
+    if (s.charCodeAt(0) === 0xFEFF) s = s.slice(1);
+    const rows = [];
+    let row = [], cell = '', q = false, i = 0;
+    const n = s.length;
+    while (i < n) {
+      const ch = s[i];
+      if (q) {
+        if (ch === '"') { if (s[i + 1] === '"') { cell += '"'; i += 2; continue; } q = false; i++; continue; }
+        cell += ch; i++; continue;
+      }
+      if (ch === '"') { q = true; i++; continue; }
+      if (ch === ',') { row.push(cell); cell = ''; i++; continue; }
+      if (ch === '\r' || ch === '\n') {
+        row.push(cell); rows.push(row); row = []; cell = ''; i++;
+        if (ch === '\r' && s[i] === '\n') i++;
+        continue;
+      }
+      cell += ch; i++;
+    }
+    if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+    const clean = rows.filter(r => r.some(c => c.trim() !== ''));
+    const headers = (clean.shift() || []).map(h => h.trim());
+    return {headers, rows: clean};
+  }
+  const csvCell = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+
+  /* ---------- Apollo's columns: the ones that matter, by alias ---------- */
+  const ALIAS = {
+    'first name': 'first', 'last name': 'last', 'name': 'name', 'full name': 'name', 'title': 'title', 'job title': 'title',
+    'company': 'orgName', 'company name': 'orgName', 'company name for emails': 'orgName', 'organization': 'orgName', 'organisation': 'orgName', 'account': 'orgName', 'account name': 'orgName',
+    'email': 'email', 'email address': 'email', 'work email': 'email', 'secondary email': 'email2', 'personal email': 'email2',
+    'seniority': 'seniority', 'departments': 'dept', 'department': 'dept',
+    'work direct phone': 'phone', 'direct phone': 'phone', 'phone': 'phone', 'phone number': 'phone', 'corporate phone': 'phone', 'mobile phone': 'mobile', 'mobile': 'mobile',
+    'company phone': 'orgPhone', '# employees': 'orgSize', 'employees': 'orgSize', 'company size': 'orgSize', 'industry': 'orgIndustry', 'keywords': 'orgKeywords',
+    'person linkedin url': 'linkedin', 'linkedin url': 'linkedin', 'linkedin': 'linkedin',
+    'website': 'orgWebsite', 'company website': 'orgWebsite', 'company domain': 'orgDomain', 'domain': 'orgDomain', 'company linkedin url': 'orgLinkedin',
+    'city': 'city', 'state': 'state', 'country': 'country', 'company city': 'orgCity', 'company state': 'orgState', 'company country': 'orgCountry',
+    'apollo contact id': 'apolloId', 'contact id': 'apolloId', 'apollo account id': 'orgApolloId', 'account id': 'orgApolloId',
+    'stage': 'stage', 'contact stage': 'stage', 'lists': 'tags', 'tags': 'tags', 'contact owner': 'owner', 'owner': 'owner', 'notes': 'notes', 'company notes': 'orgNotes'
+  };
+  const FIELD_OPTS = [{v: '', label: 'Ignore'},
+    ...[['first', 'first name'], ['last', 'last name'], ['name', 'full name'], ['title', 'title'], ['email', 'email'], ['email2', 'second email'],
+      ['phone', 'phone'], ['mobile', 'mobile'], ['linkedin', 'linkedin'], ['city', 'city'], ['state', 'state'], ['country', 'country'],
+      ['seniority', 'seniority'], ['dept', 'department'], ['stage', 'stage'], ['tags', 'tags'], ['owner', 'owner'], ['apolloId', 'apollo contact id'], ['notes', 'notes']]
+      .map(x => ({v: x[0], label: 'person: ' + x[1]})),
+    ...[['orgName', 'name'], ['orgDomain', 'domain'], ['orgWebsite', 'website'], ['orgIndustry', 'industry'], ['orgSize', 'size'], ['orgCity', 'city'],
+      ['orgState', 'state'], ['orgCountry', 'country'], ['orgLinkedin', 'linkedin'], ['orgPhone', 'phone'], ['orgKeywords', 'keywords'],
+      ['orgApolloId', 'apollo account id'], ['orgNotes', 'notes']].map(x => ({v: x[0], label: 'company: ' + x[1]}))];
+  const FIELD_LABEL = {};
+  FIELD_OPTS.forEach(o => { FIELD_LABEL[o.v] = o.label; });
+  const headerKey = h => String(h || '').toLowerCase().replace(/[^a-z0-9#]+/g, ' ').trim();
+  const mapApollo = headers => (headers || []).map(h => ({h, field: ALIAS[headerKey(h)] || ''}));
+  const STAGE_MAP = [[/not interested|unresponsive|do not contact|bad data|lost|unqualified|churn|changed job|closed lost/, 'lost'],
+    [/customer|client|won|open deal|closed won|deal/, 'client'], [/meeting|demo|call booked|qualified/, 'meeting'],
+    [/replied|interested|engaged|responded/, 'replied'], [/approach|contacted|attempt|working|sequence|in progress/, 'contacted'],
+    [/cold|new|lead|prospect/, 'lead']];
+  const mapStage = s => { const t = String(s || '').toLowerCase(); if (!t) return ''; if (STAGES.some(x => x.v === t)) return t; for (const [re, v] of STAGE_MAP) if (re.test(t)) return v; return ''; };
+  const orgKey = f => f.slice(3).charAt(0).toLowerCase() + f.slice(4);
+
+  /* merge a fresh record into an existing one: empty fields fill, hand edits stay, lists union */
+  function mergeRecord(existing, incoming, listFields) {
+    const doc = {...existing};
+    const changed = [];
+    const ed = existing.edited || {};
+    for (const k of Object.keys(incoming)) {
+      const v = incoming[k];
+      if (empty(v)) continue;
+      if (listFields.indexOf(k) >= 0) {
+        const next = uniq((existing[k] || []).concat(v));
+        if (next.length !== (existing[k] || []).length) { doc[k] = next; changed.push(k); }
+        continue;
+      }
+      if (empty(existing[k])) { doc[k] = v; changed.push(k); continue; }
+      if (ed[k]) continue;
+      if (existing[k] !== v) { doc[k] = v; changed.push(k); }
+    }
+    return {doc, changed};
+  }
+
+  /* the import plan: pure, from the parsed rows, the mapping and the live index */
+  function planImport(ctx, parsed, mapping, ownerOf) {
+    const ix = index(ctx);
+    const now = Date.now();
+    const skipped = [], dups = [];
+    const oIdx = {apollo: {}, domain: {}, name: {}};
+    const cIdx = {apollo: {}, mail: {}, nameOrg: {}};
+    const work = {orgs: {}, contacts: {}}; /* id: {doc, isNew, changed: Set} */
+    const indexOrg = o => { if (o.apolloId) oIdx.apollo[o.apolloId] = o.id; if (o.domain) oIdx.domain[o.domain] = o.id; const n = norm.name(o.name); if (n) oIdx.name[n] = o.id; };
+    const indexContact = c => { if (c.apolloId) cIdx.apollo[c.apolloId] = c.id; const e = norm.mail(c['email']); if (e) cIdx.mail[e] = c.id; const n = norm.name(c.name); if (n) cIdx.nameOrg[n + '|' + (c.org || norm.name(c.orgName))] = c.id; };
+    ix.orgs.forEach(indexOrg);
+    ix.contacts.forEach(indexContact);
+    const touch = (coll, id, existing, incoming, listFields, isNew) => {
+      const w = work[coll][id];
+      const base = w ? w.doc : existing;
+      const {doc, changed} = mergeRecord(base, incoming, listFields);
+      if (!w) work[coll][id] = {doc, isNew, changed: new Set(changed), existing};
+      else { w.doc = doc; changed.forEach(k => w.changed.add(k)); }
+      return work[coll][id].doc;
+    };
+
+    parsed.rows.forEach((row, ri) => {
+      const p = {}, o = {};
+      mapping.forEach((m, ci) => {
+        if (!m.field) return;
+        const v = norm.text(row[ci]);
+        if (!v) return;
+        if (m.field.indexOf('org') === 0) { const k = orgKey(m.field); if (!o[k]) o[k] = v; }
+        else if (!p[m.field]) p[m.field] = v;
+      });
+      p.name = norm.text(p.name || ((p.first || '') + ' ' + (p.last || '')));
+      if (!p.first && !p.last && p.name) { const w = p.name.split(' '); p.first = w[0]; p.last = w.slice(1).join(' '); }
+      p['email'] = norm.mail(p['email']); p.email2 = norm.mail(p.email2);
+      if (!p.name && !p['email']) { skipped.push({row: ri + 2, reason: 'no name and no email'}); return; }
+      if (p.tags) p.tags = norm.list(p.tags);
+      if (p.stage) p.stage = mapStage(p.stage);
+      if (p.owner) p.owner = (ownerOf && ownerOf(p.owner)) || '';
+      if (o.keywords) o.keywords = norm.list(o.keywords);
+      o.domain = norm.orgDomain(o.domain || o.website, p['email']);
+      if (o.size) o.size = String(o.size);
+
+      /* the company first */
+      let oid = '';
+      if (o.name || o.domain) {
+        oid = (o.apolloId && oIdx.apollo[o.apolloId]) || (o.domain && oIdx.domain[o.domain]) || (o.name && oIdx.name[norm.name(o.name)]) || '';
+        if (oid) {
+          const doc = touch('orgs', oid, ix.oById[oid], o, ORG_LIST, false);
+          indexOrg(doc);
+        } else {
+          oid = newId('o_');
+          const doc = {...blankOrg(), ...o, id: oid, source: 'apollo', at: now};
+          work.orgs[oid] = {doc, isNew: true, changed: new Set(Object.keys(o)), existing: null};
+          indexOrg(doc);
+        }
+      }
+      p.org = oid;
+      p.orgName = oid ? work.orgs[oid].doc.name : (o.name || '');
+
+      /* then the person */
+      const nk = norm.name(p.name) + '|' + (oid || norm.name(p.orgName));
+      let cid = (p.apolloId && cIdx.apollo[p.apolloId]) || (p['email'] && cIdx.mail[p['email']]) || (p.name && cIdx.nameOrg[nk]) || '';
+      if (cid) {
+        if (work.contacts[cid] && work.contacts[cid].isNew) dups.push({row: ri + 2, of: cid});
+        const doc = touch('contacts', cid, ix.cById[cid], p, CONTACT_LIST, false);
+        indexContact(doc);
+      } else {
+        cid = newId('c_');
+        const doc = {...blankContact(), ...p, id: cid, source: 'apollo', at: now};
+        work.contacts[cid] = {doc, isNew: true, changed: new Set(Object.keys(p)), existing: null};
+        indexContact(doc);
+      }
+    });
+
+    /* client auto-map for every imported company without one */
+    let mapped = 0;
+    const clientLinks = [];
+    const cm = ctx.coll.clients.map;
+    const taken = {};
+    Object.keys(cm).forEach(k => { if (cm[k].org) taken[cm[k].org] = k; });
+    Object.keys(work.orgs).forEach(oid => {
+      const w = work.orgs[oid];
+      if (w.doc.client) return;
+      const cid = clientMatching(cm, w.doc);
+      if (!cid || cm[cid].org === '' || (cm[cid].org && cm[cid].org !== oid)) return;
+      w.doc.client = cid; w.changed.add('client');
+      if (cm[cid].org !== oid) clientLinks.push({cid, oid});
+      mapped++;
+    });
+
+    /* pages: existing rows stay where they are, new rows fill the last page with room */
+    const pages = {contacts: {}, orgs: {}};
+    const counts = {contacts: {}, orgs: {}};
+    const place = (coll, id, w) => {
+      let pid = coll === 'orgs' ? ix.oPage[id] : ix.cPage[id];
+      let room = null;
+      if (!pid) { room = roomIn(ctx, coll, counts[coll]); pid = room.pid; counts[coll][pid] = (counts[coll][pid] != null ? counts[coll][pid] : room.n) + 1; }
+      const pg = pages[coll][pid] = pages[coll][pid] || {rows: {}, isNew: !!(room && room.isNew), n: 0};
+      if (room && room.isNew) pg.isNew = true;
+      pg.rows[id] = w.doc;
+    };
+    let added = 0, updated = 0, unchanged = 0, orgsNew = 0, orgsUpdated = 0;
+    Object.keys(work.orgs).forEach(id => {
+      const w = work.orgs[id];
+      if (w.isNew) orgsNew++; else if (w.changed.size) orgsUpdated++; else return;
+      if (!w.isNew) { w.doc.updated = now; w.doc.updatedBy = ctx.uid; if (!w.doc.apolloId && w.existing && !w.existing.apolloId) { /* keep source */ } }
+      else { w.doc.updated = now; w.doc.updatedBy = ctx.uid; }
+      place('orgs', id, w);
+    });
+    Object.keys(work.contacts).forEach(id => {
+      const w = work.contacts[id];
+      if (w.isNew) added++; else if (w.changed.size) updated++; else { unchanged++; return; }
+      w.doc.updated = now; w.doc.updatedBy = ctx.uid;
+      place('contacts', id, w);
+    });
+    Object.keys(pages).forEach(coll => Object.keys(pages[coll]).forEach(pid => {
+      const pg = pages[coll][pid];
+      const have = Object.keys(((ctx.coll[coll].map[pid] || {}).rows) || {});
+      pg.n = counts[coll][pid] != null ? counts[coll][pid] : have.length;
+    }));
+    return {skipped, dups, added, updated, unchanged, orgsNew, orgsUpdated, mapped, clientLinks, pages,
+      people: added + updated + unchanged, rows: parsed.rows.length};
+  }
+
+  /* write the plan: one page document per write, then the client links, then the settings note */
+  async function runImport(ctx, plan, onProgress) {
+    const say = t => { if (onProgress) onProgress(t); };
+    const now = Date.now();
+    for (const coll of ['orgs', 'contacts']) {
+      const pids = Object.keys(plan.pages[coll]).sort();
+      for (let i = 0; i < pids.length; i++) {
+        const pg = plan.pages[coll][pids[i]];
+        say('Writing ' + (coll === 'orgs' ? 'companies' : 'people') + ', page ' + (i + 1) + ' of ' + pids.length);
+        if (pg.isNew) await ctx.W.set(coll + '/' + pids[i], {rows: pg.rows, n: pg.n});
+        else await ctx.W.merge(coll + '/' + pids[i], {rows: pg.rows, n: pg.n});
+      }
+    }
+    for (const l of plan.clientLinks) {
+      say('Linking clients');
+      await ctx.W.update('clients/' + l.cid, {org: l.oid, updated: now}).catch(() => {});
+    }
+    if (ctx.isFounder) {
+      await ctx.W.merge('settings/app', {base: {lastImport: {at: now, by: ctx.uid, added: plan.added, updated: plan.updated, orgs: plan.orgsNew}}}).catch(() => {});
+    }
+    say('');
+  }
+
+  /* ---------- small parts ---------- */
+  const Mini = ({v, l, hot}) => html`<span class="chipline"><b class=${'num' + (hot ? ' flame-t' : '')}>${v}</b> ${l}</span>`;
+  const Chip = ({on, onClick, children, id}) => html`<button type="button" id=${id} class=${'chip' + (on ? ' on' : '')} aria-pressed=${!!on} onClick=${onClick}>${children}</button>`;
+  const Initials = ({name, size}) => html`<span class="bs-av" style=${size ? {width: size + 'px', height: size + 'px'} : null} aria-hidden="true">${initials(name)}</span>`;
+  const StagePill = ({stage}) => stage ? html`<${UI.Pill} kind=${STAGE_PILL[stage]}>${stage}<//>` : null;
+  const Stamp = ({r}) => r && r.updated ? html`<span class="tiny ink62">updated ${U.timeAgo(r.updated)}${r.updatedBy ? html` by <${UI.Name} id=${r.updatedBy}/>` : ''}</span>` : null;
+  const FilterSelect = ({value, onChange, options, label, id}) => html`<select class="input bs-filter" id=${id} aria-label=${label} value=${value} onChange=${e => onChange(e.target.value)}>
+    ${options.map(o => html`<option key=${o.v} value=${o.v}>${o.label}</option>`)}</select>`;
+  const distinct = (list, key) => uniq(list.map(r => r[key]).filter(Boolean)).sort((a, b) => String(a).localeCompare(String(b)));
+
+  function useOwnerOpts(ctx) {
+    const ids = ctx.activeMembers.map(m => m.uid);
+    const profs = M.useProfiles(ids);
+    return [{v: '', label: 'No owner'}].concat(ctx.activeMembers.map(m => ({v: m.uid, label: (profs[m.uid] && profs[m.uid].name) || m.empId || 'Teammate'})));
+  }
+
+  async function exportCsv(ctx, kind, rows) {
+    if (!ctx.downloads) { M.toast('Downloads are unavailable here', true); return; }
+    const cols = kind === 'orgs' ? EXPORT_ORG : EXPORT_CONTACT;
+    const cm = ctx.coll.clients.map;
+    const lines = [cols.map(csvCell).join(',')];
+    rows.forEach(r => lines.push(cols.map(k => {
+      let v = r[k];
+      if (k === 'client') v = r.client && cm[r.client] ? cm[r.client].name : '';
+      if (k === 'orgName') v = r._on || r.orgName || '';
+      if (Array.isArray(v)) v = v.join('; ');
+      return csvCell(v);
+    }).join(',')));
+    try {
+      const r = await ctx.downloads.save({filename: 'base-' + (kind === 'orgs' ? 'companies' : 'people') + '-' + U.todayStr() + '.csv', data: lines.join('\n')});
+      M.toast(r && r.status === 'delivered' ? 'Sent' : 'Downloaded');
+    } catch (e) {
+      M.toast(e && e.code === 'declined' ? 'Download cancelled' : 'That did not download. Try again in a moment.', true);
+    }
+  }
+
+  /* ---------- AI: a short intro note for one person ---------- */
+  function IntroNote({c, o}) {
+    const ctx = M.useCtx();
+    const r = M.ai.useRun();
+    if (!M.ai.on(ctx)) return null;
+    const go = () => r.run(x => M.ai.text(ctx,
+      'Draft a short intro note from Mask360 to this person, to send on WhatsApp or email. Warm, specific, one clear ask for a 20 minute call. Under 90 words. Plain text, no subject line, no placeholders.\n\n' +
+      'PERSON: ' + c.name + (c.title ? ', ' + c.title : '') + (c.city ? ', ' + c.city : '') + (c.seniority ? ', seniority ' + c.seniority : '') + (c.dept ? ', ' + c.dept : '') + '\n' +
+      'COMPANY: ' + (o ? [o.name, o.industry, o.city || o.country, o.size ? o.size + ' people' : '', (o.keywords || []).slice(0, 8).join(', ')].filter(Boolean).join(', ') : (c.orgName || 'unknown')) + '\n' +
+      (c.notes ? 'NOTES: ' + String(c.notes).slice(0, 300) + '\n' : '') + 'STAGE: ' + (c.stage || 'none'),
+      {signal: x.signal, onText: x.onText, tier: 'quick', cache: false}));
+    const busy = r.state === 'thinking' || r.state === 'streaming';
+    return html`<div class="ai-card" id="contact-intro">
+      <div class="row between">
+        <div class="grow"><${UI.Micro}>m360 ai<//><div class="card-title" style=${{marginTop: '4px'}}>Intro note</div></div>
+        <button type="button" class="btn sm" disabled=${busy} onClick=${go}>${busy ? html`<${M.Thinking}/>` : html`<span class="spark">✦</span> ${r.text ? 'Draft it again' : 'Draft an intro note'}`}</button>
+      </div>
+      ${r.text ? html`<div style=${{marginTop: '12px'}}><${M.AIText} text=${r.text}/>
+        <button type="button" class="linky small" style=${{marginTop: '8px'}} onClick=${() => navigator.clipboard.writeText(r.text).then(() => M.toast('Copied'), () => M.toast('Copy is blocked here', true))}>Copy</button></div>`
+        : html`<div class="small ink62" style=${{marginTop: '8px'}}>${busy ? 'Reading this person and their company.' : 'Ninety words, in the agency voice, from what we know about them.'}</div>`}
+      ${r.state === 'error' ? html`<div class="small flame-t" style=${{marginTop: '8px'}}>${M.ai.errCopy(r.err)}</div>` : null}
+    </div>`;
+  }
+
+  /* ---------- the contact drawer ---------- */
+  function ContactDrawer({id, onClose, defaults}) {
+    const ctx = M.useCtx();
+    const ix = index(ctx);
+    const existing = id ? ix.cById[id] : null;
+    const isNew = !id;
+    const [busy, setBusy] = useState(false);
+    const [f, setF] = useState(() => {
+      const b = {...blankContact(), ...(defaults || {}), ...(existing || {})};
+      return {...b, tags: (b.tags || []).join(', ')};
+    });
+    const set = k => v => setF(x => ({...x, [k]: v}));
+    const owners = useOwnerOpts(ctx);
+    const orgOpts = useMemo(() => [{v: '', label: f.orgName && !f.org ? 'Typed: ' + f.orgName : 'No company'}]
+      .concat(ix.orgs.filter(o => !o.archived || o.id === f.org).map(o => ({v: o.id, label: o.name || o.domain || o.id}))), [ix.orgs, f.orgName, f.org]);
+    const o = f.org ? ix.oById[f.org] : null;
+    const client = o && o.client ? ctx.coll.clients.map[o.client] : null;
+    const projects = client ? Object.keys(ctx.coll.projects.map).map(k => ({id: k, ...ctx.coll.projects.map[k]})).filter(p => p.client === o.client && !p.archived) : [];
+    const pn = norm.name(o ? o.name : f.orgName), cn = client ? norm.name(client.name) : '';
+    const pitches = Object.keys(ctx.coll.pitches.map).map(k => ({id: k, ...ctx.coll.pitches.map[k]})).filter(p => { const b = norm.name(p.brand); return b && (b === pn || (cn && b === cn)); });
+
+    const pickOrg = v => setF(x => ({...x, org: v, orgName: v && ix.oById[v] ? ix.oById[v].name : x.orgName}));
+    const newOrg = async () => {
+      const nm = norm.text(f.orgName);
+      if (!nm) return;
+      setBusy(true);
+      try {
+        const oid = await upsertOrg(ctx, {name: nm, source: 'manual'});
+        setF(x => ({...x, org: oid, orgName: nm}));
+        M.toast('Company added');
+      } catch (e) { /* toasted by the write layer */ }
+      setBusy(false);
+    };
+    const save = async () => {
+      const patch = {};
+      const cur = existing || blankContact();
+      const keys = Object.keys(blankContact()).filter(k => k !== 'edited' && k !== 'archived' && k !== 'source' && k !== 'apolloId');
+      for (const k of keys) {
+        const v = k === 'tags' ? uniq(norm.list(f.tags)) : norm.text(f[k]);
+        const was = k === 'tags' ? (cur.tags || []) : (cur[k] || '');
+        if (k === 'tags' ? v.join('|') !== was.join('|') : v !== was) patch[k] = v;
+      }
+      if (patch.first != null || patch.last != null) {
+        const nm = norm.text((patch.first != null ? patch.first : cur.first) + ' ' + (patch.last != null ? patch.last : cur.last));
+        if (nm && nm !== norm.text(cur.name) && patch.name == null) patch.name = nm;
+      }
+      if (isNew && !norm.text(f.name || (f.first + ' ' + f.last)) && !norm.text(f['email'])) return;
+      if (!isNew && !Object.keys(patch).length) { onClose(); return; }
+      setBusy(true);
+      try {
+        await upsertContact(ctx, isNew ? {...patch, source: 'manual'} : {...patch, id});
+        M.toast(isNew ? 'Added' : 'Saved');
+        onClose();
+      } catch (e) { setBusy(false); }
+    };
+    const doArchive = async () => {
+      try { await archive(ctx, 'contacts', id, !existing.archived); M.toast(existing.archived ? 'Restored' : 'Archived'); onClose(); } catch (e) { /* toasted */ }
+    };
+    if (!isNew && !existing) {
+      return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Person"><${UI.Empty} text="This person is gone."/><//>`;
+    }
+    const canSave = isNew ? !!(norm.text(f.first + ' ' + f.last + ' ' + f.name) || norm.text(f['email'])) : true;
+    const footer = html`<div class="row between grow">
+      <div>${!isNew ? html`<${UI.ConfirmBtn} onConfirm=${doArchive}>${existing.archived ? 'Restore' : 'Archive'}<//>` : null}</div>
+      <${UI.Btn} id="contact-save" disabled=${busy || !canSave} onClick=${save}>${isNew ? 'Add person' : 'Save'}<//>
+    </div>`;
+    const go = h => { onClose(); M.nav(h); };
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${isNew ? 'New person' : 'Person'} footer=${footer}>
+      <div id="contact-drawer" class="stack" style=${{gap: '14px'}}>
+        ${!isNew ? html`<div class="row between">
+          <div class="row nowrap" style=${{gap: '10px'}}><${Initials} name=${existing.name} size=${40}/>
+            <div><div style=${{fontWeight: 500, fontSize: '17px'}}>${existing.name}</div>
+              <div class="tiny ink62">${SOURCES.find(s => s.v === existing.source) ? SOURCES.find(s => s.v === existing.source).label : 'Added'}${existing.archived ? ' · archived' : ''}</div></div></div>
+          <${Stamp} r=${existing}/>
+        </div>` : null}
+        <div class="grid2">
+          <${UI.Input} id="contact-first" label="first name" value=${f.first} onChange=${set('first')}/>
+          <${UI.Input} id="contact-last" label="last name" value=${f.last} onChange=${set('last')}/>
+        </div>
+        <${UI.Input} id="contact-title" label="title" value=${f.title} onChange=${set('title')}/>
+        <${UI.Select} id="contact-org" label="company" value=${f.org} onChange=${pickOrg} options=${orgOpts}/>
+        ${!f.org ? html`<div class="row" style=${{alignItems: 'flex-end'}}>
+          <div class="grow"><${UI.Input} id="contact-orgname" label="company name, as typed" value=${f.orgName} onChange=${set('orgName')}/></div>
+          <${UI.Btn} kind="sec" sm disabled=${busy || !norm.text(f.orgName)} onClick=${newOrg}>New company from this name<//>
+        </div>` : null}
+        <div class="grid2">
+          <${UI.Input} id="contact-email" label="email" type="email" value=${f['email']} onChange=${set('email')}/>
+          <${UI.Input} id="contact-email2" label="second email" type="email" value=${f.email2} onChange=${set('email2')}/>
+        </div>
+        <div class="grid2">
+          <${UI.Input} id="contact-phone" label="phone" value=${f.phone} onChange=${set('phone')}/>
+          <${UI.Input} id="contact-mobile" label="mobile" value=${f.mobile} onChange=${set('mobile')}/>
+        </div>
+        <${UI.Input} id="contact-linkedin" label="linkedin" value=${f.linkedin} onChange=${set('linkedin')} placeholder="https://"/>
+        <div class="grid2">
+          <${UI.Input} id="contact-city" label="city" value=${f.city} onChange=${set('city')}/>
+          <${UI.Input} id="contact-country" label="country" value=${f.country} onChange=${set('country')}/>
+        </div>
+        <div class="grid2">
+          <${UI.Input} id="contact-seniority" label="seniority" value=${f.seniority} onChange=${set('seniority')}/>
+          <${UI.Input} id="contact-dept" label="department" value=${f.dept} onChange=${set('dept')}/>
+        </div>
+        <div class="grid2">
+          <${UI.Select} id="contact-stage" label="stage" value=${f.stage} onChange=${set('stage')} options=${STAGES}/>
+          <${UI.Select} id="contact-owner" label="owner" value=${f.owner} onChange=${set('owner')} options=${owners}/>
+        </div>
+        <${UI.Input} id="contact-tags" label="tags, comma separated" value=${f.tags} onChange=${set('tags')}/>
+        <${UI.TextArea} id="contact-notes" label="notes" value=${f.notes} onChange=${set('notes')} rows=${3}/>
+        ${!isNew ? html`<${UI.Fold} title="Where they appear" summary=${client ? client.name : (o ? 'No client yet' : 'No company yet')}>
+          <div class="bs-where">
+            <${UI.Micro} plain>where they appear<//>
+            ${o ? html`<div class="row small"><span class="ink62">company</span><button type="button" class="linky" onClick=${() => go('#companies/' + o.id)}>${o.name}</button></div>` : null}
+            ${client ? html`<div class="row small"><span class="ink62">client</span><button type="button" class="linky" onClick=${() => go('#clients')}>${client.name}</button><${UI.Pill} kind="ink">${client.status || 'live'}<//></div>`
+              : html`<div class="small ink62">${o ? 'This company is not mapped to a client.' : 'No company on this person yet.'}</div>`}
+            ${projects.map(p => html`<div key=${p.id} class="row small"><span class="ink62">project</span><button type="button" class="linky" onClick=${() => go('#projects/' + p.id)}>${p.name}</button><span class="tiny ink62">${p.status || ''}</span></div>`)}
+            ${pitches.map(p => html`<div key=${p.id} class="row small"><span class="ink62">pitch</span><button type="button" class="linky" onClick=${() => go('#pitches')}>${p.brand}</button><span class="tiny ink62">${p.stage || ''}</span></div>`)}
+          </div>
+        <//>` : null}
+        ${!isNew && M.parts.Connections ? html`<${M.parts.Connections} kind="contact" id=${existing.id}/>` : null}
+        ${!isNew ? html`<${IntroNote} c=${existing} o=${o}/>` : null}
+      </div>
+    <//>`;
+  }
+
+  /* ---------- the company drawer ---------- */
+  function OrgDrawer({id, onClose, defaults}) {
+    const ctx = M.useCtx();
+    const ix = index(ctx);
+    const existing = id ? ix.oById[id] : null;
+    const isNew = !id;
+    const [busy, setBusy] = useState(false);
+    const [f, setF] = useState(() => {
+      const b = {...blankOrg(), ...(defaults || {}), ...(existing || {})};
+      return {...b, tags: (b.tags || []).join(', '), keywords: (b.keywords || []).join(', ')};
+    });
+    const [pick, setPick] = useState('');
+    const set = k => v => setF(x => ({...x, [k]: v}));
+    const people = id ? peopleAt(ctx, id) : [];
+    const cm = ctx.coll.clients.map;
+    const client = existing && existing.client ? cm[existing.client] : null;
+    const clientOpts = [{v: '', label: 'Choose a client'}].concat(Object.keys(cm).map(k => ({v: k, label: cm[k].name || k})).sort((a, b) => a.label.localeCompare(b.label)));
+    const go = h => { onClose(); M.nav(h); };
+
+    const save = async () => {
+      const patch = {};
+      const cur = existing || blankOrg();
+      const keys = Object.keys(blankOrg()).filter(k => ['edited', 'archived', 'source', 'apolloId', 'client'].indexOf(k) < 0);
+      for (const k of keys) {
+        const isList = ORG_LIST.indexOf(k) >= 0;
+        const v = isList ? uniq(norm.list(f[k])) : norm.text(f[k]);
+        const was = isList ? (cur[k] || []) : (cur[k] || '');
+        if (isList ? v.join('|') !== was.join('|') : v !== was) patch[k] = v;
+      }
+      if (isNew && !norm.text(f.name)) return;
+      if (!isNew && !Object.keys(patch).length) { onClose(); return; }
+      setBusy(true);
+      try {
+        await upsertOrg(ctx, isNew ? {...patch, source: 'manual'} : {...patch, id});
+        M.toast(isNew ? 'Added' : 'Saved');
+        onClose();
+      } catch (e) { setBusy(false); }
+    };
+    const doMap = async () => {
+      if (!pick) return;
+      setBusy(true);
+      try { await linkOrgToClient(ctx, id, pick); M.toast('Mapped to ' + (cm[pick] ? cm[pick].name : 'the client')); } catch (e) { /* toasted */ }
+      setBusy(false);
+    };
+    const doUnmap = async () => {
+      setBusy(true);
+      try { await unlinkOrg(ctx, id); M.toast('Unmapped'); } catch (e) { /* toasted */ }
+      setBusy(false);
+    };
+    const makeClient = async () => {
+      setBusy(true);
+      try {
+        const cid = await makeClientFromOrg(ctx, id);
+        if (cid) { M.burst(document.getElementById('org-make-client')); M.toast('Client page created'); }
+      } catch (e) { /* toasted */ }
+      setBusy(false);
+    };
+    const doArchive = async () => {
+      try { await archive(ctx, 'orgs', id, !existing.archived); M.toast(existing.archived ? 'Restored' : 'Archived'); onClose(); } catch (e) { /* toasted */ }
+    };
+    if (!isNew && !existing) {
+      return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Company"><${UI.Empty} text="This company is gone."/><//>`;
+    }
+    const footer = html`<div class="row between grow">
+      <div>${!isNew ? html`<${UI.ConfirmBtn} onConfirm=${doArchive}>${existing.archived ? 'Restore' : 'Archive'}<//>` : null}</div>
+      <${UI.Btn} id="org-save" disabled=${busy || (isNew && !norm.text(f.name))} onClick=${save}>${isNew ? 'Add company' : 'Save'}<//>
+    </div>`;
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${isNew ? 'New company' : 'Company'} footer=${footer}>
+      <div id="org-drawer" class="stack" style=${{gap: '14px'}}>
+        ${!isNew ? html`<div class="row between">
+          <div class="row nowrap" style=${{gap: '10px'}}><${Initials} name=${existing.name} size=${40}/>
+            <div><div style=${{fontWeight: 500, fontSize: '17px'}}>${existing.name}</div>
+              <div class="tiny ink62">${people.length} ${people.length === 1 ? 'person' : 'people'}${existing.domain ? ' · ' + existing.domain : ''}${existing.archived ? ' · archived' : ''}</div></div></div>
+          <${Stamp} r=${existing}/>
+        </div>` : null}
+        ${!isNew ? html`<div class="bs-mapbox" id="org-mapping">
+          <${UI.Micro} plain>client mapping<//>
+          ${client ? html`<div class="row between" style=${{marginTop: '8px'}}>
+              <div class="row nowrap"><${UI.Pill} kind="ink">client<//><button type="button" class="linky" onClick=${() => go('#clients')}>${client.name}</button></div>
+              <${UI.ConfirmBtn} onConfirm=${doUnmap} label="Tap again to unmap">Unmap<//>
+            </div>`
+            : html`<div class="row" style=${{marginTop: '8px', alignItems: 'flex-end'}}>
+              <div class="grow"><${UI.Select} id="org-client" label="map to a client" value=${pick} onChange=${setPick} options=${clientOpts}/></div>
+              <${UI.Btn} kind="sec" sm id="org-map" disabled=${busy || !pick} onClick=${doMap}>Map<//>
+              <${UI.Btn} sm id="org-make-client" disabled=${busy} onClick=${makeClient}>Make this a client<//>
+            </div>`}
+        </div>` : null}
+        <${UI.Input} id="org-name" label="name" value=${f.name} onChange=${set('name')}/>
+        <div class="grid2">
+          <${UI.Input} id="org-domain" label="domain" value=${f.domain} onChange=${set('domain')} placeholder="brand.com"/>
+          <${UI.Input} id="org-website" label="website" value=${f.website} onChange=${set('website')} placeholder="https://"/>
+        </div>
+        <div class="grid2">
+          <${UI.Input} id="org-industry" label="industry" value=${f.industry} onChange=${set('industry')}/>
+          <${UI.Input} id="org-size" label="size" value=${f.size} onChange=${set('size')} placeholder="people"/>
+        </div>
+        <div class="grid2">
+          <${UI.Input} id="org-city" label="city" value=${f.city} onChange=${set('city')}/>
+          <${UI.Input} id="org-country" label="country" value=${f.country} onChange=${set('country')}/>
+        </div>
+        <div class="grid2">
+          <${UI.Input} id="org-linkedin" label="linkedin" value=${f.linkedin} onChange=${set('linkedin')} placeholder="https://"/>
+          <${UI.Input} id="org-phone" label="phone" value=${f.phone} onChange=${set('phone')}/>
+        </div>
+        <${UI.Input} id="org-keywords" label="keywords, comma separated" value=${f.keywords} onChange=${set('keywords')}/>
+        <${UI.Input} id="org-tags" label="tags, comma separated" value=${f.tags} onChange=${set('tags')}/>
+        <${UI.TextArea} id="org-notes" label="notes" value=${f.notes} onChange=${set('notes')} rows=${3}/>
+        ${!isNew ? html`<${UI.Fold} title="People here" summary=${people.length + (people.length === 1 ? ' person' : ' people')} open=${people.length > 0}>
+          <div id="org-people">
+            <${UI.Micro} plain>people here<//>
+            ${people.length ? people.map(c => html`<button type="button" key=${c.id} class="rowbtn listrow bs-person" onClick=${() => go('#base/' + c.id)}>
+              <${Initials} name=${c.name} size=${30}/>
+              <span class="grow" style=${{minWidth: 0}}><span class="bs-name">${c.name}</span>${c.title ? html`<span class="small ink62"> · ${c.title}</span>` : null}</span>
+              <${StagePill} stage=${c.stage}/>
+            </button>`) : html`<${UI.Empty} text="Nobody here yet."/>`}
+            <div style=${{marginTop: '10px'}}><${UI.Btn} kind="sec" sm onClick=${() => go('#base')}>Add a person in People<//></div>
+          </div>
+        <//>` : null}
+        ${!isNew && M.parts.Connections ? html`<${M.parts.Connections} kind="org" id=${existing.id}/>` : null}
+      </div>
+    <//>`;
+  }
+
+  /* ---------- People ---------- */
+  function PersonRow({c, onOpen, onOrg}) {
+    return html`<div class="bs-row listrow" data-contact=${c.id}>
+      <button type="button" class="rowbtn bs-main" onClick=${() => onOpen(c.id)}>
+        <${Initials} name=${c.name} size=${36}/>
+        <span class="grow" style=${{minWidth: 0}}>
+          <span class="bs-name">${c.name || c['email'] || 'Someone new'}</span>
+          <span class="bs-sub small ink62">${[c.title, !c.org && c._on ? 'at ' + c._on : '', c.city].filter(Boolean).join(' · ')}</span>
+        </span>
+      </button>
+      ${c.org && c._on ? html`<button type="button" class="linky small bs-orglink" onClick=${() => onOrg(c.org)}>at ${c._on}</button>` : null}
+      <span class="row nowrap bs-meta">
+        <${StagePill} stage=${c.stage}/>
+        ${c.owner ? html`<${UI.Avatar} id=${c.owner} size=${22}/>` : null}
+        ${(c.tags || []).slice(0, 3).map(t => html`<span key=${t} class="pill warm">${t}</span>`)}
+      </span>
+    </div>`;
+  }
+
+  function People({id}) {
+    const ctx = M.useCtx();
+    const [q, setQ] = useState('');
+    const [dq, setDq] = useState('');
+    const [fl, setFl] = useState({stage: '', mine: false, country: '', source: '', tag: '', archived: false});
+    const [limit, setLimit] = useState(60);
+    const [drawer, setDrawer] = useState(null);
+    useEffect(() => { const t = setTimeout(() => setDq(q.trim()), 120); return () => clearTimeout(t); }, [q]);
+    useEffect(() => { if (id) setDrawer(id); }, [id]);
+    useEffect(() => { setLimit(60); }, [dq, fl]);
+    M.useIntent('person', () => setDrawer('new'));
+    const ix = index(ctx);
+    const res = useMemo(() => find(ctx, dq, {archived: fl.archived}), [ix, dq, fl.archived]);
+    const rows = useMemo(() => res.contacts.filter(c => {
+      if (fl.archived ? !c.archived : c.archived) return false;
+      if (fl.stage && c.stage !== fl.stage) return false;
+      if (fl.mine && c.owner !== ctx.uid) return false;
+      if (fl.country && c.country !== fl.country) return false;
+      if (fl.source && c.source !== fl.source) return false;
+      if (fl.tag && (c.tags || []).indexOf(fl.tag) < 0) return false;
+      return true;
+    }), [res, fl, ctx.uid]);
+    const countries = useMemo(() => distinct(ix.contacts, 'country'), [ix]);
+    const tags = useMemo(() => uniq(ix.contacts.reduce((a, c) => a.concat(c.tags || []), [])).sort(), [ix]);
+    const setF = k => v => setFl(x => ({...x, [k]: v}));
+    const close = () => { setDrawer(null); if (id) M.nav('#base'); };
+    const openOrg = oid => M.nav('#companies/' + oid);
+    const shown = rows.slice(0, limit);
+    if (!ctx.coll.contacts.ready) return html`<${UI.Card}><${UI.Empty} text="One moment."/><//>`;
+    return html`<div class="stack" style=${{gap: '14px'}} id="base-people">
+      <div class="row nowrap bs-searchrow">
+        <div class="grow bs-search">
+          <${icons.search}/>
+          <input id="base-q" class="input" type="search" placeholder="Search people and companies" value=${q} onInput=${e => setQ(e.target.value)} aria-label="Search people and companies"/>
+        </div>
+        <${UI.Btn} id="base-add" onClick=${() => setDrawer('new')}><${icons.plus}/>Add a person<//>
+      </div>
+      <div class="bs-chips row">
+        <${Chip} on=${fl.mine} onClick=${() => setF('mine')(!fl.mine)}>Mine<//>
+        ${STAGES.filter(s => s.v).map(s => html`<${Chip} key=${s.v} on=${fl.stage === s.v} onClick=${() => setF('stage')(fl.stage === s.v ? '' : s.v)}>${s.label}<//>`)}
+        <${FilterSelect} id="base-country" label="Country" value=${fl.country} onChange=${setF('country')} options=${[{v: '', label: 'Any country'}].concat(countries.map(c => ({v: c, label: c})))}/>
+        <${FilterSelect} id="base-source" label="Source" value=${fl.source} onChange=${setF('source')} options=${[{v: '', label: 'Any source'}].concat(SOURCES)}/>
+        ${tags.length ? html`<${FilterSelect} id="base-tag" label="Tag" value=${fl.tag} onChange=${setF('tag')} options=${[{v: '', label: 'Any tag'}].concat(tags.map(t => ({v: t, label: t})))}/>` : null}
+        <${Chip} on=${fl.archived} onClick=${() => setF('archived')(!fl.archived)}>Archived<//>
+      </div>
+      ${dq && res.orgs.length ? html`<div class="row bs-orgstrip" id="base-orgs">
+        <span class="tiny ink62">companies</span>
+        ${res.orgs.slice(0, 6).map(o => html`<button type="button" key=${o.id} class="chip" onClick=${() => openOrg(o.id)}>${o.name}<span class="num"> ${peopleAt(ctx, o.id).length}</span></button>`)}
+      </div>` : null}
+      <${UI.Card} className="bs-list">
+        <div class="row between" style=${{marginBottom: '6px'}}>
+          <span class="small ink62 num" id="base-count">${rows.length} ${rows.length === 1 ? 'person' : 'people'}${dq ? ' for "' + dq + '"' : ''}</span>
+          ${ctx.downloads && rows.length ? html`<button type="button" class="linky small" id="base-export" onClick=${() => exportCsv(ctx, 'contacts', rows)}>Export CSV</button>` : null}
+        </div>
+        ${shown.length ? shown.map(c => html`<${PersonRow} key=${c.id} c=${c} onOpen=${setDrawer} onOrg=${openOrg}/>`)
+          : html`<${UI.Empty} text=${ix.contacts.length ? 'Nobody matches that.' : 'Nobody in the database yet. Add a person, or import a CSV from Apollo.'}/>`}
+        ${rows.length > shown.length ? html`<div style=${{marginTop: '12px'}}><${UI.Btn} kind="sec" sm id="base-more" onClick=${() => setLimit(limit + 60)}>Show more<//>
+          <span class="small ink62 num" style=${{marginLeft: '10px'}}>${shown.length} of ${rows.length}</span></div>` : null}
+      <//>
+      ${M.parts.BaseNudges ? html`<${M.parts.BaseNudges}/>` : null}
+      ${M.parts.AskBase ? html`<${M.parts.AskBase}/>` : null}
+      ${drawer ? html`<${ContactDrawer} key=${drawer} id=${drawer === 'new' ? null : drawer} onClose=${close}/>` : null}
+    </div>`;
+  }
+
+  /* ---------- Companies ---------- */
+  function Companies({id}) {
+    const ctx = M.useCtx();
+    const [q, setQ] = useState('');
+    const [dq, setDq] = useState('');
+    const [fl, setFl] = useState({industry: '', country: '', map: '', archived: false});
+    const [limit, setLimit] = useState(60);
+    const [drawer, setDrawer] = useState(null);
+    useEffect(() => { const t = setTimeout(() => setDq(q.trim()), 120); return () => clearTimeout(t); }, [q]);
+    useEffect(() => { if (id) setDrawer(id); }, [id]);
+    useEffect(() => { setLimit(60); }, [dq, fl]);
+    const ix = index(ctx);
+    const cm = ctx.coll.clients.map;
+    const res = useMemo(() => find(ctx, dq, {archived: fl.archived, contacts: false}), [ix, dq, fl.archived]);
+    const counts = useMemo(() => { const c = {}; ix.contacts.forEach(x => { if (x.org && !x.archived) c[x.org] = (c[x.org] || 0) + 1; }); return c; }, [ix]);
+    const rows = useMemo(() => res.orgs.filter(o => {
+      if (fl.archived ? !o.archived : o.archived) return false;
+      if (fl.industry && o.industry !== fl.industry) return false;
+      if (fl.country && o.country !== fl.country) return false;
+      const mapped = !!(o.client && cm[o.client]);
+      if (fl.map === 'yes' && !mapped) return false;
+      if (fl.map === 'no' && mapped) return false;
+      return true;
+    }), [res, fl, cm]);
+    const industries = useMemo(() => distinct(ix.orgs, 'industry'), [ix]);
+    const countries = useMemo(() => distinct(ix.orgs, 'country'), [ix]);
+    const setF = k => v => setFl(x => ({...x, [k]: v}));
+    const close = () => { setDrawer(null); if (id) M.nav('#companies'); };
+    const shown = rows.slice(0, limit);
+    if (!ctx.coll.orgs.ready) return html`<${UI.Card}><${UI.Empty} text="One moment."/><//>`;
+    return html`<div class="stack" style=${{gap: '14px'}} id="base-companies">
+      <div class="row nowrap bs-searchrow">
+        <div class="grow bs-search">
+          <${icons.search}/>
+          <input id="companies-q" class="input" type="search" placeholder="Search companies" value=${q} onInput=${e => setQ(e.target.value)} aria-label="Search companies"/>
+        </div>
+        <${UI.Btn} id="companies-add" onClick=${() => setDrawer('new')}><${icons.plus}/>Add a company<//>
+      </div>
+      <div class="bs-chips row">
+        <${Chip} on=${fl.map === 'yes'} onClick=${() => setF('map')(fl.map === 'yes' ? '' : 'yes')}>Mapped to a client<//>
+        <${Chip} on=${fl.map === 'no'} onClick=${() => setF('map')(fl.map === 'no' ? '' : 'no')}>Not mapped<//>
+        ${industries.length ? html`<${FilterSelect} id="companies-industry" label="Industry" value=${fl.industry} onChange=${setF('industry')} options=${[{v: '', label: 'Any industry'}].concat(industries.map(c => ({v: c, label: c})))}/>` : null}
+        <${FilterSelect} id="companies-country" label="Country" value=${fl.country} onChange=${setF('country')} options=${[{v: '', label: 'Any country'}].concat(countries.map(c => ({v: c, label: c})))}/>
+        <${Chip} on=${fl.archived} onClick=${() => setF('archived')(!fl.archived)}>Archived<//>
+      </div>
+      <div class="row between">
+        <span class="small ink62 num" id="companies-count">${rows.length} ${rows.length === 1 ? 'company' : 'companies'}${dq ? ' for "' + dq + '"' : ''}</span>
+        ${ctx.downloads && rows.length ? html`<button type="button" class="linky small" id="companies-export" onClick=${() => exportCsv(ctx, 'orgs', rows)}>Export CSV</button>` : null}
+      </div>
+      ${shown.length ? html`<div class="grid2 bs-cards">
+        ${shown.map(o => {
+          const cl = o.client && cm[o.client] ? cm[o.client] : null;
+          const n = counts[o.id] || 0;
+          return html`<button type="button" key=${o.id} class="card rowbtn bs-card" data-org=${o.id} onClick=${() => setDrawer(o.id)}>
+            <div class="row between nowrap" style=${{alignItems: 'flex-start'}}>
+              <span class="bs-name" style=${{fontSize: '17px'}}>${o.name}</span>
+              ${cl ? html`<${UI.Pill} kind="ink">${cl.name}<//>` : null}
+            </div>
+            <div class="small ink62" style=${{marginTop: '6px', overflowWrap: 'anywhere'}}>${[o.domain, o.industry, o.city || o.country].filter(Boolean).join(' · ')}</div>
+            <div class="row small" style=${{marginTop: '10px'}}>
+              <span class="num">${n} ${n === 1 ? 'person' : 'people'}</span>
+              ${o.size ? html`<span class="ink62 num">${o.size} employees</span>` : null}
+              ${(o.tags || []).slice(0, 2).map(t => html`<span key=${t} class="pill warm">${t}</span>`)}
+            </div>
+          </button>`;
+        })}
+      </div>` : html`<${UI.Card}><${UI.Empty} text=${ix.orgs.length ? 'No company matches that.' : 'No companies yet. They arrive with people, or add one.'}/><//>`}
+      ${rows.length > shown.length ? html`<div><${UI.Btn} kind="sec" sm id="companies-more" onClick=${() => setLimit(limit + 60)}>Show more<//>
+        <span class="small ink62 num" style=${{marginLeft: '10px'}}>${shown.length} of ${rows.length}</span></div>` : null}
+      ${drawer ? html`<${OrgDrawer} key=${drawer} id=${drawer === 'new' ? null : drawer} onClose=${close}/>` : null}
+    </div>`;
+  }
+
+  /* ---------- Import ---------- */
+  function Import() {
+    const ctx = M.useCtx();
+    const [parsed, setParsed] = useState(null);
+    const [mapping, setMapping] = useState([]);
+    const [paste, setPaste] = useState('');
+    const [fileName, setFileName] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [prog, setProg] = useState('');
+    const [summary, setSummary] = useState(null);
+    const [owners, setOwners] = useState({});
+    const ix = index(ctx);
+    const last = (ctx.settings.base || {}).lastImport;
+    /* Apollo owner columns carry an address; it resolves to a teammate id when the profile carries one, else nothing */
+    useEffect(() => {
+      if (!ctx.isFounder || !ctx.user || !ctx.user.profiles) return;
+      const ids = ctx.activeMembers.map(m => m.uid);
+      if (!ids.length) return;
+      let live = true;
+      ctx.user.profiles(ids).then(ps => { if (!live) return; const o = {}; ids.forEach(u => { const e = ps[u] && ps[u]['email']; if (e) o[String(e).toLowerCase()] = u; }); setOwners(o); }).catch(() => {});
+      return () => { live = false; };
+    }, [ctx.isFounder, ctx.activeMembers.length]);
+    const ownerOf = s => owners[String(s || '').trim().toLowerCase()] || '';
+    const plan = useMemo(() => parsed ? planImport(ctx, parsed, mapping, ownerOf) : null, [parsed, mapping, ix, owners]);
+
+    if (!ctx.isFounder) {
+      return html`<${UI.Card} title="Import"><div class="small">Imports are done by Kaavish. Search People for anyone already in the database.</div><//>`;
+    }
+    const load = (text, name) => {
+      const p = parseCsv(text);
+      if (!p.headers.length) { M.toast('That file has no columns', true); return; }
+      setParsed(p); setMapping(mapApollo(p.headers)); setSummary(null); setFileName(name || 'pasted text');
+    };
+    const onFile = e => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const rd = new FileReader();
+      rd.onload = () => load(String(rd.result || ''), file.name);
+      rd.onerror = () => M.toast('That file could not be read', true);
+      rd.readAsText(file);
+    };
+    const mappedCols = mapping.filter(m => m.field).length;
+    const setField = (i, v) => setMapping(m => m.map((x, j) => j === i ? {...x, field: v} : x));
+    const preview = parsed ? parsed.rows.slice(0, 5).map(row => {
+      const o = {};
+      mapping.forEach((m, ci) => { if (m.field && row[ci] && !o[m.field]) o[m.field] = norm.text(row[ci]); });
+      return o;
+    }) : [];
+    const go = async () => {
+      if (!plan || busy) return;
+      setBusy(true);
+      try {
+        await runImport(ctx, plan, setProg);
+        setSummary(plan);
+        setParsed(null); setMapping([]); setPaste('');
+        M.burst(document.getElementById('import-go'));
+        M.toast('Imported ' + plan.added + ' new ' + (plan.added === 1 ? 'person' : 'people'));
+      } catch (e) { setProg(''); }
+      setBusy(false);
+    };
+    const n = plan ? plan.people : 0;
+    return html`<div class="stack" style=${{gap: '16px'}} id="base-import">
+      <${UI.Card} title="Import from Apollo" action=${last ? html`<span class="tiny ink62">last import ${U.timeAgo(last.at)}: ${last.added} new, ${last.updated} updated, ${last.orgs} companies</span>` : null}>
+        <p class="small ink62" style=${{marginTop: 0}}>Export your contacts from Apollo as a CSV and drop it here. Only the useful columns come through: names, titles, emails, phones, company, city, stage, lists. Hand edits in the database always win over Apollo.</p>
+        <div class="row" style=${{alignItems: 'flex-start'}}>
+          <div class="field grow">
+            <label for="import-file">csv file</label>
+            <input id="import-file" class="input bs-file" type="file" accept=".csv,text/csv" onChange=${onFile}/>
+          </div>
+        </div>
+        <${UI.Fold} title="Or paste the CSV text" summary="For a small list">
+          <div class="stack tight" style=${{marginTop: '10px'}}>
+            <${UI.TextArea} id="import-paste" label="or paste csv text" value=${paste} onChange=${setPaste} rows=${4} placeholder="First Name,Last Name,Title,Company,Email"/>
+            <div><${UI.Btn} kind="sec" sm id="import-parse" disabled=${!paste.trim()} onClick=${() => load(paste, 'pasted text')}>Use this text<//></div>
+          </div>
+        <//>
+      <//>
+      ${parsed ? html`<${UI.Card} title=${'Mapping for ' + fileName} id="import-mapcard">
+        <div class="row small" style=${{marginBottom: '10px'}}>
+          <span class="num">${parsed.rows.length} rows</span>
+          <span class="num ink62">${parsed.headers.length} columns, ${mappedCols} mapped, ${parsed.headers.length - mappedCols} ignored</span>
+          <span class="num">${plan.added} new, ${plan.updated} updated, ${plan.unchanged} unchanged</span>
+          ${plan.skipped.length ? html`<span class="num flame-t">${plan.skipped.length} skipped</span>` : null}
+          ${plan.dups.length ? html`<span class="num ink62">${plan.dups.length} duplicate ${plan.dups.length === 1 ? 'row' : 'rows'} folded in</span>` : null}
+        </div>
+        <div class="tbl-wrap"><table class="tbl bs-map" id="import-map">
+          <thead><tr><th>column in the file</th><th>goes to</th><th>first value</th></tr></thead>
+          <tbody>${mapping.map((m, i) => html`<tr key=${i} class=${m.field ? '' : 'bs-ignored'} data-col=${m.h}>
+            <td class="lead">${m.h}</td>
+            <td data-label="goes to"><select class="input bs-mapsel" aria-label=${'Field for ' + m.h} value=${m.field} onChange=${e => setField(i, e.target.value)}>
+              ${FIELD_OPTS.map(o => html`<option key=${o.v} value=${o.v}>${o.label}</option>`)}</select></td>
+            <td data-label="first value" class="ink62 bs-sample">${norm.text((parsed.rows[0] || [])[i]).slice(0, 40) || ''}</td>
+          </tr>`)}</tbody>
+        </table></div>
+        <div class="hair"/>
+        <${UI.Micro} plain>preview, first ${preview.length} rows<//>
+        <div class="stack tight" id="import-preview" style=${{marginTop: '8px'}}>
+          ${preview.map((r, i) => html`<div key=${i} class="listrow bs-prev">
+            <${Initials} name=${r.name || ((r.first || '') + ' ' + (r.last || ''))} size=${30}/>
+            <span class="grow" style=${{minWidth: 0}}>
+              <span class="bs-name">${norm.text(r.name || ((r.first || '') + ' ' + (r.last || ''))) || html`<span class="flame-t">no name</span>`}</span>
+              <span class="small ink62"> ${[r.title, r.orgName, r['email'], r.city].filter(Boolean).join(' · ')}</span>
+            </span>
+          </div>`)}
+        </div>
+        ${plan.skipped.length ? html`<div class="small ink62" style=${{marginTop: '10px'}}>Skipped: ${plan.skipped.slice(0, 8).map(s => 'row ' + s.row + ' (' + s.reason + ')').join(', ')}${plan.skipped.length > 8 ? ' and ' + (plan.skipped.length - 8) + ' more' : ''}</div>` : null}
+        <div class="row" style=${{marginTop: '14px'}}>
+          <${UI.Btn} id="import-go" disabled=${busy || !n} onClick=${go}><${icons.upload}/>${busy ? 'Importing' : 'Import ' + n + ' ' + (n === 1 ? 'person' : 'people')}<//>
+          <${UI.Btn} kind="ghost" sm disabled=${busy} onClick=${() => { setParsed(null); setMapping([]); }}>Clear<//>
+          ${prog ? html`<span class="small ink62" id="import-progress" aria-live="polite">${prog}</span>` : null}
+        </div>
+      <//>` : null}
+      ${summary ? html`<${UI.Card} title="Imported" id="import-summary" flame=${true}>
+        <div class="grid4 two bs-sum">
+          <div class="kpi"><span class="v num">${summary.added}</span><span class="l">new people</span></div>
+          <div class="kpi"><span class="v num">${summary.updated}</span><span class="l">updated</span></div>
+          <div class="kpi"><span class="v num">${summary.unchanged}</span><span class="l">unchanged</span></div>
+          <div class="kpi"><span class="v num">${summary.orgsNew}</span><span class="l">new companies</span></div>
+          <div class="kpi"><span class="v num">${summary.mapped}</span><span class="l">mapped to clients</span></div>
+          <div class="kpi"><span class="v num">${summary.skipped.length}</span><span class="l">skipped</span></div>
+        </div>
+        ${summary.skipped.length ? html`<div class="small ink62" style=${{marginTop: '12px'}}>Skipped: ${summary.skipped.slice(0, 12).map(s => 'row ' + s.row + ' (' + s.reason + ')').join(', ')}</div>` : null}
+        ${summary.dups.length ? html`<div class="small ink62" style=${{marginTop: '6px'}}>${summary.dups.length} duplicate ${summary.dups.length === 1 ? 'row' : 'rows'} in the file folded into one person.</div>` : null}
+        <div class="row" style=${{marginTop: '14px'}}>
+          <${UI.Btn} kind="sec" sm onClick=${() => M.nav('#base')}>Open People<//>
+          <${UI.Btn} kind="sec" sm onClick=${() => M.nav('#companies')}>Open Companies<//>
+        </div>
+      <//>` : null}
+      <${UI.Card} title="What comes through">
+        <div class="small ink62">Person: first and last name, title, email and a second email, direct, mobile and corporate phone, seniority, department, LinkedIn, city, state, country, stage, lists as tags, the Apollo contact id. Company: name, website and domain, industry, size, keywords, company LinkedIn, phone, city, state, country, the Apollo account id. Everything else in the export stays out: opens, bounces, replies, technologies, revenue, funding, social links, intent topics.</div>
+        <div class="small ink62" style=${{marginTop: '8px'}}>People match by Apollo id, then email, then name at the same company. Companies match by Apollo id, then domain, then name. A company whose name or domain matches a client page is mapped to it on import. ${ix.contacts.length} people and ${ix.orgs.length} companies are in the database now.</div>
+      <//>
+    </div>`;
+  }
+
+  /* ---------- the section page ---------- */
+  function Base({tab, id}) {
+    const ctx = M.useCtx();
+    const t = tab || 'people';
+    const {contacts, orgs} = all(ctx);
+    useAutoMap(ctx);
+    const cm = ctx.coll.clients.map;
+    const live = contacts.filter(c => !c.archived).length;
+    const liveOrgs = orgs.filter(o => !o.archived);
+    const mapped = liveOrgs.filter(o => o.client && cm[o.client]).length;
+    return html`<div class="stack" style=${{gap: '20px'}}>
+      <${M.SectionHero} micro="the database" title="Base" sub="Everyone we know, who we know them through, and what we do with them.">
+        <div class="row" style=${{gap: '8px'}}>
+          <${Mini} v=${live} l="people"/>
+          <${Mini} v=${liveOrgs.length} l="companies"/>
+          <${Mini} v=${mapped} l="mapped to clients"/>
+        </div>
+      <//>
+      <${M.SectionTabs} section="base" active=${t}/>
+      ${t === 'companies' ? html`<${Companies} id=${id}/>` : t === 'import' ? html`<${Import}/>` : html`<${People} id=${id}/>`}
+    </div>`;
+  }
+
+  /* ---------- for the client page: the people at this client's company ---------- */
+  function PeopleAtClient({clientId, id}) {
+    const ctx = M.useCtx();
+    const o = orgForClient(ctx, clientId || id);
+    const people = o ? peopleAt(ctx, o.id) : [];
+    if (!o) return null;
+    return html`<${UI.Card} title="People at this client" id="client-people" action=${html`<button type="button" class="linky small" onClick=${() => M.nav('#companies/' + o.id)}>Open in Base</button>`}>
+      ${people.length ? people.slice(0, 6).map(c => html`<button type="button" key=${c.id} class="rowbtn listrow bs-person" onClick=${() => M.nav('#base/' + c.id)}>
+        <${Initials} name=${c.name} size=${30}/>
+        <span class="grow" style=${{minWidth: 0}}><span class="bs-name">${c.name}</span>${c.title ? html`<span class="small ink62"> · ${c.title}</span>` : null}</span>
+        <${StagePill} stage=${c.stage}/>
+      </button>`) : html`<${UI.Empty} text=${'Nobody from ' + o.name + ' in the database yet.'}/>`}
+      ${people.length > 6 ? html`<div class="tiny ink62 num" style=${{marginTop: '6px'}}>${people.length - 6} more in Base</div>` : null}
+    <//>`;
+  }
+
+  M.pages.Base = Base;
+  M.parts.PeopleAtClient = PeopleAtClient;
+  M.parts.ContactDrawer = ContactDrawer;
+  M.parts.OrgDrawer = OrgDrawer;
+  M.base = {all, contact, org, peopleAt, orgForClient, find, upsertContact, upsertOrg, pageFor, linkOrgToClient, unlinkOrg,
+    makeClientFromOrg, STAGES, norm, parseCsv, mapApollo, planImport, runImport, PAGE_MAX};
+})();
+
 /* ==== 77-safety.js ==== */
 /* module: safety card. A small Safety card at the end of Admin > Controls > Super, on both builds.
    On claude.ai: the data lives in the artifact's database; download everything, or import a backup
@@ -13368,6 +14652,508 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   } else M.adminCards.push(SafetyCard);
   M.parts.SafetyCard = SafetyCard;
   M.safety = {parseBackup};
+})();
+
+/* ==== 78-search.js ==== */
+/* module: search. The master search under Cmd K: one index across contacts, companies, tasks,
+   projects, clients, pitches, posts, handbook, inbox, leave, saved links and the founder's log.
+   Also the Search drawer (every match, filters by group), the Connections block every entity
+   shows, and the Base intelligence: Ask the base, quiet leads and nudges, plus the tools the
+   model gets. Everything here is client side and instant; the model is only asked when tapped. */
+'use strict';
+(function () {
+  const {html, React, U, UI, icons} = M;
+  const {useState, useEffect, useMemo} = React;
+
+  const SPARK = '✦';
+  const CAP = 8;
+  const DAY = 86400000;
+  const norm = s => String(s || '').toLowerCase();
+  const pick = (o, k) => (o && o[k] != null) ? String(o[k]) : '';
+  const words = q => norm(q).trim().split(/\s+/).filter(Boolean);
+  const cut = (s, n) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1).trim() + '…' : s; };
+
+  /* 3: the text starts with the whole query. 2: every word starts a word of the text. 1: every word appears. 0: no. */
+  function rankOf(qs, ws, text) {
+    const t = norm(text);
+    if (!ws.length || !ws.every(w => t.includes(w))) return 0;
+    if (t.startsWith(qs)) return 3;
+    const parts = t.split(/[^a-z0-9@.]+/);
+    if (ws.every(w => parts.some(p => p.startsWith(w)))) return 2;
+    return 1;
+  }
+
+  /* ---------- the Base: contacts and orgs live in page documents, flattened here ---------- */
+  const flatCache = new WeakMap();
+  function rowsOf(ctx, name) {
+    try {
+      const r = (M.base && typeof M.base.all === 'function') ? M.base.all(ctx, name) : null;
+      if (Array.isArray(r)) return r;
+    } catch (e) { /* the Base module keeps its own shape; fall through to ours */ }
+    const coll = ctx && ctx.coll && ctx.coll[name];
+    const map = (coll && coll.map) || {};
+    if (flatCache.has(map)) return flatCache.get(map);
+    const out = [];
+    for (const page of Object.keys(map).sort()) {
+      const rows = (map[page] && map[page].rows) || {};
+      for (const id of Object.keys(rows)) {
+        const r = rows[id];
+        if (!r || r.archived) continue;
+        out.push({...r, id: r.id || id});
+      }
+    }
+    flatCache.set(map, out);
+    return out;
+  }
+  const contacts = ctx => rowsOf(ctx, 'contacts');
+  const orgs = ctx => rowsOf(ctx, 'orgs');
+  const orgById = (ctx, id) => id ? orgs(ctx).find(o => o.id === id) || null : null;
+  const contactById = (ctx, id) => id ? contacts(ctx).find(c => c.id === id) || null : null;
+  const nameOf = c => c ? (c.name || [c.first, c.last].filter(Boolean).join(' ') || 'Someone') : '';
+  const domainOf = c => { const e = pick(c, 'email'); return e.includes('@') ? e.split('@')[1] : ''; };
+  const orgNameOf = (ctx, c) => { const o = orgById(ctx, c.org); return (o && o.name) || c.orgName || ''; };
+  const contactSub = (ctx, c) => [c.title, orgNameOf(ctx, c)].filter(Boolean).join(', ');
+  const stampOf = r => Number(r.updated || r.at || 0);
+
+  /* companies whose name or domain match a typed company */
+  function orgsMatching(ctx, q) {
+    const s = norm(q).trim();
+    if (!s) return [];
+    return orgs(ctx).filter(o => norm(o.name).includes(s) || norm(o.domain).includes(s) || norm(o.website).includes(s));
+  }
+  function clientsMatching(ctx, q) {
+    const s = norm(q).trim();
+    const map = ctx.coll.clients.map;
+    return s ? Object.keys(map).filter(id => norm(map[id].name).includes(s)) : [];
+  }
+  /* the client a pitch belongs to: the brand's client page, or the contact's company's client */
+  function clientOfPitch(ctx, p) {
+    if (!p) return '';
+    const key = norm(p.brand).trim();
+    const map = ctx.coll.clients.map;
+    const byName = key ? Object.keys(map).find(id => norm(map[id].name).trim() === key) : '';
+    if (byName) return byName;
+    const c = contactById(ctx, p.contact);
+    const o = c ? orgById(ctx, c.org) : null;
+    return (o && o.client) || '';
+  }
+  const orgOfClient = (ctx, cid) => {
+    const c = ctx.coll.clients.map[cid];
+    if (c && c.org) { const o = orgById(ctx, c.org); if (o) return o; }
+    return orgs(ctx).find(o => o.client === cid) || null;
+  };
+  const peopleAt = (ctx, oid) => oid ? contacts(ctx).filter(c => c.org === oid) : [];
+  const mentions = (text, name) => { const n = norm(name).trim(); return !!n && n.length > 2 && norm(text).includes(n); };
+
+  /* the inbox writes rich lines (names as elements); this reads them back as text */
+  function flat(node, names) {
+    if (node == null || node === false) return '';
+    if (typeof node === 'string' || typeof node === 'number') return String(node);
+    if (Array.isArray(node)) return node.map(n => flat(n, names)).join('');
+    if (node.props) {
+      if (node.type === UI.Name) { const p = names[node.props.id]; return (p && p.name) || ''; }
+      return flat(node.props.children, names);
+    }
+    return '';
+  }
+
+  /* ---------- the index ---------- */
+  const GROUPS = ['people', 'companies', 'tasks', 'projects', 'clients', 'pitches', 'posts', 'handbook', 'inbox', 'leave', 'radar', 'log'];
+  const GROUP_LABEL = {people: 'People', companies: 'Companies', tasks: 'Tasks', projects: 'Projects', clients: 'Clients', pitches: 'Pitches',
+    posts: 'Posts', handbook: 'Handbook', inbox: 'Inbox', leave: 'Leave', radar: 'Saved links', log: 'Log'};
+  const GROUP_ICON = {people: 'people', companies: 'database', tasks: 'tasks', projects: 'projects', clients: 'clients', pitches: 'pitches',
+    posts: 'feed', handbook: 'handbook', inbox: 'bell', leave: 'leave', radar: 'radar', log: 'log'};
+
+  /* every hit across every group, ranked and capped. opts: {names, cap, log, groups} */
+  function hits(ctx, query, opts) {
+    opts = opts || {};
+    const names = opts.names || {};
+    const cap = opts.cap || CAP;
+    const only = opts.groups || null;
+    const qs = norm(query).trim();
+    const ws = words(query);
+    if (!ws.length) return [];
+    const out = [];
+    const overflow = {};
+    const want = g => !only || only.indexOf(g) >= 0;
+    const take = (group, list, more) => {
+      const ranked = list.filter(x => x.rank > 0).sort((a, b) => b.rank - a.rank || (a.order || 0) - (b.order || 0));
+      const shown = ranked.slice(0, cap);
+      shown.forEach(x => out.push({...x, group, icon: x.icon || GROUP_ICON[group]}));
+      if (ranked.length > shown.length) overflow[group] = ranked.length - shown.length;
+      if (more && ranked.length > shown.length) out.push({key: group + ':more', group, label: more.label, sub: (ranked.length - shown.length) + ' more', icon: 'search', more: more.group || group, rank: 0});
+    };
+    const rk = text => rankOf(qs, ws, text);
+
+    if (want('people')) {
+      const team = ctx.activeMembers.map((m, i) => {
+        const nm = (names[m.uid] && names[m.uid].name) || '';
+        return {key: 'u' + m.uid, label: nm || 'Someone', sub: m.title || '', uid: m.uid, hash: '#people/' + m.uid, rank: nm ? rk(nm + ' ' + (m.title || '')) : 0, order: i};
+      }).filter(x => x.rank > 0).slice(0, 3);
+      const cs = contacts(ctx).map((c, i) => ({key: 'c' + c.id, label: nameOf(c), sub: contactSub(ctx, c), hash: '#base/' + c.id, cid: c.id, order: 1000 - Math.min(999, Math.floor(stampOf(c) / DAY)) + i * 0.001,
+        rank: Math.max(rk(nameOf(c)), Math.min(2, rk(nameOf(c) + ' ' + (c.title || '') + ' ' + orgNameOf(ctx, c) + ' ' + pick(c, 'email') + ' ' + (c.city || ''))))}));
+      const ranked = cs.filter(x => x.rank > 0).sort((a, b) => b.rank - a.rank || a.order - b.order);
+      const slots = Math.max(0, cap - team.length);
+      team.forEach(x => out.push({...x, group: 'people', icon: 'people'}));
+      ranked.slice(0, slots).forEach(x => out.push({...x, group: 'people', icon: 'people'}));
+      if (ranked.length > slots) { overflow.people = ranked.length - slots; out.push({key: 'people:more', group: 'people', label: 'Show all in Base', sub: (ranked.length - slots) + ' more', icon: 'search', more: 'people', rank: 0}); }
+    }
+    if (want('companies')) take('companies', orgs(ctx).map((o, i) => ({key: 'o' + o.id, label: o.name || 'Company', sub: [o.industry, o.city].filter(Boolean).join(', '), hash: '#companies/' + o.id, order: i,
+      rank: Math.max(rk(o.name), Math.min(2, rk((o.name || '') + ' ' + (o.domain || '') + ' ' + (o.industry || '') + ' ' + (o.city || ''))))})), {label: 'Show all companies'});
+    if (want('tasks')) {
+      const tmap = ctx.coll.tasks.map;
+      take('tasks', Object.keys(tmap).map(id => ({id, ...tmap[id]})).map(t => ({key: 't' + t.id, label: t.title || 'Task', hash: '#tasks/' + t.id, rank: rk(t.title),
+        order: (t.owner === ctx.uid ? 0 : 1) + (t.status === 'done' ? 2 : 0),
+        sub: t.status === 'done' ? 'done' : t.due ? 'due ' + (M.tasks && M.tasks.dueLabel ? M.tasks.dueLabel(t.due) : t.due) : (t.status || 'to do')})));
+    }
+    if (want('projects')) {
+      const pmap = ctx.coll.projects.map;
+      take('projects', Object.keys(pmap).filter(id => !pmap[id].archived).map(id => ({key: 'pj' + id, label: pmap[id].name || 'Project', hash: '#projects/' + id, rank: rk(pmap[id].name), sub: pmap[id].status === 'done' ? 'done' : ''})));
+    }
+    if (want('clients')) {
+      const cmap = ctx.coll.clients.map;
+      take('clients', Object.keys(cmap).map(id => ({key: 'cl' + id, label: cmap[id].name || 'Client', hash: '#clients/' + id, rank: rk(cmap[id].name), sub: cmap[id].status || ''})));
+    }
+    if (want('pitches')) {
+      const pi = ctx.coll.pitches.map;
+      const st = (M.pitches && M.pitches.STAGES) || [];
+      take('pitches', Object.keys(pi).map(id => { const p = pi[id]; const s = st.find(x => x.v === p.stage); const c = contactById(ctx, p.contact);
+        return {key: 'pi' + id, label: p.brand || 'Pitch', hash: '#pitches/' + id, sub: (s && s.label) || p.stage || '',
+          rank: Math.max(rk(p.brand), Math.min(2, rk((p.brand || '') + ' ' + (p.category || '') + ' ' + (c ? nameOf(c) : p.contact || ''))))}; }));
+    }
+    if (want('posts') && M.feed && M.feed.stream) {
+      take('posts', M.feed.stream(ctx).filter(x => x.type === 'post').map((x, i) => ({key: 'po' + x.key, label: cut(x.text, 80), hash: '#feed', order: i,
+        sub: (names[x.author] && names[x.author].name) || '', rank: rk(x.text)})));
+    }
+    if (want('handbook')) {
+      const hb = ctx.coll.handbook.map;
+      take('handbook', Object.keys(hb).map(id => ({key: 'h' + id, label: hb[id].title || 'Section', hash: '#handbook/' + id, rank: Math.max(rk(hb[id].title), Math.min(2, rk((hb[id].title || '') + ' ' + String(hb[id].body || '').slice(0, 400))))})));
+    }
+    if (want('inbox') && M.inbox && M.inbox.items) {
+      take('inbox', M.inbox.items(ctx).map((it, i) => { const t = flat(it.text, names); return {key: 'in' + it.id, label: cut(t, 80), hash: it.ref || '#home', sub: U.timeAgo(it.at || 0), order: i, rank: rk(t), icon: 'bell'}; }));
+    }
+    if (want('leave')) {
+      /* only the viewer's own requests: leave is private to the person and the founder */
+      const reqs = ((ctx.coll.leave.map[ctx.uid] || {}).reqs || []).filter(r => r && r.id);
+      const dec = ((ctx.coll.leavedec.map[ctx.uid] || {}).d) || {};
+      const range = r => (M.leave && M.leave.rangeText) ? M.leave.rangeText(r) : (r.from + ' to ' + r.to);
+      take('leave', reqs.map((r, i) => { const d = dec[r.id]; const status = d && (d.status === 'approved' || d.status === 'declined') ? d.status : 'pending';
+        return {key: 'lv' + r.id, label: 'Leave ' + range(r), sub: status, hash: '#leave', order: i, rank: rk('leave ' + (r.type || '') + ' ' + range(r) + ' ' + status)}; }));
+    }
+    if (want('radar')) {
+      const saved = ((ctx.coll.me.map[ctx.uid] || {}).saved) || {};
+      const host = l => { try { return new URL(String(l)).hostname.replace(/^www\./, ''); } catch (e) { return ''; } };
+      take('radar', Object.keys(saved).map((id, i) => ({key: 'sv' + id, label: cut(saved[id].title || saved[id].link, 80), sub: host(saved[id].link), hash: '#radar', order: -(saved[id].at || 0), rank: rk((saved[id].title || '') + ' ' + host(saved[id].link))})));
+    }
+    if (want('log') && ctx.isFounder && opts.log) {
+      const rows = [];
+      for (const id of Object.keys(opts.log)) {
+        const e = (opts.log[id] && opts.log[id].e) || {};
+        for (const k of Object.keys(e)) rows.push({...e[k], uid: String(id).slice(11)});
+      }
+      take('log', rows.sort((a, b) => (b.at || 0) - (a.at || 0)).map((e, i) => { const who = (names[e.uid] && names[e.uid].name) || '';
+        const text = (e.a || '') + ' ' + (e.p || '') + ' ' + (e.s || '') + ' ' + who;
+        return {key: 'lg' + (e.at || i) + i, label: cut((e.a || 'write') + ' ' + (e.p || ''), 70), sub: (who ? who + ', ' : '') + U.timeAgo(e.at || 0), hash: '#admin', order: i, rank: rk(text)}; }));
+    }
+    out.overflow = overflow;
+    return out;
+  }
+
+  /* the founder's last 7 days of log entries, read once per palette open and only for 3+ character queries */
+  function useLog(ctx, q) {
+    const [docs, setDocs] = useState(null);
+    const want = !!(ctx.isFounder && String(q || '').trim().length >= 3 && M.logs && M.logs.read);
+    useEffect(() => {
+      if (!want || docs) return undefined;
+      let live = true;
+      const to = U.todayStr(), from = U.ymd(U.addDays(new Date(), -7));
+      M.logs.read(ctx, {from, to}).then(d => { if (live) setDocs(d || {}); }, () => { if (live) setDocs({}); });
+      return () => { live = false; };
+    }, [want]);
+    return want ? docs : null;
+  }
+
+  /* ---------- the Search drawer: every match, filters by group ---------- */
+  function SearchAll({q0, group0, onClose}) {
+    const ctx = M.useCtx();
+    const [q, setQ] = useState(q0 || '');
+    const [group, setGroup] = useState(group0 || 'all');
+    const names = M.useProfiles(ctx.activeMembers.map(m => m.uid));
+    const log = useLog(ctx, q);
+    const all = useMemo(() => hits(ctx, q, {names, cap: 60, log}), [ctx, q, names, log]);
+    const rows = all.filter(x => !x.more);
+    const counts = {};
+    rows.forEach(x => { counts[x.group] = (counts[x.group] || 0) + 1; });
+    const groupsHere = GROUPS.filter(g => counts[g]);
+    const shown = rows.filter(x => group === 'all' || x.group === group);
+    const go = x => { onClose(); setTimeout(() => M.nav(x.hash), 20); };
+    let last = '';
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Search">
+      <div id="search-all" class="stack">
+        <${UI.Input} id="search-all-input" value=${q} onChange=${setQ} placeholder="Search across everything"/>
+        ${groupsHere.length ? html`<div class="srch-chips" role="tablist" aria-label="Filter results">
+          <button type="button" role="tab" class=${'chip' + (group === 'all' ? ' on' : '')} aria-selected=${group === 'all'} onClick=${() => setGroup('all')}>All <span class="num">${rows.length}</span></button>
+          ${groupsHere.map(g => html`<button key=${g} type="button" role="tab" class=${'chip' + (group === g ? ' on' : '')} aria-selected=${group === g} onClick=${() => setGroup(g)}>${GROUP_LABEL[g]} <span class="num">${counts[g]}</span></button>`)}
+        </div>` : null}
+        <div class="srch-list">
+          ${shown.length ? shown.map(x => {
+            const head = x.group !== last ? html`<${UI.Micro} key=${'g' + x.group}>${GROUP_LABEL[x.group]}<//>` : null;
+            last = x.group;
+            return html`<${React.Fragment} key=${x.key}>${head}
+              <button type="button" class="conn-row" onClick=${() => go(x)}>
+                ${x.uid ? html`<${UI.Avatar} id=${x.uid} size=${20}/>` : icons[x.icon] ? html`<${icons[x.icon]}/>` : null}
+                <span class="t">${x.label}</span>${x.sub ? html`<span class="sub">${x.sub}</span>` : null}
+              </button><//>`;
+          }) : html`<${UI.Empty} text=${words(q).length ? 'Nothing matches that.' : 'Type to search across everything.'}/>`}
+        </div>
+        ${M.ai.on(ctx) ? html`<${AskBase} initial=${''} compact=${true}/>` : null}
+      </div>
+    <//>`;
+  }
+
+  /* ---------- Connections: what this thing is linked to ---------- */
+  function connectionsOf(ctx, kind, id) {
+    const rows = [];
+    const add = (group, key, label, sub, hash, extra) => { if (!rows.some(r => r.key === key)) rows.push({group, key, label, sub: sub || '', hash, ...(extra || {})}); };
+    const cmap = ctx.coll.clients.map, pmap = ctx.coll.projects.map, tmap = ctx.coll.tasks.map, pimap = ctx.coll.pitches.map;
+    const st = (M.pitches && M.pitches.STAGES) || [];
+    const stage = p => { const s = st.find(x => x.v === p.stage); return (s && s.label) || p.stage || ''; };
+    const addClient = cid => { const c = cid && cmap[cid]; if (c) add('client', 'cl' + cid, c.name || 'Client', c.status || '', '#clients/' + cid, {icon: 'clients'}); };
+    const addOrg = o => { if (o) add('company', 'o' + o.id, o.name || 'Company', [o.industry, o.city].filter(Boolean).join(', '), '#companies/' + o.id, {icon: 'database'}); };
+    const addPerson = c => { if (c) add('people', 'c' + c.id, nameOf(c), [c.title, c.stage].filter(Boolean).join(', '), '#base/' + c.id, {icon: 'people'}); };
+    const addPitch = (pid, p) => add('pitches', 'pi' + pid, p.brand || 'Pitch', stage(p), '#pitches/' + pid, {icon: 'pitches'});
+    const addProject = (pid, p) => add('projects', 'pj' + pid, p.name || 'Project', p.status === 'done' ? 'done' : (p.due ? 'due ' + U.fmtDate(p.due) : ''), '#projects/' + pid, {icon: 'projects'});
+    const addTask = (tid, t) => add('tasks', 't' + tid, t.title || 'Task', t.status === 'done' ? 'done' : (t.due ? 'due ' + U.fmtDate(t.due) : t.status || ''), '#tasks/' + tid, {icon: 'tasks'});
+    const posts = () => (M.feed && M.feed.stream) ? M.feed.stream(ctx).filter(x => x.type === 'post') : [];
+    const addPosts = (name, n) => posts().filter(x => mentions(x.text, name)).slice(0, n || 4).forEach(x => add('posts', 'po' + x.key, cut(x.text, 80), U.timeAgo(x.at), '#feed', {icon: 'feed', uid: x.author}));
+    const projectsOfClient = cid => Object.keys(pmap).filter(pid => pmap[pid].client === cid && !pmap[pid].archived);
+    const pitchesOfClient = cid => Object.keys(pimap).filter(pid => clientOfPitch(ctx, pimap[pid]) === cid);
+
+    if (kind === 'client') {
+      const c = cmap[id];
+      if (!c) return rows;
+      const o = orgOfClient(ctx, id);
+      addOrg(o);
+      if (o) peopleAt(ctx, o.id).slice(0, 8).forEach(addPerson);
+      projectsOfClient(id).forEach(pid => addProject(pid, pmap[pid]));
+      pitchesOfClient(id).forEach(pid => addPitch(pid, pimap[pid]));
+      Object.keys(tmap).filter(tid => tmap[tid].client === id && tmap[tid].status !== 'done').slice(0, 6).forEach(tid => addTask(tid, tmap[tid]));
+      addPosts(c.name);
+    } else if (kind === 'contact') {
+      const c = contactById(ctx, id);
+      if (!c) return rows;
+      const o = orgById(ctx, c.org);
+      addOrg(o);
+      if (o && o.client) addClient(o.client);
+      const nm = nameOf(c);
+      Object.keys(pimap).filter(pid => pimap[pid].contact === id || mentions(pimap[pid].contact, nm)).forEach(pid => addPitch(pid, pimap[pid]));
+      Object.keys(tmap).filter(tid => mentions(tmap[tid].title, nm) || Object.values(tmap[tid].comments || {}).some(x => mentions(x && x.t, nm))).slice(0, 6).forEach(tid => addTask(tid, tmap[tid]));
+      addPosts(nm);
+    } else if (kind === 'org') {
+      const o = orgById(ctx, id);
+      if (!o) return rows;
+      if (o.client) addClient(o.client);
+      peopleAt(ctx, id).slice(0, 12).forEach(addPerson);
+      const ids = new Set(peopleAt(ctx, id).map(c => c.id));
+      Object.keys(pimap).filter(pid => { const p = pimap[pid]; return ids.has(p.contact) || norm(p.brand).trim() === norm(o.name).trim() || (o.client && clientOfPitch(ctx, p) === o.client); }).forEach(pid => addPitch(pid, pimap[pid]));
+      if (o.client) projectsOfClient(o.client).forEach(pid => addProject(pid, pmap[pid]));
+    } else if (kind === 'project') {
+      const p = pmap[id];
+      if (!p) return rows;
+      addClient(p.client);
+      const o = p.client ? orgOfClient(ctx, p.client) : null;
+      addOrg(o);
+      if (o) peopleAt(ctx, o.id).slice(0, 8).forEach(addPerson);
+      if (p.pitch && pimap[p.pitch]) addPitch(p.pitch, pimap[p.pitch]);
+    } else if (kind === 'pitch') {
+      const p = pimap[id];
+      if (!p) return rows;
+      const cid = clientOfPitch(ctx, p);
+      addClient(cid);
+      const c = contactById(ctx, p.contact);
+      const o = (c && orgById(ctx, c.org)) || (cid ? orgOfClient(ctx, cid) : null) || orgs(ctx).find(x => norm(x.name).trim() === norm(p.brand).trim()) || null;
+      addOrg(o);
+      addPerson(c);
+    }
+    return rows;
+  }
+  const CONN_LABEL = {company: 'company', client: 'client', people: 'people', pitches: 'pitches', projects: 'projects', tasks: 'open tasks', posts: 'on the feed'};
+
+  function Connections({kind, id}) {
+    const ctx = M.useCtx();
+    const rows = useMemo(() => connectionsOf(ctx, kind, id), [ctx, kind, id]);
+    if (!rows.length) return null;
+    const order = ['company', 'client', 'people', 'pitches', 'projects', 'tasks', 'posts'];
+    const groups = order.filter(g => rows.some(r => r.group === g));
+    const body = html`<section class="card conn" id="connections">
+      <div class="card-head"><h2 class="card-title">Connections</h2></div>
+      ${groups.map(g => html`<div key=${g} class="conn-group">
+        <${UI.Micro}>${CONN_LABEL[g]}<//>
+        ${rows.filter(r => r.group === g).map(r => html`<button key=${r.key} type="button" class="conn-row" data-conn=${r.key} onClick=${() => M.nav(r.hash)}>
+          ${r.uid ? html`<${UI.Avatar} id=${r.uid} size=${20}/>` : icons[r.icon] ? html`<${icons[r.icon]}/>` : null}
+          <span class="t">${r.label}</span>${r.sub ? html`<span class="sub">${r.sub}</span>` : null}
+        </button>`)}
+      </div>`)}
+    </section>`;
+    return html`<${UI.Fold} title="Connections" summary=${rows.length + (rows.length === 1 ? ' link' : ' links')} id="fold-connections">${body}<//>`;
+  }
+
+  /* ---------- intelligence: quiet leads, nudges, the model's tools ---------- */
+  const QUIET_STAGES = ['contacted', 'replied', 'meeting'];
+  function quietLeads(ctx, days) {
+    const n = days == null ? 21 : Number(days);
+    const cutAt = (ctx.now || Date.now()) - n * DAY;
+    return contacts(ctx).filter(c => QUIET_STAGES.indexOf(c.stage) >= 0 && stampOf(c) > 0 && stampOf(c) < cutAt)
+      .sort((a, b) => stampOf(a) - stampOf(b));
+  }
+  const listNames = (arr, n) => { const nm = arr.slice(0, n || 3).map(x => nameOf(x)); const rest = arr.length - nm.length; return nm.join(', ') + (rest > 0 ? ' and ' + rest + ' more' : ''); };
+  function suggestions(ctx) {
+    const out = [];
+    const quiet = quietLeads(ctx, 21);
+    if (quiet.length) out.push({k: 'quiet', text: (quiet.length === 1 ? '1 lead has' : quiet.length + ' leads have') + ' gone quiet for 3 weeks or more: ' + listNames(quiet) + '. A short follow up keeps them warm.', hash: '#base/' + quiet[0].id, n: quiet.length});
+    const noClient = orgs(ctx).filter(o => !o.client && peopleAt(ctx, o.id).length >= 2).sort((a, b) => peopleAt(ctx, b.id).length - peopleAt(ctx, a.id).length);
+    noClient.slice(0, 3).forEach(o => out.push({k: 'org:' + o.id, text: o.name + ' has ' + peopleAt(ctx, o.id).length + ' contacts in the Base and no client page yet. Worth a pitch.', hash: '#companies/' + o.id, n: peopleAt(ctx, o.id).length}));
+    const cmap = ctx.coll.clients.map;
+    const bare = Object.keys(cmap).filter(cid => { const o = orgOfClient(ctx, cid); return !o || !peopleAt(ctx, o.id).length; });
+    bare.slice(0, 3).forEach(cid => out.push({k: 'client:' + cid, text: (cmap[cid].name || 'A client') + ' has no contact on file. Add the people you talk to.', hash: '#clients/' + cid, n: 0}));
+    return out;
+  }
+
+  /* what the model may know about a contact: never the full address, only its domain */
+  function contactForModel(ctx, c, nm) {
+    const o = orgById(ctx, c.org);
+    return {name: nameOf(c), title: c.title || '', company: (o && o.name) || c.orgName || '', domain: domainOf(c) || (o && o.domain) || '', city: c.city || '',
+      stage: c.stage || '', owner: (c.owner && ctx.canSee(c.owner) && nm) ? (nm[c.owner] || '') : '', lastTouch: stampOf(c) ? U.timeAgo(stampOf(c)) : ''};
+  }
+  function orgForModel(ctx, o) {
+    return {name: o.name || '', domain: o.domain || '', industry: o.industry || '', city: o.city || '', people: peopleAt(ctx, o.id).length,
+      client: o.client && ctx.coll.clients.map[o.client] ? (ctx.coll.clients.map[o.client].name || 'yes') : ''};
+  }
+  const STOP = ['who', 'do', 'we', 'know', 'at', 'the', 'and', 'our', 'which', 'what', 'have', 'has', 'gone', 'quiet', 'best', 'to', 'this', 'month', 'summarise', 'summarize', 'contacts', 'companies', 'people', 'leads', 'pitch', 'reels', 'in', 'for', 'with', 'a', 'an', 'of', 'is', 'are', 'me', 'my'];
+  /* the top records the question points at, as prompt lines; the freshest 40 when nothing matches */
+  function slice(ctx, q, nm) {
+    const ws = words(q).filter(w => w.length >= 3 && STOP.indexOf(w) < 0);
+    const score = text => ws.reduce((n, w) => n + (norm(text).includes(w) ? 1 : 0), 0);
+    const cs = contacts(ctx).map(c => ({c, s: score(nameOf(c) + ' ' + (c.title || '') + ' ' + orgNameOf(ctx, c) + ' ' + (c.city || '') + ' ' + (c.country || '') + ' ' + (c.stage || '') + ' ' + (c.tags || []).join(' ')), t: stampOf(c)}));
+    const os = orgs(ctx).map(o => ({o, s: score((o.name || '') + ' ' + (o.industry || '') + ' ' + (o.city || '') + ' ' + (o.country || '') + ' ' + (o.keywords || []).join(' ')), t: stampOf(o)}));
+    const any = cs.some(x => x.s) || os.some(x => x.s);
+    const by = (a, b) => (b.s - a.s) || (b.t - a.t);
+    const topC = cs.filter(x => !any || x.s).sort(by).slice(0, 28);
+    const topO = os.filter(x => !any || x.s).sort(by).slice(0, 12);
+    const lines = ['BASE: ' + contacts(ctx).length + ' contacts, ' + orgs(ctx).length + ' companies. Top matches for this question:'];
+    topO.forEach(({o}) => { const r = orgForModel(ctx, o); lines.push('- Company ' + r.name + (r.industry ? ', ' + r.industry : '') + (r.city ? ', ' + r.city : '') + ', ' + r.people + ' contacts' + (r.client ? ', client: ' + r.client : ', no client page')); });
+    topC.forEach(({c}) => { const r = contactForModel(ctx, c, nm); lines.push('- ' + r.name + (r.title ? ', ' + r.title : '') + (r.company ? ' at ' + r.company : '') + (r.city ? ', ' + r.city : '') + (r.stage ? ', stage ' + r.stage : '') + (r.owner ? ', owner ' + r.owner : '') + (r.lastTouch ? ', last touch ' + r.lastTouch : '')); });
+    const quiet = quietLeads(ctx, 21);
+    if (quiet.length) lines.push('QUIET LEADS (no touch in 21 days): ' + quiet.slice(0, 12).map(c => nameOf(c) + ' (' + c.stage + ', ' + U.timeAgo(stampOf(c)) + ')').join('; '));
+    return lines.join('\n');
+  }
+
+  function tools(ctx, nm) {
+    nm = nm || {};
+    return [{
+      name: 'search_base',
+      description: 'Search the Base, the agency contacts database, for people or companies by name, title, company, city or stage. Returns up to 12 matches.',
+      inputSchema: {type: 'object', properties: {q: {type: 'string', description: 'What to look for'}, kind: {type: 'string', enum: ['people', 'companies'], description: 'Optional: only people or only companies'}}, required: ['q']},
+      execute: async input => {
+        const q = String(input.q || '').trim();
+        const kind = input.kind === 'people' || input.kind === 'companies' ? input.kind : '';
+        const list = hits(ctx, q, {names: {}, cap: 12, groups: kind ? [kind] : ['people', 'companies']}).filter(x => !x.more && (x.cid || x.group === 'companies'));
+        const people = list.filter(x => x.cid).map(x => contactForModel(ctx, contactById(ctx, x.cid), nm));
+        const companies = list.filter(x => x.group === 'companies').map(x => orgForModel(ctx, orgById(ctx, x.key.slice(1))));
+        return {people: people.slice(0, 12), companies: companies.slice(0, 12 - Math.min(12, people.length))};
+      }
+    }, {
+      name: 'search_everything',
+      description: 'Search across everything in m360: people, companies, tasks, projects, clients, pitches, posts and the handbook. Returns compact hits with a kind and a title.',
+      inputSchema: {type: 'object', properties: {q: {type: 'string'}}, required: ['q']},
+      execute: async input => hits(ctx, String(input.q || ''), {names: nm ? Object.fromEntries(Object.keys(nm).map(k => [k, {name: nm[k]}])) : {}, cap: 4, groups: ['people', 'companies', 'tasks', 'projects', 'clients', 'pitches', 'posts', 'handbook']})
+        .filter(x => !x.more).slice(0, 24).map(x => ({kind: x.group, title: x.label, detail: x.sub || ''}))
+    }, {
+      name: 'who_do_we_know_at',
+      description: 'List the contacts we have at a company, matched by company name or domain. Returns their names, titles and stages.',
+      inputSchema: {type: 'object', properties: {company: {type: 'string'}}, required: ['company']},
+      execute: async input => {
+        const q = String(input.company || '').trim();
+        const os = orgsMatching(ctx, q);
+        const ids = new Set(os.map(o => o.id));
+        const people = contacts(ctx).filter(c => ids.has(c.org) || norm(c.orgName).includes(norm(q))).slice(0, 20).map(c => contactForModel(ctx, c, nm));
+        return {companies: os.slice(0, 5).map(o => orgForModel(ctx, o)), people};
+      }
+    }, {
+      name: 'pipeline_for',
+      description: 'The pitches and projects for a company or client, matched by name. Returns the client page, pitches with stages and next steps, and projects with status.',
+      inputSchema: {type: 'object', properties: {company: {type: 'string'}}, required: ['company']},
+      execute: async input => {
+        const q = String(input.company || '').trim();
+        const cmap = ctx.coll.clients.map, pmap = ctx.coll.projects.map, pimap = ctx.coll.pitches.map;
+        const cids = new Set(clientsMatching(ctx, q));
+        orgsMatching(ctx, q).forEach(o => { if (o.client && cmap[o.client]) cids.add(o.client); });
+        const pitches = Object.keys(pimap).filter(pid => cids.has(clientOfPitch(ctx, pimap[pid])) || norm(pimap[pid].brand).includes(norm(q)))
+          .map(pid => { const p = pimap[pid]; return {brand: p.brand || '', stage: p.stage || '', next: p.next || '', nextDate: p.nextDate || '', owner: nm[p.owner] || ''}; });
+        const projects = Object.keys(pmap).filter(pid => cids.has(pmap[pid].client) && !pmap[pid].archived)
+          .map(pid => { const p = pmap[pid]; return {name: p.name || '', status: p.status || '', due: p.due || '', owner: nm[p.owner] || ''}; });
+        return {clients: Array.from(cids).map(id => ({name: cmap[id].name || '', status: cmap[id].status || ''})), pitches: pitches.slice(0, 12), projects: projects.slice(0, 12)};
+      }
+    }];
+  }
+
+  /* ---------- Ask the base ---------- */
+  const BASE_CHIPS = ['Who do we know at Tata', 'Which leads have gone quiet', 'Best companies to pitch reels to this month', 'Summarise our contacts in Dubai'];
+  function AskBase({initial, compact}) {
+    const ctx = M.useCtx();
+    const r = M.ai.useRun();
+    const [q, setQ] = useState(initial || '');
+    const [asked, setAsked] = useState('');
+    if (!M.ai.on(ctx)) return null;
+    const busy = r.state === 'thinking' || r.state === 'streaming';
+    async function go(text) {
+      const msg = String(text || q).trim();
+      if (!msg || busy) return;
+      setAsked(msg); setQ('');
+      const nm = await M.ai.names(ctx);
+      const lim = ctx.sample.limits ? await ctx.sample.limits().catch(() => null) : null;
+      const tl = lim && lim.tools ? tools(ctx, nm) : undefined;
+      const prompt = 'INSTRUCTIONS: You are answering a question about the Base, the agency contacts database, for ' + (nm[ctx.uid] || 'a teammate') + '. ' +
+        'Answer from the records below and your tools: search_base, who_do_we_know_at, pipeline_for and search_everything. ' +
+        'Be brief: under 120 words, short bullets when listing people. Names and companies, never ids. When the Base does not say, say so plainly.\n\n' +
+        slice(ctx, msg, nm) + '\n\nTHEY SAID: ' + msg;
+      await r.run(o => M.ai.text(ctx, prompt, {signal: o.signal, onText: o.onText, tools: tl, cache: false}));
+    }
+    return html`<div class=${'ai-card askbase' + (compact ? ' compact' : '')} id="ask-base">
+      <div class="row between">
+        <div class="grow"><${UI.Micro}>m360 ai<//><div class="card-title" style=${{marginTop: '4px'}}>Ask the base</div></div>
+      </div>
+      ${!asked ? html`<div class="row" style=${{gap: '8px', marginTop: '10px'}}>${BASE_CHIPS.map(c => html`<button key=${c} type="button" class="chip" onClick=${() => go(c)}>${c}</button>`)}</div>` : null}
+      ${asked ? html`<div class="bubble me" style=${{marginTop: '10px'}}>${asked}</div>` : null}
+      ${busy || r.text ? html`<div class="bubble ai" style=${{marginTop: '8px', maxWidth: '100%'}}>${r.text ? html`<${M.AIText} text=${r.text}/>` : html`<${M.Thinking} label="Reading the base"/>`}</div>` : null}
+      ${r.state === 'error' ? html`<div class="small flame-t" style=${{marginTop: '8px'}}>${M.ai.errCopy(r.err)}</div>` : null}
+      <div class="ask-in" style=${{marginTop: '10px'}}>
+        <input id="ask-base-input" class="input" value=${q} placeholder="Ask about anyone or any company in the base" aria-label="Ask the base"
+          onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') go(); }}/>
+        ${busy ? html`<${UI.Btn} kind="sec" onClick=${r.stop}>Stop<//>` : html`<button type="button" class="btn" disabled=${!q.trim()} onClick=${() => go()}><span class="spark">${SPARK}</span> Ask</button>`}
+      </div>
+    </div>`;
+  }
+
+  /* nudges: quiet leads, companies worth a pitch, clients with nobody on file */
+  function BaseNudges() {
+    const ctx = M.useCtx();
+    const list = useMemo(() => suggestions(ctx), [ctx]);
+    const body = html`<section class="card" id="base-nudges">
+      <div class="card-head"><h2 class="card-title">Nudges from the base</h2></div>
+      ${list.length ? list.map(s => html`<button key=${s.k} type="button" class="conn-row nudge" onClick=${() => M.nav(s.hash)}>
+        <span class="spark" aria-hidden="true">${SPARK}</span><span class="t" style=${{whiteSpace: 'normal'}}>${s.text}</span>
+      </button>`) : html`<${UI.Empty} text="Nothing to nudge. Every lead is warm and every client has someone on file."/>`}
+    </section>`;
+    return html`<${UI.Fold} title="Nudges from the base" summary=${list.length ? list.length + (list.length === 1 ? ' nudge' : ' nudges') : 'all quiet'} open=${list.length > 0} hot=${list.some(s => s.k === 'quiet')} id="fold-nudges">${body}<//>`;
+  }
+
+  M.search = {hits, rankOf, GROUPS, GROUP_LABEL, GROUP_ICON, useLog, contacts, orgs, contactById, orgById, nameOf, orgOfClient, peopleAt, clientOfPitch, connectionsOf};
+  M.intel = {quietLeads, suggestions, tools, slice};
+  M.parts.SearchAll = SearchAll;
+  M.parts.Connections = Connections;
+  M.parts.AskBase = AskBase;
+  M.parts.BaseNudges = BaseNudges;
 })();
 
 /* ==== 70-standalone.js ==== */

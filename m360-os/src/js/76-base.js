@@ -684,6 +684,7 @@
             ${pitches.map(p => html`<div key=${p.id} class="row small"><span class="ink62">pitch</span><button type="button" class="linky" onClick=${() => go('#pitches')}>${p.brand}</button><span class="tiny ink62">${p.stage || ''}</span></div>`)}
           </div>
         <//>` : null}
+        ${!isNew && M.parts.Connections ? html`<${M.parts.Connections} kind="contact" id=${existing.id}/>` : null}
         ${!isNew ? html`<${IntroNote} c=${existing} o=${o}/>` : null}
       </div>
     <//>`;
@@ -807,6 +808,7 @@
             <div style=${{marginTop: '10px'}}><${UI.Btn} kind="sec" sm onClick=${() => go('#base')}>Add a person in People<//></div>
           </div>
         <//>` : null}
+        ${!isNew && M.parts.Connections ? html`<${M.parts.Connections} kind="org" id=${existing.id}/>` : null}
       </div>
     <//>`;
   }
@@ -889,6 +891,8 @@
         ${rows.length > shown.length ? html`<div style=${{marginTop: '12px'}}><${UI.Btn} kind="sec" sm id="base-more" onClick=${() => setLimit(limit + 60)}>Show more<//>
           <span class="small ink62 num" style=${{marginLeft: '10px'}}>${shown.length} of ${rows.length}</span></div>` : null}
       <//>
+      ${M.parts.BaseNudges ? html`<${M.parts.BaseNudges}/>` : null}
+      ${M.parts.AskBase ? html`<${M.parts.AskBase}/>` : null}
       ${drawer ? html`<${ContactDrawer} key=${drawer} id=${drawer === 'new' ? null : drawer} onClose=${close}/>` : null}
     </div>`;
   }
@@ -1125,9 +1129,9 @@
   }
 
   /* ---------- for the client page: the people at this client's company ---------- */
-  function PeopleAtClient({clientId}) {
+  function PeopleAtClient({clientId, id}) {
     const ctx = M.useCtx();
-    const o = orgForClient(ctx, clientId);
+    const o = orgForClient(ctx, clientId || id);
     const people = o ? peopleAt(ctx, o.id) : [];
     if (!o) return null;
     return html`<${UI.Card} title="People at this client" id="client-people" action=${html`<button type="button" class="linky small" onClick=${() => M.nav('#companies/' + o.id)}>Open in Base</button>`}>
