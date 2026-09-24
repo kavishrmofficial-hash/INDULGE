@@ -212,7 +212,7 @@
         const c = ctx.coll.clients.map[id];
         const mo = ((fin.clients || {})[id] || {}).monthly;
         const comp = (M.clients && M.clients.completeness) ? M.clients.completeness(c) : {filled: 0, total: 3};
-        out.push('- ' + c.name + ', ' + c.status + (mo ? ', ' + U.inr(mo) + '/mo' : '') + ', brain ' + comp.filled + ' of 3 filled');
+        out.push('- ' + c.name + ', ' + c.status + (mo ? ', ' + U.inr(mo) + '/mo' : '') + ', brain ' + comp.filled + ' of ' + comp.total + ' filled');
       });
       const en = (M.voice && M.voice.energyByWeek) ? M.voice.energyByWeek(ctx, 4) : [];
       out.push('TEAM ENERGY (anonymous pulse, last 4 weeks): ' + en.map(e => e.week + ' ' + (e.avg == null ? 'none' : e.avg.toFixed(1))).join(', '));
