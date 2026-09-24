@@ -23,6 +23,7 @@ import {RULES} from './rules.js';
 import {SEED} from './seed.js';
 import {radarActions} from './radar.js';
 import {safetyActions} from './safety.js';
+import {peekActions} from './peek.js';
 
 const LEVEL = {view: 0, interact: 1, admin: 2, owner: 3};
 const SESSION_DAYS = 180;
@@ -906,6 +907,7 @@ export function createApp({store, env = {}}) {
   Object.assign(actions, radarActions({store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, isObj}));
   /* safety: trash, daily backups, restore. It may register hooks.beforeDelete and hooks.upkeep. */
   Object.assign(actions, safetyActions({store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, pathOfKey, isObj, hooks, log}));
+  Object.assign(actions, peekActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError}));
 
   const json = (obj, status = 200, extra = {}) => new Response(JSON.stringify(obj), {
     status, headers: {'content-type': 'application/json', 'cache-control': 'no-store', ...extra}
