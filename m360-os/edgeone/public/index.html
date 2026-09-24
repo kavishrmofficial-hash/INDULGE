@@ -1603,8 +1603,12 @@ M.boot = async function boot() {
   const [db, user, mcp, downloads, permissions, sample, room] = await Promise.all(
     ['db', 'user', 'mcp', 'downloads', 'permissions', 'sample', 'room'].map(n => cl.use(n)));
   if (!db || !user) return {mode: 'nocap'};
-  const me = await user.me();
-  if (!me.id) return {mode: 'noid'};
+  const me0 = await user.me();
+  if (!me0.id) return {mode: 'noid'};
+  /* who can edit and who owns, asked of the host when the profile does not say */
+  const me = {...me0};
+  try { if (me.isOwner === undefined && typeof user.isOwner === 'function') me.isOwner = !!(await user.isOwner()); } catch (e) { /* unknown */ }
+  try { if (me.canEdit === undefined && typeof user.canEdit === 'function') me.canEdit = !!(await user.canEdit()); } catch (e) { /* unknown */ }
   return {mode: 'ok', db, user, mcp, downloads, permissions, sample, room, me, owner: !!me.isOwner};
 };
 
@@ -2392,7 +2396,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     /* who the page renders as: in preview the founder becomes a plain member */
     const members0 = (rosterDoc.data || {}).members || {};
     const member0 = members0[uid] || null;
-    const isFounder = !viewAs && (!!me.isOwner || !!(member0 && member0.role === 'founder' && member0.active !== false));
+    /* a roster founder who is not the owner only gets the founder view where the host lets them write admin paths */
+    const isFounder = !viewAs && (!!me.isOwner || !!(member0 && member0.role === 'founder' && member0.active !== false && (window.M360_STANDALONE || me.canEdit !== false)));
     const locked = !!(settingsDoc.data && settingsDoc.data.locked);
 
     /* writes: refused client side while the workspace is locked (members) or a preview is on (everyone) */
@@ -2424,7 +2429,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         baseW.set('roster/team', {
           members: {[realUid]: {role: 'founder', empId: 'M360-001', title: 'Founder', pod: '',
             joined: U.todayStr(), start: '', probationEnd: '', active: true}},
-          nextEmp: 2, updated: Date.now()
+          nextEmp: 2, updated: Date.now(), owner: realUid
         });
       }
     }, [rosterDoc.ready, rosterDoc.data, me.isOwner, realUid, baseW]);
@@ -2436,8 +2441,13 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const roster = rosterDoc.data || null;
       const members = (roster && roster.members) || {};
       const member = members[uid] || null;
-      let founderUid = me.isOwner ? realUid : null;
-      for (const k of Object.keys(members)) if (members[k].role === 'founder' && members[k].active !== false) { founderUid = founderUid || k; if (!me.isOwner) founderUid = k; }
+      /* the founder everyone reads shared founder docs from: the owner, else the first founder on the roster */
+      let founderUid = me.isOwner ? realUid : ((roster && roster.owner) || null);
+      if (!founderUid) {
+        const fs = Object.keys(members).filter(k => members[k].role === 'founder' && members[k].active !== false)
+          .sort((a, b) => String(members[a].empId || '').localeCompare(String(members[b].empId || '')));
+        founderUid = fs[0] || null;
+      }
       const s0 = settingsDoc.data || {};
       const settings = {...M.SETTINGS_DEFAULTS, ...s0,
         rules: {...Object.fromEntries(M.RULE_IDS.map(r => [r, true])), ...(s0.rules || {})},
@@ -5869,7 +5879,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   const isOverdue = (p, today) => !isClosed(p) && !!p.nextDate && p.nextDate < today;
 
   /* the founder's private finance entries per pitch: {[id]: {value, prob}}; empty for everyone else */
-  const financePath = ctx => 'data/users/' + (ctx.founderUid || ctx.uid) + '/finance';
+  const financePath = ctx => 'data/users/' + ctx.uid + '/finance';
   const financeOf = ctx => {
     const d = ctx.priv && ctx.priv.finance && ctx.priv.finance.data;
     return (d && d.pitch) || {};
@@ -13455,6 +13465,19 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         M.toast(e && e.code === 'declined' ? 'Download cancelled' : 'That did not download. Try again in a moment.', true);
       }
     }
+
+    /* once a day, quietly, on the artifact (EdgeOne prunes on the server) */
+    React.useEffect(() => {
+      if (!ctx.isFounder || window.M360_STANDALONE) return;
+      let stamp = null;
+      try { stamp = localStorage.getItem('m360.logPruned'); } catch (e) { /* private */ }
+      if (stamp === U.todayStr()) return;
+      try { localStorage.setItem('m360.logPruned', U.todayStr()); } catch (e) { /* private */ }
+      const cut = U.ymd(U.addDays(new Date(), -PRUNE_DAYS));
+      M.logs.read(ctx, {from: '0000-00-00', to: cut}).then(async old => {
+        for (const id of Object.keys(old || {}).filter(x => x.slice(0, 10) < cut)) await ctx.W.del(M.logs.pathOf(id)).catch(() => {});
+      }).catch(() => {});
+    }, [ctx.isFounder]);
 
     async function prune() {
       setBusy(true);

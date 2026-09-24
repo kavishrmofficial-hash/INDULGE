@@ -393,10 +393,26 @@ export function createApp({store, env = {}}) {
       const all = inv[coll] ? await readColl(coll, tags) : {};
       const docs = {};
       for (const id of Object.keys(all)) if (access(coll + '/' + id, uid, level).read) docs[id] = all[id];
+      /* someone not on the team yet learns that a roster exists, never who is on it */
+      if (level < LEVEL.interact && coll === 'roster' && docs.team && isObj(docs.team)) docs.team = {members: {}, nextEmp: docs.team.nextEmp, updated: docs.team.updated, redacted: true};
       out[coll] = {v: inv[coll] ? v : EMPTY_V, docs};
     }));
     return out;
   }
+
+  /* log days older than this many days go, by hand from Admin or by themselves once a day */
+  async function pruneOldLogs(days) {
+    const cutoff = ymdIST(Date.now() - days * 86400000);
+    let removed = 0;
+    for (const b of await listAll('d/log~')) {
+      if (pathOfKey(b.key).slice(4, 14) >= cutoff) continue;
+      await store.delete(b.key).catch(() => {});
+      removed++;
+    }
+    return removed;
+  }
+  const LOG_DAYS = 90;
+  let logPruneDay = '';
 
   /* ---------- actions ---------- */
   const actions = {
@@ -622,13 +638,7 @@ export function createApp({store, env = {}}) {
     async prunelogs(v, body) {
       if (!v || (await levelOf(v.uid)) < LEVEL.admin) throw new HttpError(403, 'invalid_argument');
       const days = Math.max(1, Math.min(3650, Math.floor(Number(body.days) || 90)));
-      const cutoff = ymdIST(Date.now() - days * 86400000);
-      let removed = 0;
-      for (const b of await listAll('d/log~')) {
-        if (pathOfKey(b.key).slice(4, 14) >= cutoff) continue;
-        await store.delete(b.key).catch(() => {});
-        removed++;
-      }
+      const removed = await pruneOldLogs(days);
       await log(v.uid, 'prunelogs', '', removed + (removed === 1 ? ' document' : ' documents') + ' older than ' + days + ' days');
       return {removed};
     },
@@ -951,6 +961,9 @@ export function createApp({store, env = {}}) {
       const v = await viewer(request);
       /* once a day: the backup and the trash and backup pruning (safety.js); never fails a request */
       if (hooks.upkeep) await hooks.upkeep().catch(() => {});
+      /* once a day per instance, off the request's path: old log days go */
+      const today = ymdIST(Date.now());
+      if (logPruneDay !== today) { logPruneDay = today; pruneOldLogs(LOG_DAYS).catch(() => {}); }
       const out = await fn(v, body, {ua: deviceLabel(request.headers.get('user-agent')), site});
       const extra = {};
       if (out && out.__cookie) { extra['set-cookie'] = out.__cookie; delete out.__cookie; }

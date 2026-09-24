@@ -102,8 +102,12 @@ M.boot = async function boot() {
   const [db, user, mcp, downloads, permissions, sample, room] = await Promise.all(
     ['db', 'user', 'mcp', 'downloads', 'permissions', 'sample', 'room'].map(n => cl.use(n)));
   if (!db || !user) return {mode: 'nocap'};
-  const me = await user.me();
-  if (!me.id) return {mode: 'noid'};
+  const me0 = await user.me();
+  if (!me0.id) return {mode: 'noid'};
+  /* who can edit and who owns, asked of the host when the profile does not say */
+  const me = {...me0};
+  try { if (me.isOwner === undefined && typeof user.isOwner === 'function') me.isOwner = !!(await user.isOwner()); } catch (e) { /* unknown */ }
+  try { if (me.canEdit === undefined && typeof user.canEdit === 'function') me.canEdit = !!(await user.canEdit()); } catch (e) { /* unknown */ }
   return {mode: 'ok', db, user, mcp, downloads, permissions, sample, room, me, owner: !!me.isOwner};
 };
 

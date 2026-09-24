@@ -25,7 +25,7 @@
   const isOverdue = (p, today) => !isClosed(p) && !!p.nextDate && p.nextDate < today;
 
   /* the founder's private finance entries per pitch: {[id]: {value, prob}}; empty for everyone else */
-  const financePath = ctx => 'data/users/' + (ctx.founderUid || ctx.uid) + '/finance';
+  const financePath = ctx => 'data/users/' + ctx.uid + '/finance';
   const financeOf = ctx => {
     const d = ctx.priv && ctx.priv.finance && ctx.priv.finance.data;
     return (d && d.pitch) || {};

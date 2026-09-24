@@ -150,6 +150,19 @@
       }
     }
 
+    /* once a day, quietly, on the artifact (EdgeOne prunes on the server) */
+    React.useEffect(() => {
+      if (!ctx.isFounder || window.M360_STANDALONE) return;
+      let stamp = null;
+      try { stamp = localStorage.getItem('m360.logPruned'); } catch (e) { /* private */ }
+      if (stamp === U.todayStr()) return;
+      try { localStorage.setItem('m360.logPruned', U.todayStr()); } catch (e) { /* private */ }
+      const cut = U.ymd(U.addDays(new Date(), -PRUNE_DAYS));
+      M.logs.read(ctx, {from: '0000-00-00', to: cut}).then(async old => {
+        for (const id of Object.keys(old || {}).filter(x => x.slice(0, 10) < cut)) await ctx.W.del(M.logs.pathOf(id)).catch(() => {});
+      }).catch(() => {});
+    }, [ctx.isFounder]);
+
     async function prune() {
       setBusy(true);
       const cut = U.ymd(U.addDays(new Date(), -PRUNE_DAYS));

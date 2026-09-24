@@ -64,7 +64,8 @@
     /* who the page renders as: in preview the founder becomes a plain member */
     const members0 = (rosterDoc.data || {}).members || {};
     const member0 = members0[uid] || null;
-    const isFounder = !viewAs && (!!me.isOwner || !!(member0 && member0.role === 'founder' && member0.active !== false));
+    /* a roster founder who is not the owner only gets the founder view where the host lets them write admin paths */
+    const isFounder = !viewAs && (!!me.isOwner || !!(member0 && member0.role === 'founder' && member0.active !== false && (window.M360_STANDALONE || me.canEdit !== false)));
     const locked = !!(settingsDoc.data && settingsDoc.data.locked);
 
     /* writes: refused client side while the workspace is locked (members) or a preview is on (everyone) */
@@ -96,7 +97,7 @@
         baseW.set('roster/team', {
           members: {[realUid]: {role: 'founder', empId: 'M360-001', title: 'Founder', pod: '',
             joined: U.todayStr(), start: '', probationEnd: '', active: true}},
-          nextEmp: 2, updated: Date.now()
+          nextEmp: 2, updated: Date.now(), owner: realUid
         });
       }
     }, [rosterDoc.ready, rosterDoc.data, me.isOwner, realUid, baseW]);
@@ -108,8 +109,13 @@
       const roster = rosterDoc.data || null;
       const members = (roster && roster.members) || {};
       const member = members[uid] || null;
-      let founderUid = me.isOwner ? realUid : null;
-      for (const k of Object.keys(members)) if (members[k].role === 'founder' && members[k].active !== false) { founderUid = founderUid || k; if (!me.isOwner) founderUid = k; }
+      /* the founder everyone reads shared founder docs from: the owner, else the first founder on the roster */
+      let founderUid = me.isOwner ? realUid : ((roster && roster.owner) || null);
+      if (!founderUid) {
+        const fs = Object.keys(members).filter(k => members[k].role === 'founder' && members[k].active !== false)
+          .sort((a, b) => String(members[a].empId || '').localeCompare(String(members[b].empId || '')));
+        founderUid = fs[0] || null;
+      }
       const s0 = settingsDoc.data || {};
       const settings = {...M.SETTINGS_DEFAULTS, ...s0,
         rules: {...Object.fromEntries(M.RULE_IDS.map(r => [r, true])), ...(s0.rules || {})},

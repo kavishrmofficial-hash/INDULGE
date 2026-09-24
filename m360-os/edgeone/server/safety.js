@@ -58,6 +58,16 @@ export function safetyActions(h) {
   const raw = key => store.get(key, {type: 'text', consistency: 'strong'});
   const admin = async v => { if (!v || (await levelOf(v.uid)) < LEVEL.admin) throw new HttpError(403, 'invalid_argument'); };
   const owner = async v => { if (!v || v.uid !== (await ownerUid())) throw new HttpError(403, 'invalid_argument'); };
+  /* private per-person docs (data/users/<uid>/...) are that person's and the owner's, never another admin's */
+  const privateOf = p => { const sg = String(p || '').split('/'); return sg[0] === 'data' && sg[1] === 'users' ? sg[2] || '' : ''; };
+  const mayPeek = async (v, p) => { const who = privateOf(p); return !who || who === v.uid || v.uid === (await ownerUid()); };
+  const peekOrRefuse = async (v, p) => { if (!(await mayPeek(v, p))) throw new HttpError(403, 'invalid_argument', 'private'); };
+  const dropPrivate = async (v, colls) => {
+    if (v.uid === (await ownerUid())) return colls;
+    const out = {};
+    for (const c of Object.keys(colls || {})) { const who = privateOf(c); if (!who || who === v.uid) out[c] = colls[c]; }
+    return out;
+  };
   const bigness = obj => JSON.stringify(obj).length;
 
   /* ---------- the trash ---------- */
@@ -356,6 +366,7 @@ export function safetyActions(h) {
       await admin(v);
       const path = String(body.path || '');
       if (!goodPath(path)) throw new HttpError(400, 'invalid_argument', 'bad path');
+      await peekOrRefuse(v, path);
       const keys = (await listAll(histPrefix(docKey(path)))).map(b => b.key).sort((a, b) => histMs(b) - histMs(a));
       return {path, versions: keys.map(k => ({id: k.split('/').pop(), at: histMs(k), by: histBy(k) === 'server' ? '' : histBy(k)}))};
     },
@@ -364,6 +375,7 @@ export function safetyActions(h) {
       await admin(v);
       const path = String(body.path || ''), id = String(body.id || '');
       if (!goodPath(path) || !HIST_ID.test(id)) throw new HttpError(400, 'invalid_argument', 'bad id');
+      await peekOrRefuse(v, path);
       const h = await getJ(histPrefix(docKey(path)) + id).catch(() => null);
       if (!h || h.doc == null) throw new HttpError(404, 'invalid_argument', 'That version is gone.');
       return {path, id, at: h.at, by: h.by || '', doc: h.doc};
@@ -373,6 +385,7 @@ export function safetyActions(h) {
       await admin(v);
       const path = String(body.path || ''), id = String(body.id || '');
       if (!goodPath(path) || !HIST_ID.test(id)) throw new HttpError(400, 'invalid_argument', 'bad id');
+      await peekOrRefuse(v, path);
       const key = docKey(path);
       const h = await getJ(histPrefix(key) + id).catch(() => null);
       if (!h || h.doc == null) throw new HttpError(404, 'invalid_argument', 'That version is gone.');
@@ -392,7 +405,8 @@ export function safetyActions(h) {
         const t = await getJ(key).catch(() => null);
         if (t) items.push({id: key.slice(2), path: t.path || key.slice(2).split('~').slice(1).join('/'), by: t.by || '', at: t.at || trashMs(key)});
       });
-      return {items: items.sort((a, b) => b.at - a.at)};
+      const isOwner = v.uid === (await ownerUid());
+      return {items: items.filter(it => isOwner || !privateOf(it.path) || privateOf(it.path) === v.uid).sort((a, b) => b.at - a.at)};
     },
     /* put one deleted document back where it was */
     async restore(v, body) {
@@ -510,6 +524,7 @@ export function safetyActions(h) {
       const ymd = wantYmd(body.ymd);
       if (body.coll) {
         const coll = wantColl(body.coll);
+        await peekOrRefuse(v, coll + '/x');
         const docs = await backupColl(ymd, coll);
         const out = {ymd, coll, docs};
         if (bigness(out) > RESPONSE_CAP) return {ymd, coll, tooBig: true, limit: RESPONSE_CAP, count: Object.keys(docs).length};
@@ -518,7 +533,7 @@ export function safetyActions(h) {
       const m = await dayManifest(ymd);
       if (!m) throw new HttpError(404, 'invalid_argument', 'no backup on ' + ymd);
       const colls = {};
-      for (const coll of Object.keys(m.colls)) colls[coll] = {docs: await backupColl(ymd, coll).catch(() => ({}))};
+      for (const coll of Object.keys(await dropPrivate(v, m.colls))) colls[coll] = {docs: await backupColl(ymd, coll).catch(() => ({}))};
       const out = {ymd, at: m.at, colls};
       if (bigness(out) > RESPONSE_CAP) return {ymd, at: m.at, tooBig: true, limit: RESPONSE_CAP, colls: m.colls};
       return out;
@@ -527,6 +542,7 @@ export function safetyActions(h) {
     async restorecoll(v, body) {
       await owner(v);
       const ymd = wantYmd(body.ymd), coll = wantColl(body.coll);
+      await peekOrRefuse(v, coll + '/x');
       const mode = body.mode === 'overwrite' ? 'overwrite' : 'missing';
       const docs = await backupColl(ymd, coll);
       let ids = Object.keys(docs);
@@ -578,10 +594,12 @@ export function safetyActions(h) {
     /* everything under d/ as one JSON, or one collection of it when the whole is over 4 MB */
     async snapshotall(v, body) {
       await admin(v);
-      const {colls, bad} = await readEverything();
+      const {colls: colls0, bad} = await readEverything();
+      const colls = await dropPrivate(v, colls0);
       const at = Date.now();
       if (body.coll) {
         const coll = wantColl(body.coll);
+        await peekOrRefuse(v, coll + '/x');
         const out = {app: 'm360 OS', exported: new Date(at).toISOString(), coll, docs: colls[coll] || {}};
         if (bigness(out) > RESPONSE_CAP) return {coll, tooBig: true, limit: RESPONSE_CAP, count: Object.keys(colls[coll] || {}).length};
         return out;
