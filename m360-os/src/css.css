@@ -645,6 +645,7 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .breathe .orb-dots{display:flex; gap:8px}
 .breathe .orb-dots i{width:7px; height:7px; border-radius:999px; background:rgba(255,255,255,.22); display:block}
 .breathe .orb-dots i.on{background:var(--flame)}
+.breathe .mark{width:66px; color:#fff; position:absolute; top:max(22px, env(safe-area-inset-top, 0px)); left:24px}
 .breathe .micro{color:rgba(255,255,255,.6); justify-content:center}
 .breathe .linky{color:#fff}
 .breathe h2{font-weight:600; font-size:clamp(28px,5vw,44px); letter-spacing:-.03em; margin:0; line-height:1}

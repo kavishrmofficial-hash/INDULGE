@@ -105,6 +105,12 @@ Publish `dist/index.html` with the Artifact tool, title "m360 OS", with the capa
 - **Every change kept**: before any document is changed on EdgeOne, the version being replaced is stored (30 versions for 30 days, per document). Admin > Backups > Every change lists them with View and Revert to this, and every log row has a Versions link.
 - **Breathe** rebuilt: the orb grows from small on the first breath and moves with the count, a four count inside it, a ring for the minute, phase dots, and Go again.
 
+## What is in v8
+
+- **The mark everywhere**: the home screen icon, favicons and the link preview are the m360 mark in black on white, rendered from the same SVG the app uses (`edgeone/public/icons`). Invite, sign-in and reset emails open with the mark from the site that sent them. The Breathe screen carries it too. Anyone who added m360 to a phone before this release removes the shortcut and adds it again to pick up the new icon.
+- **The buddy follows again**: the pointer glides after the mouse whenever the buddy is on and only pins to a target during a tour hop; it fades after a few idle seconds. Touch does not drag it. Spoken answers are short and conversational, with a Talk button in the ask bubble.
+- **A real voice**: Admin > The buddy's voice takes an ElevenLabs key and picks a warm voice; the server fetches and caches each line for a week. Without a key the browser's best natural voice is used. Prefs > The buddy speaks turns it off.
+
 ## Keeping it safe
 
 - Claim the EdgeOne project or set `EDGEONE_API_TOKEN` so deploys go to one stable project. An anonymous deploy is a new project with an empty store every time, and it is removed an hour after it is made unless claimed. The claude.ai artifact keeps its database across republishes; only the EdgeOne address changes.
@@ -114,7 +120,7 @@ Publish `dist/index.html` with the Artifact tool, title "m360 OS", with the capa
 
 ## The cursor buddy
 
-`58-buddy.js` is m360's own take on a Clicky style AI cursor. A small flame pointer follows the mouse. Hold Ctrl plus Option (Ctrl plus Alt on Windows) to talk, or tap Ask m360 bottom right to type. Every question is sent with a list of the controls on screen (each tagged `data-ai`), and the model answers through the tools `point_at` (the pointer flies to the control and rings it), `go_to` (opens a section) and the task tools from `04-ai.js`. It never clicks for you. Voice uses the browser's speech recognition where the frame allows it and falls back to typing.
+`58-buddy.js` is m360's own take on a Clicky style AI cursor. A small flame pointer follows the mouse. Hold Ctrl plus Option (Ctrl plus Alt on Windows) to talk, or tap Ask m360 bottom right to type. Every question is sent with a list of the controls on screen (each tagged `data-ai`), and the model answers through the tools `point_at` (the pointer flies to the control and rings it), `go_to` (opens a section) and the task tools from `04-ai.js`. It never clicks for you. Voice uses the browser's speech recognition where the frame allows it and falls back to typing. Spoken answers go through `80-voice.js` (`M.speech`): the server voice on EdgeOne when a key is set, else the browser's best natural voice.
 
 ## EdgeOne Pages (standalone)
 

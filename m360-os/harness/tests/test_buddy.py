@@ -78,11 +78,11 @@ def mock_part(h):
     follows(p, 400, 380, check, 'after resting')
     check(not p.evaluate('() => document.querySelector(".buddy").classList.contains("still")'), 'pointer should wake on a move')
     # voice: the module exists, picks a voice when the browser has any, and never throws
-    v = p.evaluate('() => ({has: !!M.voice, picked: !!M.voice.pick(), n: M.voice.voices().length})')
-    check(v['has'], 'M.voice missing')
-    p.evaluate('() => M.voice.say("Hello there. This is a test.")')
+    v = p.evaluate('() => ({has: !!M.speech, picked: !!M.speech.pick(), n: M.speech.voices().length})')
+    check(v['has'], 'M.speech missing')
+    p.evaluate('() => M.speech.say("Hello there. This is a test.")')
     p.wait_for_timeout(300)
-    p.evaluate('() => M.voice.stop()')
+    p.evaluate('() => M.speech.stop()')
     # the mic button sits in the typed bubble
     p.locator('.buddy-home').click()
     p.wait_for_selector('#buddy-input')
@@ -154,7 +154,7 @@ def standalone_part():
                 f.locator('#fold-voice .fold-head').click()
             f.wait_for_selector('#voice-card')
             check('George' in f.inner_text('#voice-card'), 'voice card should show the chosen voice')
-            check(f.evaluate('() => M.voice.serverOn()') in (True, None), 'M.voice should know the server voice')
+            check(f.evaluate('() => M.speech.serverOn()') in (True, None), 'M.speech should know the server voice')
             # a member may speak but may not manage the voice
             f.evaluate('() => window.M360_API("logout")')
             m = c.new_page(); m.set_default_timeout(15000); m.goto(base); m.wait_for_selector('#signin-email')

@@ -17,19 +17,29 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 EO = os.path.join(ROOT, 'edgeone')
 PUB = os.path.join(EO, 'public')
 
+# the public address, for link previews (WhatsApp, Slack) which need absolute image urls
+PUBLIC_URL = os.environ.get('M360_PUBLIC_URL', 'https://m360os-wx9u1bqs.edgeone.dev').rstrip('/')
 HEAD = ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
-        '<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E'
-        '%3Crect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%230A0A0A%22/%3E%3Ccircle cx=%2223%22 cy=%229%22 r=%223%22 fill=%22%23F53901%22/%3E%3C/svg%3E">'
+        '<link rel="icon" type="image/svg+xml" href="icon.svg">'
+        '<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">'
+        '<link rel="icon" type="image/png" sizes="64x64" href="icons/favicon-64.png">'
+        '<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">'
         '<meta name="theme-color" content="#FFFFFF">'
         '<link rel="manifest" href="manifest.json"><meta name="apple-mobile-web-app-capable" content="yes">'
-        '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="m360">'
+        '<meta name="mobile-web-app-capable" content="yes">'
+        '<meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="m360">'
+        '<meta name="application-name" content="m360 OS">'
+        '<meta property="og:title" content="m360 OS"><meta property="og:description" content="The Mask360 operating system.">'
+        '<meta property="og:type" content="website"><meta property="og:image" content="' + PUBLIC_URL + '/icons/og.png">'
+        '<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">'
+        '<meta name="twitter:card" content="summary_large_image">'
         '<style>body{margin:0;background:#FFFFFF}</style>')
 LOCAL = {builder.CDN[0]: 'vendor/react.js', builder.CDN[1]: 'vendor/react-dom.js', builder.CDN[2]: 'vendor/htm.js'}
 
 
 SW = '''/* m360 OS service worker: the shell loads offline, the API always goes to the network */
-const CACHE = 'm360-v4';
-const SHELL = ['/', '/index.html', '/vendor/react.js', '/vendor/react-dom.js', '/vendor/htm.js', '/manifest.json', '/icon.svg'];
+const CACHE = 'm360-v8';
+const SHELL = ['/', '/index.html', '/vendor/react.js', '/vendor/react-dom.js', '/vendor/htm.js', '/manifest.json', '/icon.svg', '/icons/icon-192.png', '/icons/apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
@@ -60,13 +70,19 @@ def main():
     with open(os.path.join(PUB, 'index.html'), 'w', encoding='utf-8') as f:
         f.write(doc)
     # a phone can install it: manifest, icons and a small service worker for the shell
-    icon = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#0A0A0A"/>'
-            '<circle cx="372" cy="140" r="34" fill="#F53901"/><text x="256" y="330" font-family="Arial, sans-serif" font-size="190" font-weight="700" fill="#FFFFFF" text-anchor="middle">m</text></svg>')
-    with open(os.path.join(PUB, 'icon.svg'), 'w') as f:
+    # the agency mark, black on white: the same mark the app shows, as the icon everywhere
+    mark = open(os.path.join(ROOT, 'src', 'mark.svg'), encoding='utf-8').read().strip()
+    inner = mark.replace('<svg ', '<svg x="48" y="171" width="416" height="121" ', 1).replace('fill="currentColor"', 'fill="#0A0A0A"')
+    icon = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#FFFFFF"/>' + inner + '</svg>')
+    with open(os.path.join(PUB, 'icon.svg'), 'w', encoding='utf-8') as f:
         f.write(icon)
     with open(os.path.join(PUB, 'manifest.json'), 'w') as f:
-        json.dump({'name': 'm360 OS', 'short_name': 'm360', 'start_url': '/', 'display': 'standalone', 'background_color': '#FFFFFF',
-                   'theme_color': '#0A0A0A', 'icons': [{'src': 'icon.svg', 'sizes': 'any', 'type': 'image/svg+xml', 'purpose': 'any'}]}, f)
+        json.dump({'name': 'm360 OS', 'short_name': 'm360', 'description': 'The Mask360 operating system.', 'start_url': '/', 'display': 'standalone',
+                   'background_color': '#FFFFFF', 'theme_color': '#FFFFFF',
+                   'icons': [{'src': 'icons/icon-192.png', 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any'},
+                             {'src': 'icons/icon-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any'},
+                             {'src': 'icons/maskable-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'},
+                             {'src': 'icon.svg', 'sizes': 'any', 'type': 'image/svg+xml', 'purpose': 'any'}]}, f)
     with open(os.path.join(PUB, 'sw.js'), 'w') as f:
         f.write(SW)
     # the pinned UMD builds are committed under edgeone/public/vendor; refresh them from the harness copy when present

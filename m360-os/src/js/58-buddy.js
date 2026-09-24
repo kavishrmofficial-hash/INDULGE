@@ -142,7 +142,7 @@
     const reset = useCallback(() => {
       if (ctl.current) ctl.current.abort();
       if (rec.current) { try { rec.current.abort(); } catch (e) { /* stopped */ } rec.current = null; }
-      if (M.voice) M.voice.stop();
+      if (M.speech) M.speech.stop();
       pinned.current = false; flying.current = false; target.current = null;
       setRing(null); setMode('idle'); setAnswer(''); setActs([]); setErr(''); setHeard(''); setQ('');
     }, []);
@@ -170,7 +170,7 @@
 
     const speak = t => {
       if (!spoke.current || store.get('buddyVoice') === '0') return;
-      if (M.voice) M.voice.say(String(t).replace(/\*\*/g, '').slice(0, 600));
+      if (M.speech) M.speech.say(String(t).replace(/\*\*/g, '').slice(0, 600));
     };
 
     const openAt = (x, y) => {

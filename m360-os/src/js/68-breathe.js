@@ -40,6 +40,7 @@
     useEffect(() => { const esc = e => { if (e.key === 'Escape') onClose(); }; window.addEventListener('keydown', esc); return () => window.removeEventListener('keydown', esc); }, []);
     const r = 46, C = 2 * Math.PI * r;
     return html`<div class="breathe" role="dialog" aria-label="Breathe" id="breathe">
+      <${M.Mark} width="66px"/>
       <div class="micro">${s.done ? 'done' : s.left + ' seconds'}</div>
       <button type="button" class="orb" aria-label="End the breather" onClick=${onClose} style=${{'--k': s.done ? .7 : s.k}}>
         <svg class="orb-ring" viewBox="0 0 100 100" aria-hidden="true">

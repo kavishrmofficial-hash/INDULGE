@@ -70,7 +70,7 @@
 
   const clean = t => String(t || '').replace(/[*_`#>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 600);
 
-  M.voice = {
+  M.speech = {
     say: async text => {
       const t = clean(text);
       if (!t) return;
@@ -90,5 +90,5 @@
     },
     serverOn: () => serverOn
   };
-  M.voice.refresh();
+  M.speech.refresh();
 })();

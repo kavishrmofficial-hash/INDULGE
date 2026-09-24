@@ -521,7 +521,7 @@
     const [voice, setVoice] = useState('');
     const [busy, setBusy] = useState(false);
     const load = () => api('voices').then(r => { setVoices(r.voices || []); setVoice(r.voice || ''); setSt({on: !!r.on, name: r.name || ''}); }, () => api('voicestatus').then(r => setSt({on: !!r.on, name: r.name || ''}), () => setSt({on: false, name: ''})));
-    useEffect(() => { load(); if (M.voice) M.voice.refresh(); }, []);
+    useEffect(() => { load(); if (M.speech) M.speech.refresh(); }, []);
     if (!ctx.isFounder || st === null) return null;
     async function save(k, vid) {
       setBusy(true);
@@ -530,12 +530,12 @@
         setKey('');
         if (r.voices) setVoices(r.voices);
         setVoice(r.voice || ''); setSt({on: !!r.on, name: r.name || ''});
-        if (M.voice) M.voice.refresh();
+        if (M.speech) M.speech.refresh();
         M.toast(k ? 'Voice on: ' + (r.name || 'set') : 'Voice removed');
       } catch (e) { M.toast((e && e.message) || 'That did not save.', true); }
       setBusy(false);
     }
-    const test = () => { if (M.voice) M.voice.say('Hey, I am the m360 buddy. Hold Control and Option and just talk to me.'); };
+    const test = () => { if (M.speech) M.speech.say('Hey, I am the m360 buddy. Hold Control and Option and just talk to me.'); };
     return html`<${UI.Card} id="voice-card" title="The buddy's voice"
       action=${st.on ? html`<span class="pill ink">on, ${st.name || 'set'}</span>` : html`<span class="pill flame-o">browser voice</span>`}>
       <p class="small ink62" style=${{marginTop: 0}}>${st.on

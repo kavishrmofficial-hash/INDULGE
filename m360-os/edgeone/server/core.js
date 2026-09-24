@@ -329,12 +329,22 @@ export function createApp({store, env = {}}) {
     return x && x.key ? x : null;
   }
   /* one email through Resend; false when mail is not set up, throws when Resend refuses */
-  async function sendMail(to, subject, text, htmlBody) {
+  /* every mail wears the mark: an image when the site address is known, the wordmark in text otherwise */
+  const brandMail = (htmlBody, base) => {
+    const site = String(base || '').replace(/[#?].*$/, '').replace(/\/$/, '');
+    const head = site && /^https?:\/\//.test(site)
+      ? '<img src="' + esc(site) + '/icons/icon-192.png" width="44" height="44" alt="m360" style="display:block;border-radius:10px;border:1px solid #E9E4DC">'
+      : '<div style="font-weight:700;font-size:22px;letter-spacing:-.02em">m360.</div>';
+    return '<div style="font-family:Helvetica,Arial,sans-serif;color:#0A0A0A;max-width:560px;margin:0 auto;padding:24px 20px;background:#FFFFFF">' +
+      head + '<div style="height:18px"></div>' + htmlBody +
+      '<div style="height:22px"></div><div style="font-size:12px;color:#8A8A8A">m360 OS, the Mask360 operating system.</div></div>';
+  };
+  async function sendMail(to, subject, text, htmlBody, base) {
     const c = await mailConf();
     if (!c) return false;
     const r = await (env.fetch || fetch)('https://api.resend.com/emails', {
       method: 'POST', headers: {'content-type': 'application/json', authorization: 'Bearer ' + c.key},
-      body: JSON.stringify({from: c.from, to: [to], subject, text, html: htmlBody})
+      body: JSON.stringify({from: c.from, to: [to], subject, text, html: brandMail(htmlBody, base)})
     });
     if (!r.ok) { const j = await r.json().catch(() => ({})); throw new HttpError(502, 'mail_failed', (j && j.message) || ('mail ' + r.status)); }
     return true;
@@ -694,7 +704,7 @@ export function createApp({store, env = {}}) {
             '\n\nIt works once and is good for ' + INVITE_DAYS + ' days. Open it on the device you use for work; you can add your phone from inside.',
           '<p>' + (name ? 'Hi ' + esc(name) + ',' : 'Hi,') + '</p><p><b>' + esc(by && by.name ? by.name : 'Mask360') + '</b> has added you to <b>m360 OS</b>, the Mask360 workspace.</p>' +
             '<p><a href="' + esc(link) + '" style="display:inline-block;padding:12px 18px;background:#0E0E0E;color:#fff;border-radius:12px;text-decoration:none">Open m360 OS</a></p>' +
-            '<p style="color:#666;font-size:13px">Type this email address to confirm it is you. The link works once and is good for ' + INVITE_DAYS + ' days. Open it on the device you use for work; you can add your phone from inside.</p>');
+            '<p style="color:#666;font-size:13px">Type this email address to confirm it is you. The link works once and is good for ' + INVITE_DAYS + ' days. Open it on the device you use for work; you can add your phone from inside.</p>', body.base);
       } catch (e) { why = String((e && e.message) || 'mail failed'); }
       await log(v.uid, 'invite', '', role + (title ? ', ' + title : '') + (sent ? ', emailed' : ', link'));
       return {code, link, sent, why};
@@ -774,7 +784,7 @@ export function createApp({store, env = {}}) {
       const link = String(body.base || '').replace(/[#?].*$/, '') + '#login=' + code;
       const life = 'It works once, for ' + MAGIC_MINUTES + ' minutes. If you did not ask for it, ignore this email.';
       await sendMail(email, 'Your m360 OS sign-in link', 'Open this link to sign in to m360 OS:\n' + link + '\n\n' + life,
-        '<p><a href="' + esc(link) + '" style="display:inline-block;padding:12px 18px;background:#0E0E0E;color:#fff;border-radius:12px;text-decoration:none">Sign in to m360 OS</a></p><p style="color:#666;font-size:13px">' + life + '</p>');
+        '<p><a href="' + esc(link) + '" style="display:inline-block;padding:12px 18px;background:#0E0E0E;color:#fff;border-radius:12px;text-decoration:none">Sign in to m360 OS</a></p><p style="color:#666;font-size:13px">' + life + '</p>', body.base);
       await log(known.uid, 'magic', '', 'link sent');
       return {sent: true, minutes: MAGIC_MINUTES};
     },
@@ -831,7 +841,7 @@ export function createApp({store, env = {}}) {
       const life = 'It works once, for ' + CODE_MINUTES + ' minutes, and ' + CODE_TRIES + ' wrong tries end it. If you did not ask for it, ignore this email.';
       await sendMail(email, 'Your m360 OS reset code', 'Your m360 OS reset code is ' + code + '.\n\nType it on the sign-in screen' + (where ? ' at ' + where : '') + ' together with a new password. ' + life,
         '<p>Your m360 OS reset code is</p><p style="font-size:28px;letter-spacing:.2em;font-weight:600">' + code + '</p><p style="color:#666;font-size:13px">Type it on the sign-in screen' +
-          (where ? ' at <a href="' + esc(where) + '">' + esc(where) + '</a>' : '') + ' together with a new password. ' + life + '</p>');
+          (where ? ' at <a href="' + esc(where) + '">' + esc(where) + '</a>' : '') + ' together with a new password. ' + life + '</p>', where);
       await log(known.uid, 'reset', '', 'code sent');
       return {sent: true, minutes: CODE_MINUTES};
     },

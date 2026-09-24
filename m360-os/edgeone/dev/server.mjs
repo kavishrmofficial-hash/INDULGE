@@ -49,7 +49,7 @@ async function fakeFetch(url, init) {
   const body = JSON.parse(init.body);
   if (String(url).includes('api.resend.com')) {
     if (!/^Bearer re_/.test(init.headers.authorization || '')) return new Response(JSON.stringify({message: 'bad key'}), {status: 401});
-    globalThis.__mails.push({to: body.to, subject: body.subject, text: body.text});
+    globalThis.__mails.push({to: body.to, subject: body.subject, text: body.text, html: body.html || ''});
     return new Response(JSON.stringify({id: 'm' + globalThis.__mails.length}), {status: 200, headers: {'content-type': 'application/json'}});
   }
   const last = body.messages[body.messages.length - 1];

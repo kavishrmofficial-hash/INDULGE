@@ -204,7 +204,7 @@ def t(h):
     p.wait_for_function('() => location.hash === "#tasks"')
     h.go(p, 'm1', hash='#me', width=1280)
     p.wait_for_selector('#prefs-card')
-    p.locator('#prefs-card').get_by_role('tab', name='Off').click()
+    p.locator('#prefs-card').get_by_label('Sounds').get_by_role('tab', name='Off').click()
     check(p.evaluate('localStorage.getItem("m360.sound")') == '0', 'sound pref')
     p.locator('#prefs-card').get_by_role('button', name='Ink').click()
     p.wait_for_function('() => document.documentElement.getAttribute("data-theme") === "dark"')

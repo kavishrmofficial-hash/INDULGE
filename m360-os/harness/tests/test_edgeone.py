@@ -235,6 +235,9 @@ def main():
             mails = json.loads(urllib.request.urlopen(base + '__mails').read())
             check(len(mails) == 1 and mails[0]['to'] == ['arjun@mask360.agency'] and '#invite=' in mails[0]['text'], 'invite mail %r' % mails)
             arjun_link = [w for w in mails[0]['text'].split() if '#invite=' in w][0]
+            # the mail carries the mark from this very site, on white, so it reads as ours in any inbox
+            check('/icons/icon-192.png' in mails[0]['html'] and 'background:#FFFFFF' in mails[0]['html'], 'branded invite mail %r' % mails[0]['html'][:200])
+            check(('http://localhost:%d/icons/icon-192.png' % port) in mails[0]['html'], 'mail mark from this site %r' % mails[0]['html'][:200])
             # a revoked invite stops working
             f.fill('#inv-email', 'nope@mask360.agency')
             f.locator('#inv-send').click()
