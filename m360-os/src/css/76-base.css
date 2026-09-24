@@ -1,0 +1,51 @@
+/* ---------- base: the database. Search, rows, company cards, the import mapping ---------- */
+.bs-searchrow{align-items:stretch}
+.bs-search{position:relative; min-width:0}
+.bs-search svg{position:absolute; left:16px; top:50%; width:20px; height:20px; margin-top:-10px; color:var(--ink62); pointer-events:none}
+.bs-search .input{min-height:52px; padding-left:46px; font-size:17px; font-weight:400; border-radius:16px}
+.bs-searchrow .btn{flex:none; height:auto; min-height:52px; border-radius:16px}
+.bs-chips{gap:6px}
+.bs-chips .chip.on{background:var(--ink); color:var(--on-ink); border-color:var(--ink)}
+.bs-filter{width:auto; min-height:32px; height:32px; padding:0 30px 0 12px; font-size:13px; font-weight:400; border-radius:999px; background-position:right 10px center; max-width:180px}
+.bs-orgstrip{gap:6px}
+.bs-orgstrip .chip .num{font-size:11px; opacity:.7}
+.bs-av{display:inline-flex; align-items:center; justify-content:center; flex:none; width:36px; height:36px; border-radius:999px; background:var(--warm); border:1px solid var(--line); color:var(--ink); font-size:12px; font-weight:500; letter-spacing:.02em}
+.bs-row{gap:8px 12px; padding:10px 0}
+.bs-row .bs-main{display:flex; align-items:center; gap:12px; flex:1 1 260px; min-width:0}
+.bs-row .bs-main .grow{display:flex; flex-direction:column; gap:2px}
+.bs-name{font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; max-width:100%}
+.bs-sub{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block}
+.bs-orglink{flex:none; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left}
+.bs-meta{gap:6px; flex:none; margin-left:auto}
+.bs-meta .pill{max-width:120px; overflow:hidden; text-overflow:ellipsis}
+.bs-person{gap:10px; align-items:center}
+.bs-person .grow{display:flex; align-items:baseline; gap:0; min-width:0; flex-wrap:wrap}
+.bs-person .bs-name{display:inline; white-space:normal}
+.bs-cards{gap:12px}
+.bs-card{cursor:pointer}
+.bs-card .pill{max-width:150px; overflow:hidden; text-overflow:ellipsis; display:inline-block; line-height:22px}
+.bs-where{display:flex; flex-direction:column; gap:6px; padding:12px 14px; border-radius:14px; background:var(--warm)}
+.bs-mapbox{padding:12px 14px; border-radius:14px; border:1px solid var(--line2)}
+.bs-file{padding:8px 12px; font-weight:400; cursor:pointer}
+.bs-file::file-selector-button{font:inherit; font-size:13px; border:1px solid var(--line2); background:var(--paper); color:var(--ink); border-radius:999px; padding:5px 12px; margin-right:10px; cursor:pointer}
+.bs-map td{white-space:normal; vertical-align:middle}
+.bs-map td.lead{font-weight:500; min-width:160px}
+.bs-map tr.bs-ignored td.lead{color:var(--ink62); font-weight:400}
+.bs-mapsel{min-height:36px; padding:4px 30px 4px 10px; font-size:13px; min-width:190px}
+.bs-sample{max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px}
+.bs-prev{gap:10px; padding:8px 0}
+.bs-prev .grow{display:flex; flex-direction:column; gap:1px}
+.bs-sum{gap:14px}
+@media (max-width:860px){
+  .bs-searchrow{flex-wrap:wrap}
+  .bs-searchrow .btn{flex:1 1 100%}
+  .bs-search{flex:1 1 100%}
+  .bs-row .bs-main{flex-basis:100%}
+  .bs-orglink{max-width:100%}
+  .bs-meta{margin-left:48px; flex-wrap:wrap}
+  .bs-filter{min-height:40px; height:40px}
+  .bs-map td.lead{min-width:0}
+  .bs-mapsel{min-width:0; width:100%}
+  .bs-sample{max-width:100%; white-space:normal}
+  .bs-sum{grid-template-columns:1fr 1fr}
+}
