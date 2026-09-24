@@ -576,6 +576,8 @@ export function createApp({store, env = {}}) {
       }
       const str = JSON.stringify(next);
       if (str.length > MAX_DOC) throw new HttpError(400, 'invalid_argument', 'document over 256 KiB');
+      /* every move is backed up: safety.js keeps the version being replaced */
+      if (hooks.beforeWrite) await hooks.beforeWrite(key, path, v.uid, cur).catch(() => {});
       await store.set(key, str);
       await log(v.uid, op, path, summarize(path, data));
       /* someone taken off the roster is signed out of every device at once */

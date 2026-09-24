@@ -195,6 +195,59 @@
     <//>`;
   }
 
+  /* ---------- every change: the versions a document had, and a revert ---------- */
+  function HistoryList({path, onChanged}) {
+    const [vs, setVs] = useState(null);
+    const [open, setOpen] = useState('');
+    const [doc, setDoc] = useState(null);
+    const load = () => { if (!path) return; api('history', {path}).then(r => setVs(r.versions || []), () => setVs([])); };
+    useEffect(() => { setOpen(''); setDoc(null); load(); }, [path]);
+    async function view(id) {
+      if (open === id) { setOpen(''); setDoc(null); return; }
+      try { const r = await api('version', {path, id}); setOpen(id); setDoc(r.doc); } catch (e) { oops(e); }
+    }
+    async function revert(id) {
+      try { await api('revert', {path, id}); M.toast('Put back the earlier version of ' + path); setOpen(''); setDoc(null); load(); if (onChanged) onChanged(); }
+      catch (e) { oops(e); }
+    }
+    if (!path) return null;
+    return html`<div class="stack tight" id="hist-list" data-path=${path}>
+      ${vs == null ? html`<${UI.Empty} text="Reading the versions."/>`
+        : !vs.length ? html`<${UI.Empty} text="No earlier versions of this document yet. One is kept before every change from now on."/>`
+        : vs.map(x => html`<div key=${x.id} class="stack tight hist-item">
+          <div class="listrow hist-row" data-id=${x.id}>
+            <span class="grow">
+              <span>${U.fmtDate(U.ymd(new Date(x.at)))} ${U.hhmm(x.at)}</span>
+              <div class="tiny ink62">${x.by ? html`<${UI.Name} id=${x.by}/>` : 'the server'} · ${U.timeAgo(x.at)}</div>
+            </span>
+            <${UI.Btn} kind="ghost" sm=${true} onClick=${() => view(x.id)}>${open === x.id ? 'Hide' : 'View'}<//>
+            <${UI.ConfirmBtn} kind="sec" onConfirm=${() => revert(x.id)} label="Tap again to put it back">Revert to this<//>
+          </div>
+          ${open === x.id && doc != null ? html`<pre class="hist-doc">${JSON.stringify(doc, null, 2).slice(0, 6000)}</pre>` : null}
+        </div>`)}
+    </div>`;
+  }
+  const QUICK = ['settings/app', 'roster/team'];
+  function HistoryCard({tick}) {
+    const [path, setPath] = useState('');
+    const [q, setQ] = useState('');
+    return html`<${UI.Card} id="history-card" title="Every change">
+      <p class="small ink62" style=${{marginTop: 0}}>Before any document is changed, the version being replaced is kept: 30 versions for 30 days, per document. Type a document path, or open one from the Log tab with Versions.</p>
+      <div class="row">
+        <${UI.Input} id="hist-path" label="document" value=${q} onChange=${setQ} placeholder="tasks/t1" onEnter=${() => setPath(q.trim())}/>
+        <${UI.Btn} sm=${true} id="hist-go" onClick=${() => setPath(q.trim())} disabled=${!q.trim()}>Show versions<//>
+      </div>
+      <div class="row" style=${{marginTop: '6px'}}>${QUICK.map(p => html`<button key=${p} type="button" class="chip" onClick=${() => { setQ(p); setPath(p); }}>${p}</button>`)}</div>
+      <div style=${{marginTop: '10px'}}><${HistoryList} path=${path}/></div>
+    <//>`;
+  }
+  function HistoryDrawer({path, onClose}) {
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${'Versions of ' + path}>
+      <${HistoryList} path=${path}/>
+    <//>`;
+  }
+  M.parts.HistoryDrawer = HistoryDrawer;
+
   /* ---------- moving to a new address: the site backup, and restoring one ----------
      The site backup is every document plus the people, their emails, the owner and the password hashes, in one
      JSON. The same picker sits on a fresh deployment's setup screen (M.parts.SiteRestore) and on this tab. */
@@ -320,6 +373,7 @@
       <${StatusCard} info=${info} onRefresh=${refresh}/>
       <${BackupList} info=${info} onChanged=${refresh}/>
       <${TrashCard} tick=${tick}/>
+      <${HistoryCard} tick=${tick}/>
       <${UI.Card} title="A copy for your own drive">
         <p class="small ink62" style=${{marginTop: 0}}>One JSON file with every document as it is right now. Keep it somewhere safe, away from this server.</p>
         <div class="row"><${UI.Btn} id="bk-all" sm=${true} disabled=${busy} onClick=${all}>Download everything now<//></div>

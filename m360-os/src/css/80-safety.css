@@ -19,3 +19,6 @@
   .bk-row .row.nowrap, .trash-row .btn{width:100%}
   .bk-row .row.nowrap .btn{flex:1}
 }
+
+.hist-doc{font-size:12px; line-height:1.45; background:var(--warm); border-radius:12px; padding:12px; margin:0 0 6px; white-space:pre-wrap; word-break:break-word; max-height:320px; overflow:auto}
+.hist-row{gap:8px; flex-wrap:wrap}

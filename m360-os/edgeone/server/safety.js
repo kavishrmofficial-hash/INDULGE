@@ -20,6 +20,9 @@
    and both copy the current document to the trash first through the same hook every delete goes through. */
 
 const TRASH_DAYS = 30;
+const HIST_DAYS = 30;              /* versions kept per document */
+const HIST_MAX = 30;
+const HIST_ID = /^\d{10,16}~(u_[A-Za-z0-9]{6,40}|server)$/;
 const BACKUP_DAYS = 45;
 const TRASH_LIST = 300;
 const RESPONSE_CAP = 4 * 1024 * 1024;
@@ -66,6 +69,31 @@ export function safetyActions(h) {
     await putJ('t/' + Date.now() + '~' + key.slice(2), {path, by: uid || '', at: Date.now(), doc});
   };
   const trashMs = key => Number(key.slice(2).split('~')[0]) || 0;
+
+  /* ---------- version history: the document as it was before each write ----------
+     h/<key without d/>/<ms>~<uid>  holds the replaced version; the key carries when and who, so a listing
+     needs no reads. Kept HIST_DAYS days and HIST_MAX versions per document, pruned as each new one lands. */
+  const histPrefix = key => 'h/' + key.slice(2) + '/';
+  const histMs = k => Number(k.split('/').pop().split('~')[0]) || 0;
+  const histBy = k => String(k.split('/').pop().split('~')[1] || '');
+  hooks.beforeWrite = async function beforeWrite(key, path, uid, cur) {
+    if (String(path || '').split('/')[0] === 'log') return;
+    let doc = cur;
+    if (doc == null) {
+      try { doc = await getJ(key); }
+      catch (e) { const s = await raw(key).catch(() => null); doc = s == null ? null : {raw: String(s)}; }
+    }
+    if (doc == null) return;
+    const at = Date.now();
+    await putJ(histPrefix(key) + at + '~' + (uid || 'server'), {path, by: uid || '', at, doc});
+    /* prune this document's older versions */
+    try {
+      const keys = (await listAll(histPrefix(key))).map(b => b.key).sort((a, b) => histMs(b) - histMs(a));
+      const cutoff = at - HIST_DAYS * 86400000;
+      for (let i = 0; i < keys.length; i++) if (i >= HIST_MAX || histMs(keys[i]) < cutoff) await store.delete(keys[i]).catch(() => {});
+    } catch (e) { /* pruning waits for the next write */ }
+  };
+
   async function pruneTrash(days) {
     const cutoff = Date.now() - days * 86400000;
     let removed = 0;
@@ -323,6 +351,38 @@ export function safetyActions(h) {
   }
 
   return {
+    /* every version a document had before each write, newest first */
+    async history(v, body) {
+      await admin(v);
+      const path = String(body.path || '');
+      if (!goodPath(path)) throw new HttpError(400, 'invalid_argument', 'bad path');
+      const keys = (await listAll(histPrefix(docKey(path)))).map(b => b.key).sort((a, b) => histMs(b) - histMs(a));
+      return {path, versions: keys.map(k => ({id: k.split('/').pop(), at: histMs(k), by: histBy(k) === 'server' ? '' : histBy(k)}))};
+    },
+    /* one earlier version, in full */
+    async version(v, body) {
+      await admin(v);
+      const path = String(body.path || ''), id = String(body.id || '');
+      if (!goodPath(path) || !HIST_ID.test(id)) throw new HttpError(400, 'invalid_argument', 'bad id');
+      const h = await getJ(histPrefix(docKey(path)) + id).catch(() => null);
+      if (!h || h.doc == null) throw new HttpError(404, 'invalid_argument', 'That version is gone.');
+      return {path, id, at: h.at, by: h.by || '', doc: h.doc};
+    },
+    /* put an earlier version back: the current one is kept as a version too, so a revert can be undone */
+    async revert(v, body) {
+      await admin(v);
+      const path = String(body.path || ''), id = String(body.id || '');
+      if (!goodPath(path) || !HIST_ID.test(id)) throw new HttpError(400, 'invalid_argument', 'bad id');
+      const key = docKey(path);
+      const h = await getJ(histPrefix(key) + id).catch(() => null);
+      if (!h || h.doc == null) throw new HttpError(404, 'invalid_argument', 'That version is gone.');
+      await hooks.beforeWrite(key, path, v.uid, null);
+      if (isObj(h.doc) && typeof h.doc.raw === 'string' && Object.keys(h.doc).length === 1) await store.set(key, h.doc.raw);
+      else await store.set(key, JSON.stringify(h.doc));
+      await store.delete('a/' + key.slice(2).split('~').slice(0, -1).join('~')).catch(() => {});
+      await log(v.uid, 'revert', path, 'to the version from ' + new Date(h.at || histMs(id)).toISOString());
+      return {ok: true, path, at: h.at};
+    },
     /* the newest deleted documents, newest first */
     async trash(v) {
       await admin(v);

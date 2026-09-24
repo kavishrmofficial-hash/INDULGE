@@ -96,6 +96,7 @@
     const [limit, setLimit] = useState(PAGE);
     const [tick, setTick] = useState(0);
     const [busy, setBusy] = useState(false);
+    const [hist, setHist] = useState('');
     const uids = (ctx.activeMembers || []).map(m => m.uid);
     const profs = M.useProfiles(uids);
     const today = U.todayStr();
@@ -194,10 +195,11 @@
               <div class="tx">
                 <div><${UI.Name} id=${r.uid}/> ${verbOf(r)} ${target(ctx, r) || ''}</div>
                 ${r.s ? html`<div class="s">${r.s}</div>` : null}
-                <div class="p">${r.p}</div>
+                <div class="p">${r.p}${window.M360_STANDALONE && M.parts.HistoryDrawer && r.p && (r.a === 'set' || r.a === 'update' || r.a === 'delete' || r.a === 'revert') ? html` <button type="button" class="linky tiny log-versions" onClick=${() => setHist(r.p)}>Versions</button>` : null}</div>
               </div>
             </div>`)}
       </div>
+      ${hist && M.parts.HistoryDrawer ? html`<${M.parts.HistoryDrawer} path=${hist} onClose=${() => setHist('')}/>` : null}
       ${list.length > limit ? html`<div class="row" style=${{marginTop: '10px'}}>
         <${UI.Btn} kind="sec" sm=${true} onClick=${() => setLimit(n => n + PAGE)}>Show more<//>
         <span class="tiny ink62 num">${limit} of ${list.length}</span></div>` : null}
