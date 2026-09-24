@@ -111,6 +111,21 @@ Publish `dist/index.html` with the Artifact tool, title "m360 OS", with the capa
 - **The buddy follows again**: the pointer glides after the mouse whenever the buddy is on and only pins to a target during a tour hop; it fades after a few idle seconds. Touch does not drag it. Spoken answers are short and conversational, with a Talk button in the ask bubble.
 - **A real voice**: Admin > The buddy's voice takes an ElevenLabs key and picks a warm voice; the server fetches and caches each line for a week. Without a key the browser's best natural voice is used. Prefs > The buddy speaks turns it off.
 
+## What is in v9
+
+- **The onboarding tour**: the buddy walks a new person through the place, out loud, section by section: check in, the EOD line, New, Search, Inbox, Focus, Work, Accounts, Base, Vibe, Radar, Me, then itself (HQ and Admin for the founder). It offers itself once on a first sign in, moves on by itself after each line when the voice is on, and replays from Me > Prefs > Show me around or the palette. Script in `57-tour.js`.
+- **The buddy, rebuilt**: a flame character with a face that looks where it is going, rides the mouse on a spring with a trail, flies to controls on an arc and lands with a pop, and talks with its mouth moving. The bubble rides along on a leash and holds still under your hand. It now does things when asked: `click` and `type_into` tools (never on delete, remove, offboard, restore, approve or sign out, those it points at), keeps the last few turns of the chat, listens for a follow up after a spoken answer, and takes a hold on the Ask m360 button as talk on phones.
+- **The voice** resolves when a line has been heard, so the tour and the mouth stay in step. Server lines are cached for 30 days, so the ElevenLabs free tier covers a team.
+
+## Launch day
+
+1. Admin > Team: invite each person by email. They get a link, type their email and pick a password. Without an email key the invite shows a link to copy instead.
+2. Admin > AI: the Anthropic key. Without it the buddy, the brief and every writer are off.
+3. Admin > The buddy's voice: an ElevenLabs key (free tier) for the natural voice. Otherwise the browser voice speaks.
+4. Everyone adds m360 to their phone home screen from Safari or Chrome (Share, Add to Home Screen).
+5. The first sign in offers the tour. Say yes.
+6. Admin > Backups: download the site backup once the team is in, and keep it somewhere else.
+
 ## Keeping it safe
 
 - Claim the EdgeOne project or set `EDGEONE_API_TOKEN` so deploys go to one stable project. An anonymous deploy is a new project with an empty store every time, and it is removed an hour after it is made unless claimed. The claude.ai artifact keeps its database across republishes; only the EdgeOne address changes.

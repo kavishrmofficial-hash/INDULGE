@@ -295,6 +295,7 @@
 
   /* ---------------- sample: canned Claude answers, shaped like the real thing ---------------- */
   window.__sampleCalls = [];
+  window.M360_WELCOME_OFF = true;   /* tests ask for the welcome bubble explicitly */
   const tomorrow = (() => { const d = new Date(Date.now() + 86400000); const p = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); })();
   const flat = input => typeof input === 'string' ? input : input.map(t => t.content).join('\n');
   const sampleErr = q.get('aierr');
@@ -342,6 +343,21 @@
           const id = pick(screen, /^Check in/i);
           if (id) await pointAt.execute({id, say: 'Tap this'}, sig);
           said = 'Tap Check in, office. It logs the time and where you are.';
+        } else if (/open new/i.test(last)) {
+          /* the buddy does it: presses New for them */
+          const id = pick(screen, /^New$/i);
+          const out = id ? await tools.find(x => x.name === 'click').execute({id, say: 'Opening New'}, sig) : 'no New';
+          said = /^pressed/.test(out) ? 'Opened New for you. Pick what you want to make.' : 'I could not find New.';
+        } else if (/press delete/i.test(last)) {
+          const id = pick(screen, /^Delete/i);
+          const out = id ? await tools.find(x => x.name === 'click').execute({id, say: 'This one'}, sig) : 'no Delete';
+          said = /^not pressed/.test(out) ? 'That one is yours to press. It is right there.' : 'Pressed it.';
+        } else if (/type (.+) into the search/i.test(last)) {
+          const words = last.match(/type (.+) into the search/i)[1].replace(/[.?]$/, '');
+          const lines = String(screen).split('\n').filter(l => l.split(' | ')[1] === 'field' && /search/i.test(l.split(' | ')[2] || ''));
+          const id = lines.length ? lines[0].split(' | ')[0] : null;
+          if (id) await tools.find(x => x.name === 'type_into').execute({id, text: words}, sig);
+          said = id ? 'Typed it in for you.' : 'No search field here.';
         }
         if (opts.onText) opts.onText({text: said, delta: said});
         return res({text: said, truncated: false, modelTierApplied: 'quick'});

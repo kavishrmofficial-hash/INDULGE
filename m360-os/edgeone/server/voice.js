@@ -1,9 +1,9 @@
 /* voice: the buddy's spoken lines through ElevenLabs, when the founder has set a voice up in Admin
    (or ELEVENLABS_API_KEY and ELEVENLABS_VOICE in the environment). The key never reaches a page.
-   x/voice {key, voice, name, at, by}   n/tts/<hash> {audio, at}  cached lines, 7 days */
+   x/voice {key, voice, name, at, by}   n/tts/<hash> {audio, at}  cached lines, 30 days */
 const MAX_TEXT = 700;
 const MODEL = 'eleven_turbo_v2_5';
-const CACHE_MS = 7 * 86400000;
+const CACHE_MS = 30 * 86400000;
 const PREFER = ['sarah', 'rachel', 'laura', 'lily', 'alice', 'matilda', 'jessica', 'aria'];
 
 function hash(s) {

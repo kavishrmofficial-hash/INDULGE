@@ -275,6 +275,7 @@
           <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${voiceOn ? 'on' : 'off'} ariaLabel="Buddy voice"
             onChange=${v => { M.prefs.set('buddyVoice', v === 'on' ? '1' : '0'); setVoiceOn(v === 'on'); if (v === 'on' && M.speech) M.speech.say('Hi, I am here whenever you need me.'); }}/>
         </div>
+        <div class="row between"><span>The tour</span><button type="button" class="linky small" id="tour-again" onClick=${() => M.tour && M.tour.start()}>Show me around</button></div>
         <div class="row between"><span>Keyboard shortcuts</span><button type="button" class="linky small" onClick=${() => window.dispatchEvent(new CustomEvent('m360:keys'))}>Show the sheet</button></div>
       </div>
     <//>`;

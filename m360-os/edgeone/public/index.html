@@ -383,25 +383,44 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .bubble.act{align-self:flex-start; background:var(--paper); border:1px solid var(--flame); color:var(--ink); font-size:13px}
 
 /* ---------- the m360 cursor buddy ---------- */
-.buddy{position:fixed; left:0; top:0; z-index:90; pointer-events:none}
-.buddy svg{display:block; width:24px; height:24px; filter:drop-shadow(0 2px 5px rgba(10,10,10,.28))}
-.buddy.listening svg{transform:scale(1.2)}
+.buddy{position:fixed; left:0; top:0; z-index:90; pointer-events:none; width:30px; height:30px; transition:opacity .2s ease; will-change:transform; transform-origin:8px 8px}
+.buddy svg{display:block; width:30px; height:30px; filter:drop-shadow(0 2px 5px rgba(10,10,10,.28)); overflow:visible}
+.buddy .body{fill:var(--flame); stroke:#fff; stroke-width:1.5; stroke-linejoin:round}
+.buddy .eye{fill:#fff}
+.buddy .pupil{fill:#0A0A0A; transform:translate(calc(var(--lx,0) * .9px), calc(var(--ly,0) * .9px)); transition:transform .12s ease}
+.buddy .eyes{transform-origin:12.7px 10.5px; animation:blink 4.6s infinite}
+.buddy .mouth{fill:none; stroke:#fff; stroke-width:1.2; stroke-linecap:round; transform-origin:12.7px 15.4px}
+.buddy.talking .mouth{animation:talk .28s ease-in-out infinite alternate}
+.buddy.talking svg{animation:bob .32s ease-in-out infinite alternate}
+.buddy.thinking svg{animation:pulse 1.1s ease-in-out infinite}
+.buddy.listening svg{transform:scale(1.18)}
+.buddy.listening::after{content:""; position:absolute; left:-6px; top:-6px; width:42px; height:42px; border-radius:999px; border:2px solid var(--flame); opacity:.5; animation:hear 1s ease-out infinite}
+.buddy.flying svg{transform:scaleX(1.12) scaleY(.92)}
+.buddy.land svg{animation:land .42s cubic-bezier(.34,1.56,.64,1)}
+.buddy.tap svg{transform:scale(.78)}
 .buddy.still{opacity:.4; transition:opacity .6s ease}
-.buddy{transition:opacity .2s ease}
+.buddy-trail{position:fixed; left:0; top:0; z-index:88; pointer-events:none; width:12px; height:12px; border-radius:999px; background:var(--flame); opacity:0; transition:opacity .25s ease; will-change:transform}
 .buddy-ring{position:fixed; z-index:89; pointer-events:none; border:2px solid var(--flame); border-radius:12px; box-shadow:0 0 0 5px rgba(245,57,1,.14)}
-.buddy-bubble{position:fixed; z-index:91; width:min(340px,calc(100vw - 32px)); background:var(--dark); color:#fff; border-radius:16px; padding:12px 14px; font-size:14px; line-height:1.45; box-shadow:0 12px 32px rgba(10,10,10,.24); pointer-events:auto}
+.buddy-bubble{position:fixed; z-index:91; width:min(340px,calc(100vw - 32px)); background:var(--dark); color:#fff; border-radius:16px; padding:12px 14px; font-size:14px; line-height:1.45; box-shadow:0 12px 32px rgba(10,10,10,.24); pointer-events:auto; will-change:left,top}
 .buddy-bubble .input{background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.22); color:#fff; min-height:40px}
 .buddy-bubble .input::placeholder{color:rgba(255,255,255,.5)}
 .buddy-bubble .micro{color:rgba(255,255,255,.6)}
 .buddy-bubble .linky{color:#fff}
+.buddy-bubble .linky[aria-pressed="true"]{text-decoration:underline}
 .buddy-bubble .ai-out b{font-weight:600}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)} 95%{transform:scaleY(.1)}}
+@keyframes talk{from{transform:scaleY(.6)} to{transform:scaleY(1.6) translateY(.4px)}}
+@keyframes bob{from{transform:translateY(0)} to{transform:translateY(-1.5px)}}
+@keyframes pulse{0%,100%{transform:scale(1)} 50%{transform:scale(1.12)}}
+@keyframes hear{from{transform:scale(.7); opacity:.6} to{transform:scale(1.5); opacity:0}}
+@keyframes land{0%{transform:scale(1.35)} 60%{transform:scale(.9)} 100%{transform:scale(1)}}
 .buddy-home{position:fixed; right:24px; bottom:24px; z-index:55; height:46px; padding:0 16px 0 12px; border-radius:999px; border:0; cursor:pointer; background:var(--dark); color:#fff; font-size:14px; font-weight:500; display:inline-flex; align-items:center; gap:9px; box-shadow:0 8px 24px rgba(10,10,10,.2)}
 .buddy-home:hover{background:#000}
 .buddy-home svg{width:18px; height:18px}
 .buddy-home .k{font-size:11px; font-weight:400; color:rgba(255,255,255,.62); border:1px solid rgba(255,255,255,.25); border-radius:6px; padding:1px 6px}
 @media (prefers-reduced-motion:no-preference){
-  .buddy.flying{transition:transform 640ms cubic-bezier(.22,.8,.26,1)}
   .buddy svg{transition:transform .15s ease}
+  .buddy-home.live{background:var(--flame)}
   .buddy-ring{animation:ringin 380ms ease-out}
 }
 @keyframes ringin{from{opacity:0; transform:scale(1.08)} to{opacity:1; transform:scale(1)}}
@@ -451,6 +470,8 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
   .buddy-home{right:16px; bottom:calc(74px + env(safe-area-inset-bottom)); height:44px}
   .buddy-home .k, .buddy-home .lbl{display:none}
   .buddy-home{width:44px; padding:0; justify-content:center}
+  .buddy-bubble{left:12px !important; right:12px; top:auto !important; bottom:calc(86px + env(safe-area-inset-bottom)); width:auto; max-height:46vh; overflow:auto}
+  .buddy-trail{display:none}
   .btn.xl{width:100%}
   .stat .v{font-size:28px}
   .tab{font-size:14px}
@@ -10459,6 +10480,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${voiceOn ? 'on' : 'off'} ariaLabel="Buddy voice"
             onChange=${v => { M.prefs.set('buddyVoice', v === 'on' ? '1' : '0'); setVoiceOn(v === 'on'); if (v === 'on' && M.speech) M.speech.say('Hi, I am here whenever you need me.'); }}/>
         </div>
+        <div class="row between"><span>The tour</span><button type="button" class="linky small" id="tour-again" onClick=${() => M.tour && M.tour.start()}>Show me around</button></div>
         <div class="row between"><span>Keyboard shortcuts</span><button type="button" class="linky small" onClick=${() => window.dispatchEvent(new CustomEvent('m360:keys'))}>Show the sheet</button></div>
       </div>
     <//>`;
@@ -10823,12 +10845,87 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   M.parts.Ask = Ask;
 })();
 
+/* ==== 57-tour.js ==== */
+/* module: tour. The onboarding walk the cursor buddy gives a new person: where everything lives, said out
+   loud and pointed at, section by section. One script for everyone, a few extra stops for the founder.
+   Done once per person (kept in their private state doc), replayable any time from Me or the palette. */
+'use strict';
+(function () {
+  const VERSION = 2;
+
+  /* each stop: the hash to open, what to point at (first visible match wins), and what to say */
+  const STOPS = [
+    {go: '#home', sel: '#checkin-card, #home-hero', title: 'Check in',
+      say: 'Hi {name}, I am your m360 buddy. Every day starts right here. Check in when you sit down, office or home, and say how you are feeling. It takes two taps.'},
+    {go: '#home', sel: '#fold-eod, #wrap-shipped, #home-hero', title: 'The EOD line',
+      say: 'At seven in the evening, write your EOD line. What shipped, what is next, what is blocked. Three lines, thirty seconds, and Kaavish reads every one.'},
+    {go: '#home', sel: '.sidebar .new-trigger, .topbar .new-trigger', title: 'New',
+      say: 'New makes anything. A task, a post, kudos for someone, a project.'},
+    {go: '#home', sel: '.side-ask, .topbar .iconbtn[aria-label="Search"]', title: 'Search',
+      say: 'Search finds anything. A client, a contact, a task, a handbook page. Command K opens it from anywhere.'},
+    {go: '#home', sel: '.bellbtn', title: 'Inbox',
+      say: 'Your inbox. Tasks handed to you, mentions, kudos and decisions land here.'},
+    {go: '#home', sel: '.side-tools .iconbtn[aria-label="Focus timer"], .quick-btn', title: 'Focus',
+      say: 'Focus runs a timer on one task and banks the deep work. Points come from finished work, streaks and kudos.'},
+    {go: '#tasks', sel: '.main h1, .main .card', title: 'Work',
+      say: 'Work. Your tasks board. Drag a task across as it moves. Projects, the calendar and reviews sit in the tabs above.'},
+    {go: '#clients', sel: '.main .card, .main h1', title: 'Accounts',
+      say: 'Accounts. Every client we serve. Open one and you get its brain, its people, its news and a meeting prep note.'},
+    {go: '#base', sel: '#base-q, .main .card', title: 'Base',
+      say: 'Base is everyone we know. Search a name or a company here before you reach out, and add the people you talk to.'},
+    {go: '#feed', sel: '.main .card, .main h1', title: 'Vibe',
+      say: 'Vibe. Post an update, give kudos, run a poll, and see the leaderboard.'},
+    {go: '#radar', sel: '.main .card, .main h1', title: 'Radar',
+      say: 'Radar. Live news about our clients and the industry, plus awards and channels worth watching.'},
+    {go: '#me', sel: '#fold-profile, .main .card', title: 'Me',
+      say: 'Me. Your photo and profile, your leave, the handbook. If a number ever looks wrong, request a correction here and Kaavish approves it.'},
+    {go: '#hq', founder: true, sel: '#fold-brief, .main h1', title: 'HQ',
+      say: 'HQ. The intelligence brief reads every check in, task and pitch, and tells you who is slipping and which client needs love.'},
+    {go: '#admin', founder: true, sel: '.main h1, .main .card', title: 'Admin',
+      say: 'Admin. Invite people by email, the keys, the backups, and every change anyone ever made.'},
+    {go: null, sel: '.buddy-home', title: 'Your buddy',
+      say: 'And that is me. Hold Control and Option and just talk, or tap here and type. Ask where anything is, or tell me to do it, and I will take you there.'}
+  ];
+
+  const stateDoc = ctx => ctx && ctx.priv && ctx.priv.state;
+  const local = {
+    get: k => { try { return localStorage.getItem('m360.' + k); } catch (e) { return null; } },
+    set: (k, v) => { try { localStorage.setItem('m360.' + k, v); } catch (e) { /* private window */ } }
+  };
+
+  M.tour = {
+    VERSION,
+    stops: ctx => STOPS.filter(s => !s.founder || (ctx && ctx.isFounder)),
+    line: (stop, ctx) => {
+      const full = ctx ? ((ctx.member && ctx.member.name) || (ctx.me && ctx.me.name) || '') : '';
+      const nm = String(full).split(' ')[0];
+      return String(stop.say).replace('{name}', nm || 'there');
+    },
+    /* seen already, on this device or on any device */
+    seen: ctx => {
+      const d = stateDoc(ctx);
+      if (d && d.ready && d.data && d.data.tour && (d.data.tour.done || d.data.tour.asked)) return true;
+      return local.get('tourSeen') === '1';
+    },
+    /* the private state doc is loaded, so a verdict can be made */
+    ready: ctx => { const d = stateDoc(ctx); return !!(d && d.ready); },
+    mark: async (ctx, how) => {
+      local.set('tourSeen', '1');
+      try {
+        if (ctx && ctx.W && ctx.uid) await ctx.W.merge('data/users/' + ctx.uid + '/state', {tour: {[how === 'done' ? 'done' : 'asked']: Date.now(), v: VERSION}});
+      } catch (e) { /* offline: the device remembers */ }
+    },
+    start: () => window.dispatchEvent(new CustomEvent('m360:tour'))
+  };
+})();
+
 /* ==== 58-buddy.js ==== */
-/* module: buddy. The m360 cursor buddy: a flame pointer that rides next to your cursor.
-   Hold Ctrl + Option (Ctrl + Alt) and talk, or tap Ask m360 and type. Claude reads a map of
-   what is on screen plus your work data, answers in a bubble (out loud when you spoke), and
-   flies the pointer to the exact control you need. It can open another section to show you,
-   and create or move tasks. It never clicks anything for you. */
+/* module: buddy. The m360 cursor buddy: a small flame character with a face that rides next to your
+   cursor. Hold Ctrl + Option (Ctrl + Alt) and talk, hold the Ask m360 button on a phone, or tap it and
+   type. Claude reads a map of what is on screen plus your work data, answers in a bubble (out loud when
+   you spoke), flies the pointer to the exact control, and, when you ask it to, clicks or types for you.
+   It never presses anything risky (delete, offboard, restore, sign out): those it points at.
+   It also gives the onboarding tour (57-tour.js): spoken, pointed, section by section. */
 'use strict';
 (function () {
   const {html, React, U, UI} = M;
@@ -10840,21 +10937,16 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     set: (k, v) => { try { localStorage.setItem('m360.' + k, v); } catch (e) { /* private window */ } }
   };
   const coarse = () => { try { return window.matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } };
+  const fine = () => { try { return window.matchMedia('(pointer: fine)').matches; } catch (e) { return true; } };
   const reduced = () => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
   const SR = () => window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  const wait = ms => new Promise(r => setTimeout(r, ms));
 
-  /* the guided tour: where things live, in order */
-  const TOUR = [
-    {sel: '.side-item, .tabbar .tab-item', say: 'Home is your day: check in, your focus, your numbers.'},
-    {sel: '.sidebar .new-trigger, .topbar .new-trigger', say: 'New makes anything: a task, a post, kudos, a project.'},
-    {sel: '.side-ask, .topbar .iconbtn[aria-label="Search"]', say: 'Search or do anything from here. Cmd K opens it too.'},
-    {sel: '.bellbtn', say: 'Your inbox: assignments, kudos, mentions and decisions.'},
-    {sel: '.side-tools .iconbtn[aria-label="Focus timer"], .quick-btn', say: 'Focus runs a timer on a task and banks deep work.'},
-    {sel: '.side-item:nth-child(2), .tabbar .tab-item:nth-child(2)', say: 'Work: tasks, projects, the calendar and reviews.'},
-    {sel: '.buddy-home', say: 'And that is me. Hold Ctrl and Option to talk, or tap here. Enjoy.'}
-  ];
-
-  const SECTIONS = ['home', 'tasks', 'projects', 'week', 'clients', 'pitches', 'feed', 'people', 'voice', 'scores', 'me', 'leave', 'handbook', 'hiring', 'hq', 'command', 'admin'];
+  const SECTIONS = ['home', 'tasks', 'projects', 'calendar', 'reviews', 'week', 'clients', 'pitches', 'feed', 'people', 'voice', 'scores',
+    'base', 'companies', 'import', 'radar', 'awards', 'watch', 'me', 'trophies', 'leave', 'handbook', 'hiring', 'hq', 'command', 'admin'];
+  const FOUNDER_ONLY = ['hq', 'command', 'admin'];
+  /* controls the buddy will point at but never press */
+  const RISKY = /delete|remove|erase|wipe|trash|offboard|lock|unlock|restore|overwrite|revoke|sign out|log out|approve|reject|decline|pay|revert/i;
 
   /* ---------- the screen, as Claude sees it ---------- */
   function scan() {
@@ -10884,17 +10976,35 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     return out.join('\n');
   }
   const findEl = id => document.querySelector('[data-ai="' + String(id).replace(/[^a-z0-9]/gi, '') + '"]');
+  const firstVisible = sel => Array.from(document.querySelectorAll(sel)).find(x => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; }) || null;
+  const risky = el => {
+    if (!el) return true;
+    const t = (el.getAttribute('aria-label') || el.innerText || el.value || '').replace(/\s+/g, ' ').trim();
+    return RISKY.test(t) || /danger|armed/.test(el.className || '') || (el.closest('form') && el.type === 'submit');
+  };
+  /* React controlled inputs listen to the native setter, so type through it */
+  function setNative(el, value) {
+    const proto = el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+    const d = Object.getOwnPropertyDescriptor(proto, 'value');
+    if (d && d.set) d.set.call(el, value); else el.value = value;
+    el.dispatchEvent(new Event('input', {bubbles: true}));
+  }
 
-  /* ---------- the pointer ---------- */
-  const Pointer = () => html`<svg viewBox="0 0 24 24" aria-hidden="true">
-    <path d="M4 3.2 19.6 10c.9.4.8 1.7-.1 2l-6.3 1.9-2.6 6.1c-.4.9-1.7.9-2-.1L3.1 4.4c-.3-.8.3-1.5.9-1.2Z" fill="#F53901" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/>
+  /* ---------- the character ---------- */
+  const Face = () => html`<svg viewBox="0 0 28 28" aria-hidden="true">
+    <path class="body" d="M5 3.6 23.2 11.5c1 .45.9 1.9-.15 2.25l-7.3 2.2-3 7.1c-.45 1.05-1.95 1-2.3-.1L3.9 5c-.3-.95.35-1.75 1.1-1.4Z"/>
+    <g class="eyes">
+      <circle class="eye" cx="10.2" cy="9.4" r="2.1"/><circle class="eye" cx="15.2" cy="11.6" r="2.1"/>
+      <circle class="pupil" cx="10.4" cy="9.5" r="1"/><circle class="pupil" cx="15.4" cy="11.7" r="1"/>
+    </g>
+    <path class="mouth" d="M11 15.2c1 .9 2.3 1 3.4.3"/>
   </svg>`;
 
   function Buddy({onOpenChat}) {
     const ctx = M.useCtx();
     const on = M.ai.on(ctx);
     const [hidden, setHidden] = useState(() => store.get('buddyHidden') === '1');
-    const [mode, setMode] = useState('idle');          /* idle, asking, listening, thinking, answer */
+    const [mode, setMode] = useState('idle');          /* idle, asking, listening, thinking, answer, tour, welcome */
     const [q, setQ] = useState('');
     const [heard, setHeard] = useState('');
     const [answer, setAnswer] = useState('');
@@ -10903,11 +11013,20 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const [anchor, setAnchor] = useState(null);         /* {x, y} the bubble sits by */
     const [ring, setRing] = useState(null);             /* {left, top, width, height} */
     const [step, setStep] = useState(-1);               /* tour step, or -1 */
+    const [stops, setStops] = useState([]);
+    const [auto, setAuto] = useState(() => store.get('buddyAuto') !== '0');
+    const [talking, setTalking] = useState(false);
+    const [followUp, setFollowUp] = useState(false);
     const pointerRef = useRef(null);
+    const bubbleRef = useRef(null);
+    const bpos = useRef(null);           /* where the bubble is, gliding after the pointer */
+    const trailRef = useRef([]);
     const mouse = useRef({x: window.innerWidth - 90, y: window.innerHeight - 90});
     const pos = useRef({x: window.innerWidth - 90, y: window.innerHeight - 90});
+    const vel = useRef({x: 0, y: 0});
+    const trail = useRef([{x: 0, y: 0}, {x: 0, y: 0}]);
     const pinned = useRef(false);        /* only while flying, and until the mouse moves again afterwards */
-    const flying = useRef(false);
+    const flight = useRef(null);         /* {x0, y0, x1, y1, t0, T, res} while flying */
     const pinAt = useRef(null);
     const still = useRef(0);
     const target = useRef(null);
@@ -10916,35 +11035,86 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const spoke = useRef(false);
     const homeRef = useRef(null);
     const askRef = useRef(null);
+    const history = useRef([]);
+    const modeRef = useRef('idle');
+    const tourRun = useRef(0);
+    const holdTimer = useRef(0);
+    modeRef.current = mode;
 
-    /* follow the cursor with a little lag. While the buddy flies to a control it holds still, and it lets go
+    /* the mouth moves while a line is being said */
+    useEffect(() => {
+      const f = e => setTalking(!!(e.detail && e.detail.on));
+      window.addEventListener('m360:speech', f);
+      return () => window.removeEventListener('m360:speech', f);
+    }, []);
+
+    /* follow the cursor on a spring. While the buddy flies to a control it holds still, and it lets go
        the moment the mouse moves again, so it never gets stuck after an answer or a tour step. */
     useEffect(() => {
-      if ((!on && mode !== 'tour') || hidden) return;
+      if ((!on && mode !== 'tour' && mode !== 'welcome') || hidden) return;
       let raf = 0;
       const move = e => {
         if (e.pointerType === 'touch') return;
         mouse.current = {x: e.clientX + 16, y: e.clientY + 14};
         still.current = Date.now();
-        if (pinned.current && !flying.current) {
+        if (pinned.current) {
           const a = pinAt.current;
-          if (!a || Math.abs(e.clientX - a.x) + Math.abs(e.clientY - a.y) > 28) pinned.current = false;
+          if (!a || Math.abs(e.clientX - a.x) + Math.abs(e.clientY - a.y) > 28) { if (flight.current) flight.current.moved = true; else pinned.current = false; }
         }
         if (pointerRef.current) pointerRef.current.classList.remove('still');
       };
+      const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
       const tick = () => {
-        if (!pinned.current) {
-          const p = pos.current, m = mouse.current;
-          p.x += (m.x - p.x) * .22; p.y += (m.y - p.y) * .22;
+        const p = pos.current, v = vel.current;
+        const f = flight.current;
+        if (f) {
+          const k = Math.min(1, (performance.now() - f.t0) / f.T), e = ease(k);
+          const lift = Math.sin(Math.PI * k) * f.arc;
+          p.x = f.x0 + (f.x1 - f.x0) * e; p.y = f.y0 + (f.y1 - f.y0) * e - lift;
+          v.x = (f.x1 - f.x0) / f.T * 16; v.y = 0;
+          if (k >= 1) { flight.current = null; p.x = f.x1; p.y = f.y1; if (f.moved) pinned.current = false; if (pointerRef.current) { pointerRef.current.classList.remove('flying'); pointerRef.current.classList.add('land'); setTimeout(() => pointerRef.current && pointerRef.current.classList.remove('land'), 420); } f.res(); }
+        } else if (!pinned.current) {
+          const m = mouse.current;
+          v.x = (v.x + (m.x - p.x) * .18) * .62; v.y = (v.y + (m.y - p.y) * .18) * .62;
+          p.x += v.x; p.y += v.y;
         }
-        if (pointerRef.current && mode === 'idle' && still.current && Date.now() - still.current > 4000) pointerRef.current.classList.add('still');
+        /* the ghosts behind it, a beat later each */
+        const tr = trail.current;
+        tr[0].x += (p.x - tr[0].x) * .28; tr[0].y += (p.y - tr[0].y) * .28;
+        tr[1].x += (tr[0].x - tr[1].x) * .28; tr[1].y += (tr[0].y - tr[1].y) * .28;
+        const speed = Math.abs(v.x) + Math.abs(v.y);
+        trailRef.current.forEach((el, i) => { if (el) { el.style.opacity = speed > 3 ? String(.28 - i * .1) : '0'; el.style.transform = 'translate3d(' + (tr[i].x + 6) + 'px,' + (tr[i].y + 6) + 'px,0)'; } });
+        const el = pointerRef.current;
+        if (el) {
+          if (modeRef.current === 'idle' && still.current && Date.now() - still.current > 4000) el.classList.add('still');
+          /* lean into the move, look where it is going */
+          const tilt = Math.max(-16, Math.min(16, v.x * 1.3));
+          const lx = Math.max(-1, Math.min(1, (mouse.current.x - p.x) / 160)), ly = Math.max(-1, Math.min(1, (mouse.current.y - p.y) / 160));
+          el.style.transform = 'translate3d(' + p.x + 'px,' + p.y + 'px,0) rotate(' + tilt + 'deg)';
+          el.style.setProperty('--lx', (target.current ? 0 : lx).toFixed(2));
+          el.style.setProperty('--ly', (target.current ? .3 : ly).toFixed(2));
+        }
+        /* the bubble rides with the pointer, and holds still while the mouse is over it (so it can be used) */
+        const b = bubbleRef.current;
+        if (b && window.innerWidth > 860) {
+          const W = window.innerWidth, H = window.innerHeight;
+          const bw = b.offsetWidth || 340, bh = b.offsetHeight || 160;
+          const wantL = Math.max(16, Math.min(W - bw - 16, p.x + 22));
+          const wantT = (p.y + 30 + bh + 16 > H) ? Math.max(16, p.y - bh - 12) : p.y + 30;
+          if (!bpos.current) bpos.current = {x: wantL, y: wantT, chase: false};
+          const d = Math.hypot(wantL - bpos.current.x, wantT - bpos.current.y);
+          /* on a leash: it holds still until the pointer wanders off, then catches up. A hand reaching for it
+             brings the pointer closer, which never starts a chase, so it can always be caught. */
+          if (d > 180 || flight.current) bpos.current.chase = true;
+          if (d < 18) bpos.current.chase = false;
+          if (bpos.current.chase) { bpos.current.x += (wantL - bpos.current.x) * .16; bpos.current.y += (wantT - bpos.current.y) * .16; }
+          b.style.left = bpos.current.x + 'px'; b.style.top = bpos.current.y + 'px';
+        }
         if (target.current) {
-          const el = target.current;
-          const r = el.getBoundingClientRect();
+          const r = target.current.getBoundingClientRect();
           setRing(prev => (prev && Math.abs(prev.left - r.left) < .5 && Math.abs(prev.top - r.top) < .5) ? prev
             : {left: r.left - 6, top: r.top - 6, width: r.width + 12, height: r.height + 12});
         }
-        if (pointerRef.current) pointerRef.current.style.transform = 'translate3d(' + pos.current.x + 'px,' + pos.current.y + 'px,0)';
         raf = requestAnimationFrame(tick);
       };
       window.addEventListener('pointermove', move, {passive: true});
@@ -10953,61 +11123,161 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       return () => { cancelAnimationFrame(raf); window.removeEventListener('pointermove', move); window.removeEventListener('mousemove', move); };
     }, [on, hidden, mode]);
 
-
+    /* a flight: an arc to the spot, eased, interruptible by the next flight */
     const fly = useCallback((x, y) => new Promise(res => {
-      pinned.current = true; flying.current = true;
+      pinned.current = true;
       pinAt.current = {x: mouse.current.x - 16, y: mouse.current.y - 14};
       const el = pointerRef.current;
-      if (!el || reduced()) { pos.current = {x, y}; flying.current = false; res(); return; }
+      if (flight.current) flight.current.res();
+      if (!el || reduced()) { pos.current = {x, y}; flight.current = null; res(); return; }
+      const d = Math.hypot(x - pos.current.x, y - pos.current.y);
       el.classList.add('flying');
-      pos.current = {x, y};
-      el.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0)';
-      setTimeout(() => { el.classList.remove('flying'); flying.current = false; res(); }, 660);
+      flight.current = {x0: pos.current.x, y0: pos.current.y, x1: x, y1: y, t0: performance.now(), T: Math.max(360, Math.min(900, 300 + d * .55)), arc: Math.min(70, d * .18), res};
     }), []);
 
-    const reset = useCallback(() => {
-      if (ctl.current) ctl.current.abort();
-      if (rec.current) { try { rec.current.abort(); } catch (e) { /* stopped */ } rec.current = null; }
-      if (M.speech) M.speech.stop();
-      pinned.current = false; flying.current = false; target.current = null;
-      setRing(null); setMode('idle'); setAnswer(''); setActs([]); setErr(''); setHeard(''); setQ('');
+    /* a little press on the spot it is standing on */
+    const tap = useCallback(async () => {
+      const el = pointerRef.current;
+      if (el && !reduced()) { el.classList.add('tap'); await wait(180); el.classList.remove('tap'); }
+      M.sound.play('soft');
     }, []);
 
-    /* ---------- the tour ---------- */
-    const showStep = useCallback(async i => {
-      let j = i;
-      let el = null;
-      while (j < TOUR.length && !el) { el = Array.from(document.querySelectorAll(TOUR[j].sel)).find(x => x.getBoundingClientRect().width > 0) || null; if (!el) j++; }
-      if (!el) { reset(); M.toast('That is the tour. Hold Ctrl and Option to ask me anything'); return; }
-      setStep(j); setMode('tour'); setAnswer(TOUR[j].say); setErr(''); setActs([]);
+    const flyTo = useCallback(async el => {
+      const g = tourRun.current;
       el.scrollIntoView({block: 'center', behavior: reduced() ? 'auto' : 'smooth'});
-      await new Promise(r => setTimeout(r, reduced() ? 30 : 260));
+      await wait(reduced() ? 30 : 300);
+      if (g !== tourRun.current) return;   /* closed meanwhile */
       const r = el.getBoundingClientRect();
       target.current = el;
-      pinned.current = true;
-      await fly(Math.min(window.innerWidth - 30, r.left + Math.min(r.width * .5, 60)), r.top + r.height * .6);
+      await fly(Math.min(window.innerWidth - 30, r.left + Math.min(r.width * .5, 60)), Math.min(window.innerHeight - 24, r.top + r.height * .6));
       setAnchor({x: pos.current.x, y: pos.current.y});
     }, [fly]);
-    useEffect(() => {
-      const start = () => { setHidden(false); store.set('buddyHidden', '0'); setTimeout(() => showStep(0), 60); };
-      window.addEventListener('m360:tour', start);
-      return () => window.removeEventListener('m360:tour', start);
-    }, [showStep]);
 
-    const speak = t => {
-      if (!spoke.current || store.get('buddyVoice') === '0') return;
-      if (M.speech) M.speech.say(String(t).replace(/\*\*/g, '').slice(0, 600));
+    const stopListening = () => { if (rec.current) { try { rec.current.abort(); } catch (e) { /* stopped */ } rec.current = null; } };
+
+    const reset = useCallback(() => {
+      tourRun.current++;
+      if (ctl.current) ctl.current.abort();
+      stopListening();
+      if (M.speech) M.speech.stop();
+      pinned.current = false; flight.current = null; target.current = null;
+      setRing(null); setMode('idle'); setAnswer(''); setActs([]); setErr(''); setHeard(''); setQ(''); setStep(-1); setFollowUp(false);
+      bpos.current = null;
+      if (pointerRef.current) pointerRef.current.classList.remove('flying');
+    }, []);
+
+    const voiceOn = () => store.get('buddyVoice') !== '0';
+    const speak = async t => {
+      if (!voiceOn() || !M.speech) return false;
+      return M.speech.say(String(t).replace(/\*\*/g, '').slice(0, 600));
     };
+
+    /* ---------- the tour ---------- */
+    const showStep = useCallback(async (i, list) => {
+      const run = ++tourRun.current;
+      const all = list || stops;
+      if (!all.length) return;
+      let j = Math.max(0, Math.min(all.length - 1, i));
+      const s = all[j];
+      if (M.speech) M.speech.stop();
+      setStep(j); setMode('tour'); setAnswer(M.tour.line(s, ctx)); setErr(''); setActs([]); setRing(null); target.current = null;
+      const saying = speak(M.tour.line(s, ctx));
+      if (s.go && location.hash.split('?')[0] !== s.go) { M.nav(s.go); await wait(520); }
+      if (run !== tourRun.current) return;
+      let el = firstVisible(s.sel);
+      if (!el) { await wait(400); el = firstVisible(s.sel); }
+      if (run !== tourRun.current) return;
+      if (el) await flyTo(el);
+      else setAnchor({x: pos.current.x, y: pos.current.y});
+      if (run !== tourRun.current) return;
+      const said = await saying;
+      if (run !== tourRun.current) return;
+      /* voice on and nobody touched anything: move on by itself */
+      if (said && auto) {
+        await wait(900);
+        if (run !== tourRun.current) return;
+        if (j + 1 < all.length) showStep(j + 1, all); else finishTour('done');
+      }
+    }, [stops, auto, flyTo, ctx]);
+
+    const finishTour = useCallback(how => {
+      M.tour.mark(ctx, how);
+      reset();
+      M.toast(how === 'done' ? 'That is the place. Hold Ctrl and Option to ask me anything' : 'Any time: Me, Prefs, Show me around');
+    }, [ctx, reset]);
+
+    const startTour = useCallback(() => {
+      const list = M.tour.stops(ctx);
+      setStops(list); setHidden(false); store.set('buddyHidden', '0');
+      history.current = [];
+      setTimeout(() => showStep(0, list), 60);
+    }, [ctx, showStep]);
+    useEffect(() => {
+      window.addEventListener('m360:tour', startTour);
+      return () => window.removeEventListener('m360:tour', startTour);
+    }, [startTour]);
+
+    /* a new person gets offered the tour once, on their first sign in */
+    useEffect(() => {
+      if (!ctx.ready || !ctx.member || hidden || mode !== 'idle') return;
+      if (!M.tour.ready(ctx) || M.tour.seen(ctx)) return;
+      if (window.M360_WELCOME_OFF && store.get('forceWelcome') !== '1') return;   /* the QA run asks for it per test */
+      const t = setTimeout(() => {
+        if (modeRef.current !== 'idle') return;
+        const r = homeRef.current ? homeRef.current.getBoundingClientRect() : {left: window.innerWidth - 200, top: window.innerHeight - 80};
+        setAnchor({x: r.left, y: r.top - 10}); setMode('welcome');
+        const nm = String((ctx.member && ctx.member.name) || (ctx.me && ctx.me.name) || 'there').split(' ')[0];
+        setAnswer('Hi ' + nm + ', I am your m360 buddy. Want a two minute tour of the place? I will show you where everything lives.');
+      }, 1800);
+      return () => clearTimeout(t);
+    }, [ctx.ready, ctx.member, M.tour.ready(ctx), hidden, mode]);
 
     const openAt = (x, y) => {
-      setAnchor({x, y}); setMode('asking'); setAnswer(''); setActs([]); setErr('');
+      setAnchor({x, y}); setMode('asking'); setAnswer(''); setActs([]); setErr(''); setFollowUp(false);
     };
+
+    /* ---------- listening: hold to talk, and the follow up after an answer ---------- */
+    const listen = useCallback(({follow}) => {
+      const S = SR();
+      if (!S) return false;
+      stopListening();
+      let finalText = '', timer = 0;
+      const arm = ms => { clearTimeout(timer); timer = setTimeout(() => { if (rec.current === r) { try { r.stop(); } catch (e) { /* stopped */ } } }, ms); };
+      const r = new S();
+      r.lang = 'en-IN'; r.interimResults = true; r.continuous = true;
+      r.onresult = ev => {
+        let t = '';
+        for (let i = 0; i < ev.results.length; i++) t += ev.results[i][0].transcript;
+        finalText = t; setHeard(t);
+        if (M.speech && M.speech.speaking()) M.speech.stop();   /* they cut in: let them */
+        if (follow) arm(1800);
+      };
+      r.onerror = ev => {
+        if (ev && (ev.error === 'not-allowed' || ev.error === 'service-not-allowed' || ev.error === 'audio-capture')) {
+          spoke.current = false; rec.current = null; openAt(pos.current.x, pos.current.y);
+          M.toast('Voice is off here. Type instead');
+        }
+      };
+      r.onend = () => {
+        clearTimeout(timer);
+        if (rec.current !== r) return;
+        rec.current = null;
+        if (finalText.trim()) { spoke.current = true; askRef.current(finalText); }
+        else if (follow) { setFollowUp(false); setHeard(''); }
+        else setMode('asking');
+      };
+      try { rec.current = r; r.start(); } catch (e) { rec.current = null; return false; }
+      if (follow) { setFollowUp(true); arm(6000); } else { setMode('listening'); setHeard(''); }
+      return true;
+    }, []);
 
     /* ---------- ask ---------- */
     async function ask(text) {
       const question = String(text || '').trim();
       if (!question) { setMode('asking'); return; }
-      setMode('thinking'); setAnswer(''); setActs([]); setErr(''); setRing(null); target.current = null;
+      stopListening();
+      if (M.speech) M.speech.stop();
+      setMode('thinking'); setAnswer(''); setActs([]); setErr(''); setRing(null); setFollowUp(false); target.current = null;
       const c = new AbortController(); ctl.current = c;
       try {
         const nm = await M.ai.names(ctx);
@@ -11015,102 +11285,142 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         const here = M.resolveRoute ? M.resolveRoute(M.parseHash().page, null, ctx.isFounder) : {s: ''};
         let screen = scan();
         const log = a => setActs(xs => [...xs, a]);
+        const point = async (id, say) => {
+          const el = findEl(id);
+          if (!el) throw new Error('no element with that id on screen now');
+          await flyTo(el);
+          if (say) setAnswer(String(say));
+          return el;
+        };
         const tools = [{
           name: 'point_at',
-          description: 'Fly the cursor buddy to one element on screen and ring it, with a short caption. Use it to show the person exactly where to look or click. Returns "pointed".',
+          description: 'Fly the cursor buddy to one element on screen and ring it, with a short caption. Use it to show the person exactly where to look. Returns "pointed".',
           inputSchema: {type: 'object', properties: {id: {type: 'string', description: 'An element id from the SCREEN list, like e12'}, say: {type: 'string', description: 'Caption under 12 words'}}, required: ['id']},
-          execute: async (input) => {
-            const el = findEl(input.id);
-            if (!el) throw new Error('no element with that id on screen now');
-            el.scrollIntoView({block: 'center', behavior: reduced() ? 'auto' : 'smooth'});
-            await new Promise(r => setTimeout(r, reduced() ? 30 : 320));
-            const r = el.getBoundingClientRect();
-            target.current = el;
-            await fly(Math.min(window.innerWidth - 30, r.left + Math.min(r.width * .5, 60)), r.top + r.height * .6);
-            setAnchor({x: pos.current.x, y: pos.current.y});
-            if (input.say) setAnswer(String(input.say));
-            return 'pointed';
-          }
+          execute: async input => { await point(input.id, input.say); return 'pointed'; }
         }, {
           name: 'go_to',
-          description: 'Open another part of m360 so you can point at something there. Returns the new SCREEN list.',
+          description: 'Open another part of m360 so you can point at or use something there. Returns the new SCREEN list.',
           inputSchema: {type: 'object', properties: {section: {type: 'string', enum: SECTIONS}}, required: ['section']},
-          execute: async (input) => {
+          execute: async input => {
             const s = String(input.section || '');
             if (SECTIONS.indexOf(s) < 0) throw new Error('unknown section');
-            if (!ctx.isFounder && ['hq', 'command', 'admin'].indexOf(s) >= 0) throw new Error('that section is for Kaavish only');
-            M.nav('#' + s);
-            await new Promise(r => setTimeout(r, 450));
+            if (!ctx.isFounder && FOUNDER_ONLY.indexOf(s) >= 0) throw new Error('that section is for Kaavish only');
+            M.nav('#' + s); log('opened ' + s);
+            await wait(450);
             screen = scan();
             return screen.slice(0, 9000);
           }
+        }, {
+          name: 'click',
+          description: 'Fly to a button, tab or link and press it for the person, when they asked you to do something (open, create, start, switch). Risky controls (delete, remove, offboard, restore, approve, sign out) are only pointed at, never pressed. Returns the SCREEN list after the click, so you can keep going.',
+          inputSchema: {type: 'object', properties: {id: {type: 'string', description: 'An element id from the SCREEN list'}, say: {type: 'string', description: 'What you are doing, under 10 words'}}, required: ['id']},
+          execute: async input => {
+            const el = await point(input.id, input.say);
+            if (risky(el)) { log('pointed, this one is for their own hand'); return 'not pressed: that control is theirs to press. Pointed at it. Tell them to press it.'; }
+            await tap();
+            el.click(); log('pressed ' + ((el.getAttribute('aria-label') || el.innerText || '').trim().slice(0, 30) || 'it'));
+            await wait(480);
+            screen = scan();
+            return 'pressed. SCREEN now:\n' + screen.slice(0, 9000);
+          }
+        }, {
+          name: 'type_into',
+          description: 'Fly to a field and type text into it for the person. Never presses Enter or submits. Returns "typed".',
+          inputSchema: {type: 'object', properties: {id: {type: 'string', description: 'A field id from the SCREEN list'}, text: {type: 'string'}}, required: ['id', 'text']},
+          execute: async input => {
+            const el = await point(input.id, '');
+            if (!el.matches('input, textarea')) throw new Error('not a text field');
+            await tap();
+            el.focus();
+            const t = String(input.text || '').slice(0, 400);
+            let cur = '';
+            for (const ch of t) { cur += ch; setNative(el, cur); if (!reduced()) await wait(14); }
+            log('typed into ' + ((el.getAttribute('aria-label') || el.placeholder || 'the field').slice(0, 30)));
+            return 'typed';
+          }
         }].concat(M.ai.tools(ctx, nm, log));
         const lim = ctx.sample.limits ? await ctx.sample.limits().catch(() => null) : null;
+        const past = history.current.slice(-6).map(h => (h.role === 'user' ? 'They: ' : 'You: ') + h.content).join('\n');
         const prompt = M.ai.VOICE +
           'You are the m360 cursor buddy. You live next to the person\'s mouse cursor inside the m360 OS and help them use it. ' +
           'They are ' + (nm[ctx.uid] || 'a teammate') + (ctx.isFounder ? ', the founder' : '') + '. They are on the ' + (here.s || 'home') + ' section.\n' +
-          'Rules: answer the way a sharp, warm colleague would say it out loud: one to three short sentences, contractions, plain words, a little warmth, no lists, no headings, no markdown. When the answer lives on screen, or they ask where or how, call point_at FIRST with the best element id, ' +
-          'then answer. If it lives in another section, call go_to, then point_at. Never invent ids. You never click for them. ' +
+          'Rules: answer the way a sharp, warm colleague would say it out loud: one to three short sentences, contractions, plain words, a little warmth, no lists, no headings, no markdown. ' +
+          'When the answer lives on screen, or they ask where or how, call point_at FIRST with the best element id, then answer. If it lives in another section, call go_to, then point_at. ' +
+          'When they ask you to do something (open, create, start, switch, fill), do it: click and type_into, step by step, reading the SCREEN each tool returns, then tell them in one line what you did. ' +
+          'Never press a risky control; point at it and say so. Never invent ids. ' +
           'When they ask you to create or move a task, use those tools and confirm in one line.\n\n' +
+          (past ? 'EARLIER IN THIS CHAT:\n' + past + '\n\n' : '') +
           'SCREEN (id | kind | label | area):\n' + screen.slice(0, 9000) + '\n\nTHEIR DATA:\n' + data.slice(0, 16000) + '\n\nTHEY SAID: ' + question;
         const out = await ctx.sample(prompt, {signal: c.signal, modelTier: 'quick', tools: lim && lim.tools ? tools.slice(0, (lim.tools.maxCount && lim.tools.maxCount > 0) ? lim.tools.maxCount : tools.length) : undefined,
           onText: ({text: t}) => setAnswer(t.replace(/\u2014|\u2013/g, ', '))});
         const final = out.text.replace(/\u2014|\u2013/g, ', ');
-        setAnswer(final); setMode('answer'); speak(final);
+        history.current.push({role: 'user', content: question}, {role: 'assistant', content: final.slice(0, 300)});
+        setAnswer(final); setMode('answer');
+        if (spoke.current && voiceOn()) {
+          const said = await speak(final);
+          /* they spoke to it, so it keeps an ear open for a follow up */
+          if (said && modeRef.current === 'answer' && store.get('buddyFollow') !== '0') listen({follow: true});
+        }
       } catch (e) {
         const code = (e && e.code) || 'upstream_error';
         if (code === 'cancelled') return;
         setErr(M.ai.errCopy(code)); setMode('answer');
       }
     }
-
     askRef.current = ask;
 
     /* ---------- voice: hold Ctrl + Option (Ctrl + Alt) ---------- */
     useEffect(() => {
       if (!on || hidden) return;
-      let holding = false, finalText = '';
+      let holding = false;
       const start = () => {
-        holding = true; finalText = ''; spoke.current = true;
+        holding = true; spoke.current = true;
         reset();
         setAnchor({x: pos.current.x, y: pos.current.y});
-        const S = SR();
-        if (!S) { spoke.current = false; openAt(pos.current.x, pos.current.y); return; }
-        try {
-          const r = new S();
-          r.lang = 'en-IN'; r.interimResults = true; r.continuous = true;
-          r.onresult = ev => {
-            let t = '';
-            for (let i = 0; i < ev.results.length; i++) t += ev.results[i][0].transcript;
-            finalText = t; setHeard(t);
-          };
-          r.onerror = ev => {
-            if (ev && (ev.error === 'not-allowed' || ev.error === 'service-not-allowed' || ev.error === 'audio-capture')) {
-              spoke.current = false; rec.current = null; openAt(pos.current.x, pos.current.y);
-              M.toast('Voice is off here. Type instead');
-            }
-          };
-          rec.current = r; r.start(); setMode('listening');
-        } catch (e) { spoke.current = false; openAt(pos.current.x, pos.current.y); }
+        if (!listen({follow: false})) { spoke.current = false; openAt(pos.current.x, pos.current.y); }
       };
       const stop = () => {
         if (!holding) return;
         holding = false;
-        if (rec.current) {
-          try { rec.current.stop(); } catch (e) { /* stopped */ }
-          rec.current = null;
-          setTimeout(() => { if (finalText.trim()) askRef.current(finalText); else setMode('asking'); }, 250);
-        }
+        if (rec.current) { try { rec.current.stop(); } catch (e) { /* stopped */ } }
       };
       const down = e => { if (e.ctrlKey && e.altKey && !holding && !e.repeat && (e.key === 'Control' || e.key === 'Alt')) { e.preventDefault(); start(); } };
       const up = e => { if (holding && (e.key === 'Control' || e.key === 'Alt')) stop(); };
       const esc = e => { if (e.key === 'Escape') reset(); };
       window.addEventListener('keydown', down); window.addEventListener('keyup', up); window.addEventListener('keydown', esc);
       return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('keydown', esc); };
-    }, [on, hidden, reset]);
+    }, [on, hidden, reset, listen]);
 
-    if (!on && mode !== 'tour') return null;
+    /* a test and script hook: M.buddy.run('click', {id}) etc, and the tour */
+    useEffect(() => {
+      M.buddy = {
+        tour: {start: startTour, next: () => showStep(step + 1), stop: () => finishTour('skipped'), step: () => step, count: () => stops.length},
+        ask: t => askRef.current(t),
+        reset,
+        scan,
+        state: () => ({mode, step, stops: stops.length, ring: !!ring, talking, followUp, hidden, flying: !!flight.current, pinned: pinned.current}),
+        pos: () => ({x: pos.current.x, y: pos.current.y})
+      };
+    });
 
+    if (!on && mode !== 'tour' && mode !== 'welcome') return null;
+
+    /* the button: tap to type; hold (phones, or anyone) to talk */
+    const homeDown = e => {
+      if (mode !== 'idle') return;
+      holdTimer.current = setTimeout(() => {
+        holdTimer.current = 0;
+        spoke.current = true;
+        const r = homeRef.current ? homeRef.current.getBoundingClientRect() : {left: window.innerWidth - 200, top: window.innerHeight - 80};
+        setAnchor({x: r.left, y: r.top - 10});
+        if (!listen({follow: false})) { spoke.current = false; openAt(r.left, r.top - 10); }
+        M.sound.play('start');
+      }, 380);
+    };
+    const homeUp = () => {
+      if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = 0; tapHome(); return; }
+      if (rec.current && mode === 'listening') { try { rec.current.stop(); } catch (e) { /* stopped */ } }
+    };
     const tapHome = () => {
       if (mode !== 'idle') { reset(); return; }
       spoke.current = false;
@@ -11124,45 +11434,58 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const left = Math.max(16, Math.min(window.innerWidth - bw - 16, ax + 22));
     const below = ay + 30;
     const top = below + 190 > window.innerHeight ? Math.max(16, ay - 200) : below;
+    const showPointer = !hidden && !(coarse() && !fine() && mode === 'idle');
+    const cls = 'buddy' + (mode === 'listening' || followUp ? ' listening' : '') + (mode === 'thinking' ? ' thinking' : '') + (talking ? ' talking' : '');
+    const stopHere = stops[step];
 
     return html`<div>
-      ${!hidden ? html`<div ref=${pointerRef} class=${'buddy' + (mode === 'listening' ? ' listening' : '')}
-        style=${coarse() && !matchMedia('(pointer: fine)').matches && mode === 'idle' ? {display: 'none'} : null}><${Pointer}/></div>` : null}
+      ${showPointer ? html`<div ref=${el => { trailRef.current[1] = el; }} class="buddy-trail"/><div ref=${el => { trailRef.current[0] = el; }} class="buddy-trail"/>` : null}
+      ${showPointer ? html`<div ref=${pointerRef} class=${cls}><${Face}/></div>` : null}
       ${ring ? html`<div class="buddy-ring" style=${{left: ring.left + 'px', top: ring.top + 'px', width: ring.width + 'px', height: ring.height + 'px'}}/>` : null}
-      ${mode !== 'idle' ? html`<div class="buddy-bubble" role="dialog" aria-label="Ask m360" style=${{left: left + 'px', top: top + 'px'}}>
+      ${mode !== 'idle' ? html`<div ref=${bubbleRef} class=${'buddy-bubble' + (mode === 'tour' ? ' tour' : '')} role="dialog" aria-label="Ask m360" style=${{left: left + 'px', top: top + 'px'}}>
         <div class="row between" style=${{marginBottom: '8px'}}>
-          <span class="micro">${mode === 'listening' ? 'listening, let go to send' : mode === 'thinking' ? 'thinking' : mode === 'tour' ? 'the tour' : 'ask m360'}</span>
-          <button type="button" class="iconbtn" style=${{color: '#fff', width: '26px', height: '26px'}} aria-label="Close" onClick=${reset}><${M.icons.x}/></button>
+          <span class="micro">${mode === 'listening' ? 'listening, let go to send' : mode === 'thinking' ? 'thinking' : mode === 'tour' ? (stopHere ? stopHere.title : 'the tour') : mode === 'welcome' ? 'hello' : followUp ? 'listening for a follow up' : 'ask m360'}</span>
+          <button type="button" class="iconbtn" style=${{color: '#fff', width: '26px', height: '26px'}} aria-label="Close" onClick=${mode === 'tour' ? () => finishTour('skipped') : mode === 'welcome' ? () => { M.tour.mark(ctx, 'asked'); reset(); } : reset}><${M.icons.x}/></button>
         </div>
         ${mode === 'listening' ? html`<div style=${{fontWeight: 500, minHeight: '22px'}}>${heard || 'Go ahead, I\'m listening.'}</div>` : null}
         ${mode === 'asking' ? html`<div class="stack tight">
-          <input id="buddy-input" class="input" value=${q} autoFocus=${true} placeholder="Where do I check in? What's overdue?"
+          <input id="buddy-input" class="input" value=${q} autoFocus=${true} placeholder="Where do I check in? Open a new task for me."
             onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') ask(q); }} aria-label="Ask m360"/>
-          <div class="row between"><span class="tiny" style=${{color: 'rgba(255,255,255,.6)'}}>Hold Ctrl + Option to talk</span>
+          <div class="row between"><span class="tiny" style=${{color: 'rgba(255,255,255,.6)'}}>${coarse() && !fine() ? 'Hold the button to talk' : 'Hold Ctrl + Option to talk'}</span>
             <span class="row nowrap">
               ${M.parts.MicButton ? html`<${M.parts.MicButton} sm=${true} label="Talk" onText=${t => { spoke.current = true; ask(t); }}/>` : null}
               <button type="button" class="btn on-dark sm" disabled=${!q.trim()} onClick=${() => ask(q)}>Ask</button>
             </span></div>
+          <button type="button" class="linky tiny" style=${{alignSelf: 'flex-start'}} onClick=${startTour}>Show me around</button>
         </div>` : null}
         ${mode === 'thinking' && !answer ? html`<${M.Thinking} label="Looking at your screen"/>` : null}
+        ${answer && mode !== 'listening' ? html`<${M.AIText} text=${answer}/>` : null}
         ${mode === 'tour' ? html`<div class="row between" style=${{marginTop: '10px'}}>
-          <span class="tiny" style=${{color: 'rgba(255,255,255,.6)'}}>${step + 1} of ${TOUR.length}</span>
-          <span class="row nowrap">
-            <button type="button" class="linky tiny" onClick=${reset}>Skip</button>
-            <button type="button" class="btn on-dark sm" onClick=${() => step + 1 < TOUR.length ? showStep(step + 1) : (reset(), M.toast('Enjoy m360'))}>${step + 1 < TOUR.length ? 'Next' : 'Done'}</button>
+          <span class="tiny" style=${{color: 'rgba(255,255,255,.6)'}}>${step + 1} of ${stops.length}</span>
+          <span class="row nowrap" style=${{gap: '6px'}}>
+            <button type="button" class="linky tiny" aria-pressed=${auto} title="Move on by itself after each line" onClick=${() => { const v = !auto; setAuto(v); store.set('buddyAuto', v ? '1' : '0'); }}>${auto ? 'Auto on' : 'Auto off'}</button>
+            ${step > 0 ? html`<button type="button" class="linky tiny" onClick=${() => showStep(step - 1)}>Back</button>` : null}
+            <button type="button" class="linky tiny" onClick=${() => finishTour('skipped')}>Skip</button>
+            <button type="button" class="btn on-dark sm" onClick=${() => step + 1 < stops.length ? showStep(step + 1) : finishTour('done')}>${step + 1 < stops.length ? 'Next' : 'Done'}</button>
           </span>
         </div>` : null}
-        ${answer ? html`<${M.AIText} text=${answer}/>` : null}
+        ${mode === 'welcome' ? html`<div class="row" style=${{marginTop: '10px', gap: '8px'}}>
+          <button type="button" class="btn on-dark sm" id="tour-yes" onClick=${startTour}>Show me around</button>
+          <button type="button" class="linky tiny" id="tour-later" onClick=${() => { M.tour.mark(ctx, 'asked'); reset(); }}>Later</button>
+        </div>` : null}
         ${acts.map((a, i) => html`<div key=${i} class="tiny" style=${{marginTop: '6px'}}><span class="spark">${SPARK}</span> ${a}</div>`)}
         ${err ? html`<div class="small flame-t" style=${{marginTop: '6px'}}>${err}</div>` : null}
+        ${followUp ? html`<div class="tiny" style=${{marginTop: '6px', color: 'rgba(255,255,255,.7)'}}>${heard || 'Say more, or say nothing.'}</div>` : null}
         ${mode === 'answer' ? html`<div class="row" style=${{marginTop: '10px', gap: '14px'}}>
-          <button type="button" class="linky tiny" onClick=${() => { setQ(''); setMode('asking'); }}>Ask another</button>
+          <button type="button" class="linky tiny" onClick=${() => { stopListening(); setFollowUp(false); setQ(''); setMode('asking'); }}>Ask another</button>
           <button type="button" class="linky tiny" onClick=${() => { reset(); onOpenChat && onOpenChat(); }}>Open full chat</button>
           <button type="button" class="linky tiny" onClick=${() => { store.set('buddyHidden', hidden ? '0' : '1'); setHidden(!hidden); reset(); }}>${hidden ? 'Show pointer' : 'Hide pointer'}</button>
         </div>` : null}
       </div>` : null}
-      <button ref=${homeRef} type="button" class="buddy-home" onClick=${tapHome} aria-label="Ask m360">
-        <span style=${{color: 'var(--flame)', fontSize: '16px'}} aria-hidden="true">${SPARK}</span> <span class="lbl">Ask m360</span> <span class="k">hold ⌃⌥</span>
+      <button ref=${homeRef} type="button" class=${'buddy-home' + (mode === 'listening' ? ' live' : '')} aria-label="Ask m360"
+        onPointerDown=${homeDown} onPointerUp=${homeUp} onPointerCancel=${() => { if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = 0; } }}
+        onKeyDown=${e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tapHome(); } }} onContextMenu=${e => e.preventDefault()}>
+        <span style=${{color: 'var(--flame)', fontSize: '16px'}} aria-hidden="true">${SPARK}</span> <span class="lbl">Ask m360</span> <span class="k">${coarse() && !fine() ? 'hold to talk' : 'hold ⌃⌥'}</span>
       </button>
     </div>`;
   }
@@ -15735,17 +16058,25 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 /* ==== 80-voice.js ==== */
 /* module: voice. How m360 speaks. On EdgeOne with a voice set up in Admin, lines come back from the
    server as audio (a natural, warm voice). Everywhere else the browser's best voice is picked and the
-   line is read in sentences, so it breathes. One line at a time; a new line stops the old one. */
+   line is read in sentences, so it breathes. One line at a time; a new line stops the old one.
+   say() resolves when the line has been heard to the end (or was cut off), so the buddy can move its
+   mouth while it talks and the tour can move on by itself. */
 'use strict';
 (function () {
   const GOOD = ['samantha', 'karen', 'moira', 'tessa', 'fiona', 'aria', 'jenny', 'sonia', 'libby', 'neerja', 'natasha', 'google uk english female', 'google us english', 'zira', 'susan', 'ava', 'allison', 'serena', 'kate'];
-  let audio = null, serverOn = null, voicesCache = null, checkedAt = 0;
+  let audio = null, serverOn = null, voicesCache = null, checkedAt = 0, speaking = false, seq = 0;
 
   function browserVoices() {
     try { const v = window.speechSynthesis ? window.speechSynthesis.getVoices() : []; if (v && v.length) voicesCache = v; } catch (e) { /* none */ }
     return voicesCache || [];
   }
   try { if (window.speechSynthesis) { browserVoices(); window.speechSynthesis.addEventListener('voiceschanged', browserVoices); } } catch (e) { /* none */ }
+
+  const state = on => {
+    if (speaking === on) return;
+    speaking = on;
+    try { window.dispatchEvent(new CustomEvent('m360:speech', {detail: {on}})); } catch (e) { /* none */ }
+  };
 
   /* the most human sounding voice this browser has */
   function pick() {
@@ -15764,25 +16095,35 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   }
 
   function stop() {
+    seq++;
     try { if (audio) { audio.pause(); audio.src = ''; audio = null; } } catch (e) { /* gone */ }
     try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* none */ }
+    state(false);
   }
 
-  function sayInBrowser(text) {
-    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return false;
+  /* resolves when the last sentence ends; a stop() in between resolves early */
+  function sayInBrowser(text, my) {
+    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return Promise.resolve(false);
     const v = pick();
     const parts = String(text).split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
-    parts.forEach((p, i) => {
-      const u = new SpeechSynthesisUtterance(p);
-      if (v) { u.voice = v; u.lang = v.lang; }
-      u.rate = .98; u.pitch = 1.04; u.volume = 1;
-      if (i) u.onstart = null;
-      window.speechSynthesis.speak(u);
+    if (!parts.length) return Promise.resolve(false);
+    return new Promise(res => {
+      let left = parts.length, done = false;
+      const finish = () => { if (done) return; done = true; if (seq === my) state(false); res(true); };
+      const guard = setTimeout(finish, 1200 + text.length * 90);
+      parts.forEach((p, i) => {
+        const u = new SpeechSynthesisUtterance(p);
+        if (v) { u.voice = v; u.lang = v.lang; }
+        u.rate = .98; u.pitch = 1.04; u.volume = 1;
+        if (i === 0) u.onstart = () => { if (seq === my) state(true); };
+        u.onend = u.onerror = () => { if (--left <= 0) { clearTimeout(guard); finish(); } };
+        window.speechSynthesis.speak(u);
+      });
+      state(true);
     });
-    return true;
   }
 
-  async function sayFromServer(text) {
+  async function sayFromServer(text, my) {
     if (!window.M360_STANDALONE || typeof window.M360_API !== 'function') return false;
     /* a no from the server is trusted for five minutes, then asked again (a voice may have been set up meanwhile) */
     if (serverOn === false && Date.now() - checkedAt < 300000) return false;
@@ -15790,12 +16131,18 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const r = await window.M360_API('speak', {text});
       if (!r || !r.audio) { serverOn = false; checkedAt = Date.now(); return false; }
       serverOn = true; checkedAt = Date.now();
+      if (seq !== my) return true;
       const bytes = Uint8Array.from(atob(r.audio), c => c.charCodeAt(0));
       const url = URL.createObjectURL(new Blob([bytes], {type: r.mime || 'audio/mpeg'}));
-      stop();
-      audio = new Audio(url);
-      audio.onended = () => { URL.revokeObjectURL(url); };
-      await audio.play();
+      const a = new Audio(url);
+      audio = a;
+      await new Promise(res => {
+        a.onended = () => { URL.revokeObjectURL(url); if (audio === a) { audio = null; state(false); } res(); };
+        a.onerror = () => { URL.revokeObjectURL(url); if (audio === a) { audio = null; state(false); } res(); };
+        a.onpause = () => { if (audio !== a) res(); };
+        state(true);
+        a.play().catch(() => { state(false); res(); });
+      });
       return true;
     } catch (e) {
       if (e && (e.code === 'voice_off' || e.status === 404)) { serverOn = false; checkedAt = Date.now(); }
@@ -15806,15 +16153,19 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   const clean = t => String(t || '').replace(/[*_`#>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 600);
 
   M.speech = {
+    /* resolves true when something was said and finished, false when nothing could speak */
     say: async text => {
       const t = clean(text);
-      if (!t) return;
+      if (!t) return false;
       stop();
-      if (await sayFromServer(t)) return;
-      sayInBrowser(t);
+      const my = seq;
+      if (await sayFromServer(t, my)) return true;
+      if (seq !== my) return false;
+      return sayInBrowser(t, my);
     },
     stop,
     pick,
+    speaking: () => speaking,
     voices: browserVoices,
     /* the page asks once whether the server has a voice; the answer also refreshes after Admin saves one */
     refresh: async () => {
