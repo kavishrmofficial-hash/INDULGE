@@ -77,15 +77,16 @@
       const bytes = Uint8Array.from(atob(r.audio), c => c.charCodeAt(0));
       const url = URL.createObjectURL(new Blob([bytes], {type: r.mime || 'audio/mpeg'}));
       const a = new Audio(url);
+      let blocked = false;
       audio = a;
       await new Promise(res => {
         a.onended = () => { URL.revokeObjectURL(url); if (audio === a) { audio = null; state(false); } res(); };
         a.onerror = () => { URL.revokeObjectURL(url); if (audio === a) { audio = null; state(false); } res(); };
         a.onpause = () => { if (audio !== a) res(); };
         state(true);
-        a.play().catch(() => { state(false); res(); });
+        a.play().catch(() => { state(false); blocked = true; res(); });
       });
-      return true;
+      return !blocked;
     } catch (e) {
       if (e && (e.code === 'voice_off' || e.status === 404)) { serverOn = false; checkedAt = Date.now(); }
       return false;

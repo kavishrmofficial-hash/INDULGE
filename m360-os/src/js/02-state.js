@@ -47,6 +47,10 @@
     const viewAs = React.useSyncExternalStore(M.viewAs.subscribe, M.viewAs.get, M.viewAs.get);
     const uid = viewAs || realUid;
     const baseW = React.useMemo(() => M.makeWrites(db), [db]);
+    /* private per-user docs (own state; founder: keeper and finance); part of ctx so a change re-renders */
+    const privState = M.useDoc(db, 'data/users/' + uid + '/state');
+    const privKeeper = M.useDoc(db, me.isOwner ? 'data/users/' + uid + '/keeper' : null);
+    const privFinance = M.useDoc(db, me.isOwner ? 'data/users/' + uid + '/finance' : null);
 
     const rosterDoc = M.useDoc(db, 'roster/team');
     const settingsDoc = M.useDoc(db, 'settings/app');
@@ -87,7 +91,7 @@
     const seeded = React.useRef(false);
     React.useEffect(() => {
       if (!rosterDoc.ready || seeded.current) return;
-      if (me.isOwner && !rosterDoc.data) {
+      if (me.isOwner && !rosterDoc.data && !rosterDoc.err) {
         seeded.current = true;
         baseW.set('roster/team', {
           members: {[realUid]: {role: 'founder', empId: 'M360-001', title: 'Founder', pod: '',
@@ -133,7 +137,8 @@
         }
         leaveMap[lu] = set;
       }
-      const onLeave = (u, date) => !!(leaveMap[u] && leaveMap[u].has(date));
+      const onLeave = (u, date) => !!((leaveMap[u] && leaveMap[u].has(date)) ||
+        (coll.checkin && ((((coll.checkin.map[u] || {}).days || {})[date] || {}).mode === 'leave')));
       const isWorkingDay = (date, u) => {
         const d = U.parseYmd(date);
         if (d.getDay() === 0) return false;
@@ -150,18 +155,12 @@
       const canSee = u => isFounder || u === uid;
 
       return {db, user, mcp, downloads, permissions, sample, room, me, uid, realUid, viewAs, W,
+        priv: {state: privState, keeper: isFounder ? privKeeper : {ready: true, data: null}, finance: isFounder ? privFinance : {ready: true, data: null}},
         ready: rosterDoc.ready && settingsDoc.ready,
         roster, members, member, activeMembers, isFounder, founderUid, locked,
         settings, holidays, coll, leaveMap, onLeave, isWorkingDay, startFor, canSee, now, online};
     }, [rosterDoc, settingsDoc, me, uid, realUid, viewAs, isFounder, locked, W, now, online, coll.join,
-      ...COLLS.map(c => coll[c])]);
-
-    /* private per-user docs (own state; founder: keeper and finance) */
-    ctx.priv = {
-      state: M.useDoc(db, 'data/users/' + uid + '/state'),
-      keeper: M.useDoc(db, ctx.isFounder ? 'data/users/' + uid + '/keeper' : null),
-      finance: M.useDoc(db, ctx.isFounder ? 'data/users/' + uid + '/finance' : null)
-    };
+      privState, privKeeper, privFinance, ...COLLS.map(c => coll[c])]);
 
     /* rules engine output, computed each render pass */
     ctx.flags = (M.rules && M.rules.evaluate) ? M.rules.evaluate(ctx, new Date()) : [];

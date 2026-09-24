@@ -22,6 +22,8 @@ export function publicHost(url) {
   const h = u.hostname.toLowerCase();
   if (!h || h.indexOf('.') < 0 || h[0] === '[' || h.indexOf(':') >= 0) return '';
   if (h === 'localhost' || /\.(localhost|local|internal|home|lan)$/.test(h)) return '';
+  /* wildcard DNS services resolve any name to the address inside it, so they can point at private space */
+  if (/\.(nip\.io|sslip\.io|xip\.io|localtest\.me|lvh\.me|traefik\.me)$/.test(h)) return '';
   const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
   if (m) {
     const a = +m[1], b = +m[2];

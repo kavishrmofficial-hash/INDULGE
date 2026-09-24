@@ -356,6 +356,9 @@
           const id = pick(screen, /^New$/i);
           const out = id ? await tools.find(x => x.name === 'click').execute({id, say: 'Opening New'}, sig) : 'no New';
           said = /^pressed/.test(out) ? 'Opened New for you. Pick what you want to make.' : 'I could not find New.';
+        } else if (/close this/i.test(last)) {
+          const out = await tools.find(x => x.name === 'press_key').execute({key: 'Escape'}, sig);
+          said = /^pressed/.test(out) ? 'Closed it.' : 'Nothing to close.';
         } else if (/press delete/i.test(last)) {
           const id = pick(screen, /^Delete/i);
           const out = id ? await tools.find(x => x.name === 'click').execute({id, say: 'This one'}, sig) : 'no Delete';

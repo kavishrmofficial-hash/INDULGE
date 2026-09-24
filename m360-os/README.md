@@ -117,6 +117,16 @@ Publish `dist/index.html` with the Artifact tool, title "m360 OS", with the capa
 - **The buddy, rebuilt**: a flame character with a face that looks where it is going, rides the mouse on a spring with a trail, flies to controls on an arc and lands with a pop, and talks with its mouth moving. The bubble rides along on a leash and holds still under your hand. It now does things when asked: `click` and `type_into` tools (never on delete, remove, offboard, restore, approve or sign out, those it points at), keeps the last few turns of the chat, listens for a follow up after a spoken answer, and takes a hold on the Ask m360 button as talk on phones.
 - **The voice** resolves when a line has been heard, so the tour and the mouth stay in step. Server lines are cached for 30 days, so the ElevenLabs free tier covers a team.
 
+## The launch audit (v9.2)
+
+Three reviewers read the buddy, the server and the data flow between features; the findings that mattered are fixed:
+
+- **Server**: an invite for an email that already has a login is refused, and accepting an invite can never take over an existing account or the owner. Every link in an email (invite, sign-in, reset) is built from the address the request came to, never from the caller. A reset code try is counted before it is checked, so parallel guesses cannot beat the limit. Unknown action names never reach built-in object methods. The client brain refuses wildcard DNS hosts that resolve into private address space.
+- **Data**: a failed first load on EdgeOne is retried instead of running the page on an empty copy (which could have rewritten the roster); merge only creates a document when it is truly missing, never on a refused write. Un-voting an idea keeps your poll votes. Leave marked from Admin counts as leave for check-ins, rules and streaks. A client saved with a company links the company back. The AI's task moves do the same bookkeeping as a hand move. Private docs (state, keeper, finance) now re-render the moment they change.
+- **Buddy and chat**: its own Escape press never closes it; the welcome offer is answered by Escape too; a closed bubble stops every tool; the tools are chosen by what you asked so a host cap never drops the one you need; a blocked audio play falls back to the browser voice; the shared chat thread unsubscribes properly and stays quiet in preview.
+
+Still open, none of them launch blockers: a second person with Full access shares some founder-only paths with the owner (keep Full access for Kaavish only for now); the activity log is pruned by hand from Admin > Log; anyone allowed to ask to join can see the roster names while waiting (set Admin > Team > joining to invite only if that matters); admins can see other people's private docs through version history and backups.
+
 ## Launch day
 
 1. Admin > Team: invite each person by email. They get a link, type their email and pick a password. Without an email key the invite shows a link to copy instead.

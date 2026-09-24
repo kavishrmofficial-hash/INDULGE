@@ -686,16 +686,19 @@ export function createApp({store, env = {}}) {
       return {ok: true, email};
     },
     /* the founder (or full access) invites by email; the person opens the link, confirms that email, and is on the team */
-    async invite(v, body) {
+    async invite(v, body, req) {
       if (!v || (await levelOf(v.uid)) < LEVEL.admin) throw new HttpError(403, 'invalid_argument');
       const email = cleanEmail(body.email);
       if (!email) throw new HttpError(400, 'invalid_argument', 'That email does not look right.');
       const name = cleanName(body.name), title = cleanName(body.title);
       const role = ['member', 'lead', 'founder'].includes(body.role) ? body.role : 'member';
+      /* someone who already has a login is never re-invited: an invite would let its holder set that person's password */
+      const already = await getJ(emailKey(email));
+      if (already && already.uid && (await getJ('w/' + already.uid))) throw new HttpError(409, 'already_here', 'That person already has a login. If they cannot sign in, they can ask for a reset code on the sign-in screen.');
       const code = rand(32).replace(/[^a-z0-9]/g, '').slice(0, 32);
       const inv = {email, name, title, role, by: v.uid, at: Date.now(), until: Date.now() + INVITE_DAYS * 86400000};
       await putJ('i/' + code, inv);
-      const link = String(body.base || '').replace(/[#?].*$/, '') + '#invite=' + code;
+      const link = req.site + '/#invite=' + code;
       let sent = false, why = '';
       try {
         const by = await getJ('p/' + v.uid);
@@ -704,7 +707,7 @@ export function createApp({store, env = {}}) {
             '\n\nIt works once and is good for ' + INVITE_DAYS + ' days. Open it on the device you use for work; you can add your phone from inside.',
           '<p>' + (name ? 'Hi ' + esc(name) + ',' : 'Hi,') + '</p><p><b>' + esc(by && by.name ? by.name : 'Mask360') + '</b> has added you to <b>m360 OS</b>, the Mask360 workspace.</p>' +
             '<p><a href="' + esc(link) + '" style="display:inline-block;padding:12px 18px;background:#0E0E0E;color:#fff;border-radius:12px;text-decoration:none">Open m360 OS</a></p>' +
-            '<p style="color:#666;font-size:13px">Type this email address to confirm it is you. The link works once and is good for ' + INVITE_DAYS + ' days. Open it on the device you use for work; you can add your phone from inside.</p>', body.base);
+            '<p style="color:#666;font-size:13px">Type this email address to confirm it is you. The link works once and is good for ' + INVITE_DAYS + ' days. Open it on the device you use for work; you can add your phone from inside.</p>', req.site);
       } catch (e) { why = String((e && e.message) || 'mail failed'); }
       await log(v.uid, 'invite', '', role + (title ? ', ' + title : '') + (sent ? ', emailed' : ', link'));
       return {code, link, sent, why};
@@ -748,6 +751,8 @@ export function createApp({store, env = {}}) {
       const known = await getJ(emailKey(inv.email));
       let uid = known && known.uid;
       if (uid && !(await getJ('p/' + uid))) uid = null;
+      if (uid && (await getJ('w/' + uid))) throw new HttpError(409, 'already_here', 'This email already has a login. Sign in with it, or ask for a reset code.');
+      if (uid && uid === (await ownerUid())) throw new HttpError(403, 'invalid_argument', 'no');
       if (!uid) {
         uid = newId();
         await putJ('p/' + uid, {name: inv.name || inv.email.split('@')[0], email: inv.email, at: Date.now()});
@@ -773,7 +778,7 @@ export function createApp({store, env = {}}) {
       return {__cookie: cookie(token), uid};
     },
     /* a sign-in link by email for anyone already on the team, good for 20 minutes */
-    async magic(v, body) {
+    async magic(v, body, req) {
       const email = cleanEmail(body.email);
       if (!email) throw new HttpError(400, 'invalid_argument', 'That email does not look right.');
       if (!(await mailConf())) return {sent: false, nomail: true};
@@ -781,10 +786,10 @@ export function createApp({store, env = {}}) {
       if (!known || !known.uid || !(await getJ('p/' + known.uid))) return {sent: true};
       const code = rand(32).replace(/[^a-z0-9]/g, '').slice(0, 32);
       await putJ('k/' + code, {uid: known.uid, until: Date.now() + MAGIC_MINUTES * 60000});
-      const link = String(body.base || '').replace(/[#?].*$/, '') + '#login=' + code;
+      const link = req.site + '/#login=' + code;
       const life = 'It works once, for ' + MAGIC_MINUTES + ' minutes. If you did not ask for it, ignore this email.';
       await sendMail(email, 'Your m360 OS sign-in link', 'Open this link to sign in to m360 OS:\n' + link + '\n\n' + life,
-        '<p><a href="' + esc(link) + '" style="display:inline-block;padding:12px 18px;background:#0E0E0E;color:#fff;border-radius:12px;text-decoration:none">Sign in to m360 OS</a></p><p style="color:#666;font-size:13px">' + life + '</p>', body.base);
+        '<p><a href="' + esc(link) + '" style="display:inline-block;padding:12px 18px;background:#0E0E0E;color:#fff;border-radius:12px;text-decoration:none">Sign in to m360 OS</a></p><p style="color:#666;font-size:13px">' + life + '</p>', req.site);
       await log(known.uid, 'magic', '', 'link sent');
       return {sent: true, minutes: MAGIC_MINUTES};
     },
@@ -830,14 +835,14 @@ export function createApp({store, env = {}}) {
       return {ok: true};
     },
     /* a 6 digit reset code by email, good for 15 minutes; the answer is the same whether or not the email is known */
-    async reset(v, body) {
+    async reset(v, body, req) {
       const email = cleanEmail(body.email);
       if (!email) throw new HttpError(400, 'invalid_argument', 'That email does not look right.');
       if (!(await mailConf())) return {sent: false, nomail: true};
       const known = await getJ(emailKey(email));
       if (!known || !known.uid || !(await getJ('p/' + known.uid))) return {sent: true};
       const code = await makeCode(known.uid);
-      const where = String(body.base || '').replace(/[#?].*$/, '');
+      const where = req.site + '/';
       const life = 'It works once, for ' + CODE_MINUTES + ' minutes, and ' + CODE_TRIES + ' wrong tries end it. If you did not ask for it, ignore this email.';
       await sendMail(email, 'Your m360 OS reset code', 'Your m360 OS reset code is ' + code + '.\n\nType it on the sign-in screen' + (where ? ' at ' + where : '') + ' together with a new password. ' + life,
         '<p>Your m360 OS reset code is</p><p style="font-size:28px;letter-spacing:.2em;font-weight:600">' + code + '</p><p style="color:#666;font-size:13px">Type it on the sign-in screen' +
@@ -855,10 +860,11 @@ export function createApp({store, env = {}}) {
       const rec = uid ? await getJ('c/' + uid) : null;
       const now = Date.now();
       if (!rec || !(rec.until > now) || !(await getJ('p/' + uid))) throw new HttpError(410, 'expired', 'That code has expired or was never sent. Ask for a new one.');
+      const tries = (Number(rec.tries) || 0) + 1;
+      if (tries > CODE_TRIES) { await store.delete('c/' + uid).catch(() => {}); throw new HttpError(410, 'expired', 'That code has been tried too many times. Ask for a new one.'); }
+      await putJ('c/' + uid, {...rec, tries});
       if (!(await checkSecret(code, rec))) {
-        const tries = (Number(rec.tries) || 0) + 1;
         if (tries >= CODE_TRIES) { await store.delete('c/' + uid).catch(() => {}); throw new HttpError(410, 'expired', 'That code has been tried too many times. Ask for a new one.'); }
-        await putJ('c/' + uid, {...rec, tries});
         throw new HttpError(403, 'bad_code', 'That code does not match. ' + (CODE_TRIES - tries) + (CODE_TRIES - tries === 1 ? ' try' : ' tries') + ' left.');
       }
       await putJ('w/' + uid, {...(await hashSecret(password)), at: now});
@@ -933,13 +939,19 @@ export function createApp({store, env = {}}) {
     if (!/^application\/json\b/i.test(request.headers.get('content-type') || '')) return json({error: {code: 'invalid_argument', message: 'JSON only'}}, 415);
     let body;
     try { body = await request.json(); } catch (e) { return json({error: {code: 'invalid_argument', message: 'bad json'}}, 400); }
-    const fn = actions[body && body.a];
+    const a = body && typeof body.a === 'string' ? body.a : '';
+    const fn = Object.prototype.hasOwnProperty.call(actions, a) ? actions[a] : null;
     if (!fn) return json({error: {code: 'invalid_argument', message: 'unknown action'}}, 400);
+    /* the address links point at is the one this request came to, never one the caller names */
+    let site = '';
+    try { site = new URL(request.url).origin; } catch (e) { site = ''; }
+    const org = request.headers.get('origin');
+    if (org && /^https?:\/\//.test(org)) site = org;
     try {
       const v = await viewer(request);
       /* once a day: the backup and the trash and backup pruning (safety.js); never fails a request */
       if (hooks.upkeep) await hooks.upkeep().catch(() => {});
-      const out = await fn(v, body, {ua: deviceLabel(request.headers.get('user-agent'))});
+      const out = await fn(v, body, {ua: deviceLabel(request.headers.get('user-agent')), site});
       const extra = {};
       if (out && out.__cookie) { extra['set-cookie'] = out.__cookie; delete out.__cookie; }
       return json(out || {}, 200, extra);

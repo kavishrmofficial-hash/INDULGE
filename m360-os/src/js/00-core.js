@@ -199,7 +199,8 @@ M.makeWrites = (db, uidGetter) => {
     update: (p, d) => check('update', p, d) || queued(p, () => db.doc(p).update(d).then(r => { log('update', p, d); return r; })).catch(fail),
     /* merge-or-create: update first, set when the document is missing */
     merge: (p, d) => check('merge', p, d) || queued(p, () => db.doc(p).update(d).then(r => { log('update', p, d); return r; }).catch(e => {
-      if (e && e.code === 'invalid_argument') return db.doc(p).set(d).then(r => { log('set', p, d); return r; });
+      /* only a missing document is created; any other refusal (too large, malformed) is never turned into an overwrite */
+      if (e && (e.code === 'not_found' || (e.code === 'invalid_argument' && /missing/i.test(String(e.message || ''))))) return db.doc(p).set(d).then(r => { log('set', p, d); return r; });
       throw e;
     })).catch(fail),
     del: p => queued(p, () => db.doc(p).delete().then(r => { log('delete', p); return r; })).catch(fail)

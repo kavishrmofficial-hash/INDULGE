@@ -49,7 +49,7 @@
     const fmap = ctx.coll.feed.map;
     for (const author of Object.keys(fmap)) for (const p of (fmap[author].posts || [])) {
       if (p && p.kind === 'announce' && author !== me) push('an:' + p.id, 'feed', p.at || 0, html`${nm(author)} announced: ${String(p.text).slice(0, 90)}`, '#feed', author, true);
-      if (p && p.kind === 'poll' && author !== me && !((p.votes || {})[me])) push('poll:' + p.id, 'feed', p.at || 0, html`${nm(author)} asked: ${String(p.text).slice(0, 80)}`, '#feed', author);
+      if (p && p.kind === 'poll' && author !== me && !((p.votes || {})[me]) && ((((ctx.coll.votes || {}).map || {})[me] || {}).polls || {})[author + ':' + p.id] === undefined) push('poll:' + p.id, 'feed', p.at || 0, html`${nm(author)} asked: ${String(p.text).slice(0, 80)}`, '#feed', author);
     }
     /* founder: joins and leave requests */
     if (ctx.isFounder) {

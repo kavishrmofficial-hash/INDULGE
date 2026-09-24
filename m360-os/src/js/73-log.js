@@ -156,7 +156,7 @@
       try {
         if (window.M360_STANDALONE && typeof window.M360_API === 'function') {
           const r = await window.M360_API('prunelogs', {days: PRUNE_DAYS});
-          M.toast('Cleared ' + ((r && r.deleted) || 0) + ' days of log');
+          M.toast('Cleared ' + ((r && (r.removed || r.deleted)) || 0) + ' documents of log');
         } else {
           const old = await M.logs.read(ctx, {from: '0000-00-00', to: cut});
           const ids = Object.keys(old || {}).filter(id => id.slice(0, 10) < cut);

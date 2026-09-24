@@ -245,9 +245,9 @@
       if (it.voted) {
         const v = {...mine};
         delete v[it.key];
-        W.set('votes/' + uid, {v});
+        W.set('votes/' + uid, {...(votesMap[uid] || {}), v}).catch(() => {});
       } else {
-        W.merge('votes/' + uid, {v: {[it.key]: true}});
+        W.merge('votes/' + uid, {v: {[it.key]: true}}).catch(() => {});
       }
     };
     const setStatus = (it, status) => {

@@ -23,18 +23,23 @@
     ready: false,
     subs: new Set(),
     watched: '',
+    un: null,
     watch(ctx) {
-      const p = chat.path(ctx);
+      /* in preview the founder is not that person: no thread is read or written */
+      const p = ctx.viewAs ? '' : chat.path(ctx);
       if (chat.watched === p || !ctx.db) return;
-      chat.watched = p; chat.ready = false;
+      if (chat.un) { try { chat.un(); } catch (e) { /* gone */ } chat.un = null; }
+      chat.watched = p; chat.turns = []; chat.ready = !p;
+      if (!p) { chat.subs.forEach(f => f()); return; }
       try {
-        ctx.db.doc(p).onSnapshot(d => { chat.turns = (d.exists && Array.isArray(d.data().turns)) ? d.data().turns : []; chat.ready = true; chat.subs.forEach(f => f()); },
-          () => { chat.ready = true; chat.subs.forEach(f => f()); });
+        chat.un = ctx.db.doc(p).onSnapshot(d => { if (chat.watched !== p) return; chat.turns = (d.exists && Array.isArray(d.data().turns)) ? d.data().turns : []; chat.ready = true; chat.subs.forEach(f => f()); },
+          () => { if (chat.watched === p) { chat.ready = true; chat.subs.forEach(f => f()); } });
       } catch (e) { chat.ready = true; }
     },
     save(ctx, turns) {
       const keep = turns.slice(-40).map(t => ({role: t.role, content: String(t.content || '').slice(0, 4000), ...(t.act ? {act: true} : {})}));
       chat.turns = keep; chat.subs.forEach(f => f());
+      if (ctx.viewAs) return Promise.resolve();
       return ctx.W.merge(chat.path(ctx), {turns: keep, at: Date.now()}).catch(() => {});
     },
     append: (ctx, more) => chat.save(ctx, chat.turns.concat(more)),
@@ -50,7 +55,7 @@
       const f = () => setTurns(M.chat.turns);
       M.chat.subs.add(f); if (M.chat.ready) f();
       return () => { M.chat.subs.delete(f); };
-    }, [ctx.uid]);
+    }, [ctx.uid, ctx.viewAs]);
     const [q, setQ] = useState('');
     const [busy, setBusy] = useState(false);
     const [live, setLive] = useState('');
@@ -60,7 +65,7 @@
 
     useEffect(() => () => { if (ctl.current) ctl.current.abort(); }, []);
     useEffect(() => { if (endRef.current && endRef.current.scrollIntoView) endRef.current.scrollIntoView({block: 'nearest'}); }, [turns, live]);
-    useEffect(() => { if (initial && !sentInitial.current) { sentInitial.current = true; send(initial); } }, [initial]);
+    useEffect(() => { if (initial) { sentInitial.current = initial; send(initial); } }, [initial]);
 
     async function send(text) {
       const msg = String(text || q).trim();
@@ -69,13 +74,14 @@
       const history = turns.filter(t => !t.act);
       const next = [...turns, {role: 'user', content: msg}];
       setTurns(next); setBusy(true); setLive('');
+      M.chat.save(ctx, next);
       const c = new AbortController(); ctl.current = c;
       try {
         const nm = await M.ai.names(ctx);
         const data = ctx.isFounder ? await M.ai.teamSlice(ctx) : (await M.ai.meSlice(ctx)) + '\n\n' + (await M.ai.teamSlice(ctx));
         const lim = ctx.sample.limits ? await ctx.sample.limits().catch(() => null) : null;
         const actions = [];
-        const toolsAll = lim && lim.tools ? M.ai.tools(ctx, nm, a => { actions.push(a); setTurns(ts => [...ts, {role: 'assistant', content: a, act: true}]); }) : undefined;
+        const toolsAll = lim && lim.tools ? M.ai.tools(ctx, nm, a => { actions.push(a); M.chat.save(ctx, [...M.chat.turns, {role: 'assistant', content: a, act: true}]); }) : undefined;
         const tools = toolsAll ? toolsAll.slice(0, (lim.tools.maxCount && lim.tools.maxCount > 0) ? lim.tools.maxCount : toolsAll.length) : undefined;
         const lead = M.ai.VOICE + instructions(ctx, nm[ctx.uid] || 'a teammate') + '\n\nDATA:\n' + data.slice(0, 40000);
         /* the page keeps the chat; Claude sees the lead turn, the recent turns and the new message */
@@ -84,7 +90,8 @@
         convo.push({role: 'user', content: msg});
         const out = await ctx.sample(convo, {signal: c.signal, tools, onText: ({text: t}) => setLive(t), ...(tools ? {} : {cache: false})});
         const answer = {role: 'assistant', content: out.text.replace(/\u2014|\u2013/g, ', ')};
-        setTurns(ts => { const all = [...ts, answer]; M.chat.save(ctx, all); return all; });
+        const all = [...M.chat.turns, answer];
+        M.chat.save(ctx, all);
       } catch (e) {
         const code = (e && e.code) || 'upstream_error';
         if (code !== 'cancelled') setTurns(ts => [...ts, {role: 'assistant', content: (e && e.text ? e.text + '\n\n' : '') + M.ai.errCopy(code), err: true}]);

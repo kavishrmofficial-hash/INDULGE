@@ -24,7 +24,7 @@
     'base', 'companies', 'import', 'radar', 'awards', 'watch', 'me', 'trophies', 'leave', 'handbook', 'hiring', 'hq', 'command', 'admin'];
   const FOUNDER_ONLY = ['hq', 'command', 'admin'];
   /* controls the buddy will point at but never press */
-  const RISKY = /delete|remove|erase|wipe|trash|offboard|lock|unlock|restore|overwrite|revoke|sign out|log out|approve|reject|decline|pay|revert/i;
+  const RISKY = /delete|remove|erase|wipe|trash|offboard|lock|unlock|restore|overwrite|revoke|sign out|log out|approve|reject|decline|pay|revert|clear|withdraw|cancel|send back|reset/i;
 
   /* ---------- the screen, as Claude sees it ---------- */
   function scan() {
@@ -125,7 +125,9 @@
     const tourRun = useRef(0);
     const holdTimer = useRef(0);
     const walk = useRef(null);
-    modeRef.current = mode;
+    const autoRef = useRef(auto);
+    const stopsRef = useRef(stops);
+    modeRef.current = mode; autoRef.current = auto; stopsRef.current = stops;
 
     useEffect(() => { if (M.chat && ctx.db && ctx.uid) M.chat.watch(ctx); }, [ctx.uid]);
 
@@ -182,6 +184,7 @@
           el.style.setProperty('--lx', (target.current ? 0 : lx).toFixed(2));
           el.style.setProperty('--ly', (target.current ? .3 : ly).toFixed(2));
         }
+        if (target.current && !target.current.isConnected) { target.current = null; setRing(null); }
         if (target.current) {
           const r = target.current.getBoundingClientRect();
           setRing(prev => (prev && Math.abs(prev.left - r.left) < .5 && Math.abs(prev.top - r.top) < .5) ? prev
@@ -250,7 +253,7 @@
       if (!all.length) return;
       let j = Math.max(0, Math.min(all.length - 1, i));
       const s = all[j];
-      if (M.speech) M.speech.stop();
+      if (M.speech && !(s.custom && j === 0)) M.speech.stop();
       setStep(j); setMode('tour'); setAnswer(M.tour.line(s, ctx)); setErr(''); setActs([]); setRing(null); target.current = null;
       const saying = s.custom && j === 0 ? Promise.resolve(false) : speak(M.tour.line(s, ctx));
       if (s.go && location.hash.split('?')[0] !== s.go) { M.nav(s.go); await wait(520); }
@@ -264,22 +267,23 @@
       const said = await saying;
       if (run !== tourRun.current) return;
       /* voice on and nobody touched anything: move on by itself */
-      if (said && auto) {
+      if (said && autoRef.current) {
         await wait(900);
         if (run !== tourRun.current) return;
         if (j + 1 < all.length) showStep(j + 1, all); else finishTour('done');
       }
-    }, [stops, auto, flyTo, ctx]);
+    }, [stops, flyTo, ctx]);
 
     const finishTour = useCallback(how => {
-      const custom = !!(stops[0] && stops[0].custom);
+      const custom = !!(stopsRef.current[0] && stopsRef.current[0].custom);
       if (!custom) M.tour.mark(ctx, how);
       reset();
       if (!custom) M.toast(how === 'done' ? 'That is the place. Hold Ctrl and Option to ask me anything' : 'Any time: Me, Prefs, Show me around');
-    }, [ctx, reset, stops]);
+    }, [ctx, reset]);
 
     const startTour = useCallback(() => {
       const list = M.tour.stops(ctx);
+      M.tour.mark(ctx, 'asked');
       setStops(list); setHidden(false); store.set('buddyHidden', '0');
       history.current = [];
       setTimeout(() => showStep(0, list), 60);
@@ -357,10 +361,13 @@
         const here = M.resolveRoute ? M.resolveRoute(M.parseHash().page, null, ctx.isFounder) : {s: ''};
         let screen = scan();
         const log = a => setActs(xs => [...xs, a]);
+        const gone = () => { if (c.signal.aborted) { const e = new Error('cancelled'); e.code = 'cancelled'; throw e; } };
         const point = async (id, say) => {
+          gone();
           const el = findEl(id);
           if (!el) throw new Error('no element with that id on screen now');
           await flyTo(el);
+          gone();
           if (say) setAnswer(String(say));
           return el;
         };
@@ -455,13 +462,28 @@
           }
         }];
         const aiTools = M.ai.tools(ctx, nm, log);
-        /* what they want decides which tools ride along first and how hard the model thinks */
-        const doing = /\b(open|create|start|switch|fill|type|make|add|move|do it|set|choose|pick|show me how|how do i|walk me|take me|go to)\b/i.test(question);
-        const looking = /\b(who|how many|what is|what's|whats|overdue|pipeline|know at|find|search|slipping|late|points|score|balance|client|contact|company)\b/i.test(question);
-        const ordered = (doing || !looking) ? tools.concat(aiTools) : aiTools.concat(tools);
+        /* what they want decides which tools ride along first (hosts cap the count) and how hard the model thinks */
+        const q = question.toLowerCase();
+        const intent = /show me how|how do i|how to|walk me|teach me/.test(q) ? 'how'
+          : /\b(task|assign|give .* to|move .* to|mark .* done|reassign)\b/.test(q) ? 'task'
+          : /\b(open|close|dismiss|escape|create|start|switch|fill|type|make|add|do it|set|choose|select|pick|take me|go to|turn on|turn off)\b/.test(q) ? 'do'
+          : /\b(who|how many|what is|what's|whats|overdue|pipeline|know at|find|search|slipping|late|points|score|balance|client|contact|company)\b/.test(q) ? 'look' : 'where';
+        const ORDER = {
+          how: ['point_at', 'go_to', 'walk_through', 'click', 'create_task', 'set_task_status', 'reassign_task'],
+          task: ['create_task', 'set_task_status', 'reassign_task', 'point_at', 'go_to', 'click', 'search_everything'],
+          do: ['point_at', 'go_to', 'click', 'type_into', 'select_option', 'press_key', 'walk_through', 'create_task', 'set_task_status'],
+          look: aiTools.map(t => t.name).concat(['point_at', 'go_to', 'walk_through']),
+          where: ['point_at', 'go_to', 'click', 'walk_through', 'create_task', 'search_everything', 'search_base', 'who_do_we_know_at']
+        };
+        const all = tools.concat(aiTools);
+        const first = ORDER[intent].map(n => all.find(t => t.name === n)).filter(Boolean);
+        const ordered = first.concat(all.filter(t => first.indexOf(t) < 0));
+        const doing = intent === 'do' || intent === 'how' || intent === 'task';
         const lim = ctx.sample.limits ? await ctx.sample.limits().catch(() => null) : null;
-        if (!history.current.length && M.chat && M.chat.turns.length) history.current = M.chat.recent(6).map(t => ({role: t.role, content: String(t.content).slice(0, 300)}));
-        const past = history.current.slice(-6).map(h => (h.role === 'user' ? 'They: ' : 'You: ') + h.content).join('\n');
+        gone();
+        /* the shared thread is the memory, so the full chat and the buddy always agree */
+        const recent = (M.chat && M.chat.turns.length) ? M.chat.recent(6).map(t => ({role: t.role, content: String(t.content).slice(0, 300)})) : history.current.slice(-6);
+        const past = recent.map(h => (h.role === 'user' ? 'They: ' : 'You: ') + h.content).join('\n');
         const prompt = M.ai.VOICE +
           'You are the m360 cursor buddy. You live next to the person\'s mouse cursor inside the m360 OS and help them use it. ' +
           'They are ' + (nm[ctx.uid] || 'a teammate') + (ctx.isFounder ? ', the founder' : '') + '. They are on the ' + (here.s || 'home') + ' section.\n' +
@@ -517,10 +539,15 @@
       };
       const down = e => { if (e.ctrlKey && e.altKey && !holding && !e.repeat && (e.key === 'Control' || e.key === 'Alt')) { e.preventDefault(); start(); } };
       const up = e => { if (holding && (e.key === 'Control' || e.key === 'Alt')) stop(); };
-      const esc = e => { if (e.key === 'Escape') reset(); };
+      const esc = e => {
+        if (e.key !== 'Escape' || !e.isTrusted) return;   /* the buddy's own press_key never closes the buddy */
+        if (modeRef.current === 'welcome') M.tour.mark(ctx, 'asked');
+        if (modeRef.current === 'tour') { finishTour('skipped'); return; }
+        reset();
+      };
       window.addEventListener('keydown', down); window.addEventListener('keyup', up); window.addEventListener('keydown', esc);
       return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('keydown', esc); };
-    }, [on, hidden, reset, listen]);
+    }, [on, hidden, reset, listen, finishTour, ctx]);
 
     /* a test and script hook: M.buddy.run('click', {id}) etc, and the tour */
     useEffect(() => {
@@ -539,6 +566,7 @@
     /* the button: tap to type; hold (phones, or anyone) to talk */
     const homeDown = e => {
       if (mode !== 'idle') return;
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch (x) { /* mouse without capture */ }
       holdTimer.current = setTimeout(() => {
         holdTimer.current = 0;
         spoke.current = true;

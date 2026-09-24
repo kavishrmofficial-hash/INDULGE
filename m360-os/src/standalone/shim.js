@@ -329,7 +329,8 @@
       if (name === 'mcp') return null;
       if (!m.uid) return name === 'db' ? db : null;
       if (name === 'db') {
-        if (!started) { started = true; loadAll().then(loop, () => { loaded = true; waiters.splice(0).forEach(fn => fn()); loop(); }); }
+        /* the page never runs on an empty copy: a failed first load is retried until it lands */
+        if (!started) { started = true; const boot = () => loadAll().then(loop, () => setTimeout(boot, 2500)); boot(); }
         return db;
       }
       if (name === 'room') return roomNs || (roomNs = makeRoom());

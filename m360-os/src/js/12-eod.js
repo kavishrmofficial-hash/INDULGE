@@ -6,8 +6,6 @@
 
   const OUTCOME_LINE = 'Three outcomes that will exist by Saturday.';
   const LOCK_LINE = 'Reviewed on Friday.';
-  const DUE_LINE = 'Due at 19:00.';
-  const DUE_HOUR = 18;
   const MAX_OUTCOMES = 3;
   const MARK_PILL = {hit: 'ink', miss: 'flame'};
 
@@ -54,7 +52,8 @@
     const today = U.ymd(now);
     const entry = eodDays(ctx, uid)[today] || null;
     const working = typeof ctx.isWorkingDay === 'function' ? ctx.isWorkingDay(today, uid) : true;
-    const due = !entry && working && now.getHours() >= DUE_HOUR;
+    const cutHour = parseInt(String((ctx.settings && ctx.settings.eodCut) || '19:30'), 10) || 19;
+    const due = !entry && working && now.getHours() >= cutHour - 1;
     const showForm = !entry || editing;
 
     const startEdit = () => {
@@ -80,7 +79,7 @@
     let body;
     if (showForm) {
       body = html`<div class="stack">
-        ${due ? html`<div class="flame-t small">${DUE_LINE}</div>` : null}
+        ${due ? html`<div class="flame-t small">${'Due at ' + ((ctx.settings && ctx.settings.eodCut) || '19:30') + '.'}</div>` : null}
         <${UI.TextArea} id="eod-shipped" label="shipped" rows=${2} value=${shipped} onChange=${setShipped}
           placeholder="What went out today" hint="Required."/>
         <${UI.TextArea} id="eod-next" label="next" rows=${2} value=${next} onChange=${setNext}

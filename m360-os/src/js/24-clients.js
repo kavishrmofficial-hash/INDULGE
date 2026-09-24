@@ -475,15 +475,21 @@
       const org = f.org && M.base && M.base.org ? M.base.org(ctx, f.org) : orgOf(ctx, id);
       const cid = id || U.uid();
       const doc = {name: f.name.trim(), status: f.status, pod: f.pod, owner: f.owner,
-        memory: f.memory, approvals: f.approvals, never: f.never, links: f.links, org: f.org || '',
+        memory: f.memory, approvals: f.approvals, never: f.never, links: f.links, ...(f.org ? {org: f.org} : (id ? {org: ''} : {})),
         website, domain: domainFrom(website) || (org ? (org.domain || domainFrom(org.website)) : ''),
         industry: f.industry.trim(), hq: f.hq.trim(), since: f.since.trim(), tone: f.tone.trim(), socials,
         logo: f.logo || '', useAutoLogo: !!f.useAutoLogo,
         updated: Date.now(), by: ctx.uid};
       setBusy(true);
       try {
+        const before = id ? orgOf(ctx, id) : null;
         if (id) await ctx.W.update('clients/' + id, doc);
         else await ctx.W.set('clients/' + cid, doc);
+        /* the company row points back at the client, both ways, always */
+        if (M.base && M.base.linkOrgToClient) {
+          if (before && before.id && before.id !== f.org && M.base.unlinkOrg) await M.base.unlinkOrg(ctx, before.id).catch(() => {});
+          if (f.org) await M.base.linkOrgToClient(ctx, f.org, cid).catch(() => {});
+        }
         if (ctx.isFounder && String(f.monthly).trim() !== '') {
           await ctx.W.merge('data/users/' + ctx.uid + '/finance', {clients: {[cid]: {monthly: Number(f.monthly) || 0}}});
         }

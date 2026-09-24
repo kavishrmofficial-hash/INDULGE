@@ -1482,7 +1482,8 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
       if (name === 'mcp') return null;
       if (!m.uid) return name === 'db' ? db : null;
       if (name === 'db') {
-        if (!started) { started = true; loadAll().then(loop, () => { loaded = true; waiters.splice(0).forEach(fn => fn()); loop(); }); }
+        /* the page never runs on an empty copy: a failed first load is retried until it lands */
+        if (!started) { started = true; const boot = () => loadAll().then(loop, () => setTimeout(boot, 2500)); boot(); }
         return db;
       }
       if (name === 'room') return roomNs || (roomNs = makeRoom());
@@ -1699,7 +1700,8 @@ M.makeWrites = (db, uidGetter) => {
     update: (p, d) => check('update', p, d) || queued(p, () => db.doc(p).update(d).then(r => { log('update', p, d); return r; })).catch(fail),
     /* merge-or-create: update first, set when the document is missing */
     merge: (p, d) => check('merge', p, d) || queued(p, () => db.doc(p).update(d).then(r => { log('update', p, d); return r; }).catch(e => {
-      if (e && e.code === 'invalid_argument') return db.doc(p).set(d).then(r => { log('set', p, d); return r; });
+      /* only a missing document is created; any other refusal (too large, malformed) is never turned into an overwrite */
+      if (e && (e.code === 'not_found' || (e.code === 'invalid_argument' && /missing/i.test(String(e.message || ''))))) return db.doc(p).set(d).then(r => { log('set', p, d); return r; });
       throw e;
     })).catch(fail),
     del: p => queued(p, () => db.doc(p).delete().then(r => { log('delete', p); return r; })).catch(fail)
@@ -2373,6 +2375,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const viewAs = React.useSyncExternalStore(M.viewAs.subscribe, M.viewAs.get, M.viewAs.get);
     const uid = viewAs || realUid;
     const baseW = React.useMemo(() => M.makeWrites(db), [db]);
+    /* private per-user docs (own state; founder: keeper and finance); part of ctx so a change re-renders */
+    const privState = M.useDoc(db, 'data/users/' + uid + '/state');
+    const privKeeper = M.useDoc(db, me.isOwner ? 'data/users/' + uid + '/keeper' : null);
+    const privFinance = M.useDoc(db, me.isOwner ? 'data/users/' + uid + '/finance' : null);
 
     const rosterDoc = M.useDoc(db, 'roster/team');
     const settingsDoc = M.useDoc(db, 'settings/app');
@@ -2413,7 +2419,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const seeded = React.useRef(false);
     React.useEffect(() => {
       if (!rosterDoc.ready || seeded.current) return;
-      if (me.isOwner && !rosterDoc.data) {
+      if (me.isOwner && !rosterDoc.data && !rosterDoc.err) {
         seeded.current = true;
         baseW.set('roster/team', {
           members: {[realUid]: {role: 'founder', empId: 'M360-001', title: 'Founder', pod: '',
@@ -2459,7 +2465,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         }
         leaveMap[lu] = set;
       }
-      const onLeave = (u, date) => !!(leaveMap[u] && leaveMap[u].has(date));
+      const onLeave = (u, date) => !!((leaveMap[u] && leaveMap[u].has(date)) ||
+        (coll.checkin && ((((coll.checkin.map[u] || {}).days || {})[date] || {}).mode === 'leave')));
       const isWorkingDay = (date, u) => {
         const d = U.parseYmd(date);
         if (d.getDay() === 0) return false;
@@ -2476,18 +2483,12 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const canSee = u => isFounder || u === uid;
 
       return {db, user, mcp, downloads, permissions, sample, room, me, uid, realUid, viewAs, W,
+        priv: {state: privState, keeper: isFounder ? privKeeper : {ready: true, data: null}, finance: isFounder ? privFinance : {ready: true, data: null}},
         ready: rosterDoc.ready && settingsDoc.ready,
         roster, members, member, activeMembers, isFounder, founderUid, locked,
         settings, holidays, coll, leaveMap, onLeave, isWorkingDay, startFor, canSee, now, online};
     }, [rosterDoc, settingsDoc, me, uid, realUid, viewAs, isFounder, locked, W, now, online, coll.join,
-      ...COLLS.map(c => coll[c])]);
-
-    /* private per-user docs (own state; founder: keeper and finance) */
-    ctx.priv = {
-      state: M.useDoc(db, 'data/users/' + uid + '/state'),
-      keeper: M.useDoc(db, ctx.isFounder ? 'data/users/' + uid + '/keeper' : null),
-      finance: M.useDoc(db, ctx.isFounder ? 'data/users/' + uid + '/finance' : null)
-    };
+      privState, privKeeper, privFinance, ...COLLS.map(c => coll[c])]);
 
     /* rules engine output, computed each render pass */
     ctx.flags = (M.rules && M.rules.evaluate) ? M.rules.evaluate(ctx, new Date()) : [];
@@ -3179,8 +3180,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         if (t.owner !== ctx.uid && !ctx.isFounder) throw new Error('only the owner or Kaavish can move this task');
         const st = ['todo', 'doing', 'review', 'done'].indexOf(input.status) >= 0 ? input.status : null;
         if (!st) throw new Error('unknown status');
-        const patch = {status: st, updated: Date.now(), doneAt: st === 'done' ? Date.now() : null};
-        if (t.status === 'review' && (st === 'doing' || st === 'todo')) patch.revisions = (t.revisions || 0) + 1;
+        /* the same bookkeeping a hand move does: review and send back stamps, revisions, the inbox */
+        const sp = (M.tasks && M.tasks.statusPatch) ? M.tasks.statusPatch(t, st, ctx.uid) : null;
+        const patch = sp && sp.patch ? sp.patch : {status: st, updated: Date.now(), doneAt: st === 'done' ? Date.now() : null};
+        if (!sp && t.status === 'review' && (st === 'doing' || st === 'todo')) patch.revisions = (t.revisions || 0) + 1;
         await ctx.W.update('tasks/' + t.id, patch);
         say('Moved "' + t.title + '" to ' + st);
         return {ok: true, task: t.title, status: st};
@@ -3963,7 +3966,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const entry = daysOf(ctx, uid)[ymd] || null;
     const mode = entry && (entry.mode === 'office' || entry.mode === 'wfh') ? entry.mode : null;
     let status = 'none';
-    if (ctx && typeof ctx.onLeave === 'function' && ctx.onLeave(uid, ymd)) status = 'leave';
+    if (entry && entry.mode === 'leave') status = 'leave';   /* marked as leave from Admin */
+    else if (ctx && typeof ctx.onLeave === 'function' && ctx.onLeave(uid, ymd)) status = 'leave';
     else if (ctx && ctx.holidays && typeof ctx.holidays.has === 'function' && ctx.holidays.has(ymd)) status = 'holiday';
     else if (U.parseYmd(ymd).getDay() === 0) status = 'sunday';
     else if (mode) status = mode;
@@ -4140,8 +4144,6 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 
   const OUTCOME_LINE = 'Three outcomes that will exist by Saturday.';
   const LOCK_LINE = 'Reviewed on Friday.';
-  const DUE_LINE = 'Due at 19:00.';
-  const DUE_HOUR = 18;
   const MAX_OUTCOMES = 3;
   const MARK_PILL = {hit: 'ink', miss: 'flame'};
 
@@ -4188,7 +4190,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const today = U.ymd(now);
     const entry = eodDays(ctx, uid)[today] || null;
     const working = typeof ctx.isWorkingDay === 'function' ? ctx.isWorkingDay(today, uid) : true;
-    const due = !entry && working && now.getHours() >= DUE_HOUR;
+    const cutHour = parseInt(String((ctx.settings && ctx.settings.eodCut) || '19:30'), 10) || 19;
+    const due = !entry && working && now.getHours() >= cutHour - 1;
     const showForm = !entry || editing;
 
     const startEdit = () => {
@@ -4214,7 +4217,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     let body;
     if (showForm) {
       body = html`<div class="stack">
-        ${due ? html`<div class="flame-t small">${DUE_LINE}</div>` : null}
+        ${due ? html`<div class="flame-t small">${'Due at ' + ((ctx.settings && ctx.settings.eodCut) || '19:30') + '.'}</div>` : null}
         <${UI.TextArea} id="eod-shipped" label="shipped" rows=${2} value=${shipped} onChange=${setShipped}
           placeholder="What went out today" hint="Required."/>
         <${UI.TextArea} id="eod-next" label="next" rows=${2} value=${next} onChange=${setNext}
@@ -6655,15 +6658,21 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const org = f.org && M.base && M.base.org ? M.base.org(ctx, f.org) : orgOf(ctx, id);
       const cid = id || U.uid();
       const doc = {name: f.name.trim(), status: f.status, pod: f.pod, owner: f.owner,
-        memory: f.memory, approvals: f.approvals, never: f.never, links: f.links, org: f.org || '',
+        memory: f.memory, approvals: f.approvals, never: f.never, links: f.links, ...(f.org ? {org: f.org} : (id ? {org: ''} : {})),
         website, domain: domainFrom(website) || (org ? (org.domain || domainFrom(org.website)) : ''),
         industry: f.industry.trim(), hq: f.hq.trim(), since: f.since.trim(), tone: f.tone.trim(), socials,
         logo: f.logo || '', useAutoLogo: !!f.useAutoLogo,
         updated: Date.now(), by: ctx.uid};
       setBusy(true);
       try {
+        const before = id ? orgOf(ctx, id) : null;
         if (id) await ctx.W.update('clients/' + id, doc);
         else await ctx.W.set('clients/' + cid, doc);
+        /* the company row points back at the client, both ways, always */
+        if (M.base && M.base.linkOrgToClient) {
+          if (before && before.id && before.id !== f.org && M.base.unlinkOrg) await M.base.unlinkOrg(ctx, before.id).catch(() => {});
+          if (f.org) await M.base.linkOrgToClient(ctx, f.org, cid).catch(() => {});
+        }
         if (ctx.isFounder && String(f.monthly).trim() !== '') {
           await ctx.W.merge('data/users/' + ctx.uid + '/finance', {clients: {[cid]: {monthly: Number(f.monthly) || 0}}});
         }
@@ -8639,9 +8648,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       if (it.voted) {
         const v = {...mine};
         delete v[it.key];
-        W.set('votes/' + uid, {v});
+        W.set('votes/' + uid, {...(votesMap[uid] || {}), v}).catch(() => {});
       } else {
-        W.merge('votes/' + uid, {v: {[it.key]: true}});
+        W.merge('votes/' + uid, {v: {[it.key]: true}}).catch(() => {});
       }
     };
     const setStatus = (it, status) => {
@@ -9551,7 +9560,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   function StatusPicker({onClose}) {
     const ctx = M.useCtx();
     const set = t => ctx.W.merge('me/' + ctx.uid, {status: t ? {text: t, at: Date.now()} : null})
-      .then(() => { M.toast(t ? 'Status set' : 'Status cleared'); onClose(); });
+      .then(() => { M.toast(t ? 'Status set' : 'Status cleared'); onClose(); }).catch(() => {});
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Set your status">
       <div class="stack tight">
         ${STATUSES.map(s => html`<button key=${s} type="button" class="focus rowbtn" onClick=${() => set(s)}>
@@ -9777,7 +9786,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       <div class="row"><span class="pill flame">announcement</span><${UI.Avatar} id=${au} size=${22}/>
         <span class="small" style=${{fontWeight: 500}}><${UI.Name} id=${au}/></span><span class="tiny ink62">${U.timeAgo(post.at)}</span></div>
       <p style=${{whiteSpace: 'pre-wrap', margin: '10px 0 14px', fontSize: '16px'}}>${post.text}</p>
-      <${UI.Btn} sm=${true} onClick=${() => ctx.W.merge('acks/' + ctx.uid, {s: {[ackKey]: Date.now()}})}>Got it<//>
+      <${UI.Btn} sm=${true} onClick=${() => ctx.W.merge('acks/' + ctx.uid, {s: {[ackKey]: Date.now()}}).catch(() => {})}>Got it<//>
     </section>`;
   }
 
@@ -9818,12 +9827,13 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         </div>
       </section>`;
     }
-    const late = new Date(ctx.now).getHours() >= 18;
+    const cutHour = parseInt(String(ctx.settings.eodCut || '19:30'), 10) || 19;
+    const late = new Date(ctx.now).getHours() >= cutHour - 1;
     const thinking = r.state === 'thinking' || r.state === 'streaming';
     return html`<section class=${'card' + (late ? ' flame' : '')}>
       <div class="card-head">
         <div class="grow"><h2 class="card-title">EOD line</h2>
-          <div class="small ink62">${late ? html`<span class="flame-t">Due at 19:00.</span>` : 'Three lines before ' + ctx.settings.eodCut + '. Let m360 draft it, then tweak.'}</div></div>
+          <div class="small ink62">${late ? html`<span class="flame-t">${'Due at ' + ctx.settings.eodCut + '.'}</span>` : 'Three lines before ' + ctx.settings.eodCut + '. Let m360 draft it, then tweak.'}</div></div>
         ${M.ai.on(ctx) ? html`<button type="button" class="btn sec sm" disabled=${thinking} onClick=${draft}>
           ${thinking ? html`<${M.Thinking} label="Drafting"/>` : html`<span class="spark">${SPARK}</span> Write it for me`}</button>` : null}
       </div>
@@ -9887,8 +9897,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       return {open: open.slice(0, 6), more: Math.max(0, open.length - 6), doneToday};
     }, [ctx.coll.tasks.map, ctx.uid, td]);
 
-    const complete = t => ctx.W.update('tasks/' + t.id, {status: 'done', doneAt: Date.now(), updated: Date.now()}).then(() => M.toast('Done. Nice'));
-    const reopen = t => ctx.W.update('tasks/' + t.id, {status: 'doing', doneAt: null, updated: Date.now()});
+    const complete = t => ctx.W.update('tasks/' + t.id, {status: 'done', doneAt: Date.now(), updated: Date.now()}).then(() => M.toast('Done. Nice')).catch(() => {});
+    const reopen = t => ctx.W.update('tasks/' + t.id, {status: 'doing', doneAt: null, updated: Date.now()}).catch(() => {});
 
     async function add() {
       const text = q.trim();
@@ -10778,18 +10788,23 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     ready: false,
     subs: new Set(),
     watched: '',
+    un: null,
     watch(ctx) {
-      const p = chat.path(ctx);
+      /* in preview the founder is not that person: no thread is read or written */
+      const p = ctx.viewAs ? '' : chat.path(ctx);
       if (chat.watched === p || !ctx.db) return;
-      chat.watched = p; chat.ready = false;
+      if (chat.un) { try { chat.un(); } catch (e) { /* gone */ } chat.un = null; }
+      chat.watched = p; chat.turns = []; chat.ready = !p;
+      if (!p) { chat.subs.forEach(f => f()); return; }
       try {
-        ctx.db.doc(p).onSnapshot(d => { chat.turns = (d.exists && Array.isArray(d.data().turns)) ? d.data().turns : []; chat.ready = true; chat.subs.forEach(f => f()); },
-          () => { chat.ready = true; chat.subs.forEach(f => f()); });
+        chat.un = ctx.db.doc(p).onSnapshot(d => { if (chat.watched !== p) return; chat.turns = (d.exists && Array.isArray(d.data().turns)) ? d.data().turns : []; chat.ready = true; chat.subs.forEach(f => f()); },
+          () => { if (chat.watched === p) { chat.ready = true; chat.subs.forEach(f => f()); } });
       } catch (e) { chat.ready = true; }
     },
     save(ctx, turns) {
       const keep = turns.slice(-40).map(t => ({role: t.role, content: String(t.content || '').slice(0, 4000), ...(t.act ? {act: true} : {})}));
       chat.turns = keep; chat.subs.forEach(f => f());
+      if (ctx.viewAs) return Promise.resolve();
       return ctx.W.merge(chat.path(ctx), {turns: keep, at: Date.now()}).catch(() => {});
     },
     append: (ctx, more) => chat.save(ctx, chat.turns.concat(more)),
@@ -10805,7 +10820,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const f = () => setTurns(M.chat.turns);
       M.chat.subs.add(f); if (M.chat.ready) f();
       return () => { M.chat.subs.delete(f); };
-    }, [ctx.uid]);
+    }, [ctx.uid, ctx.viewAs]);
     const [q, setQ] = useState('');
     const [busy, setBusy] = useState(false);
     const [live, setLive] = useState('');
@@ -10815,7 +10830,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 
     useEffect(() => () => { if (ctl.current) ctl.current.abort(); }, []);
     useEffect(() => { if (endRef.current && endRef.current.scrollIntoView) endRef.current.scrollIntoView({block: 'nearest'}); }, [turns, live]);
-    useEffect(() => { if (initial && !sentInitial.current) { sentInitial.current = true; send(initial); } }, [initial]);
+    useEffect(() => { if (initial) { sentInitial.current = initial; send(initial); } }, [initial]);
 
     async function send(text) {
       const msg = String(text || q).trim();
@@ -10824,13 +10839,14 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const history = turns.filter(t => !t.act);
       const next = [...turns, {role: 'user', content: msg}];
       setTurns(next); setBusy(true); setLive('');
+      M.chat.save(ctx, next);
       const c = new AbortController(); ctl.current = c;
       try {
         const nm = await M.ai.names(ctx);
         const data = ctx.isFounder ? await M.ai.teamSlice(ctx) : (await M.ai.meSlice(ctx)) + '\n\n' + (await M.ai.teamSlice(ctx));
         const lim = ctx.sample.limits ? await ctx.sample.limits().catch(() => null) : null;
         const actions = [];
-        const toolsAll = lim && lim.tools ? M.ai.tools(ctx, nm, a => { actions.push(a); setTurns(ts => [...ts, {role: 'assistant', content: a, act: true}]); }) : undefined;
+        const toolsAll = lim && lim.tools ? M.ai.tools(ctx, nm, a => { actions.push(a); M.chat.save(ctx, [...M.chat.turns, {role: 'assistant', content: a, act: true}]); }) : undefined;
         const tools = toolsAll ? toolsAll.slice(0, (lim.tools.maxCount && lim.tools.maxCount > 0) ? lim.tools.maxCount : toolsAll.length) : undefined;
         const lead = M.ai.VOICE + instructions(ctx, nm[ctx.uid] || 'a teammate') + '\n\nDATA:\n' + data.slice(0, 40000);
         /* the page keeps the chat; Claude sees the lead turn, the recent turns and the new message */
@@ -10839,7 +10855,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         convo.push({role: 'user', content: msg});
         const out = await ctx.sample(convo, {signal: c.signal, tools, onText: ({text: t}) => setLive(t), ...(tools ? {} : {cache: false})});
         const answer = {role: 'assistant', content: out.text.replace(/\u2014|\u2013/g, ', ')};
-        setTurns(ts => { const all = [...ts, answer]; M.chat.save(ctx, all); return all; });
+        const all = [...M.chat.turns, answer];
+        M.chat.save(ctx, all);
       } catch (e) {
         const code = (e && e.code) || 'upstream_error';
         if (code !== 'cancelled') setTurns(ts => [...ts, {role: 'assistant', content: (e && e.text ? e.text + '\n\n' : '') + M.ai.errCopy(code), err: true}]);
@@ -10985,7 +11002,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     'base', 'companies', 'import', 'radar', 'awards', 'watch', 'me', 'trophies', 'leave', 'handbook', 'hiring', 'hq', 'command', 'admin'];
   const FOUNDER_ONLY = ['hq', 'command', 'admin'];
   /* controls the buddy will point at but never press */
-  const RISKY = /delete|remove|erase|wipe|trash|offboard|lock|unlock|restore|overwrite|revoke|sign out|log out|approve|reject|decline|pay|revert/i;
+  const RISKY = /delete|remove|erase|wipe|trash|offboard|lock|unlock|restore|overwrite|revoke|sign out|log out|approve|reject|decline|pay|revert|clear|withdraw|cancel|send back|reset/i;
 
   /* ---------- the screen, as Claude sees it ---------- */
   function scan() {
@@ -11086,7 +11103,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const tourRun = useRef(0);
     const holdTimer = useRef(0);
     const walk = useRef(null);
-    modeRef.current = mode;
+    const autoRef = useRef(auto);
+    const stopsRef = useRef(stops);
+    modeRef.current = mode; autoRef.current = auto; stopsRef.current = stops;
 
     useEffect(() => { if (M.chat && ctx.db && ctx.uid) M.chat.watch(ctx); }, [ctx.uid]);
 
@@ -11143,6 +11162,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           el.style.setProperty('--lx', (target.current ? 0 : lx).toFixed(2));
           el.style.setProperty('--ly', (target.current ? .3 : ly).toFixed(2));
         }
+        if (target.current && !target.current.isConnected) { target.current = null; setRing(null); }
         if (target.current) {
           const r = target.current.getBoundingClientRect();
           setRing(prev => (prev && Math.abs(prev.left - r.left) < .5 && Math.abs(prev.top - r.top) < .5) ? prev
@@ -11211,7 +11231,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       if (!all.length) return;
       let j = Math.max(0, Math.min(all.length - 1, i));
       const s = all[j];
-      if (M.speech) M.speech.stop();
+      if (M.speech && !(s.custom && j === 0)) M.speech.stop();
       setStep(j); setMode('tour'); setAnswer(M.tour.line(s, ctx)); setErr(''); setActs([]); setRing(null); target.current = null;
       const saying = s.custom && j === 0 ? Promise.resolve(false) : speak(M.tour.line(s, ctx));
       if (s.go && location.hash.split('?')[0] !== s.go) { M.nav(s.go); await wait(520); }
@@ -11225,22 +11245,23 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const said = await saying;
       if (run !== tourRun.current) return;
       /* voice on and nobody touched anything: move on by itself */
-      if (said && auto) {
+      if (said && autoRef.current) {
         await wait(900);
         if (run !== tourRun.current) return;
         if (j + 1 < all.length) showStep(j + 1, all); else finishTour('done');
       }
-    }, [stops, auto, flyTo, ctx]);
+    }, [stops, flyTo, ctx]);
 
     const finishTour = useCallback(how => {
-      const custom = !!(stops[0] && stops[0].custom);
+      const custom = !!(stopsRef.current[0] && stopsRef.current[0].custom);
       if (!custom) M.tour.mark(ctx, how);
       reset();
       if (!custom) M.toast(how === 'done' ? 'That is the place. Hold Ctrl and Option to ask me anything' : 'Any time: Me, Prefs, Show me around');
-    }, [ctx, reset, stops]);
+    }, [ctx, reset]);
 
     const startTour = useCallback(() => {
       const list = M.tour.stops(ctx);
+      M.tour.mark(ctx, 'asked');
       setStops(list); setHidden(false); store.set('buddyHidden', '0');
       history.current = [];
       setTimeout(() => showStep(0, list), 60);
@@ -11318,10 +11339,13 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         const here = M.resolveRoute ? M.resolveRoute(M.parseHash().page, null, ctx.isFounder) : {s: ''};
         let screen = scan();
         const log = a => setActs(xs => [...xs, a]);
+        const gone = () => { if (c.signal.aborted) { const e = new Error('cancelled'); e.code = 'cancelled'; throw e; } };
         const point = async (id, say) => {
+          gone();
           const el = findEl(id);
           if (!el) throw new Error('no element with that id on screen now');
           await flyTo(el);
+          gone();
           if (say) setAnswer(String(say));
           return el;
         };
@@ -11416,13 +11440,28 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           }
         }];
         const aiTools = M.ai.tools(ctx, nm, log);
-        /* what they want decides which tools ride along first and how hard the model thinks */
-        const doing = /\b(open|create|start|switch|fill|type|make|add|move|do it|set|choose|pick|show me how|how do i|walk me|take me|go to)\b/i.test(question);
-        const looking = /\b(who|how many|what is|what's|whats|overdue|pipeline|know at|find|search|slipping|late|points|score|balance|client|contact|company)\b/i.test(question);
-        const ordered = (doing || !looking) ? tools.concat(aiTools) : aiTools.concat(tools);
+        /* what they want decides which tools ride along first (hosts cap the count) and how hard the model thinks */
+        const q = question.toLowerCase();
+        const intent = /show me how|how do i|how to|walk me|teach me/.test(q) ? 'how'
+          : /\b(task|assign|give .* to|move .* to|mark .* done|reassign)\b/.test(q) ? 'task'
+          : /\b(open|close|dismiss|escape|create|start|switch|fill|type|make|add|do it|set|choose|select|pick|take me|go to|turn on|turn off)\b/.test(q) ? 'do'
+          : /\b(who|how many|what is|what's|whats|overdue|pipeline|know at|find|search|slipping|late|points|score|balance|client|contact|company)\b/.test(q) ? 'look' : 'where';
+        const ORDER = {
+          how: ['point_at', 'go_to', 'walk_through', 'click', 'create_task', 'set_task_status', 'reassign_task'],
+          task: ['create_task', 'set_task_status', 'reassign_task', 'point_at', 'go_to', 'click', 'search_everything'],
+          do: ['point_at', 'go_to', 'click', 'type_into', 'select_option', 'press_key', 'walk_through', 'create_task', 'set_task_status'],
+          look: aiTools.map(t => t.name).concat(['point_at', 'go_to', 'walk_through']),
+          where: ['point_at', 'go_to', 'click', 'walk_through', 'create_task', 'search_everything', 'search_base', 'who_do_we_know_at']
+        };
+        const all = tools.concat(aiTools);
+        const first = ORDER[intent].map(n => all.find(t => t.name === n)).filter(Boolean);
+        const ordered = first.concat(all.filter(t => first.indexOf(t) < 0));
+        const doing = intent === 'do' || intent === 'how' || intent === 'task';
         const lim = ctx.sample.limits ? await ctx.sample.limits().catch(() => null) : null;
-        if (!history.current.length && M.chat && M.chat.turns.length) history.current = M.chat.recent(6).map(t => ({role: t.role, content: String(t.content).slice(0, 300)}));
-        const past = history.current.slice(-6).map(h => (h.role === 'user' ? 'They: ' : 'You: ') + h.content).join('\n');
+        gone();
+        /* the shared thread is the memory, so the full chat and the buddy always agree */
+        const recent = (M.chat && M.chat.turns.length) ? M.chat.recent(6).map(t => ({role: t.role, content: String(t.content).slice(0, 300)})) : history.current.slice(-6);
+        const past = recent.map(h => (h.role === 'user' ? 'They: ' : 'You: ') + h.content).join('\n');
         const prompt = M.ai.VOICE +
           'You are the m360 cursor buddy. You live next to the person\'s mouse cursor inside the m360 OS and help them use it. ' +
           'They are ' + (nm[ctx.uid] || 'a teammate') + (ctx.isFounder ? ', the founder' : '') + '. They are on the ' + (here.s || 'home') + ' section.\n' +
@@ -11478,10 +11517,15 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       };
       const down = e => { if (e.ctrlKey && e.altKey && !holding && !e.repeat && (e.key === 'Control' || e.key === 'Alt')) { e.preventDefault(); start(); } };
       const up = e => { if (holding && (e.key === 'Control' || e.key === 'Alt')) stop(); };
-      const esc = e => { if (e.key === 'Escape') reset(); };
+      const esc = e => {
+        if (e.key !== 'Escape' || !e.isTrusted) return;   /* the buddy's own press_key never closes the buddy */
+        if (modeRef.current === 'welcome') M.tour.mark(ctx, 'asked');
+        if (modeRef.current === 'tour') { finishTour('skipped'); return; }
+        reset();
+      };
       window.addEventListener('keydown', down); window.addEventListener('keyup', up); window.addEventListener('keydown', esc);
       return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('keydown', esc); };
-    }, [on, hidden, reset, listen]);
+    }, [on, hidden, reset, listen, finishTour, ctx]);
 
     /* a test and script hook: M.buddy.run('click', {id}) etc, and the tour */
     useEffect(() => {
@@ -11500,6 +11544,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     /* the button: tap to type; hold (phones, or anyone) to talk */
     const homeDown = e => {
       if (mode !== 'idle') return;
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch (x) { /* mouse without capture */ }
       holdTimer.current = setTimeout(() => {
         holdTimer.current = 0;
         spoke.current = true;
@@ -12138,7 +12183,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const fmap = ctx.coll.feed.map;
     for (const author of Object.keys(fmap)) for (const p of (fmap[author].posts || [])) {
       if (p && p.kind === 'announce' && author !== me) push('an:' + p.id, 'feed', p.at || 0, html`${nm(author)} announced: ${String(p.text).slice(0, 90)}`, '#feed', author, true);
-      if (p && p.kind === 'poll' && author !== me && !((p.votes || {})[me])) push('poll:' + p.id, 'feed', p.at || 0, html`${nm(author)} asked: ${String(p.text).slice(0, 80)}`, '#feed', author);
+      if (p && p.kind === 'poll' && author !== me && !((p.votes || {})[me]) && ((((ctx.coll.votes || {}).map || {})[me] || {}).polls || {})[author + ':' + p.id] === undefined) push('poll:' + p.id, 'feed', p.at || 0, html`${nm(author)} asked: ${String(p.text).slice(0, 80)}`, '#feed', author);
     }
     /* founder: joins and leave requests */
     if (ctx.isFounder) {
@@ -13417,7 +13462,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       try {
         if (window.M360_STANDALONE && typeof window.M360_API === 'function') {
           const r = await window.M360_API('prunelogs', {days: PRUNE_DAYS});
-          M.toast('Cleared ' + ((r && r.deleted) || 0) + ' days of log');
+          M.toast('Cleared ' + ((r && (r.removed || r.deleted)) || 0) + ' documents of log');
         } else {
           const old = await M.logs.read(ctx, {from: '0000-00-00', to: cut});
           const ids = Object.keys(old || {}).filter(id => id.slice(0, 10) < cut);
@@ -16230,15 +16275,16 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const bytes = Uint8Array.from(atob(r.audio), c => c.charCodeAt(0));
       const url = URL.createObjectURL(new Blob([bytes], {type: r.mime || 'audio/mpeg'}));
       const a = new Audio(url);
+      let blocked = false;
       audio = a;
       await new Promise(res => {
         a.onended = () => { URL.revokeObjectURL(url); if (audio === a) { audio = null; state(false); } res(); };
         a.onerror = () => { URL.revokeObjectURL(url); if (audio === a) { audio = null; state(false); } res(); };
         a.onpause = () => { if (audio !== a) res(); };
         state(true);
-        a.play().catch(() => { state(false); res(); });
+        a.play().catch(() => { state(false); blocked = true; res(); });
       });
-      return true;
+      return !blocked;
     } catch (e) {
       if (e && (e.code === 'voice_off' || e.status === 404)) { serverOn = false; checkedAt = Date.now(); }
       return false;

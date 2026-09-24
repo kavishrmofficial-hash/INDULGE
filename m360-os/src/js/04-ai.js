@@ -271,8 +271,10 @@
         if (t.owner !== ctx.uid && !ctx.isFounder) throw new Error('only the owner or Kaavish can move this task');
         const st = ['todo', 'doing', 'review', 'done'].indexOf(input.status) >= 0 ? input.status : null;
         if (!st) throw new Error('unknown status');
-        const patch = {status: st, updated: Date.now(), doneAt: st === 'done' ? Date.now() : null};
-        if (t.status === 'review' && (st === 'doing' || st === 'todo')) patch.revisions = (t.revisions || 0) + 1;
+        /* the same bookkeeping a hand move does: review and send back stamps, revisions, the inbox */
+        const sp = (M.tasks && M.tasks.statusPatch) ? M.tasks.statusPatch(t, st, ctx.uid) : null;
+        const patch = sp && sp.patch ? sp.patch : {status: st, updated: Date.now(), doneAt: st === 'done' ? Date.now() : null};
+        if (!sp && t.status === 'review' && (st === 'doing' || st === 'todo')) patch.revisions = (t.revisions || 0) + 1;
         await ctx.W.update('tasks/' + t.id, patch);
         say('Moved "' + t.title + '" to ' + st);
         return {ok: true, task: t.title, status: st};

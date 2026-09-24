@@ -36,7 +36,7 @@
   function StatusPicker({onClose}) {
     const ctx = M.useCtx();
     const set = t => ctx.W.merge('me/' + ctx.uid, {status: t ? {text: t, at: Date.now()} : null})
-      .then(() => { M.toast(t ? 'Status set' : 'Status cleared'); onClose(); });
+      .then(() => { M.toast(t ? 'Status set' : 'Status cleared'); onClose(); }).catch(() => {});
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Set your status">
       <div class="stack tight">
         ${STATUSES.map(s => html`<button key=${s} type="button" class="focus rowbtn" onClick=${() => set(s)}>
@@ -262,7 +262,7 @@
       <div class="row"><span class="pill flame">announcement</span><${UI.Avatar} id=${au} size=${22}/>
         <span class="small" style=${{fontWeight: 500}}><${UI.Name} id=${au}/></span><span class="tiny ink62">${U.timeAgo(post.at)}</span></div>
       <p style=${{whiteSpace: 'pre-wrap', margin: '10px 0 14px', fontSize: '16px'}}>${post.text}</p>
-      <${UI.Btn} sm=${true} onClick=${() => ctx.W.merge('acks/' + ctx.uid, {s: {[ackKey]: Date.now()}})}>Got it<//>
+      <${UI.Btn} sm=${true} onClick=${() => ctx.W.merge('acks/' + ctx.uid, {s: {[ackKey]: Date.now()}}).catch(() => {})}>Got it<//>
     </section>`;
   }
 
@@ -303,12 +303,13 @@
         </div>
       </section>`;
     }
-    const late = new Date(ctx.now).getHours() >= 18;
+    const cutHour = parseInt(String(ctx.settings.eodCut || '19:30'), 10) || 19;
+    const late = new Date(ctx.now).getHours() >= cutHour - 1;
     const thinking = r.state === 'thinking' || r.state === 'streaming';
     return html`<section class=${'card' + (late ? ' flame' : '')}>
       <div class="card-head">
         <div class="grow"><h2 class="card-title">EOD line</h2>
-          <div class="small ink62">${late ? html`<span class="flame-t">Due at 19:00.</span>` : 'Three lines before ' + ctx.settings.eodCut + '. Let m360 draft it, then tweak.'}</div></div>
+          <div class="small ink62">${late ? html`<span class="flame-t">${'Due at ' + ctx.settings.eodCut + '.'}</span>` : 'Three lines before ' + ctx.settings.eodCut + '. Let m360 draft it, then tweak.'}</div></div>
         ${M.ai.on(ctx) ? html`<button type="button" class="btn sec sm" disabled=${thinking} onClick=${draft}>
           ${thinking ? html`<${M.Thinking} label="Drafting"/>` : html`<span class="spark">${SPARK}</span> Write it for me`}</button>` : null}
       </div>
@@ -372,8 +373,8 @@
       return {open: open.slice(0, 6), more: Math.max(0, open.length - 6), doneToday};
     }, [ctx.coll.tasks.map, ctx.uid, td]);
 
-    const complete = t => ctx.W.update('tasks/' + t.id, {status: 'done', doneAt: Date.now(), updated: Date.now()}).then(() => M.toast('Done. Nice'));
-    const reopen = t => ctx.W.update('tasks/' + t.id, {status: 'doing', doneAt: null, updated: Date.now()});
+    const complete = t => ctx.W.update('tasks/' + t.id, {status: 'done', doneAt: Date.now(), updated: Date.now()}).then(() => M.toast('Done. Nice')).catch(() => {});
+    const reopen = t => ctx.W.update('tasks/' + t.id, {status: 'doing', doneAt: null, updated: Date.now()}).catch(() => {});
 
     async function add() {
       const text = q.trim();
