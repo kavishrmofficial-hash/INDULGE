@@ -147,7 +147,7 @@ def t(h):
     check(p.locator('#search-all #ask-base').count() == 1, 'Ask the base is missing from the drawer')
     p.locator('#search-all .conn-row', has_text='Omar Haddad').click()
     p.wait_for_function('() => location.hash === "#base/c3"')
-    check(p.locator('.drawer').count() == 0, 'search drawer stayed open after navigating')
+    check(p.locator('#search-all').count() == 0, 'search drawer stayed open after navigating')
 
     # ---- the client page: Connections with the company, its people and the projects ----
     h.go(p, 'founder', hash='#clients', width=1280)
