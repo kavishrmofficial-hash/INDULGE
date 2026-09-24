@@ -130,5 +130,7 @@ edgeone/dev/server.mjs               a local stand-in with a file-backed store, 
 Deploys run from `.github/workflows/deploy-edgeone.yml`. With the `EDGEONE_API_TOKEN` repository secret, every push updates the project named by the `EDGEONE_PROJECT` variable (default `m360os`). Without it, a commit message containing `[deploy]` makes an anonymous deployment that has to be claimed within an hour from the link in the run summary.
 
 ```
-python3 harness/tests/test_edgeone.py   # browsers against the local stand-in: setup, join, sync, rules, links, invites, email sign-in, AI
+python3 harness/tests/test_edgeone.py   # browsers against the local stand-in: setup, join, sync, rules, links, invites, passwords, devices, AI
+python3 harness/tests/test_safety.py    # trash, backups, restore, integrity, import
+python3 harness/tests/test_radar.py     # news, awards and watch against canned feeds
 ```
