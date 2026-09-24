@@ -386,6 +386,8 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .buddy{position:fixed; left:0; top:0; z-index:90; pointer-events:none}
 .buddy svg{display:block; width:24px; height:24px; filter:drop-shadow(0 2px 5px rgba(10,10,10,.28))}
 .buddy.listening svg{transform:scale(1.2)}
+.buddy.still{opacity:.4; transition:opacity .6s ease}
+.buddy{transition:opacity .2s ease}
 .buddy-ring{position:fixed; z-index:89; pointer-events:none; border:2px solid var(--flame); border-radius:12px; box-shadow:0 0 0 5px rgba(245,57,1,.14)}
 .buddy-bubble{position:fixed; z-index:91; width:min(340px,calc(100vw - 32px)); background:var(--dark); color:#fff; border-radius:16px; padding:12px 14px; font-size:14px; line-height:1.45; box-shadow:0 12px 32px rgba(10,10,10,.24); pointer-events:auto}
 .buddy-bubble .input{background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.22); color:#fff; min-height:40px}
@@ -10433,6 +10435,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   function Prefs() {
     const theme = M.useTheme();
     const [sound, setSound] = useState(M.sound.on());
+    const [voiceOn, setVoiceOn] = useState(() => M.prefs.get('buddyVoice') !== '0');
     const wk = U.periodRange('week');
     const ctx = M.useCtx();
     const deep = M.focus ? M.focus.minutes(ctx, ctx.uid, wk.from, wk.to) : 0;
@@ -10450,6 +10453,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
             onChange=${v => { M.sound.set(v === 'on'); setSound(v === 'on'); if (v === 'on') M.sound.play('chime'); }}/>
         </div>
         <div class="row between"><span>Deep work this week</span><span class="num" style=${{fontWeight: 600}}>${Math.round(deep / 6) / 10}h</span></div>
+        <div class="row between">
+          <span>The buddy speaks</span>
+          <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${voiceOn ? 'on' : 'off'} ariaLabel="Buddy voice"
+            onChange=${v => { M.prefs.set('buddyVoice', v === 'on' ? '1' : '0'); setVoiceOn(v === 'on'); if (v === 'on' && M.voice) M.voice.say('Hi, I am here whenever you need me.'); }}/>
+        </div>
         <div class="row between"><span>Keyboard shortcuts</span><button type="button" class="linky small" onClick=${() => window.dispatchEvent(new CustomEvent('m360:keys'))}>Show the sheet</button></div>
       </div>
     <//>`;
@@ -10462,6 +10470,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         sub="Team, rules, corrections, the activity log, payroll export and your super controls."/>
       ${M.parts.AiKeyCard ? html`<${UI.Fold} title="m360 AI" summary="your Anthropic key switches the AI on" id="fold-ai"><${M.parts.AiKeyCard}/><//>` : null}
       ${M.parts.MailCard ? html`<${UI.Fold} title="Email sending" summary="Resend key and sender" id="fold-mail"><${M.parts.MailCard}/><//>` : null}
+      ${M.parts.VoiceCard ? html`<${UI.Fold} title="The buddy's voice" summary="a natural voice for the cursor buddy" id="fold-voice"><${M.parts.VoiceCard}/><//>` : null}
       ${(M.adminCards || []).map((C, i) => html`<${UI.Fold} key=${i} title="Radar settings" summary="keywords, sources, channels" id=${'fold-admin-' + i}><${C}/><//>`)}
       <${Embed} page="Desk"/>
     </div>`;
@@ -10896,7 +10905,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const pointerRef = useRef(null);
     const mouse = useRef({x: window.innerWidth - 90, y: window.innerHeight - 90});
     const pos = useRef({x: window.innerWidth - 90, y: window.innerHeight - 90});
-    const pinned = useRef(false);
+    const pinned = useRef(false);        /* only while flying, and until the mouse moves again afterwards */
+    const flying = useRef(false);
+    const pinAt = useRef(null);
+    const still = useRef(0);
     const target = useRef(null);
     const ctl = useRef(null);
     const rec = useRef(null);
@@ -10904,16 +10916,27 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const homeRef = useRef(null);
     const askRef = useRef(null);
 
-    /* follow the cursor with a little lag; stays put while pointing */
+    /* follow the cursor with a little lag. While the buddy flies to a control it holds still, and it lets go
+       the moment the mouse moves again, so it never gets stuck after an answer or a tour step. */
     useEffect(() => {
       if ((!on && mode !== 'tour') || hidden) return;
       let raf = 0;
-      const move = e => { mouse.current = {x: e.clientX + 16, y: e.clientY + 14}; };
+      const move = e => {
+        if (e.pointerType === 'touch') return;
+        mouse.current = {x: e.clientX + 16, y: e.clientY + 14};
+        still.current = Date.now();
+        if (pinned.current && !flying.current) {
+          const a = pinAt.current;
+          if (!a || Math.abs(e.clientX - a.x) + Math.abs(e.clientY - a.y) > 28) pinned.current = false;
+        }
+        if (pointerRef.current) pointerRef.current.classList.remove('still');
+      };
       const tick = () => {
-        if (!pinned.current && !coarse()) {
+        if (!pinned.current) {
           const p = pos.current, m = mouse.current;
           p.x += (m.x - p.x) * .22; p.y += (m.y - p.y) * .22;
         }
+        if (pointerRef.current && mode === 'idle' && still.current && Date.now() - still.current > 4000) pointerRef.current.classList.add('still');
         if (target.current) {
           const el = target.current;
           const r = el.getBoundingClientRect();
@@ -10924,26 +10947,28 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         raf = requestAnimationFrame(tick);
       };
       window.addEventListener('pointermove', move, {passive: true});
+      window.addEventListener('mousemove', move, {passive: true});
       raf = requestAnimationFrame(tick);
-      return () => { cancelAnimationFrame(raf); window.removeEventListener('pointermove', move); };
-    }, [on, hidden, mode === 'tour']);
+      return () => { cancelAnimationFrame(raf); window.removeEventListener('pointermove', move); window.removeEventListener('mousemove', move); };
+    }, [on, hidden, mode]);
 
 
     const fly = useCallback((x, y) => new Promise(res => {
-      pinned.current = true;
+      pinned.current = true; flying.current = true;
+      pinAt.current = {x: mouse.current.x - 16, y: mouse.current.y - 14};
       const el = pointerRef.current;
-      if (!el || reduced()) { pos.current = {x, y}; res(); return; }
+      if (!el || reduced()) { pos.current = {x, y}; flying.current = false; res(); return; }
       el.classList.add('flying');
       pos.current = {x, y};
       el.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0)';
-      setTimeout(() => { el.classList.remove('flying'); res(); }, 660);
+      setTimeout(() => { el.classList.remove('flying'); flying.current = false; res(); }, 660);
     }), []);
 
     const reset = useCallback(() => {
       if (ctl.current) ctl.current.abort();
       if (rec.current) { try { rec.current.abort(); } catch (e) { /* stopped */ } rec.current = null; }
-      try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) { /* no voice */ }
-      pinned.current = false; target.current = null;
+      if (M.voice) M.voice.stop();
+      pinned.current = false; flying.current = false; target.current = null;
       setRing(null); setMode('idle'); setAnswer(''); setActs([]); setErr(''); setHeard(''); setQ('');
     }, []);
 
@@ -10970,10 +10995,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 
     const speak = t => {
       if (!spoke.current || store.get('buddyVoice') === '0') return;
-      try {
-        const u = new SpeechSynthesisUtterance(String(t).replace(/\*\*/g, '').slice(0, 400));
-        u.rate = 1.05; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
-      } catch (e) { /* no voice here */ }
+      if (M.voice) M.voice.say(String(t).replace(/\*\*/g, '').slice(0, 600));
     };
 
     const openAt = (x, y) => {
@@ -11026,7 +11048,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         const prompt = M.ai.VOICE +
           'You are the m360 cursor buddy. You live next to the person\'s mouse cursor inside the m360 OS and help them use it. ' +
           'They are ' + (nm[ctx.uid] || 'a teammate') + (ctx.isFounder ? ', the founder' : '') + '. They are on the ' + (here.s || 'home') + ' section.\n' +
-          'Rules: answer in one to three short spoken sentences. When the answer lives on screen, or they ask where or how, call point_at FIRST with the best element id, ' +
+          'Rules: answer the way a sharp, warm colleague would say it out loud: one to three short sentences, contractions, plain words, a little warmth, no lists, no headings, no markdown. When the answer lives on screen, or they ask where or how, call point_at FIRST with the best element id, ' +
           'then answer. If it lives in another section, call go_to, then point_at. Never invent ids. You never click for them. ' +
           'When they ask you to create or move a task, use those tools and confirm in one line.\n\n' +
           'SCREEN (id | kind | label | area):\n' + screen.slice(0, 9000) + '\n\nTHEIR DATA:\n' + data.slice(0, 16000) + '\n\nTHEY SAID: ' + question;
@@ -11050,7 +11072,6 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const start = () => {
         holding = true; finalText = ''; spoke.current = true;
         reset();
-        pinned.current = true;
         setAnchor({x: pos.current.x, y: pos.current.y});
         const S = SR();
         if (!S) { spoke.current = false; openAt(pos.current.x, pos.current.y); return; }
@@ -11093,8 +11114,6 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       if (mode !== 'idle') { reset(); return; }
       spoke.current = false;
       const r = homeRef.current ? homeRef.current.getBoundingClientRect() : {left: window.innerWidth - 200, top: window.innerHeight - 80};
-      pinned.current = true;
-      fly(r.left + 10, r.top - 10);
       openAt(r.left, r.top - 10);
     };
 
@@ -11107,7 +11126,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 
     return html`<div>
       ${!hidden ? html`<div ref=${pointerRef} class=${'buddy' + (mode === 'listening' ? ' listening' : '')}
-        style=${coarse() && mode === 'idle' ? {display: 'none'} : null}><${Pointer}/></div>` : null}
+        style=${coarse() && !matchMedia('(pointer: fine)').matches && mode === 'idle' ? {display: 'none'} : null}><${Pointer}/></div>` : null}
       ${ring ? html`<div class="buddy-ring" style=${{left: ring.left + 'px', top: ring.top + 'px', width: ring.width + 'px', height: ring.height + 'px'}}/>` : null}
       ${mode !== 'idle' ? html`<div class="buddy-bubble" role="dialog" aria-label="Ask m360" style=${{left: left + 'px', top: top + 'px'}}>
         <div class="row between" style=${{marginBottom: '8px'}}>
@@ -11119,7 +11138,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           <input id="buddy-input" class="input" value=${q} autoFocus=${true} placeholder="Where do I check in? What's overdue?"
             onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') ask(q); }} aria-label="Ask m360"/>
           <div class="row between"><span class="tiny" style=${{color: 'rgba(255,255,255,.6)'}}>Hold Ctrl + Option to talk</span>
-            <button type="button" class="btn on-dark sm" disabled=${!q.trim()} onClick=${() => ask(q)}>Ask</button></div>
+            <span class="row nowrap">
+              ${M.parts.MicButton ? html`<${M.parts.MicButton} sm=${true} label="Talk" onText=${t => { spoke.current = true; ask(t); }}/>` : null}
+              <button type="button" class="btn on-dark sm" disabled=${!q.trim()} onClick=${() => ask(q)}>Ask</button>
+            </span></div>
         </div>` : null}
         ${mode === 'thinking' && !answer ? html`<${M.Thinking} label="Looking at your screen"/>` : null}
         ${mode === 'tour' ? html`<div class="row between" style=${{marginTop: '10px'}}>
@@ -15708,6 +15730,102 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   M.parts.BaseNudges = BaseNudges;
 })();
 
+/* ==== 80-voice.js ==== */
+/* module: voice. How m360 speaks. On EdgeOne with a voice set up in Admin, lines come back from the
+   server as audio (a natural, warm voice). Everywhere else the browser's best voice is picked and the
+   line is read in sentences, so it breathes. One line at a time; a new line stops the old one. */
+'use strict';
+(function () {
+  const GOOD = ['samantha', 'karen', 'moira', 'tessa', 'fiona', 'aria', 'jenny', 'sonia', 'libby', 'neerja', 'natasha', 'google uk english female', 'google us english', 'zira', 'susan', 'ava', 'allison', 'serena', 'kate'];
+  let audio = null, serverOn = null, voicesCache = null, checkedAt = 0;
+
+  function browserVoices() {
+    try { const v = window.speechSynthesis ? window.speechSynthesis.getVoices() : []; if (v && v.length) voicesCache = v; } catch (e) { /* none */ }
+    return voicesCache || [];
+  }
+  try { if (window.speechSynthesis) { browserVoices(); window.speechSynthesis.addEventListener('voiceschanged', browserVoices); } } catch (e) { /* none */ }
+
+  /* the most human sounding voice this browser has */
+  function pick() {
+    const vs = browserVoices();
+    if (!vs.length) return null;
+    const score = v => {
+      const n = String(v.name || '').toLowerCase(), l = String(v.lang || '').toLowerCase();
+      let s = 0;
+      if (/natural|neural|online|premium|enhanced/.test(n)) s += 6;
+      GOOD.forEach((g, i) => { if (n.includes(g)) s += 5 - Math.min(4, i / 5); });
+      if (l.startsWith('en-in')) s += 3; else if (l.startsWith('en-gb')) s += 2; else if (l.startsWith('en')) s += 1; else s -= 6;
+      if (/compact|espeak|robot/.test(n)) s -= 5;
+      return s;
+    };
+    return vs.slice().sort((a, b) => score(b) - score(a))[0];
+  }
+
+  function stop() {
+    try { if (audio) { audio.pause(); audio.src = ''; audio = null; } } catch (e) { /* gone */ }
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* none */ }
+  }
+
+  function sayInBrowser(text) {
+    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return false;
+    const v = pick();
+    const parts = String(text).split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
+    parts.forEach((p, i) => {
+      const u = new SpeechSynthesisUtterance(p);
+      if (v) { u.voice = v; u.lang = v.lang; }
+      u.rate = .98; u.pitch = 1.04; u.volume = 1;
+      if (i) u.onstart = null;
+      window.speechSynthesis.speak(u);
+    });
+    return true;
+  }
+
+  async function sayFromServer(text) {
+    if (!window.M360_STANDALONE || typeof window.M360_API !== 'function') return false;
+    /* a no from the server is trusted for five minutes, then asked again (a voice may have been set up meanwhile) */
+    if (serverOn === false && Date.now() - checkedAt < 300000) return false;
+    try {
+      const r = await window.M360_API('speak', {text});
+      if (!r || !r.audio) { serverOn = false; checkedAt = Date.now(); return false; }
+      serverOn = true; checkedAt = Date.now();
+      const bytes = Uint8Array.from(atob(r.audio), c => c.charCodeAt(0));
+      const url = URL.createObjectURL(new Blob([bytes], {type: r.mime || 'audio/mpeg'}));
+      stop();
+      audio = new Audio(url);
+      audio.onended = () => { URL.revokeObjectURL(url); };
+      await audio.play();
+      return true;
+    } catch (e) {
+      if (e && (e.code === 'voice_off' || e.status === 404)) { serverOn = false; checkedAt = Date.now(); }
+      return false;
+    }
+  }
+
+  const clean = t => String(t || '').replace(/[*_`#>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 600);
+
+  M.voice = {
+    say: async text => {
+      const t = clean(text);
+      if (!t) return;
+      stop();
+      if (await sayFromServer(t)) return;
+      sayInBrowser(t);
+    },
+    stop,
+    pick,
+    voices: browserVoices,
+    /* the page asks once whether the server has a voice; the answer also refreshes after Admin saves one */
+    refresh: async () => {
+      if (!window.M360_STANDALONE || typeof window.M360_API !== 'function') { serverOn = false; return false; }
+      try { const r = await window.M360_API('voicestatus'); serverOn = !!(r && r.on); } catch (e) { serverOn = false; }
+      checkedAt = Date.now();
+      return serverOn;
+    },
+    serverOn: () => serverOn
+  };
+  M.voice.refresh();
+})();
+
 /* ==== 70-standalone.js ==== */
 /* module: standalone. Only in the EdgeOne build: first-run setup, sign in by email and password,
    reset codes, email links, sign-in links for other devices, sign out, and the founder's AI key. */
@@ -16222,6 +16340,50 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   M.parts.DeviceCard = DeviceCard;
   M.parts.MemberDevices = MemberDevices;
   M.parts.AiKeyCard = AiKeyCard;
+
+  /* ---------- Admin: the buddy's voice through ElevenLabs ---------- */
+  function VoiceCard() {
+    const ctx = M.useCtx();
+    const [st, setSt] = useState(null);
+    const [key, setKey] = useState('');
+    const [voices, setVoices] = useState([]);
+    const [voice, setVoice] = useState('');
+    const [busy, setBusy] = useState(false);
+    const load = () => api('voices').then(r => { setVoices(r.voices || []); setVoice(r.voice || ''); setSt({on: !!r.on, name: r.name || ''}); }, () => api('voicestatus').then(r => setSt({on: !!r.on, name: r.name || ''}), () => setSt({on: false, name: ''})));
+    useEffect(() => { load(); if (M.voice) M.voice.refresh(); }, []);
+    if (!ctx.isFounder || st === null) return null;
+    async function save(k, vid) {
+      setBusy(true);
+      try {
+        const r = await api('voicekey', {key: k, voice: vid || ''});
+        setKey('');
+        if (r.voices) setVoices(r.voices);
+        setVoice(r.voice || ''); setSt({on: !!r.on, name: r.name || ''});
+        if (M.voice) M.voice.refresh();
+        M.toast(k ? 'Voice on: ' + (r.name || 'set') : 'Voice removed');
+      } catch (e) { M.toast((e && e.message) || 'That did not save.', true); }
+      setBusy(false);
+    }
+    const test = () => { if (M.voice) M.voice.say('Hey, I am the m360 buddy. Hold Control and Option and just talk to me.'); };
+    return html`<${UI.Card} id="voice-card" title="The buddy's voice"
+      action=${st.on ? html`<span class="pill ink">on, ${st.name || 'set'}</span>` : html`<span class="pill flame-o">browser voice</span>`}>
+      <p class="small ink62" style=${{marginTop: 0}}>${st.on
+        ? 'The buddy speaks with a natural voice from ElevenLabs. Pick another voice below, or remove the key to fall back to the browser voice.'
+        : 'Right now the buddy uses the voice built into each browser. For a warm, human voice, make a free account at elevenlabs.com, copy an API key from your profile, and paste it here. The key stays on the server.'}</p>
+      <div class="row">
+        <input class="input" type="password" autocomplete="off" style=${{maxWidth: '360px'}} placeholder="ElevenLabs API key"
+          aria-label="ElevenLabs API key" value=${key} onInput=${e => setKey(e.target.value)}/>
+        <${UI.Btn} sm=${true} id="voice-save" disabled=${busy || !key.trim()} onClick=${() => save(key.trim(), voice)}>Save key<//>
+        ${st.on ? html`<${UI.ConfirmBtn} kind="ghost" onConfirm=${() => save('', '')} label="Tap again to remove">Remove<//>` : null}
+      </div>
+      ${voices.length ? html`<div class="row" style=${{marginTop: '10px'}}>
+        <${UI.Select} id="voice-pick" label="voice" value=${voice} onChange=${async v => { setVoice(v); try { const r = await api('voicekey', {key: '', voice: v, keep: true}); if (r && r.name) setSt({on: true, name: r.name}); } catch (e) { /* needs the key again */ } }}
+          options=${voices.map(x => ({v: x.id, label: x.name}))}/>
+        <${UI.Btn} kind="sec" sm=${true} id="voice-test" onClick=${test}>Say hello<//>
+      </div>` : html`<div class="row" style=${{marginTop: '10px'}}><${UI.Btn} kind="sec" sm=${true} id="voice-test" onClick=${test}>Hear the browser voice<//></div>`}
+    <//>`;
+  }
+  M.parts.VoiceCard = VoiceCard;
   /* the activity log lives on the server only; the Log tab reads it a day range at a time */
   M.logs = M.logs || {};
   M.logs.read = (ctx, {from, to}) => api('logs', {from, to}).then(r => r.docs || {});

@@ -80,7 +80,10 @@
     const pointerRef = useRef(null);
     const mouse = useRef({x: window.innerWidth - 90, y: window.innerHeight - 90});
     const pos = useRef({x: window.innerWidth - 90, y: window.innerHeight - 90});
-    const pinned = useRef(false);
+    const pinned = useRef(false);        /* only while flying, and until the mouse moves again afterwards */
+    const flying = useRef(false);
+    const pinAt = useRef(null);
+    const still = useRef(0);
     const target = useRef(null);
     const ctl = useRef(null);
     const rec = useRef(null);
@@ -88,16 +91,27 @@
     const homeRef = useRef(null);
     const askRef = useRef(null);
 
-    /* follow the cursor with a little lag; stays put while pointing */
+    /* follow the cursor with a little lag. While the buddy flies to a control it holds still, and it lets go
+       the moment the mouse moves again, so it never gets stuck after an answer or a tour step. */
     useEffect(() => {
       if ((!on && mode !== 'tour') || hidden) return;
       let raf = 0;
-      const move = e => { mouse.current = {x: e.clientX + 16, y: e.clientY + 14}; };
+      const move = e => {
+        if (e.pointerType === 'touch') return;
+        mouse.current = {x: e.clientX + 16, y: e.clientY + 14};
+        still.current = Date.now();
+        if (pinned.current && !flying.current) {
+          const a = pinAt.current;
+          if (!a || Math.abs(e.clientX - a.x) + Math.abs(e.clientY - a.y) > 28) pinned.current = false;
+        }
+        if (pointerRef.current) pointerRef.current.classList.remove('still');
+      };
       const tick = () => {
-        if (!pinned.current && !coarse()) {
+        if (!pinned.current) {
           const p = pos.current, m = mouse.current;
           p.x += (m.x - p.x) * .22; p.y += (m.y - p.y) * .22;
         }
+        if (pointerRef.current && mode === 'idle' && still.current && Date.now() - still.current > 4000) pointerRef.current.classList.add('still');
         if (target.current) {
           const el = target.current;
           const r = el.getBoundingClientRect();
@@ -108,26 +122,28 @@
         raf = requestAnimationFrame(tick);
       };
       window.addEventListener('pointermove', move, {passive: true});
+      window.addEventListener('mousemove', move, {passive: true});
       raf = requestAnimationFrame(tick);
-      return () => { cancelAnimationFrame(raf); window.removeEventListener('pointermove', move); };
-    }, [on, hidden, mode === 'tour']);
+      return () => { cancelAnimationFrame(raf); window.removeEventListener('pointermove', move); window.removeEventListener('mousemove', move); };
+    }, [on, hidden, mode]);
 
 
     const fly = useCallback((x, y) => new Promise(res => {
-      pinned.current = true;
+      pinned.current = true; flying.current = true;
+      pinAt.current = {x: mouse.current.x - 16, y: mouse.current.y - 14};
       const el = pointerRef.current;
-      if (!el || reduced()) { pos.current = {x, y}; res(); return; }
+      if (!el || reduced()) { pos.current = {x, y}; flying.current = false; res(); return; }
       el.classList.add('flying');
       pos.current = {x, y};
       el.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0)';
-      setTimeout(() => { el.classList.remove('flying'); res(); }, 660);
+      setTimeout(() => { el.classList.remove('flying'); flying.current = false; res(); }, 660);
     }), []);
 
     const reset = useCallback(() => {
       if (ctl.current) ctl.current.abort();
       if (rec.current) { try { rec.current.abort(); } catch (e) { /* stopped */ } rec.current = null; }
-      try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) { /* no voice */ }
-      pinned.current = false; target.current = null;
+      if (M.voice) M.voice.stop();
+      pinned.current = false; flying.current = false; target.current = null;
       setRing(null); setMode('idle'); setAnswer(''); setActs([]); setErr(''); setHeard(''); setQ('');
     }, []);
 
@@ -154,10 +170,7 @@
 
     const speak = t => {
       if (!spoke.current || store.get('buddyVoice') === '0') return;
-      try {
-        const u = new SpeechSynthesisUtterance(String(t).replace(/\*\*/g, '').slice(0, 400));
-        u.rate = 1.05; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
-      } catch (e) { /* no voice here */ }
+      if (M.voice) M.voice.say(String(t).replace(/\*\*/g, '').slice(0, 600));
     };
 
     const openAt = (x, y) => {
@@ -210,7 +223,7 @@
         const prompt = M.ai.VOICE +
           'You are the m360 cursor buddy. You live next to the person\'s mouse cursor inside the m360 OS and help them use it. ' +
           'They are ' + (nm[ctx.uid] || 'a teammate') + (ctx.isFounder ? ', the founder' : '') + '. They are on the ' + (here.s || 'home') + ' section.\n' +
-          'Rules: answer in one to three short spoken sentences. When the answer lives on screen, or they ask where or how, call point_at FIRST with the best element id, ' +
+          'Rules: answer the way a sharp, warm colleague would say it out loud: one to three short sentences, contractions, plain words, a little warmth, no lists, no headings, no markdown. When the answer lives on screen, or they ask where or how, call point_at FIRST with the best element id, ' +
           'then answer. If it lives in another section, call go_to, then point_at. Never invent ids. You never click for them. ' +
           'When they ask you to create or move a task, use those tools and confirm in one line.\n\n' +
           'SCREEN (id | kind | label | area):\n' + screen.slice(0, 9000) + '\n\nTHEIR DATA:\n' + data.slice(0, 16000) + '\n\nTHEY SAID: ' + question;
@@ -234,7 +247,6 @@
       const start = () => {
         holding = true; finalText = ''; spoke.current = true;
         reset();
-        pinned.current = true;
         setAnchor({x: pos.current.x, y: pos.current.y});
         const S = SR();
         if (!S) { spoke.current = false; openAt(pos.current.x, pos.current.y); return; }
@@ -277,8 +289,6 @@
       if (mode !== 'idle') { reset(); return; }
       spoke.current = false;
       const r = homeRef.current ? homeRef.current.getBoundingClientRect() : {left: window.innerWidth - 200, top: window.innerHeight - 80};
-      pinned.current = true;
-      fly(r.left + 10, r.top - 10);
       openAt(r.left, r.top - 10);
     };
 
@@ -291,7 +301,7 @@
 
     return html`<div>
       ${!hidden ? html`<div ref=${pointerRef} class=${'buddy' + (mode === 'listening' ? ' listening' : '')}
-        style=${coarse() && mode === 'idle' ? {display: 'none'} : null}><${Pointer}/></div>` : null}
+        style=${coarse() && !matchMedia('(pointer: fine)').matches && mode === 'idle' ? {display: 'none'} : null}><${Pointer}/></div>` : null}
       ${ring ? html`<div class="buddy-ring" style=${{left: ring.left + 'px', top: ring.top + 'px', width: ring.width + 'px', height: ring.height + 'px'}}/>` : null}
       ${mode !== 'idle' ? html`<div class="buddy-bubble" role="dialog" aria-label="Ask m360" style=${{left: left + 'px', top: top + 'px'}}>
         <div class="row between" style=${{marginBottom: '8px'}}>
@@ -303,7 +313,10 @@
           <input id="buddy-input" class="input" value=${q} autoFocus=${true} placeholder="Where do I check in? What's overdue?"
             onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') ask(q); }} aria-label="Ask m360"/>
           <div class="row between"><span class="tiny" style=${{color: 'rgba(255,255,255,.6)'}}>Hold Ctrl + Option to talk</span>
-            <button type="button" class="btn on-dark sm" disabled=${!q.trim()} onClick=${() => ask(q)}>Ask</button></div>
+            <span class="row nowrap">
+              ${M.parts.MicButton ? html`<${M.parts.MicButton} sm=${true} label="Talk" onText=${t => { spoke.current = true; ask(t); }}/>` : null}
+              <button type="button" class="btn on-dark sm" disabled=${!q.trim()} onClick=${() => ask(q)}>Ask</button>
+            </span></div>
         </div>` : null}
         ${mode === 'thinking' && !answer ? html`<${M.Thinking} label="Looking at your screen"/>` : null}
         ${mode === 'tour' ? html`<div class="row between" style=${{marginTop: '10px'}}>

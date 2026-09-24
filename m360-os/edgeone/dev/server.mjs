@@ -39,6 +39,13 @@ async function fakeFetch(url, init) {
   if (fr) return fr;
   const fp = await fakePeek(String(url), init || {});
   if (fp) return fp;
+  if (String(url).includes('api.elevenlabs.io')) {
+    const key = (init.headers || {})['xi-api-key'] || '';
+    if (!/^el_/.test(key)) return new Response(JSON.stringify({detail: 'bad key'}), {status: 401});
+    if (String(url).endsWith('/v1/voices')) return new Response(JSON.stringify({voices: [{voice_id: 'v_rachel_001', name: 'Rachel', labels: {gender: 'female'}}, {voice_id: 'v_george_002', name: 'George', labels: {gender: 'male'}}]}), {status: 200, headers: {'content-type': 'application/json'}});
+    globalThis.__tts = (globalThis.__tts || 0) + 1;
+    return new Response(new Uint8Array([0x49, 0x44, 0x33, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xfb, 0x90, 0x64]), {status: 200, headers: {'content-type': 'audio/mpeg'}});
+  }
   const body = JSON.parse(init.body);
   if (String(url).includes('api.resend.com')) {
     if (!/^Bearer re_/.test(init.headers.authorization || '')) return new Response(JSON.stringify({message: 'bad key'}), {status: 401});

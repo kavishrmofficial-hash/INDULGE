@@ -511,6 +511,50 @@
   M.parts.DeviceCard = DeviceCard;
   M.parts.MemberDevices = MemberDevices;
   M.parts.AiKeyCard = AiKeyCard;
+
+  /* ---------- Admin: the buddy's voice through ElevenLabs ---------- */
+  function VoiceCard() {
+    const ctx = M.useCtx();
+    const [st, setSt] = useState(null);
+    const [key, setKey] = useState('');
+    const [voices, setVoices] = useState([]);
+    const [voice, setVoice] = useState('');
+    const [busy, setBusy] = useState(false);
+    const load = () => api('voices').then(r => { setVoices(r.voices || []); setVoice(r.voice || ''); setSt({on: !!r.on, name: r.name || ''}); }, () => api('voicestatus').then(r => setSt({on: !!r.on, name: r.name || ''}), () => setSt({on: false, name: ''})));
+    useEffect(() => { load(); if (M.voice) M.voice.refresh(); }, []);
+    if (!ctx.isFounder || st === null) return null;
+    async function save(k, vid) {
+      setBusy(true);
+      try {
+        const r = await api('voicekey', {key: k, voice: vid || ''});
+        setKey('');
+        if (r.voices) setVoices(r.voices);
+        setVoice(r.voice || ''); setSt({on: !!r.on, name: r.name || ''});
+        if (M.voice) M.voice.refresh();
+        M.toast(k ? 'Voice on: ' + (r.name || 'set') : 'Voice removed');
+      } catch (e) { M.toast((e && e.message) || 'That did not save.', true); }
+      setBusy(false);
+    }
+    const test = () => { if (M.voice) M.voice.say('Hey, I am the m360 buddy. Hold Control and Option and just talk to me.'); };
+    return html`<${UI.Card} id="voice-card" title="The buddy's voice"
+      action=${st.on ? html`<span class="pill ink">on, ${st.name || 'set'}</span>` : html`<span class="pill flame-o">browser voice</span>`}>
+      <p class="small ink62" style=${{marginTop: 0}}>${st.on
+        ? 'The buddy speaks with a natural voice from ElevenLabs. Pick another voice below, or remove the key to fall back to the browser voice.'
+        : 'Right now the buddy uses the voice built into each browser. For a warm, human voice, make a free account at elevenlabs.com, copy an API key from your profile, and paste it here. The key stays on the server.'}</p>
+      <div class="row">
+        <input class="input" type="password" autocomplete="off" style=${{maxWidth: '360px'}} placeholder="ElevenLabs API key"
+          aria-label="ElevenLabs API key" value=${key} onInput=${e => setKey(e.target.value)}/>
+        <${UI.Btn} sm=${true} id="voice-save" disabled=${busy || !key.trim()} onClick=${() => save(key.trim(), voice)}>Save key<//>
+        ${st.on ? html`<${UI.ConfirmBtn} kind="ghost" onConfirm=${() => save('', '')} label="Tap again to remove">Remove<//>` : null}
+      </div>
+      ${voices.length ? html`<div class="row" style=${{marginTop: '10px'}}>
+        <${UI.Select} id="voice-pick" label="voice" value=${voice} onChange=${async v => { setVoice(v); try { const r = await api('voicekey', {key: '', voice: v, keep: true}); if (r && r.name) setSt({on: true, name: r.name}); } catch (e) { /* needs the key again */ } }}
+          options=${voices.map(x => ({v: x.id, label: x.name}))}/>
+        <${UI.Btn} kind="sec" sm=${true} id="voice-test" onClick=${test}>Say hello<//>
+      </div>` : html`<div class="row" style=${{marginTop: '10px'}}><${UI.Btn} kind="sec" sm=${true} id="voice-test" onClick=${test}>Hear the browser voice<//></div>`}
+    <//>`;
+  }
+  M.parts.VoiceCard = VoiceCard;
   /* the activity log lives on the server only; the Log tab reads it a day range at a time */
   M.logs = M.logs || {};
   M.logs.read = (ctx, {from, to}) => api('logs', {from, to}).then(r => r.docs || {});

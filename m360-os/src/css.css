@@ -382,6 +382,8 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .buddy{position:fixed; left:0; top:0; z-index:90; pointer-events:none}
 .buddy svg{display:block; width:24px; height:24px; filter:drop-shadow(0 2px 5px rgba(10,10,10,.28))}
 .buddy.listening svg{transform:scale(1.2)}
+.buddy.still{opacity:.4; transition:opacity .6s ease}
+.buddy{transition:opacity .2s ease}
 .buddy-ring{position:fixed; z-index:89; pointer-events:none; border:2px solid var(--flame); border-radius:12px; box-shadow:0 0 0 5px rgba(245,57,1,.14)}
 .buddy-bubble{position:fixed; z-index:91; width:min(340px,calc(100vw - 32px)); background:var(--dark); color:#fff; border-radius:16px; padding:12px 14px; font-size:14px; line-height:1.45; box-shadow:0 12px 32px rgba(10,10,10,.24); pointer-events:auto}
 .buddy-bubble .input{background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.22); color:#fff; min-height:40px}
