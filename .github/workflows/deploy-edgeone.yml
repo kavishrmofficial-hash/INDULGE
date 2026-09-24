@@ -1,7 +1,7 @@
 name: deploy-edgeone
 # Builds the standalone m360 OS and deploys it to EdgeOne Pages.
 #  - With the repository secret EDGEONE_API_TOKEN set, every push deploys to the project named by the
-#    repository variable EDGEONE_PROJECT (default m360os), keeping its data.
+#    repository variable EDGEONE_PROJECT (default mask360os, the claimed project), keeping its data.
 #  - Without it, a run started by hand or a commit whose message contains [deploy] makes an anonymous
 #    deployment: a fresh workspace that must be claimed within an hour from the link in the run summary.
 on:
@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       EDGEONE_API_TOKEN: ${{ secrets.EDGEONE_API_TOKEN }}
-      EDGEONE_PROJECT: ${{ vars.EDGEONE_PROJECT || 'm360os' }}
+      EDGEONE_PROJECT: ${{ vars.EDGEONE_PROJECT || 'mask360os' }}
       ANON_OK: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[deploy]') }}
     steps:
       - uses: actions/checkout@v4
