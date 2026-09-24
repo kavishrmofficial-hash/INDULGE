@@ -413,6 +413,8 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 @keyframes land{0%{transform:scale(1.35)} 60%{transform:scale(.9)} 100%{transform:scale(1)}}
 .buddy-home{position:fixed; right:24px; bottom:24px; z-index:55; height:46px; padding:0 16px 0 12px; border-radius:999px; border:0; cursor:pointer; background:var(--dark); color:#fff; font-size:14px; font-weight:500; display:inline-flex; align-items:center; gap:9px; box-shadow:0 8px 24px rgba(10,10,10,.2)}
 .buddy-home:hover{background:#000}
+.buddy-home .mark{width:46px; color:#fff; flex:none}
+.buddy-home .lbl{font-size:12px; letter-spacing:.14em; color:rgba(255,255,255,.72)}
 .buddy-home svg{width:18px; height:18px}
 .buddy-home .k{font-size:11px; font-weight:400; color:rgba(255,255,255,.62); border:1px solid rgba(255,255,255,.25); border-radius:6px; padding:1px 6px}
 @media (prefers-reduced-motion:no-preference){
@@ -466,7 +468,8 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
   .podium .po{width:88px}
   .buddy-home{right:16px; bottom:calc(74px + env(safe-area-inset-bottom)); height:44px}
   .buddy-home .k, .buddy-home .lbl{display:none}
-  .buddy-home{width:44px; padding:0; justify-content:center}
+  .buddy-home{width:56px; padding:0; justify-content:center}
+  .buddy-home .mark{width:34px}
   .buddy-bubble{left:12px !important; right:12px; top:auto !important; bottom:calc(86px + env(safe-area-inset-bottom)); width:auto; max-height:46vh; overflow:auto}
   .buddy-trail{display:none}
   .btn.xl{width:100%}

@@ -279,7 +279,7 @@
     const b = M.badges(ctx);
     const go = k => { setMoreOpen(false); M.nav('#' + k); };
 
-    const mainKeys = ['home', 'work', 'accounts', 'vibe', 'me'];
+    const mainKeys = ['home', 'work', 'accounts', 'base', 'radar', 'vibe', 'me'];
     const founderKeys = ctx.isFounder ? ['hq', 'admin'] : [];
     const item = k => {
       const s = SECTIONS[k];

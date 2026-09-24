@@ -60,6 +60,18 @@ def mock_part(h):
     p.keyboard.press('Enter')
     p.wait_for_selector('.buddy-bubble:has-text("Ask another")', timeout=20000)
     follows(p, 700, 420, check, 'after an answer')
+    # the chat thread: the buddy's exchange shows in the full chat, and survives a reload
+    p.locator('.buddy-bubble').get_by_role('button', name='Open full chat').click()
+    p.wait_for_selector('.drawer:has-text("what is overdue")')
+    check(p.locator('.drawer .bubble.me:has-text("what is overdue")').count() == 1, 'the full chat should carry the buddy question')
+    check(p.locator('.drawer .mark').count() >= 1, 'the full chat should wear the mark')
+    p.keyboard.press('Escape'); p.wait_for_function('() => !document.querySelector(".drawer")')
+    h.go(p, 'founder', hash='#home', width=1280)
+    p.wait_for_selector('.buddy-home')
+    check(p.locator('.buddy-home .mark').count() == 1, 'Ask m360 should wear the mark')
+    p.locator('.side-tools .iconbtn[aria-label="Ask m360"]').click()
+    p.wait_for_selector('.drawer:has-text("what is overdue")', timeout=8000)
+    p.keyboard.press('Escape'); p.wait_for_function('() => !document.querySelector(".drawer")')
     # the bubble stays where it opened while the mouse moves around
     p.keyboard.press('Escape')
     p.locator('.buddy-home').click()

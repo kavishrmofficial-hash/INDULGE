@@ -127,6 +127,8 @@
     const walk = useRef(null);
     modeRef.current = mode;
 
+    useEffect(() => { if (M.chat && ctx.db && ctx.uid) M.chat.watch(ctx); }, [ctx.uid]);
+
     /* the mouth moves while a line is being said */
     useEffect(() => {
       const f = e => setTalking(!!(e.detail && e.detail.on));
@@ -458,6 +460,7 @@
         const looking = /\b(who|how many|what is|what's|whats|overdue|pipeline|know at|find|search|slipping|late|points|score|balance|client|contact|company)\b/i.test(question);
         const ordered = (doing || !looking) ? tools.concat(aiTools) : aiTools.concat(tools);
         const lim = ctx.sample.limits ? await ctx.sample.limits().catch(() => null) : null;
+        if (!history.current.length && M.chat && M.chat.turns.length) history.current = M.chat.recent(6).map(t => ({role: t.role, content: String(t.content).slice(0, 300)}));
         const past = history.current.slice(-6).map(h => (h.role === 'user' ? 'They: ' : 'You: ') + h.content).join('\n');
         const prompt = M.ai.VOICE +
           'You are the m360 cursor buddy. You live next to the person\'s mouse cursor inside the m360 OS and help them use it. ' +
@@ -475,6 +478,7 @@
           onText: ({text: t}) => setAnswer(t.replace(/\u2014|\u2013/g, ', '))});
         const final = out.text.replace(/\u2014|\u2013/g, ', ');
         history.current.push({role: 'user', content: question}, {role: 'assistant', content: final.slice(0, 300)});
+        if (M.chat) M.chat.append(ctx, [{role: 'user', content: question}, {role: 'assistant', content: final}]);
         if (walk.current) {
           /* a how-to: the answer becomes a short pointed walk, one step per Next */
           const list = walk.current; walk.current = null;
@@ -615,7 +619,7 @@
       <button ref=${homeRef} type="button" class=${'buddy-home' + (mode === 'listening' ? ' live' : '')} aria-label="Ask m360"
         onPointerDown=${homeDown} onPointerUp=${homeUp} onPointerCancel=${() => { if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = 0; } }}
         onKeyDown=${e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tapHome(); } }} onContextMenu=${e => e.preventDefault()}>
-        <span style=${{color: 'var(--flame)', fontSize: '16px'}} aria-hidden="true">${SPARK}</span> <span class="lbl">Ask m360</span> <span class="k">${coarse() && !fine() ? 'hold to talk' : 'hold ⌃⌥'}</span>
+        <${M.Mark} width="46px"/><span class="lbl">ask</span> <span class="k">${coarse() && !fine() ? 'hold to talk' : 'hold ⌃⌥'}</span>
       </button>
     </div>`;
   }

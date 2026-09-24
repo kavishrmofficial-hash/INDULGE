@@ -16,9 +16,41 @@
       'When asked to do something, do it with a tool, then confirm in one line. When the data does not say, say so plainly.';
   }
 
+  /* one thread per person, kept in their private doc, so the buddy and the full chat share it and it survives a reload */
+  const chat = M.chat = {
+    path: ctx => 'data/users/' + ctx.uid + '/chat',
+    turns: [],
+    ready: false,
+    subs: new Set(),
+    watched: '',
+    watch(ctx) {
+      const p = chat.path(ctx);
+      if (chat.watched === p || !ctx.db) return;
+      chat.watched = p; chat.ready = false;
+      try {
+        ctx.db.doc(p).onSnapshot(d => { chat.turns = (d.exists && Array.isArray(d.data().turns)) ? d.data().turns : []; chat.ready = true; chat.subs.forEach(f => f()); },
+          () => { chat.ready = true; chat.subs.forEach(f => f()); });
+      } catch (e) { chat.ready = true; }
+    },
+    save(ctx, turns) {
+      const keep = turns.slice(-40).map(t => ({role: t.role, content: String(t.content || '').slice(0, 4000), ...(t.act ? {act: true} : {})}));
+      chat.turns = keep; chat.subs.forEach(f => f());
+      return ctx.W.merge(chat.path(ctx), {turns: keep, at: Date.now()}).catch(() => {});
+    },
+    append: (ctx, more) => chat.save(ctx, chat.turns.concat(more)),
+    /* the recent exchange, for a prompt */
+    recent: n => chat.turns.filter(t => !t.act).slice(-(n || 6))
+  };
+
   function AskPanel({inline, initial}) {
     const ctx = M.useCtx();
-    const [turns, setTurns] = useState([]);   /* {role, content, act?} for display */
+    const [turns, setTurns] = useState(() => M.chat.turns);   /* {role, content, act?} for display */
+    useEffect(() => {
+      M.chat.watch(ctx);
+      const f = () => setTurns(M.chat.turns);
+      M.chat.subs.add(f); if (M.chat.ready) f();
+      return () => { M.chat.subs.delete(f); };
+    }, [ctx.uid]);
     const [q, setQ] = useState('');
     const [busy, setBusy] = useState(false);
     const [live, setLive] = useState('');
@@ -51,7 +83,8 @@
         history.slice(-8).forEach(t => convo.push({role: t.role, content: t.content}));
         convo.push({role: 'user', content: msg});
         const out = await ctx.sample(convo, {signal: c.signal, tools, onText: ({text: t}) => setLive(t), ...(tools ? {} : {cache: false})});
-        setTurns(ts => [...ts, {role: 'assistant', content: out.text.replace(/\u2014|\u2013/g, ', ')}]);
+        const answer = {role: 'assistant', content: out.text.replace(/\u2014|\u2013/g, ', ')};
+        setTurns(ts => { const all = [...ts, answer]; M.chat.save(ctx, all); return all; });
       } catch (e) {
         const code = (e && e.code) || 'upstream_error';
         if (code !== 'cancelled') setTurns(ts => [...ts, {role: 'assistant', content: (e && e.text ? e.text + '\n\n' : '') + M.ai.errCopy(code), err: true}]);
@@ -61,6 +94,7 @@
 
     const chips = ctx.isFounder ? FOUNDER_CHIPS : MEMBER_CHIPS;
     return html`<div class="stack" style=${{gap: '12px'}}>
+      ${!inline ? html`<div class="row" style=${{gap: '8px', alignItems: 'center'}}><${M.Mark} width="54px"/><span class="micro">ask</span></div>` : null}
       ${turns.length === 0 && !busy ? html`<div class="stack tight">
         <div style=${{fontWeight: 600}}>${ctx.isFounder ? 'Ask about anyone, any client, any number. Or tell it to hand out work.' : 'Ask about your work, or tell it to add and move tasks for you.'}</div>
         <div class="row" style=${{gap: '8px'}}>${chips.map(c => html`<button key=${c} type="button" class="chip" onClick=${() => send(c)}>${c}</button>`)}</div>
@@ -79,7 +113,7 @@
         ${busy ? html`<${UI.Btn} kind="sec" onClick=${() => ctl.current && ctl.current.abort()}>Stop<//>`
           : html`<button type="button" class="btn" disabled=${!q.trim()} onClick=${() => send()}>Ask</button>`}
       </div>
-      ${turns.length ? html`<button type="button" class="linky tiny" style=${{alignSelf: 'flex-start'}} onClick=${() => setTurns([])}>Clear chat</button>` : null}
+      ${turns.length ? html`<button type="button" class="linky tiny" style=${{alignSelf: 'flex-start'}} onClick=${() => { setTurns([]); M.chat.save(ctx, []); }}>Clear chat</button>` : null}
     </div>`;
   }
 
