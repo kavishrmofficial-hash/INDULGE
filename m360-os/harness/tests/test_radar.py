@@ -71,6 +71,8 @@ def edge():
             f.goto(base)
             f.wait_for_selector('text=Set up m360 OS')
             f.fill('#signin-name', 'Kaavish Ramchandani')
+            f.fill('#signin-email', 'kaavish@mask360.agency')
+            f.fill('#signin-pw', 'radar-test-pw-2026')
             f.get_by_role('button', name='Set up the workspace').click()
             f.wait_for_selector('.sidebar')
             fuid = f.evaluate('() => window.M360_API("me").then(x => x.uid)')
