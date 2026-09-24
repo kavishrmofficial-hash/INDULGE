@@ -1,0 +1,37 @@
+/* ---------- client brain: logos, the company brain, news, prep and health ---------- */
+.cl-logo{width:56px; height:56px; border-radius:16px; object-fit:cover; flex:none; background:var(--warm); border:1px solid var(--line); display:block}
+.cl-logo.sm{width:36px; height:36px; border-radius:11px}
+.cl-logo.cl-initials{display:inline-flex; align-items:center; justify-content:center; border-radius:999px; color:var(--ink); font-size:16px; font-weight:500; letter-spacing:.02em; text-transform:uppercase}
+.cl-logo.cl-initials.sm{font-size:12px}
+.cl-logorow{display:flex; align-items:center; gap:14px; padding:14px 16px; border-radius:16px; background:var(--warm); min-width:0}
+.cl-logorow .grow{display:flex; flex-direction:column; gap:6px; min-width:0}
+.cl-logorow .row{gap:6px}
+.cl-file{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; opacity:0}
+.cl-title{display:flex; align-items:center; gap:10px; min-width:0}
+.cl-title .nm{font-weight:500; font-size:17px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.cl-health{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink62); min-width:0}
+.cl-health i{width:8px; height:8px; border-radius:999px; background:var(--ink); flex:none}
+.cl-health.watch i{background:transparent; box-shadow:inset 0 0 0 2px var(--flame)}
+.cl-health.risk i{background:var(--flame)}
+.cl-health.watch,.cl-health.risk{color:var(--ink)}
+.cl-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px 14px; margin-top:12px}
+.cl-grid>*{min-width:0}
+.cl-grid textarea.input{min-height:64px; font-size:14px}
+.cl-src{display:flex; flex-wrap:wrap; gap:6px 10px; font-size:12px; color:var(--ink62); margin-top:6px}
+.cl-src a{color:inherit; text-decoration:underline; text-underline-offset:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%}
+.cl-news{display:flex; flex-direction:column; gap:2px}
+.cl-news a{display:flex; gap:10px; align-items:baseline; padding:8px 0; border-bottom:1px solid var(--line); text-decoration:none; color:inherit; min-width:0}
+.cl-news a:last-child{border-bottom:0}
+.cl-news .t{flex:1; min-width:0; font-weight:400}
+.cl-news .t:hover{text-decoration:underline; text-underline-offset:3px}
+.cl-news .w{flex:none; font-size:12px; color:var(--ink62)}
+.cl-socials{display:flex; flex-wrap:wrap; gap:6px}
+a.pill.cl-social{text-decoration:none; color:var(--ink); height:28px; max-width:100%; overflow:hidden; text-overflow:ellipsis}
+a.pill.cl-social:hover{background:var(--warm)}
+a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
+@media (max-width:860px){
+  .cl-grid{grid-template-columns:1fr}
+  .cl-logorow{flex-wrap:wrap}
+  .cl-news a{flex-wrap:wrap; gap:2px 10px}
+  .cl-news .t{flex-basis:100%}
+}
