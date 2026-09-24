@@ -102,6 +102,7 @@ Publish `dist/index.html` with the Artifact tool, title "m360 OS", with the capa
 
 - **Moving between addresses**: Admin > Backups > Download the site backup gives one file with every document and every login (password hashes, never keys). A brand new deployment's setup screen has "Restore a site backup": upload the file and everyone signs in with the password they had. The server keeps a fresh site copy daily.
 - **Client brain**: a logo (uploaded, or the site's own), website, industry, socials; a company brain the model builds from the client's own website (read by the server) plus what the team already noted, editable field by field; news mentions from Radar; a one tap meeting prep note; a health line with the reason.
+- **Every change kept**: before any document is changed on EdgeOne, the version being replaced is stored (30 versions for 30 days, per document). Admin > Backups > Every change lists them with View and Revert to this, and every log row has a Versions link.
 - **Breathe** rebuilt: the orb grows from small on the first breath and moves with the count, a four count inside it, a ring for the minute, phase dots, and Go again.
 
 ## Keeping it safe
