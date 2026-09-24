@@ -98,9 +98,16 @@ Publish `dist/index.html` with the Artifact tool, title "m360 OS", with the capa
 - **Master search**: Cmd K searches across people, companies, tasks, projects, clients, pitches, posts, handbook, inbox and (for the founder) the log, with a full results drawer. Every client, company, contact, project and pitch shows its connections.
 - **Intelligence**: Ask m360 can search the Base and everything else, answer "who do we know at", and pull the pipeline for a company. Ask the base on the Base page, quiet lead nudges, and an intro note drafted per contact.
 
+## What is in v7
+
+- **Moving between addresses**: Admin > Backups > Download the site backup gives one file with every document and every login (password hashes, never keys). A brand new deployment's setup screen has "Restore a site backup": upload the file and everyone signs in with the password they had. The server keeps a fresh site copy daily.
+- **Client brain**: a logo (uploaded, or the site's own), website, industry, socials; a company brain the model builds from the client's own website (read by the server) plus what the team already noted, editable field by field; news mentions from Radar; a one tap meeting prep note; a health line with the reason.
+- **Breathe** rebuilt: the orb grows from small on the first breath and moves with the count, a four count inside it, a ring for the minute, phase dots, and Go again.
+
 ## Keeping it safe
 
-- Claim the EdgeOne project or set `EDGEONE_API_TOKEN` so deploys go to one stable project. An anonymous deploy is removed an hour after it is made unless claimed, and its data with it.
+- Claim the EdgeOne project or set `EDGEONE_API_TOKEN` so deploys go to one stable project. An anonymous deploy is a new project with an empty store every time, and it is removed an hour after it is made unless claimed. The claude.ai artifact keeps its database across republishes; only the EdgeOne address changes.
+- Before a move, download the site backup from Admin > Backups. On the new address choose Restore a site backup on the setup screen, then re-enter the AI and email keys in Admin.
 - The daily backup runs on the server. Download one from Admin > Backups every week and keep it somewhere else too.
 - Admin > Super > Export everything and Admin > Safety > Import a backup work on both builds.
 
