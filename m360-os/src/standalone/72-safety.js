@@ -4,7 +4,7 @@
 'use strict';
 (function () {
   const {html, React, U, UI} = M;
-  const {useState, useEffect} = React;
+  const {useState, useEffect, useRef} = React;
   if (!window.M360_STANDALONE) return;
   const api = window.M360_API;
 
@@ -195,6 +195,116 @@
     <//>`;
   }
 
+  /* ---------- moving to a new address: the site backup, and restoring one ----------
+     The site backup is every document plus the people, their emails, the owner and the password hashes, in one
+     JSON. The same picker sits on a fresh deployment's setup screen (M.parts.SiteRestore) and on this tab. */
+  const SITE_MODES = [{v: 'missing', label: 'Only add what is missing'}, {v: 'replace', label: 'Replace'}];
+  /* the site backup, or when it is over 8 MB the identity file plus one file per collection */
+  async function downloadSite(ctx) {
+    const r = await api('sitebackup');
+    const stamp = U.todayStr();
+    if (!r.tooBig) return download(ctx, 'm360-site-' + stamp + '.json', r);
+    M.toast('The site is over 8 MB, so it comes as an identity file plus one file per collection. At the new address restore the identity file first, then each collection from Backups.');
+    await download(ctx, 'm360-site-' + stamp + '-identity.json', await api('siteidentity'));
+    for (const coll of Object.keys(r.colls || {})) {
+      const part = await api('snapshotall', {coll});
+      if (part.tooBig) { M.toast(coll + ' is over 4 MB and cannot be downloaded from here.', true); continue; }
+      await download(ctx, 'm360-site-' + stamp + '-' + coll.split('/').join('-') + '.json', part);
+    }
+  }
+  /* a file as a site backup: the site file itself, the identity file, one collection from a large site, or a
+     day's backup or an everything file (documents only, no people) */
+  function parseSite(text) {
+    const j = JSON.parse(text);
+    if (!j || typeof j !== 'object' || Array.isArray(j)) throw new Error('shape');
+    if (j.kind === 'site' && j.colls && typeof j.colls === 'object') return j;
+    const empty = {people: {}, emails: {}, owner: {}, passwords: {}};
+    if (typeof j.coll === 'string' && j.docs && typeof j.docs === 'object') return {app: 'm360', kind: 'site', exported: j.exported || '', colls: {[j.coll]: {docs: j.docs}}, identity: empty};
+    if (!j.kind && j.colls && typeof j.colls === 'object') return {app: 'm360', kind: 'site', exported: j.exported || (j.at ? new Date(j.at).toISOString() : ''), colls: j.colls, identity: empty};
+    throw new Error('shape');
+  }
+  function SiteRestore({mode, fresh, onDone}) {
+    const [file, setFile] = useState(null);
+    const [err, setErr] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [done, setDone] = useState(null);
+    const input = useRef(null);
+    async function pick(e) {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      setErr(''); setDone(null); setFile(null);
+      try {
+        const site = parseSite(await f.text());
+        const counts = {};
+        let docs = 0;
+        for (const c of Object.keys(site.colls)) { const n = Object.keys((site.colls[c] && site.colls[c].docs) || {}).length; counts[c] = n; docs += n; }
+        const people = Object.keys((site.identity && site.identity.people) || {}).length;
+        if (!docs && !people) setErr('That file has no documents and no people in it.');
+        else setFile({name: f.name, site, counts, docs, people, exported: site.exported || ''});
+      } catch (x) { setErr('That file could not be read as an m360 site backup.'); }
+      if (input.current) input.current.value = '';
+    }
+    async function run() {
+      if (!file || busy) return;
+      setBusy(true); setErr('');
+      try {
+        const r = await api('siterestore', {backup: file.site, mode: mode || 'missing'});
+        setDone(r); setFile(null);
+        M.toast(r.docs || r.people ? 'Restored ' + plural(r.people, 'person', 'people') + ' and ' + plural(r.docs, 'document', 'documents') : 'Nothing was missing');
+        if (onDone) onDone(r);
+      } catch (e) { setErr(e && e.code === 'invalid_argument' && e.message ? e.message : 'That did not restore. Try again in a moment.'); }
+      setBusy(false);
+    }
+    const replace = mode === 'replace';
+    const colls = file ? Object.keys(file.counts).sort() : [];
+    const when = file && file.exported ? (isNaN(Date.parse(file.exported)) ? file.exported : U.fmtDate(file.exported.slice(0, 10))) : '';
+    return html`<div class="stack tight" id="site-restore">
+      <label class="btn sec sm safety-file">
+        <input ref=${input} id="site-restore-file" type="file" accept=".json,application/json" aria-label="Choose a site backup" onChange=${pick}/>
+        ${fresh ? 'Choose the site backup file' : 'Choose a backup file'}
+      </label>
+      ${err ? html`<div class="small flame-t" role="alert" id="site-restore-err">${err}</div>` : null}
+      ${file ? html`<div class="small" id="site-restore-counts"><b>${file.name}</b>: ${plural(file.people, 'person', 'people')}, ${plural(file.docs, 'document', 'documents')} in ${plural(colls.length, 'collection', 'collections')}${when ? ', exported ' + when : ''}.</div>
+        <div class="safety-counts num">${colls.map(c => html`<span key=${c}>${c} <b>${file.counts[c]}</b></span>`)}</div>
+        ${fresh ? html`<div class="small ink62">Everyone in the file signs in afterwards with the email and password they had.</div>`
+          : replace ? html`<div class="small flame-t">Every document in the file replaces the current one here (each goes to the trash first), and people and their passwords go back to the file's copy.</div>`
+          : html`<div class="small ink62">Only documents and people that do not exist here are added. Nothing is replaced.</div>`}
+        <span class="row" id="site-restore-go">
+          <${UI.ConfirmBtn} kind=${replace ? 'flame' : 'sec'} sm=${!fresh} onConfirm=${run} label=${replace ? 'Tap again to replace' : 'Tap again to restore'}>${busy ? 'Restoring' : fresh ? 'Restore everything' : replace ? 'Replace with this backup' : 'Add what is missing'}<//>
+          <${UI.Btn} kind="ghost" sm=${true} onClick=${() => { setFile(null); setDone(null); setErr(''); }}>Clear<//>
+        </span>` : null}
+      ${done ? html`<div class="small" id="site-restore-result">
+        <span class="num">${done.people}</span> ${done.people === 1 ? 'person' : 'people'} and <span class="num">${done.docs}</span> ${done.docs === 1 ? 'document' : 'documents'} restored, <span class="num">${done.skipped}</span> skipped${done.trashed ? html`, <span class="num">${done.trashed}</span> moved to the trash` : null}.
+      </div>` : null}
+    </div>`;
+  }
+  M.parts.SiteRestore = SiteRestore;
+
+  function MoveCard({info}) {
+    const ctx = M.useCtx();
+    const [busy, setBusy] = useState(false);
+    const [mode, setMode] = useState('missing');
+    const dl = async () => { setBusy(true); try { await downloadSite(ctx); } catch (e) { oops(e); } setBusy(false); };
+    const site = info && info.site;
+    return html`<${UI.Card} id="site-move" title="Moving to a new address">
+      <p class="small ink62" style=${{marginTop: 0}}>Each unclaimed deploy gets a new address with an empty store behind it, so a republish can look like a brand new m360. The site backup carries the whole workspace across in two steps: every document, every person, and their passwords as salted hashes.</p>
+      <ol class="site-steps small">
+        <li><b>Here</b>: download the site backup and keep the file somewhere safe.</li>
+        <li><b>At the new address</b>: on its setup screen choose Restore a site backup, pick the file, then sign in with the email and password you use now. Everyone else signs in as before.</li>
+        <li><b>Then</b>: type the AI key and the email key again in Admin. Keys never travel in a backup.</li>
+      </ol>
+      ${site && site.lastError ? html`<div class="small flame-t" id="site-latest">The daily site copy was skipped ${U.timeAgo(site.lastError.at)}: ${site.lastError.message}</div>`
+        : site && site.at ? html`<div class="tiny ink62 num" id="site-latest">Daily site copy ${U.timeAgo(site.at)} · ${fmtBytes(site.bytes)}</div>` : null}
+      <div class="row" style=${{marginTop: '12px'}}><${UI.Btn} id="site-backup-dl" sm=${true} disabled=${busy} onClick=${dl}>${busy ? 'Preparing' : 'Download the site backup'}<//></div>
+      ${ctx.me && ctx.me.isOwner ? html`<div class="site-restore stack tight" id="site-restore-here">
+        <${UI.Micro} plain>restore a site backup here<//>
+        <p class="small ink62" style=${{margin: 0}}>For merging an older copy into this site. Adding what is missing touches nothing that exists now. Replace puts every document in the file over the current one, each going to the trash first, and sets people and their passwords back to the file's copy.</p>
+        <${UI.Field} label="how"><${UI.Seg} options=${SITE_MODES} value=${mode} onChange=${setMode} ariaLabel="Site restore mode"/><//>
+        <${SiteRestore} mode=${mode}/>
+      </div>` : null}
+    <//>`;
+  }
+
   /* ---------- the tab ---------- */
   function BackupsTab() {
     const ctx = M.useCtx();
@@ -206,6 +316,7 @@
     if (!ctx.isFounder) return null;
     const all = async () => { setBusy(true); try { await downloadAll(ctx); } catch (e) { oops(e); } setBusy(false); };
     return html`<div class="stack" id="backups-tab" style=${{gap: '18px'}}>
+      <${MoveCard} info=${info}/>
       <${StatusCard} info=${info} onRefresh=${refresh}/>
       <${BackupList} info=${info} onChanged=${refresh}/>
       <${TrashCard} tick=${tick}/>
