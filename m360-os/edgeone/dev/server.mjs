@@ -49,6 +49,18 @@ async function fakeFetch(url, init) {
   const text = typeof last.content === 'string' ? last.content : '';
   let content;
   if (Array.isArray(last.content)) content = [{type: 'text', text: 'Done. I took care of it.'}];
+  else if (/company brain/i.test(text) && /Reply with JSON only/.test(text)) {
+    /* the client brain: what the fake model "read" on the site decides the about line, so a test can tell site text from guesswork */
+    const site = /SITE TEXT \(read from/.test(text);
+    const brain = {
+      about: site && /collagen/i.test(text) ? 'Swisse sells collagen, vitamins and wellness supplements in the UAE.' : 'Not on the site. A wellness brand, from the name.',
+      offers: site ? 'Marine collagen, multivitamins and beauty supplements, sold through pharmacies and its own store.' : 'Not on the site.',
+      audience: site ? 'Women 25 to 45 who care about skin, sleep and energy.' : 'Not on the site.',
+      voice: 'Warm, upbeat, plain words.', competitors: 'Not on the site.', moves: site ? 'Free delivery over AED 150.' : 'Not on the site.',
+      talking: 'Pharmacies, clinics and creators in the UAE.', risks: 'Never claim results.', pitchNext: 'A creator led morning ritual series.'
+    };
+    content = [{type: 'text', text: JSON.stringify(brain)}];
+  }
   else if (/Reply with JSON only/.test(text)) content = [{type: 'text', text: '{"summary":"All calm today.","items":[]}'}];
   else if (body.tools && body.tools.some(t => t.name === 'create_task') && /add a task/i.test(text))
     content = [{type: 'tool_use', id: 'tu1', name: 'create_task', input: {title: 'Cut the teaser', owner: 'me'}}];
