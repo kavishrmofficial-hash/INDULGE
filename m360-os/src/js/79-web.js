@@ -298,7 +298,7 @@
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals" referrerPolicy="no-referrer-when-downgrade" allow="clipboard-write; fullscreen; camera; microphone"/>
       </div>`;
 
-    return html`<div class=${'web' + (focus ? ' focus' : '') + (phone ? ' phone' : '')} id="web">
+    return html`<div class=${'web' + (focus ? ' full' : '') + (phone ? ' phone' : '')} id="web">
       ${rail}
       <section class="web-stage">${toolbar}${stage}</section>
     </div>`;
