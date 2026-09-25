@@ -1,10 +1,10 @@
 /* module: web. The browser inside m360, laid out like Arc: a rail on the left with the address, the team's
    spaces (bookmarks as app tiles) and the open tabs; the page on the right. Full screen mode hides the
    rest of m360 and gives the page the whole window (Escape brings it back). Links anywhere in m360 that
-   would have opened a new browser tab open here instead (M.web.open). With the frame helper installed,
-   links a framed site tries to pop out come back in here too, and the address bar follows navigation
-   inside the frame. Inside m360 Desktop (window.m360desktop) every tab is a real Chromium view: no site
-   can refuse, logins work, and the same rail drives it. Bookmarks live in links/team. */
+   would have opened a new browser tab open here instead (M.web.open). A site that refuses frames opens
+   in reading mode: the team site fetches the page itself (/api/browse), links inside it stay inside, and
+   the address bar follows. Inside m360 Desktop (window.m360desktop) every tab is a real Chromium view:
+   no site can refuse, logins work, and the same rail drives it. Bookmarks live in links/team. */
 'use strict';
 (function () {
   const {html, React, U, UI, icons} = M;
@@ -31,6 +31,10 @@
   const pathOf = u => { try { const x = new URL(u); return (x.pathname === '/' ? '' : x.pathname).replace(/\/$/, ''); } catch (e) { return ''; } };
   const ALWAYS_REFUSE = /(^|\.)(google\.com|gmail\.com|youtube\.com|meet\.google\.com|docs\.google\.com|linkedin\.com|facebook\.com|instagram\.com|whatsapp\.com|x\.com|twitter\.com)$/i;
   const refusesForSure = u => !native() && ALWAYS_REFUSE.test(hostOf(u));
+  /* reading mode: the team site fetches the page and serves it from here, links routed back through it */
+  const QS = () => { try { return location.search && location.search.length > 1 ? location.search.slice(1) + '&' : ''; } catch (e) { return ''; } };
+  const proxyUrl = u => '/api/browse?' + QS() + 'u=' + encodeURIComponent(u);
+  const DESKTOP_URL = 'https://github.com/kavishrmofficial-hash/indulge/releases/latest';
 
   /* ---------- the queue other parts of m360 drop links into ---------- */
   const queue = [];
@@ -83,7 +87,6 @@
     const [adding, setAdding] = useState(false);
     const [title, setTitle] = useState('');
     const [slow, setSlow] = useState(false);
-    const [helperOn, setHelperOn] = useState(helper);
     const [focus, setFocus] = useState(() => { try { return sessionStorage.getItem('m360.webFocus') === '1'; } catch (e) { return false; } });
     const timer = useRef(0);
     const urlRef = useRef(null);
@@ -96,7 +99,6 @@
     const nat = native();
     useEffect(() => { persist(tabs); }, [tabs]);
     useEffect(() => { setTyped(tab ? tab.url : ''); }, [cur, tab && tab.url]);
-    useEffect(() => { const t = setInterval(() => setHelperOn(helper()), 1500); return () => clearInterval(t); }, []);
     /* full screen inside m360: the rest of the shell steps aside */
     useEffect(() => {
       document.body.classList.toggle('web-focus', focus);
@@ -119,21 +121,24 @@
         setTyped(c);
         return;
       }
+      /* already reading this site through the server: the next page of it stays in reading mode */
+      const stay = standalone() && (t.mode === 'proxy' || t.mode === 'reader') && hostOf(c) === hostOf(t.url) && !(opts && opts.frame);
       patch(id, x => {
         const hist = opts && opts.nohist ? x.hist : x.hist.slice(0, x.at + 1).concat([c]);
-        return {url: c, hist, at: opts && opts.nohist ? x.at : hist.length - 1, title: hostOf(c), mode: 'frame', check: null, reader: null, key: x.key + 1, loading: true};
+        return {url: c, hist, at: opts && opts.nohist ? x.at : hist.length - 1, title: hostOf(c), mode: stay ? 'proxy' : 'frame', check: stay ? x.check : null, reader: null, key: x.key + 1, loading: true};
       });
       setTyped(c); setSlow(false);
       clearTimeout(timer.current);
       timer.current = setTimeout(() => setSlow(true), 7000);
-      if (!standalone() || helper()) return;
-      if (ALWAYS_REFUSE.test(hostOf(c))) { patch(id, {mode: 'refused', check: {why: 'this site never allows frames'}, loading: false}); readerFor(id, c); return; }
+      if (stay || !standalone() || helper()) return;
+      if (ALWAYS_REFUSE.test(hostOf(c))) { patch(id, {mode: 'proxy', check: {why: 'this site never allows frames', signin: true}, loading: true}); return; }
       try {
         const r = await window.M360_API('framecheck', {url: c});
-        if (r && r.frameable === false) { patch(id, {mode: 'refused', check: r, loading: false}); readerFor(id, c); }
+        if (r && r.frameable === false) patch(id, x => x.url === c ? {mode: 'proxy', check: r, loading: true} : {});
       } catch (e) { /* unknown: try the frame */ }
     }, [nat]);
     const readerFor = async (id, url) => {
+      patch(id, {mode: 'reader', reader: null, loading: false});
       try { const r = await window.M360_API('readpage', {url}); patch(id, {reader: r, title: r.title || hostOf(url)}); }
       catch (e) { patch(id, {reader: {err: (e && e.message) || 'This page did not answer.'}}); }
     };
@@ -173,16 +178,21 @@
         const d = e.data;
         if (!d || typeof d !== 'object' || !d.m360ext) return;
         if (d.m360ext === 'open' && d.url) openNew(String(d.url));
+        /* a link inside reading mode: the m360 page navigates the frame, so the request carries the session */
+        if (d.m360ext === 'go' && d.url) { const t = tabsRef.current[curRef.current]; if (t && (t.mode === 'proxy' || t.mode === 'reader')) go(String(d.url)); }
         /* the frame moved on its own (a link inside it): the address and history follow */
         if (d.m360ext === 'nav' && d.url) {
           const t = tabsRef.current[curRef.current];
-          if (t && t.url !== d.url) patch(t.id, x => ({url: String(d.url), title: hostOf(d.url) + pathOf(d.url), hist: x.hist.slice(0, x.at + 1).concat([String(d.url)]), at: x.at + 1, loading: false}));
+          const ttl = String(d.title || '').trim().slice(0, 80);
+          if (t && t.url !== d.url) patch(t.id, x => ({url: String(d.url), title: ttl || (hostOf(d.url) + pathOf(d.url)), hist: x.hist.slice(0, x.at + 1).concat([String(d.url)]), at: x.at + 1, loading: false}));
+          else if (t) patch(t.id, {loading: false, title: ttl || t.title});
           setTyped(String(d.url));
+          clearTimeout(timer.current); setSlow(false);
         }
       };
       window.addEventListener('message', onMsg);
       return () => { un(); window.removeEventListener('message', onMsg); };
-    }, [openNew]);
+    }, [openNew, go]);
 
     /* the desktop: native views follow the slot, the active tab, and report back */
     useEffect(() => {
@@ -221,7 +231,8 @@
     }, [openNew]);
 
     const list = marks.length ? marks : STARTERS.map(s => ({...s, id: 's:' + s.title, starter: true}));
-    const refused = tab && tab.mode === 'refused' && !nat;
+    const proxied = tab && tab.mode === 'proxy' && !nat;
+    const reading = tab && tab.mode === 'reader' && !nat;
     const canBack = tab && (nat ? tab.canBack : tab.at > 0), canFwd = tab && (nat ? tab.canFwd : tab.at < tab.hist.length - 1);
 
     const rail = html`<aside class="web-rail" id="web-rail">
@@ -251,8 +262,8 @@
           <button type="button" class="web-tab-x" aria-label=${'Close ' + (t.title || 'tab')} onClick=${() => closeTab(i)}><${icons.x}/></button>
         </div>`)}
       </div>
-      ${standalone() && !nat && !helperOn && !phone ? html`<${Helper} compact=${true}/>` : null}
-      ${nat ? html`<div class="tiny ink62" style=${{marginTop: '12px'}}>m360 Desktop: every site opens here.</div>` : null}
+      ${nat ? html`<div class="tiny ink62" style=${{marginTop: '12px'}}>m360 Desktop: every site opens here.</div>`
+        : standalone() && !phone ? html`<div class="tiny ink62 web-foot" id="web-foot">Sites that need a sign-in, like Google or LinkedIn, open in <a href=${DESKTOP_URL} target="_blank" rel="noopener" data-out="1">m360 Desktop</a>.</div>` : null}
     </aside>`;
 
     const toolbar = html`<div class="web-toolbar">
@@ -271,14 +282,15 @@
         <div class="web-hello"><${M.Mark} width="120px"/><div class="ink62" style=${{marginTop: '10px'}}>Search or type an address on the left. Your spaces are the team's shared apps.</div></div>
       </div>`
       : nat ? html`<div ref=${slotRef} class="web-slot" id="web-slot"/>`
-      : refused ? html`<div class="web-reader" id="web-reader">
-        <div class="row between" style=${{gap: '8px', flexWrap: 'wrap', padding: '12px 16px', borderBottom: '1px solid var(--line)'}}>
-          <div class="small"><b>${hostOf(tab.url)}</b> refuses to open inside another site${tab.check && tab.check.why ? ' (' + tab.check.why + ')' : ''}. Here is the page as text.</div>
-          <span class="row nowrap" style=${{gap: '6px'}}>
-            <${UI.Btn} sm=${true} onClick=${() => patch(tab.id, {mode: 'frame', key: tab.key + 1})}>Try the frame anyway<//>
-            <${UI.Btn} kind="sec" sm=${true} onClick=${() => openOut()}>Open outside<//>
-          </span>
-        </div>
+      : proxied ? html`<div class="web-frame-wrap" id="web-proxy-wrap">
+        <div class="web-note row between small"><span class="ink62"><b>${hostOf(tab.url)}</b> refuses frames, so this is reading mode: the page as m360 fetched it. ${tab.check && tab.check.signin ? 'Signing in needs m360 Desktop.' : 'Public pages only.'}</span>
+          <span class="row nowrap" style=${{gap: '6px'}}><button type="button" class="linky tiny" id="web-text" onClick=${() => readerFor(tab.id, tab.url)}>Just the text</button><button type="button" class="linky tiny" onClick=${() => patch(tab.id, {mode: 'frame', check: null, key: tab.key + 1, loading: true})}>Try the frame</button><button type="button" class="linky tiny" onClick=${() => openOut()}>Outside</button></span></div>
+        <iframe key=${'p' + tab.key} id="web-frame" class="web-frame" data-mode="proxy" src=${proxyUrl(tab.url)} title=${hostOf(tab.url)} onLoad=${loaded}
+          sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads" referrerPolicy="no-referrer"/>
+      </div>`
+      : reading ? html`<div class="web-reader" id="web-reader">
+        <div class="web-note row between small"><span class="ink62">The text of <b>${hostOf(tab.url)}</b>.</span>
+          <span class="row nowrap" style=${{gap: '6px'}}><button type="button" class="linky tiny" onClick=${() => patch(tab.id, {mode: 'proxy', key: tab.key + 1, loading: true})}>Reading mode</button><button type="button" class="linky tiny" onClick=${() => openOut()}>Outside</button></span></div>
         <div class="web-reader-body">
           ${!tab.reader ? html`<${M.Thinking} label="Reading the page"/>`
             : tab.reader.err ? html`<div class="small flame-t">${tab.reader.err}</div>`
@@ -288,12 +300,11 @@
               ${(tab.reader.links || []).length ? html`<div class="micro" style=${{marginTop: '14px'}}>links on this page</div>
                 <div class="row" style=${{gap: '6px', flexWrap: 'wrap', marginTop: '6px'}}>${tab.reader.links.map((l, i) => html`<button key=${i} type="button" class="chip" title=${l.href} onClick=${() => go(l.href)}>${l.label}</button>`)}</div>` : null}
             </div>`}
-          ${standalone() && !helperOn ? html`<${Helper}/>` : null}
         </div>
       </div>`
       : html`<div class="web-frame-wrap">
         ${slow ? html`<div class="web-slow row between small"><span class="ink62">${hostOf(tab.url)} has not drawn anything yet. Some sites refuse frames without saying so.</span>
-          <span class="row nowrap" style=${{gap: '6px'}}><${UI.Btn} sm=${true} onClick=${() => { patch(tab.id, {mode: 'refused', check: {why: 'blank frame'}}); readerFor(tab.id, tab.url); }}>Read it here<//><${UI.Btn} kind="sec" sm=${true} onClick=${() => openOut()}>Open outside<//></span></div>` : null}
+          <span class="row nowrap" style=${{gap: '6px'}}>${standalone() ? html`<${UI.Btn} sm=${true} id="web-readmode" onClick=${() => patch(tab.id, {mode: 'proxy', check: {why: 'blank frame'}, key: tab.key + 1, loading: true})}>Reading mode<//>` : null}<${UI.Btn} kind="sec" sm=${true} onClick=${() => openOut()}>Open outside<//></span></div>` : null}
         <iframe key=${tab.key} id="web-frame" class="web-frame" src=${tab.url} title=${hostOf(tab.url)} onLoad=${loaded}
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals" referrerPolicy="no-referrer-when-downgrade" allow="clipboard-write; fullscreen; camera; microphone"/>
       </div>`;
@@ -304,20 +315,18 @@
     </div>`;
   }
 
-  /* the frame helper: a tiny browser extension that lets sites open inside m360 and keeps their links here */
-  function Helper({compact}) {
-    const [open, setOpen] = useState(false);
-    return html`<div class=${'web-helper' + (compact ? ' compact' : '')} id="web-helper">
-      <div class="small"><b>Want every site to open in here, links included?</b> Install the m360 frame helper in Chrome or Edge, once per laptop.</div>
-      <div class="row" style=${{gap: '6px', marginTop: '6px', flexWrap: 'wrap'}}><a class="btn sm" href="m360-frame-helper.zip" download data-out="1">Download</a><button type="button" class="linky small" onClick=${() => setOpen(x => !x)}>${open ? 'Hide steps' : 'Steps'}</button></div>
-      ${open ? html`<ol class="small" style=${{margin: '8px 0 0', paddingLeft: '18px'}}>
-        <li>Unzip the download. You get a folder called m360-frame-helper.</li>
-        <li>In Chrome open chrome://extensions (Edge: edge://extensions). Switch on Developer mode, top right.</li>
-        <li>Tap Load unpacked and pick that folder. Reload m360.</li>
-        <li>Google, Meet, LinkedIn and WhatsApp still refuse by their own rules. For those, m360 Desktop.</li>
-      </ol>` : null}
-    </div>`;
+  /* Admin: how the browser reaches sites that refuse frames. Reading mode is automatic; the desktop app
+     and the frame helper are the two ways to get every site, logins included. */
+  function BrowserCard() {
+    return html`<${UI.Card} id="browser-card" title="The browser">
+      <div class="stack tight small">
+        <div><b>Reading mode</b> is on for everyone: a site that refuses frames is fetched by the team site and shown here, links included. Public pages only; nothing to install.</div>
+        <div><b>m360 Desktop</b> is the real thing: every site, every login, inside the same m360. Mac and Windows installers are on the <a href=${DESKTOP_URL} target="_blank" rel="noopener" data-out="1">releases page</a> (a GitHub sign-in with access to the repo is needed to download).</div>
+        <div><b>The frame helper</b> is a small Chrome or Edge extension for laptops that stay in the browser: sites that only refuse by header open in the frame, and their pop-out links come back inside. <a href="m360-frame-helper.zip" download data-out="1">Download</a>, unzip, then in chrome://extensions switch on Developer mode, tap Load unpacked and pick the folder. Google, Meet, LinkedIn and WhatsApp still refuse by their own rules.</div>
+      </div>
+    <//>`;
   }
+  M.parts.BrowserCard = BrowserCard;
 
   M.pages.Web = Web;
 })();

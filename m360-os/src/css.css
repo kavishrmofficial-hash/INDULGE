@@ -838,3 +838,89 @@ body.web-focus .web-rail{border-right-width:1px; padding-top:calc(12px + env(saf
   body.web-focus .web{grid-template-rows:auto minmax(0,1fr)}
   body.web-focus .web-rail{border-right-width:0; border-bottom-width:1px}
 }
+
+/* ---------- v13: attachments, notices, notes, music ---------- */
+.chat-pane.over{outline:2px dashed var(--flame); outline-offset:-6px}
+.chat-files{display:flex; flex-wrap:wrap; gap:8px; margin-top:6px}
+.chat-img{max-width:min(360px,100%); max-height:280px; border-radius:12px; display:block; border:1px solid var(--line); background:var(--warm)}
+.chat-img-link{display:inline-block; line-height:0}
+.chat-file{display:flex; align-items:center; gap:10px; padding:8px 12px 8px 10px; border:1px solid var(--line); border-radius:12px; background:var(--warm); color:inherit; text-decoration:none; max-width:min(420px,100%); min-width:220px}
+.chat-file:hover{border-color:var(--line2)}
+.chat-file.media{flex-direction:column; align-items:stretch; gap:6px}
+.chat-file.media audio{width:min(320px,100%)}
+.chat-file.media video{width:min(420px,100%); max-height:300px; border-radius:8px; background:#000}
+.chat-file-ico{width:34px; height:34px; border-radius:10px; background:var(--paper); border:1px solid var(--line); display:inline-flex; align-items:center; justify-content:center; flex:none}
+.chat-file-ico svg{width:16px; height:16px}
+.chat-file-name{display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:13px; font-weight:500}
+.chat-attach{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px}
+.chat-attach .chip{display:inline-flex; align-items:center; gap:4px; max-width:260px}
+.chat-attach .chat-file-name{max-width:160px; font-weight:400}
+.chip-x{border:0; background:transparent; padding:0 0 0 2px; display:inline-flex; color:inherit; cursor:pointer; opacity:.6}
+.chip-x:hover{opacity:1}
+.chip-x svg{width:11px; height:11px}
+.chat-composer .iconbtn{flex:none; height:44px; width:44px}
+
+/* notices: small cards in the top right, the way a phone shows a message */
+.notices{position:fixed; top:14px; right:14px; z-index:95; display:flex; flex-direction:column; gap:8px; width:min(340px,calc(100vw - 28px)); pointer-events:none}
+.notice{display:flex; align-items:flex-start; gap:4px; background:var(--paper); color:var(--ink); border:1px solid var(--line); border-radius:16px; box-shadow:0 14px 34px var(--shadow); padding:10px 8px 10px 12px; pointer-events:auto; animation:notice-in .28s cubic-bezier(.2,.8,.2,1)}
+@keyframes notice-in{from{opacity:0; transform:translateY(-10px) scale(.98)}to{opacity:1; transform:none}}
+.notice-body{display:flex; align-items:center; gap:10px; flex:1; min-width:0; border:0; background:transparent; font:inherit; color:inherit; text-align:left; padding:0; cursor:pointer}
+.notice-title{display:block; font-size:13px; font-weight:600; letter-spacing:-.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.notice-text{display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; font-size:13px; color:var(--ink62); line-height:1.35}
+.notice-mark{width:34px; height:34px; border-radius:999px; background:var(--dark); color:#fff; display:inline-flex; align-items:center; justify-content:center; flex:none}
+.notice-mark .mark{width:22px; color:#fff}
+.notice-x{border:0; background:transparent; color:var(--ink62); padding:4px; display:inline-flex; cursor:pointer; border-radius:8px; flex:none}
+.notice-x:hover{color:var(--ink); background:var(--warm)}
+.notice-x svg{width:12px; height:12px}
+@media (max-width:860px){ .notices{top:calc(8px + env(safe-area-inset-top,0px)); left:10px; right:10px; width:auto} }
+@media (prefers-reduced-motion:reduce){ .notice{animation:none} }
+
+/* notes: a list and a page, like a notebook */
+.notes{display:grid; grid-template-columns:250px minmax(0,1fr); gap:16px; min-height:calc(100vh - 260px)}
+.notes-list{background:var(--paper); border:1px solid var(--line); border-radius:20px; padding:12px; align-self:start; position:sticky; top:16px; max-height:calc(100vh - 120px); overflow:auto}
+.note-row{display:flex; align-items:center; gap:8px; width:100%; border:0; background:transparent; text-align:left; padding:8px 10px; border-radius:10px; font:inherit; color:var(--ink); cursor:pointer}
+.note-row:hover{background:var(--warm)}
+.note-row.active{background:var(--ink); color:var(--on-ink)}
+.note-row.active .tiny{color:inherit; opacity:.7}
+.note-title{display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:500; font-size:14px}
+.note-pinned{display:inline-block; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--flame); margin-right:6px}
+.note-row.active .note-pinned{color:inherit}
+.notes-pane{background:var(--paper); border:1px solid var(--line); border-radius:20px; display:flex; flex-direction:column; min-height:520px}
+.notes-empty{flex:1; display:flex; align-items:center; justify-content:center; padding:24px}
+.note-editor{display:flex; flex-direction:column; flex:1; min-height:0}
+.note-head{padding:12px 16px; border-bottom:1px solid var(--line)}
+.note-text{flex:1; width:100%; border:0; outline:0; resize:none; background:transparent; color:var(--ink); font:inherit; font-size:16px; line-height:1.6; padding:18px 20px; min-height:56vh}
+.note-text::placeholder{color:var(--ink62)}
+.note-foot{padding:8px 16px 12px; border-top:1px solid var(--line)}
+@media (max-width:860px){
+  .notes{grid-template-columns:1fr; min-height:0}
+  .notes-list,.notes-pane{position:static; max-height:none}
+  .notes.show-pane .notes-list{display:none}
+  .notes.show-list .notes-pane{display:none}
+  .note-text{min-height:50vh}
+}
+
+/* music: the team's list, and a dock that keeps playing */
+.music-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:10px}
+.music-card{border:1px solid var(--line); border-radius:14px; padding:10px 12px; background:var(--paper)}
+.music-card.playing{border-color:var(--flame); box-shadow:0 0 0 3px rgba(245,57,1,.12)}
+.music-title{font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.music-dock{position:fixed; right:16px; bottom:84px; z-index:56; width:min(360px,calc(100vw - 32px)); background:var(--paper); border:1px solid var(--line); border-radius:16px; box-shadow:0 16px 40px var(--shadow); overflow:hidden}
+.music-dock-head{padding:6px 6px 6px 10px; gap:6px}
+.music-dock-title{display:flex; align-items:center; gap:8px; flex:1; min-width:0; border:0; background:transparent; font:inherit; font-size:13px; font-weight:500; color:inherit; text-align:left; padding:4px 0; cursor:pointer}
+.music-frame{width:100%; border:0; display:block; background:var(--warm)}
+.music-dock.folded .music-frame{display:none}
+.music-eq{display:inline-flex; align-items:flex-end; gap:2px; height:12px; flex:none}
+.music-eq i{width:3px; background:var(--flame); border-radius:2px; animation:eq 1s ease-in-out infinite; height:40%}
+.music-eq i:nth-child(2){animation-delay:.2s; height:100%}
+.music-eq i:nth-child(3){animation-delay:.4s; height:60%}
+@keyframes eq{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1)}}
+.music-dock.folded .music-eq i{animation:none}
+@media (prefers-reduced-motion:reduce){ .music-eq i{animation:none} }
+@media (max-width:860px){ .music-dock{right:8px; left:8px; width:auto; bottom:calc(72px + env(safe-area-inset-bottom,0px))} }
+body.web-focus .music-dock{display:none}
+
+/* the browser: reading mode's note bar, the desktop line */
+.web-note{padding:8px 12px; gap:8px; border-bottom:1px solid var(--line); flex:none; flex-wrap:wrap}
+.web-foot{margin-top:auto; padding-top:12px; line-height:1.45}
+.web-foot a{color:inherit}

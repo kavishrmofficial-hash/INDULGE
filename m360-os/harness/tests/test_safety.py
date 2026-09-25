@@ -420,7 +420,8 @@ def standalone(fails, errors):
             check('Sign in with the email and password you used before' in n.inner_text('#site-restored'), 'restored line: ' + n.inner_text('#site-restored'))
             check(store2_doc('o/owner') == {'uid': fuid} and store2_doc('p/' + muid)['name'] == 'Durvesh Patil' and store2_doc('d/tasks~t1')['title'] == 'Write hero reel script', 'new site store')
             check(store2_doc('w/' + fuid) == idn['passwords'][fuid] and store2_doc('e/kaavish%40mask360.agency') == {'uid': fuid}, 'password hash or email index not carried across')
-            check(not [k for k in store2_all() if k.startswith(('s/', 'x/', 'k/', 'i/', 'c/', 'a/'))], 'sessions, keys or stale caches on the new site')
+            left = [k for k in store2_all() if k.startswith(('s/', 'x/', 'k/', 'i/', 'c/', 'a/')) and not k.startswith('x/v/')]
+            check(not left, 'sessions, keys or stale caches on the new site: %r' % left[:6])
             st, j = api_at(base2, {'a': 'setup', 'name': 'Intruder', 'email': 'intruder@example.com', 'password': 'intruder-pw-77'})
             check(st == 409, 'setup still open after a restore: %d' % st)
             n.fill('#signin-email', 'kaavish@mask360.agency')

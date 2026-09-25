@@ -2,7 +2,9 @@
    Messages live per room per sender (chat/<room>:<uid> {msgs}), so two people never overwrite each other;
    a room view merges every sender's doc by time. When a sender's doc passes 300 lines, the oldest go to
    chatlog/<room>:<uid>:<ts>. Read markers sit in the person's private state (chatRead). A direct message
-   room is dm.<a>.<b> (sorted); on EdgeOne the server lets only those two read it. */
+   room is dm.<a>.<b> (sorted); on EdgeOne the server lets only those two read it. Any file can ride along
+   with a line (files: [{id, name, type, size, url}]): on the team site it goes up in parts to /api/file, on
+   claude.ai into the page's assets. ChatWatch, mounted everywhere, turns a line for you into a notice. */
 'use strict';
 (function () {
   const {html, React, U, UI, icons} = M;
@@ -68,12 +70,14 @@
     return out;
   }
 
-  async function send(ctx, room, text, mentions) {
+  async function send(ctx, room, text, mentions, files) {
     const t = String(text || '').trim().slice(0, 4000);
-    if (!t) return;
+    const fs = (files || []).filter(f => f && f.url).slice(0, 10).map(f => ({id: String(f.id || ''), name: String(f.name || 'file').slice(0, 160), type: String(f.type || ''), size: Number(f.size) || 0, url: String(f.url)}));
+    if (!t && !fs.length) return;
     const key = docId(room, ctx.uid);
     const cur = ((ctx.coll.chat.map[key] || {}).msgs || []).slice();
     const m = {id: U.uid(), at: Date.now(), text: t, mentions: mentions || []};
+    if (fs.length) m.files = fs;
     let msgs = cur.concat([m]);
     if (msgs.length > CAP) {
       const old = msgs.slice(0, msgs.length - KEEP);
@@ -101,6 +105,53 @@
     return id;
   };
 
+  /* ---------- attachments: any file, up in parts on the team site, into assets on claude.ai ---------- */
+  const FILE_MAX = 25 * 1024 * 1024;
+  const RAW_PART = 720 * 1024;   /* bytes per part, under the server's base64 limit */
+  const standalone = () => !!(window.M360_STANDALONE && typeof window.M360_API === 'function');
+  const fmtSize = n => n < 1024 ? n + ' B' : n < 1024 * 1024 ? Math.round(n / 1024) + ' KB' : (Math.round(n / 1024 / 1024 * 10) / 10) + ' MB';
+  const isImage = f => /^image\//.test(f.type || '') && !/svg/.test(f.type || '');
+  const isAudio = f => /^audio\//.test(f.type || '');
+  const isVideo = f => /^video\//.test(f.type || '');
+  const b64 = blob => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.onerror = () => rej(new Error('read')); r.readAsDataURL(blob); });
+  const QS = () => { try { return location.search && location.search.length > 1 ? '&' + location.search.slice(1) : ''; } catch (e) { return ''; } };
+  async function upload(file, room, onStep) {
+    if (!file) throw new Error('no file');
+    if (file.size > FILE_MAX) throw new Error('Files up to 25 MB.');
+    const size = file.size || 0;
+    if (standalone()) {
+      const total = Math.max(1, Math.ceil(size / RAW_PART));
+      let id = '';
+      let out = null;
+      for (let i = 0; i < total; i++) {
+        if (onStep) onStep(i, total);
+        const data = size ? await b64(file.slice(i * RAW_PART, Math.min(size, (i + 1) * RAW_PART))) : '';
+        out = await window.M360_API('fileput', {id, name: file.name, type: file.type || 'application/octet-stream', size: size || 1, part: i, total, data, room});
+        id = out.id;
+      }
+      return {id, name: file.name, type: file.type || 'application/octet-stream', size, url: out.url + QS()};
+    }
+    const assets = await window.claude.use('assets');
+    if (!assets) throw new Error('Attachments work on the team site. This page cannot keep files.');
+    if (onStep) onStep(0, 1);
+    const r = await assets.upload(file);
+    return {id: r.id, name: file.name, type: r.contentType || file.type || 'application/octet-stream', size: r.sizeBytes || size, url: r.url};
+  }
+  M.files = {upload, fmtSize, isImage, isAudio, isVideo, FILE_MAX};
+
+  /* a file on a line: pictures inline, sound and video with controls, everything else a card */
+  function FileLine({f}) {
+    const dl = standalone() ? f.url + '&dl=1' : f.url;
+    if (isImage(f)) return html`<a class="chat-img-link" href=${f.url} target="_blank" rel="noopener" data-out="1" title=${f.name}><img class="chat-img" src=${f.url} alt=${f.name} loading="lazy"/></a>`;
+    if (isAudio(f)) return html`<div class="chat-file media"><audio controls preload="none" src=${f.url}/><a class="tiny" href=${dl} download=${f.name} data-out="1">${f.name}</a></div>`;
+    if (isVideo(f)) return html`<div class="chat-file media"><video controls preload="metadata" src=${f.url} playsInline/><a class="tiny" href=${dl} download=${f.name} data-out="1">${f.name}</a></div>`;
+    return html`<a class="chat-file" href=${dl} download=${f.name} data-out="1" title=${'Download ' + f.name}>
+      <span class="chat-file-ico"><${icons.upload}/></span>
+      <span class="grow" style=${{minWidth: 0}}><span class="chat-file-name">${f.name}</span><span class="tiny ink62">${(f.type || '').split('/')[1] || 'file'}${f.size ? ' · ' + fmtSize(f.size) : ''}</span></span>
+      <span class="tiny ink62">Download</span>
+    </a>`;
+  }
+
   /* text with links and @names lit up */
   function Rich({text, names}) {
     const parts = String(text || '').split(/(https?:\/\/[^\s<>"')]+|@everyone|@[A-Z][\w.-]*(?:\s[A-Z][\w.-]*)?)/g);
@@ -117,19 +168,24 @@
     const uid = ctx.uid;
     const rooms = useMemo(() => roomsOf(ctx), [ctx.coll.chatrooms]);
     const dms = useMemo(() => dmRoomsOf(ctx), [ctx.coll.chat]);
-    const [room, setRoom] = useState(() => roomFromRoute || (localStorage.getItem('m360.chatRoom') || 'general'));
+    /* the room you were in last, remembered per person; a direct message you are not part of never opens */
+    const [room, setRoom] = useState(() => { const r = roomFromRoute || M.prefs.get('chatRoom.' + uid, '') || 'general'; return (isDm(r) && !r.split('.').includes(uid)) ? 'general' : r; });
     const [text, setText] = useState('');
     const [q, setQ] = useState('');
     const [naming, setNaming] = useState(false);
     const [newName, setNewName] = useState('');
     const [editing, setEditing] = useState(null);
     const [listOpen, setListOpen] = useState(!roomFromRoute);
+    const [pending, setPending] = useState([]);      /* files picked, not sent yet */
+    const [busy, setBusy] = useState('');            /* 'Uploading 1 of 2' while sending */
+    const [over, setOver] = useState(false);
     const endRef = useRef(null);
     const boxRef = useRef(null);
+    const fileRef = useRef(null);
     const phone = M.usePhone();
     /* the route decides: a room in it opens that room; none means the list (the Chat tab on a phone) */
     useEffect(() => { if (roomFromRoute) { if (roomFromRoute !== room) setRoom(roomFromRoute); setListOpen(false); } else setListOpen(true); }, [roomFromRoute]);
-    useEffect(() => { try { localStorage.setItem('m360.chatRoom', room); } catch (e) { /* private */ } }, [room]);
+    useEffect(() => { M.prefs.set('chatRoom.' + uid, room); }, [room]);
     const people = ctx.activeMembers.filter(m => m.uid !== uid);
     const ids = useMemo(() => Array.from(new Set(ctx.activeMembers.map(m => m.uid).concat(dms.map(d => dmOther(d, uid))))), [ctx.activeMembers, dms]);
     const profs = M.useProfiles(ids.concat([uid]));
@@ -148,30 +204,32 @@
     }, [room, latest]);
     useEffect(() => { if (endRef.current && endRef.current.scrollIntoView) endRef.current.scrollIntoView({block: 'end'}); }, [msgs.length, room]);
 
-    /* a browser notice when a line arrives for you while this tab is hidden */
-    const seenAt = useRef(0);
-    useEffect(() => {
-      const items = inboxItems(ctx, nameOf(uid));
-      const fresh = items.filter(it => it.m.at > seenAt.current && Date.now() - it.m.at < 60000);
-      seenAt.current = Date.now();
-      if (!fresh.length || !document.hidden) return;
-      try {
-        if (window.Notification && Notification.permission === 'granted') {
-          const it = fresh[fresh.length - 1];
-          new Notification(nameOf(it.m.by) + (it.dm ? '' : ' in #' + it.room), {body: String(it.m.text).slice(0, 120), tag: 'm360-chat', icon: 'icons/icon-192.png'});
-        }
-      } catch (e) { /* no notices here */ }
-    }, [ctx.coll.chat]);
-
     const mentionIds = t => ctx.activeMembers.filter(m => String(t).includes('@' + nameOf(m.uid)) || String(t).includes('@' + String(nameOf(m.uid)).split(' ')[0] + ' ')).map(m => m.uid);
+    const pick = list => {
+      const add = Array.from(list || []).filter(Boolean);
+      if (!add.length) return;
+      const big = add.find(f => f.size > FILE_MAX);
+      if (big) { M.toast(big.name + ' is over 25 MB', true); return; }
+      setPending(p => p.concat(add).slice(0, 10));
+    };
     const go = async () => {
       const t = text.trim();
-      if (!t) return;
-      setText('');
-      if (editing) { await edit(ctx, room, editing, t).catch(() => {}); setEditing(null); return; }
-      await send(ctx, room, t, mentionIds(t)).catch(() => setText(t));
+      if (!t && !pending.length) return;
+      if (busy) return;
+      if (editing) { if (!t) return; setText(''); await edit(ctx, room, editing, t).catch(() => {}); setEditing(null); return; }
+      const files = [];
+      try {
+        for (let i = 0; i < pending.length; i++) {
+          setBusy('Uploading ' + (i + 1) + ' of ' + pending.length);
+          files.push(await upload(pending[i], room, (part, total) => { if (total > 1) setBusy('Uploading ' + (i + 1) + ' of ' + pending.length + ', part ' + (part + 1) + ' of ' + total); }));
+        }
+      } catch (e) { setBusy(''); M.toast((e && e.message) || 'That file did not go up', true); return; }
+      setBusy(''); setText(''); setPending([]);
+      await send(ctx, room, t, mentionIds(t), files).catch(() => { setText(t); M.toast('Not sent. Try again.', true); });
       M.sound.play('soft');
     };
+    const onPaste = e => { const fs = e.clipboardData && e.clipboardData.files; if (fs && fs.length) { e.preventDefault(); pick(fs); } };
+    const onDrop = e => { e.preventDefault(); setOver(false); pick(e.dataTransfer && e.dataTransfer.files); };
     const onKey = e => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); go(); }
       if (e.key === 'Escape' && editing) { setEditing(null); setText(''); }
@@ -199,10 +257,11 @@
         ${cont ? html`<span class="chat-gap"/>` : html`<${UI.Avatar} id=${m.by} size=${30}/>`}
         <div class="grow" style=${{minWidth: 0}}>
           ${cont ? null : html`<div class="row nowrap" style=${{gap: '8px', alignItems: 'baseline'}}><span style=${{fontWeight: 500}}>${nameOf(m.by)}</span><span class="tiny ink62 num">${U.hhmm ? U.hhmm(new Date(m.at)) : new Date(m.at).toLocaleTimeString()}</span></div>`}
-          <div class="chat-text"><${Rich} text=${m.text} names=${names}/>${m.edited ? html` <span class="tiny ink62">(edited)</span>` : null}</div>
+          ${m.text ? html`<div class="chat-text"><${Rich} text=${m.text} names=${names}/>${m.edited ? html` <span class="tiny ink62">(edited)</span>` : null}</div>` : null}
+          ${(m.files || []).length ? html`<div class="chat-files">${m.files.map((f, k) => html`<${FileLine} key=${k} f=${f}/>`)}</div>` : null}
         </div>
         ${m.by === uid ? html`<span class="chat-tools row nowrap">
-          <button type="button" class="linky tiny" onClick=${() => { setEditing(m.id); setText(m.text); if (boxRef.current) boxRef.current.focus(); }}>Edit</button>
+          ${m.text ? html`<button type="button" class="linky tiny" onClick=${() => { setEditing(m.id); setText(m.text); if (boxRef.current) boxRef.current.focus(); }}>Edit</button>` : null}
           <button type="button" class="linky tiny" onClick=${() => remove(ctx, room, m.id)}>Delete</button>
         </span>` : null}
       </div>`);
@@ -223,7 +282,7 @@
       ${!people.length ? html`<div class="small ink62">Just you so far. Invite the team from Admin.</div>` : null}
     </aside>`;
 
-    const pane = html`<section class="chat-pane" id="chat-pane">
+    const pane = html`<section class=${'chat-pane' + (over ? ' over' : '')} id="chat-pane" onDragOver=${e => { e.preventDefault(); if (!over) setOver(true); }} onDragLeave=${e => { if (!e.currentTarget.contains(e.relatedTarget)) setOver(false); }} onDrop=${onDrop}>
       <div class="chat-head row between nowrap">
         <div class="row nowrap" style=${{gap: '8px', minWidth: 0}}>
           ${phone ? html`<button type="button" class="iconbtn" aria-label="Rooms" onClick=${() => setListOpen(true)}><${icons.more}/></button>` : null}
@@ -238,10 +297,14 @@
       </div>
       <div class="chat-composer">
         ${editing ? html`<div class="tiny ink62" style=${{marginBottom: '4px'}}>Editing. Escape to stop.</div>` : null}
+        ${pending.length ? html`<div class="chat-attach" id="chat-attach">${pending.map((f, i) => html`<span key=${i} class="chip"><span class="chat-file-name">${f.name}</span><span class="tiny ink62"> ${fmtSize(f.size)}</span><button type="button" class="chip-x" aria-label=${'Remove ' + f.name} onClick=${() => setPending(p => p.filter((_, k) => k !== i))}><${icons.x}/></button></span>`)}</div>` : null}
+        ${busy ? html`<div class="tiny ink62" id="chat-busy" style=${{marginBottom: '4px'}}>${busy}</div>` : null}
         <div class="row nowrap" style=${{gap: '8px', alignItems: 'flex-end'}}>
-          <textarea ref=${boxRef} id="chat-input" class="input grow" rows=${1} placeholder=${'Message ' + title + '. @ a name, or @everyone'} value=${text}
-            onInput=${e => setText(e.target.value)} onKeyDown=${onKey} aria-label="Message"/>
-          <${UI.Btn} id="chat-send" disabled=${!text.trim()} onClick=${go}>${editing ? 'Save' : 'Send'}<//>
+          <input ref=${fileRef} type="file" id="chat-file" multiple style=${{display: 'none'}} onChange=${e => { pick(e.target.files); e.target.value = ''; }} aria-label="Attach files"/>
+          <button type="button" class="iconbtn" id="chat-attach-btn" aria-label="Attach a file" title="Attach any file, up to 25 MB" disabled=${!!busy || !!editing} onClick=${() => fileRef.current && fileRef.current.click()}><${icons.plus}/></button>
+          <textarea ref=${boxRef} id="chat-input" class="input grow" rows=${1} placeholder=${'Message ' + title + '. @ a name, or @everyone. Drop or paste files here'} value=${text}
+            onInput=${e => setText(e.target.value)} onKeyDown=${onKey} onPaste=${onPaste} aria-label="Message"/>
+          <${UI.Btn} id="chat-send" disabled=${(!text.trim() && !pending.length) || !!busy} onClick=${go}>${editing ? 'Save' : 'Send'}<//>
         </div>
       </div>
     </section>`;
@@ -249,6 +312,48 @@
     return html`<div class=${'chat' + (phone ? (listOpen ? ' show-list' : ' show-pane') : '')} id="chat">${list}${pane}</div>`;
   }
 
-  M.rooms = {roomsOf, messagesOf, unreadIn, unreadRooms, inboxItems, dmId, isDm, dmOther, send, makeRoom, markRead, readMark};
+  /* ---------- the watcher: a line for you becomes a notice, wherever you are in m360 ---------- */
+  const noticeAll = () => M.prefs.get('noticeAll', '0') === '1';
+  function ChatWatch() {
+    const ctx = M.useCtx();
+    const uid = ctx.uid;
+    const seenAt = useRef(Date.now());
+    const ids = useMemo(() => ctx.activeMembers.map(m => m.uid), [ctx.activeMembers]);
+    const profs = M.useProfiles(ids);
+    const nameOf = id => (profs[id] && profs[id].name) || (ctx.members[id] && ctx.members[id].name) || 'Someone';
+    useEffect(() => {
+      if (!uid || !ctx.coll.chat.ready) return;
+      const rooms = roomsOf(ctx);
+      const roomName = id => ((rooms.find(r => r.id === id) || {}).name || id);
+      const hm = /^#chat\/(.+)$/.exec(location.hash);
+      const openRoom = hm ? decodeURIComponent(hm[1]) : (location.hash === '#chat' ? (M.prefs.get('chatRoom.' + uid, '') || 'general') : '');
+      const since = seenAt.current;
+      seenAt.current = Date.now();
+      const fresh = [];
+      const all = rooms.map(r => r.id).concat(dmRoomsOf(ctx));
+      for (const room of all) {
+        for (const m of messagesOf(ctx, room)) {
+          if (m.by === uid || (m.at || 0) <= since || Date.now() - (m.at || 0) > 90000) continue;
+          const dm = isDm(room);
+          const forMe = dm || mentionsMe(m, ctx, nameOf(uid));
+          if (!forMe && !noticeAll()) continue;
+          if (room === openRoom && !document.hidden) continue;
+          fresh.push({room, m, dm});
+        }
+      }
+      if (!fresh.length) return;
+      fresh.sort((a, b) => (a.m.at || 0) - (b.m.at || 0));
+      for (const it of fresh.slice(-3)) {
+        const files = (it.m.files || []);
+        const body = it.m.text || (files.length ? 'Sent ' + (files.length === 1 ? files[0].name : files.length + ' files') : 'New message');
+        M.notices.push({key: 'chat:' + it.m.id, who: it.m.by, title: nameOf(it.m.by) + (it.dm ? '' : ' in #' + roomName(it.room)), body, hidden: it.dm ? 'New message' : 'New message in #' + roomName(it.room), href: '#chat/' + it.room});
+      }
+      M.sound.play('soft');
+    }, [ctx.coll.chat, uid]);
+    return null;
+  }
+
+  M.rooms = {roomsOf, messagesOf, unreadIn, unreadRooms, inboxItems, dmId, isDm, dmOther, send, makeRoom, markRead, readMark, noticeAll};
   M.pages.Chat = Chat;
+  M.parts.ChatWatch = ChatWatch;
 })();

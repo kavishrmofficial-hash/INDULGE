@@ -339,19 +339,26 @@ export function safetyActions(h) {
     return b.docs;
   }
 
-  /* ---------- aggregate caches: a/<coll> against the d/ blobs ---------- */
-  async function checkCaches(inv) {
-    const stale = [];
+  /* ---------- aggregate caches: a/<coll> against the d/ blobs ----------
+     A read checks every cached entry's tag against the inventory before serving it, so a cache that
+     lags behind a write or a restore never serves the wrong document: it is refreshed on the next read.
+     Stale means worse: an entry whose tag matches but whose data differs from the document, or a cache
+     blob that cannot be read. Both are rebuilt; lagging caches are rebuilt too, and counted apart. */
+  async function checkCaches(inv, colls) {
+    const stale = [], lagging = [];
     for (const b of await listAll('a/')) {
       const coll = b.key.slice(2).split('~').join('/');
       const agg = await getJ(b.key).catch(() => null);
       const have = (agg && isObj(agg.docs)) ? agg.docs : null;
+      if (!have) { stale.push(coll); continue; }
       const want = inv[coll] || {};
-      const ids = Object.keys(want), got = have ? Object.keys(have) : [];
-      const off = !have || ids.length !== got.length || ids.some(id => !have[id] || have[id].h !== want[id]);
-      if (off) stale.push(coll);
+      const real = (colls && colls[coll]) || {};
+      const ids = Object.keys(want), got = Object.keys(have);
+      const wrong = got.some(id => want[id] && have[id] && have[id].h === want[id] && real[id] !== undefined && JSON.stringify(have[id].d) !== JSON.stringify(real[id]));
+      if (wrong) stale.push(coll);
+      else if (ids.length !== got.length || ids.some(id => !have[id] || have[id].h !== want[id])) lagging.push(coll);
     }
-    return stale;
+    return {stale, lagging};
   }
   async function rebuildCache(coll, inv) {
     const tags = inv[coll] || {};
@@ -587,13 +594,13 @@ export function safetyActions(h) {
         const newest = ids.reduce((m, id) => Math.max(m, stamp(colls[coll][id])), 0);
         out[coll] = {count: ids.length, newest: newest || null};
       }
-      const stale = await checkCaches(inv);
-      for (const coll of stale) await rebuildCache(coll, inv).catch(() => {});
+      const {stale, lagging} = await checkCaches(inv, colls);
+      for (const coll of stale.concat(lagging)) await rebuildCache(coll, inv).catch(() => {});
       const people = new Set((await listAll('p/')).map(b => b.key.slice(2)));
       let orphanSessions = 0;
       await eachChunk(await listAll('s/'), async b => { const s = await getJ(b.key).catch(() => null); if (!s || !s.uid || !people.has(s.uid)) orphanSessions++; });
       const index = await readIndex();
-      return {docs, colls: out, bad, caches: {stale, rebuilt: stale.length}, orphans: {sessions: orphanSessions},
+      return {docs, colls: out, bad, caches: {stale, lagging, rebuilt: stale.length + lagging.length}, orphans: {sessions: orphanSessions},
         lastBackup: index.last || 0, lastError: index.lastError || null, ok: !bad.length && !stale.length};
     },
     /* everything under d/ as one JSON, or one collection of it when the whole is over 4 MB */

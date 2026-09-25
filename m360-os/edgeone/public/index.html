@@ -843,6 +843,92 @@ body.web-focus .web-rail{border-right-width:1px; padding-top:calc(12px + env(saf
   body.web-focus .web-rail{border-right-width:0; border-bottom-width:1px}
 }
 
+/* ---------- v13: attachments, notices, notes, music ---------- */
+.chat-pane.over{outline:2px dashed var(--flame); outline-offset:-6px}
+.chat-files{display:flex; flex-wrap:wrap; gap:8px; margin-top:6px}
+.chat-img{max-width:min(360px,100%); max-height:280px; border-radius:12px; display:block; border:1px solid var(--line); background:var(--warm)}
+.chat-img-link{display:inline-block; line-height:0}
+.chat-file{display:flex; align-items:center; gap:10px; padding:8px 12px 8px 10px; border:1px solid var(--line); border-radius:12px; background:var(--warm); color:inherit; text-decoration:none; max-width:min(420px,100%); min-width:220px}
+.chat-file:hover{border-color:var(--line2)}
+.chat-file.media{flex-direction:column; align-items:stretch; gap:6px}
+.chat-file.media audio{width:min(320px,100%)}
+.chat-file.media video{width:min(420px,100%); max-height:300px; border-radius:8px; background:#000}
+.chat-file-ico{width:34px; height:34px; border-radius:10px; background:var(--paper); border:1px solid var(--line); display:inline-flex; align-items:center; justify-content:center; flex:none}
+.chat-file-ico svg{width:16px; height:16px}
+.chat-file-name{display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:13px; font-weight:500}
+.chat-attach{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px}
+.chat-attach .chip{display:inline-flex; align-items:center; gap:4px; max-width:260px}
+.chat-attach .chat-file-name{max-width:160px; font-weight:400}
+.chip-x{border:0; background:transparent; padding:0 0 0 2px; display:inline-flex; color:inherit; cursor:pointer; opacity:.6}
+.chip-x:hover{opacity:1}
+.chip-x svg{width:11px; height:11px}
+.chat-composer .iconbtn{flex:none; height:44px; width:44px}
+
+/* notices: small cards in the top right, the way a phone shows a message */
+.notices{position:fixed; top:14px; right:14px; z-index:95; display:flex; flex-direction:column; gap:8px; width:min(340px,calc(100vw - 28px)); pointer-events:none}
+.notice{display:flex; align-items:flex-start; gap:4px; background:var(--paper); color:var(--ink); border:1px solid var(--line); border-radius:16px; box-shadow:0 14px 34px var(--shadow); padding:10px 8px 10px 12px; pointer-events:auto; animation:notice-in .28s cubic-bezier(.2,.8,.2,1)}
+@keyframes notice-in{from{opacity:0; transform:translateY(-10px) scale(.98)}to{opacity:1; transform:none}}
+.notice-body{display:flex; align-items:center; gap:10px; flex:1; min-width:0; border:0; background:transparent; font:inherit; color:inherit; text-align:left; padding:0; cursor:pointer}
+.notice-title{display:block; font-size:13px; font-weight:600; letter-spacing:-.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.notice-text{display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; font-size:13px; color:var(--ink62); line-height:1.35}
+.notice-mark{width:34px; height:34px; border-radius:999px; background:var(--dark); color:#fff; display:inline-flex; align-items:center; justify-content:center; flex:none}
+.notice-mark .mark{width:22px; color:#fff}
+.notice-x{border:0; background:transparent; color:var(--ink62); padding:4px; display:inline-flex; cursor:pointer; border-radius:8px; flex:none}
+.notice-x:hover{color:var(--ink); background:var(--warm)}
+.notice-x svg{width:12px; height:12px}
+@media (max-width:860px){ .notices{top:calc(8px + env(safe-area-inset-top,0px)); left:10px; right:10px; width:auto} }
+@media (prefers-reduced-motion:reduce){ .notice{animation:none} }
+
+/* notes: a list and a page, like a notebook */
+.notes{display:grid; grid-template-columns:250px minmax(0,1fr); gap:16px; min-height:calc(100vh - 260px)}
+.notes-list{background:var(--paper); border:1px solid var(--line); border-radius:20px; padding:12px; align-self:start; position:sticky; top:16px; max-height:calc(100vh - 120px); overflow:auto}
+.note-row{display:flex; align-items:center; gap:8px; width:100%; border:0; background:transparent; text-align:left; padding:8px 10px; border-radius:10px; font:inherit; color:var(--ink); cursor:pointer}
+.note-row:hover{background:var(--warm)}
+.note-row.active{background:var(--ink); color:var(--on-ink)}
+.note-row.active .tiny{color:inherit; opacity:.7}
+.note-title{display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:500; font-size:14px}
+.note-pinned{display:inline-block; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--flame); margin-right:6px}
+.note-row.active .note-pinned{color:inherit}
+.notes-pane{background:var(--paper); border:1px solid var(--line); border-radius:20px; display:flex; flex-direction:column; min-height:520px}
+.notes-empty{flex:1; display:flex; align-items:center; justify-content:center; padding:24px}
+.note-editor{display:flex; flex-direction:column; flex:1; min-height:0}
+.note-head{padding:12px 16px; border-bottom:1px solid var(--line)}
+.note-text{flex:1; width:100%; border:0; outline:0; resize:none; background:transparent; color:var(--ink); font:inherit; font-size:16px; line-height:1.6; padding:18px 20px; min-height:56vh}
+.note-text::placeholder{color:var(--ink62)}
+.note-foot{padding:8px 16px 12px; border-top:1px solid var(--line)}
+@media (max-width:860px){
+  .notes{grid-template-columns:1fr; min-height:0}
+  .notes-list,.notes-pane{position:static; max-height:none}
+  .notes.show-pane .notes-list{display:none}
+  .notes.show-list .notes-pane{display:none}
+  .note-text{min-height:50vh}
+}
+
+/* music: the team's list, and a dock that keeps playing */
+.music-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:10px}
+.music-card{border:1px solid var(--line); border-radius:14px; padding:10px 12px; background:var(--paper)}
+.music-card.playing{border-color:var(--flame); box-shadow:0 0 0 3px rgba(245,57,1,.12)}
+.music-title{font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.music-dock{position:fixed; right:16px; bottom:84px; z-index:56; width:min(360px,calc(100vw - 32px)); background:var(--paper); border:1px solid var(--line); border-radius:16px; box-shadow:0 16px 40px var(--shadow); overflow:hidden}
+.music-dock-head{padding:6px 6px 6px 10px; gap:6px}
+.music-dock-title{display:flex; align-items:center; gap:8px; flex:1; min-width:0; border:0; background:transparent; font:inherit; font-size:13px; font-weight:500; color:inherit; text-align:left; padding:4px 0; cursor:pointer}
+.music-frame{width:100%; border:0; display:block; background:var(--warm)}
+.music-dock.folded .music-frame{display:none}
+.music-eq{display:inline-flex; align-items:flex-end; gap:2px; height:12px; flex:none}
+.music-eq i{width:3px; background:var(--flame); border-radius:2px; animation:eq 1s ease-in-out infinite; height:40%}
+.music-eq i:nth-child(2){animation-delay:.2s; height:100%}
+.music-eq i:nth-child(3){animation-delay:.4s; height:60%}
+@keyframes eq{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1)}}
+.music-dock.folded .music-eq i{animation:none}
+@media (prefers-reduced-motion:reduce){ .music-eq i{animation:none} }
+@media (max-width:860px){ .music-dock{right:8px; left:8px; width:auto; bottom:calc(72px + env(safe-area-inset-bottom,0px))} }
+body.web-focus .music-dock{display:none}
+
+/* the browser: reading mode's note bar, the desktop line */
+.web-note{padding:8px 12px; gap:8px; border-bottom:1px solid var(--line); flex:none; flex-wrap:wrap}
+.web-foot{margin-top:auto; padding-top:12px; line-height:1.45}
+.web-foot a{color:inherit}
+
 /* ==== 71-profile.css ==== */
 /* ---------- profile: your photo and details on Me, and what teammates see ---------- */
 .prof-preview{display:flex; align-items:center; gap:14px; padding:14px 16px; border-radius:16px; background:var(--warm); min-width:0}
@@ -2657,7 +2743,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       {k: 'clients', label: 'Clients', route: 'clients'}, {k: 'pipeline', label: 'Pipeline', route: 'pitches'}, {k: 'crm', label: 'CRM', route: 'crm'}]},
     vibe: {label: 'Vibe', icon: 'feed', page: 'Vibe', tabs: [
       {k: 'feed', label: 'Feed', route: 'feed'}, {k: 'crew', label: 'Crew', route: 'people'},
-      {k: 'pulse', label: 'Pulse and ideas', route: 'voice'}, {k: 'scores', label: 'Leaderboard', route: 'scores'}]},
+      {k: 'pulse', label: 'Pulse and ideas', route: 'voice'}, {k: 'scores', label: 'Leaderboard', route: 'scores'}, {k: 'music', label: 'Music', route: 'music'}]},
     base: {label: 'Base', icon: 'database', page: 'Base', tabs: [
       {k: 'people', label: 'People', route: 'base'}, {k: 'companies', label: 'Companies', route: 'companies'}, {k: 'import', label: 'Import', route: 'import'}]},
     chat: {label: 'Chat', icon: 'send', page: 'Chat'},
@@ -2667,7 +2753,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     radar: {label: 'Radar', icon: 'radar', page: 'Radar', tabs: [
       {k: 'news', label: 'News', route: 'radar'}, {k: 'awards', label: 'Awards', route: 'awards'}, {k: 'watch', label: 'Watch', route: 'watch'}]},
     me: {label: 'Me', icon: 'people', page: 'Me', tabs: [
-      {k: 'profile', label: 'Profile', route: 'me'}, {k: 'trophies', label: 'Trophies', route: 'trophies'}, {k: 'leave', label: 'Leave', route: 'leave'},
+      {k: 'profile', label: 'Profile', route: 'me'}, {k: 'notes', label: 'Notes', route: 'notes'}, {k: 'trophies', label: 'Trophies', route: 'trophies'}, {k: 'leave', label: 'Leave', route: 'leave'},
       {k: 'handbook', label: 'Handbook', route: 'handbook'}, {k: 'hiring', label: 'Hiring', route: 'hiring'}]},
     hq: {label: 'HQ', icon: 'command', page: 'HQ', founder: true, tabs: [
       {k: 'brief', label: 'Intelligence', route: 'hq'}, {k: 'dashboard', label: 'Dashboard', route: 'command'},
@@ -2698,6 +2784,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       case 'people': case 'crew': return {s: 'vibe', t: 'crew', id};
       case 'voice': case 'pulse': return {s: 'vibe', t: 'pulse'};
       case 'scores': return {s: 'vibe', t: 'scores'};
+      case 'music': case 'playlist': return {s: 'vibe', t: 'music'};
+      case 'notes': case 'note': return {s: 'me', t: 'notes', id};
       case 'base': case 'contacts': case 'people-base': return {s: 'base', t: 'people', id};
       case 'companies': case 'orgs': return {s: 'base', t: 'companies', id};
       case 'import': return {s: 'base', t: 'import'};
@@ -3016,6 +3104,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       ${keysOpen ? html`<${Keys} onClose=${() => setKeysOpen(false)}/>` : null}
       ${M.parts.FocusHost ? html`<${M.parts.FocusHost}/>` : null}
       ${M.parts.BreatheHost ? html`<${M.parts.BreatheHost}/>` : null}
+      ${M.parts.ChatWatch ? html`<${M.parts.ChatWatch}/>` : null}
+      ${M.parts.Notices ? html`<${M.parts.Notices}/>` : null}
+      ${M.parts.MusicDock ? html`<${M.parts.MusicDock}/>` : null}
       ${newTask && M.parts.TaskDrawer ? html`<${M.parts.TaskDrawer} taskId=${null} defaults=${{owner: ctx.uid}} onClose=${() => setNewTask(false)}/>` : null}
       <${M.ToastHost}/>
     </div>`;
@@ -7434,7 +7525,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
    Messages live per room per sender (chat/<room>:<uid> {msgs}), so two people never overwrite each other;
    a room view merges every sender's doc by time. When a sender's doc passes 300 lines, the oldest go to
    chatlog/<room>:<uid>:<ts>. Read markers sit in the person's private state (chatRead). A direct message
-   room is dm.<a>.<b> (sorted); on EdgeOne the server lets only those two read it. */
+   room is dm.<a>.<b> (sorted); on EdgeOne the server lets only those two read it. Any file can ride along
+   with a line (files: [{id, name, type, size, url}]): on the team site it goes up in parts to /api/file, on
+   claude.ai into the page's assets. ChatWatch, mounted everywhere, turns a line for you into a notice. */
 'use strict';
 (function () {
   const {html, React, U, UI, icons} = M;
@@ -7500,12 +7593,14 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     return out;
   }
 
-  async function send(ctx, room, text, mentions) {
+  async function send(ctx, room, text, mentions, files) {
     const t = String(text || '').trim().slice(0, 4000);
-    if (!t) return;
+    const fs = (files || []).filter(f => f && f.url).slice(0, 10).map(f => ({id: String(f.id || ''), name: String(f.name || 'file').slice(0, 160), type: String(f.type || ''), size: Number(f.size) || 0, url: String(f.url)}));
+    if (!t && !fs.length) return;
     const key = docId(room, ctx.uid);
     const cur = ((ctx.coll.chat.map[key] || {}).msgs || []).slice();
     const m = {id: U.uid(), at: Date.now(), text: t, mentions: mentions || []};
+    if (fs.length) m.files = fs;
     let msgs = cur.concat([m]);
     if (msgs.length > CAP) {
       const old = msgs.slice(0, msgs.length - KEEP);
@@ -7533,6 +7628,53 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     return id;
   };
 
+  /* ---------- attachments: any file, up in parts on the team site, into assets on claude.ai ---------- */
+  const FILE_MAX = 25 * 1024 * 1024;
+  const RAW_PART = 720 * 1024;   /* bytes per part, under the server's base64 limit */
+  const standalone = () => !!(window.M360_STANDALONE && typeof window.M360_API === 'function');
+  const fmtSize = n => n < 1024 ? n + ' B' : n < 1024 * 1024 ? Math.round(n / 1024) + ' KB' : (Math.round(n / 1024 / 1024 * 10) / 10) + ' MB';
+  const isImage = f => /^image\//.test(f.type || '') && !/svg/.test(f.type || '');
+  const isAudio = f => /^audio\//.test(f.type || '');
+  const isVideo = f => /^video\//.test(f.type || '');
+  const b64 = blob => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.onerror = () => rej(new Error('read')); r.readAsDataURL(blob); });
+  const QS = () => { try { return location.search && location.search.length > 1 ? '&' + location.search.slice(1) : ''; } catch (e) { return ''; } };
+  async function upload(file, room, onStep) {
+    if (!file) throw new Error('no file');
+    if (file.size > FILE_MAX) throw new Error('Files up to 25 MB.');
+    const size = file.size || 0;
+    if (standalone()) {
+      const total = Math.max(1, Math.ceil(size / RAW_PART));
+      let id = '';
+      let out = null;
+      for (let i = 0; i < total; i++) {
+        if (onStep) onStep(i, total);
+        const data = size ? await b64(file.slice(i * RAW_PART, Math.min(size, (i + 1) * RAW_PART))) : '';
+        out = await window.M360_API('fileput', {id, name: file.name, type: file.type || 'application/octet-stream', size: size || 1, part: i, total, data, room});
+        id = out.id;
+      }
+      return {id, name: file.name, type: file.type || 'application/octet-stream', size, url: out.url + QS()};
+    }
+    const assets = await window.claude.use('assets');
+    if (!assets) throw new Error('Attachments work on the team site. This page cannot keep files.');
+    if (onStep) onStep(0, 1);
+    const r = await assets.upload(file);
+    return {id: r.id, name: file.name, type: r.contentType || file.type || 'application/octet-stream', size: r.sizeBytes || size, url: r.url};
+  }
+  M.files = {upload, fmtSize, isImage, isAudio, isVideo, FILE_MAX};
+
+  /* a file on a line: pictures inline, sound and video with controls, everything else a card */
+  function FileLine({f}) {
+    const dl = standalone() ? f.url + '&dl=1' : f.url;
+    if (isImage(f)) return html`<a class="chat-img-link" href=${f.url} target="_blank" rel="noopener" data-out="1" title=${f.name}><img class="chat-img" src=${f.url} alt=${f.name} loading="lazy"/></a>`;
+    if (isAudio(f)) return html`<div class="chat-file media"><audio controls preload="none" src=${f.url}/><a class="tiny" href=${dl} download=${f.name} data-out="1">${f.name}</a></div>`;
+    if (isVideo(f)) return html`<div class="chat-file media"><video controls preload="metadata" src=${f.url} playsInline/><a class="tiny" href=${dl} download=${f.name} data-out="1">${f.name}</a></div>`;
+    return html`<a class="chat-file" href=${dl} download=${f.name} data-out="1" title=${'Download ' + f.name}>
+      <span class="chat-file-ico"><${icons.upload}/></span>
+      <span class="grow" style=${{minWidth: 0}}><span class="chat-file-name">${f.name}</span><span class="tiny ink62">${(f.type || '').split('/')[1] || 'file'}${f.size ? ' · ' + fmtSize(f.size) : ''}</span></span>
+      <span class="tiny ink62">Download</span>
+    </a>`;
+  }
+
   /* text with links and @names lit up */
   function Rich({text, names}) {
     const parts = String(text || '').split(/(https?:\/\/[^\s<>"')]+|@everyone|@[A-Z][\w.-]*(?:\s[A-Z][\w.-]*)?)/g);
@@ -7549,19 +7691,24 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const uid = ctx.uid;
     const rooms = useMemo(() => roomsOf(ctx), [ctx.coll.chatrooms]);
     const dms = useMemo(() => dmRoomsOf(ctx), [ctx.coll.chat]);
-    const [room, setRoom] = useState(() => roomFromRoute || (localStorage.getItem('m360.chatRoom') || 'general'));
+    /* the room you were in last, remembered per person; a direct message you are not part of never opens */
+    const [room, setRoom] = useState(() => { const r = roomFromRoute || M.prefs.get('chatRoom.' + uid, '') || 'general'; return (isDm(r) && !r.split('.').includes(uid)) ? 'general' : r; });
     const [text, setText] = useState('');
     const [q, setQ] = useState('');
     const [naming, setNaming] = useState(false);
     const [newName, setNewName] = useState('');
     const [editing, setEditing] = useState(null);
     const [listOpen, setListOpen] = useState(!roomFromRoute);
+    const [pending, setPending] = useState([]);      /* files picked, not sent yet */
+    const [busy, setBusy] = useState('');            /* 'Uploading 1 of 2' while sending */
+    const [over, setOver] = useState(false);
     const endRef = useRef(null);
     const boxRef = useRef(null);
+    const fileRef = useRef(null);
     const phone = M.usePhone();
     /* the route decides: a room in it opens that room; none means the list (the Chat tab on a phone) */
     useEffect(() => { if (roomFromRoute) { if (roomFromRoute !== room) setRoom(roomFromRoute); setListOpen(false); } else setListOpen(true); }, [roomFromRoute]);
-    useEffect(() => { try { localStorage.setItem('m360.chatRoom', room); } catch (e) { /* private */ } }, [room]);
+    useEffect(() => { M.prefs.set('chatRoom.' + uid, room); }, [room]);
     const people = ctx.activeMembers.filter(m => m.uid !== uid);
     const ids = useMemo(() => Array.from(new Set(ctx.activeMembers.map(m => m.uid).concat(dms.map(d => dmOther(d, uid))))), [ctx.activeMembers, dms]);
     const profs = M.useProfiles(ids.concat([uid]));
@@ -7580,30 +7727,32 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     }, [room, latest]);
     useEffect(() => { if (endRef.current && endRef.current.scrollIntoView) endRef.current.scrollIntoView({block: 'end'}); }, [msgs.length, room]);
 
-    /* a browser notice when a line arrives for you while this tab is hidden */
-    const seenAt = useRef(0);
-    useEffect(() => {
-      const items = inboxItems(ctx, nameOf(uid));
-      const fresh = items.filter(it => it.m.at > seenAt.current && Date.now() - it.m.at < 60000);
-      seenAt.current = Date.now();
-      if (!fresh.length || !document.hidden) return;
-      try {
-        if (window.Notification && Notification.permission === 'granted') {
-          const it = fresh[fresh.length - 1];
-          new Notification(nameOf(it.m.by) + (it.dm ? '' : ' in #' + it.room), {body: String(it.m.text).slice(0, 120), tag: 'm360-chat', icon: 'icons/icon-192.png'});
-        }
-      } catch (e) { /* no notices here */ }
-    }, [ctx.coll.chat]);
-
     const mentionIds = t => ctx.activeMembers.filter(m => String(t).includes('@' + nameOf(m.uid)) || String(t).includes('@' + String(nameOf(m.uid)).split(' ')[0] + ' ')).map(m => m.uid);
+    const pick = list => {
+      const add = Array.from(list || []).filter(Boolean);
+      if (!add.length) return;
+      const big = add.find(f => f.size > FILE_MAX);
+      if (big) { M.toast(big.name + ' is over 25 MB', true); return; }
+      setPending(p => p.concat(add).slice(0, 10));
+    };
     const go = async () => {
       const t = text.trim();
-      if (!t) return;
-      setText('');
-      if (editing) { await edit(ctx, room, editing, t).catch(() => {}); setEditing(null); return; }
-      await send(ctx, room, t, mentionIds(t)).catch(() => setText(t));
+      if (!t && !pending.length) return;
+      if (busy) return;
+      if (editing) { if (!t) return; setText(''); await edit(ctx, room, editing, t).catch(() => {}); setEditing(null); return; }
+      const files = [];
+      try {
+        for (let i = 0; i < pending.length; i++) {
+          setBusy('Uploading ' + (i + 1) + ' of ' + pending.length);
+          files.push(await upload(pending[i], room, (part, total) => { if (total > 1) setBusy('Uploading ' + (i + 1) + ' of ' + pending.length + ', part ' + (part + 1) + ' of ' + total); }));
+        }
+      } catch (e) { setBusy(''); M.toast((e && e.message) || 'That file did not go up', true); return; }
+      setBusy(''); setText(''); setPending([]);
+      await send(ctx, room, t, mentionIds(t), files).catch(() => { setText(t); M.toast('Not sent. Try again.', true); });
       M.sound.play('soft');
     };
+    const onPaste = e => { const fs = e.clipboardData && e.clipboardData.files; if (fs && fs.length) { e.preventDefault(); pick(fs); } };
+    const onDrop = e => { e.preventDefault(); setOver(false); pick(e.dataTransfer && e.dataTransfer.files); };
     const onKey = e => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); go(); }
       if (e.key === 'Escape' && editing) { setEditing(null); setText(''); }
@@ -7631,10 +7780,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         ${cont ? html`<span class="chat-gap"/>` : html`<${UI.Avatar} id=${m.by} size=${30}/>`}
         <div class="grow" style=${{minWidth: 0}}>
           ${cont ? null : html`<div class="row nowrap" style=${{gap: '8px', alignItems: 'baseline'}}><span style=${{fontWeight: 500}}>${nameOf(m.by)}</span><span class="tiny ink62 num">${U.hhmm ? U.hhmm(new Date(m.at)) : new Date(m.at).toLocaleTimeString()}</span></div>`}
-          <div class="chat-text"><${Rich} text=${m.text} names=${names}/>${m.edited ? html` <span class="tiny ink62">(edited)</span>` : null}</div>
+          ${m.text ? html`<div class="chat-text"><${Rich} text=${m.text} names=${names}/>${m.edited ? html` <span class="tiny ink62">(edited)</span>` : null}</div>` : null}
+          ${(m.files || []).length ? html`<div class="chat-files">${m.files.map((f, k) => html`<${FileLine} key=${k} f=${f}/>`)}</div>` : null}
         </div>
         ${m.by === uid ? html`<span class="chat-tools row nowrap">
-          <button type="button" class="linky tiny" onClick=${() => { setEditing(m.id); setText(m.text); if (boxRef.current) boxRef.current.focus(); }}>Edit</button>
+          ${m.text ? html`<button type="button" class="linky tiny" onClick=${() => { setEditing(m.id); setText(m.text); if (boxRef.current) boxRef.current.focus(); }}>Edit</button>` : null}
           <button type="button" class="linky tiny" onClick=${() => remove(ctx, room, m.id)}>Delete</button>
         </span>` : null}
       </div>`);
@@ -7655,7 +7805,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       ${!people.length ? html`<div class="small ink62">Just you so far. Invite the team from Admin.</div>` : null}
     </aside>`;
 
-    const pane = html`<section class="chat-pane" id="chat-pane">
+    const pane = html`<section class=${'chat-pane' + (over ? ' over' : '')} id="chat-pane" onDragOver=${e => { e.preventDefault(); if (!over) setOver(true); }} onDragLeave=${e => { if (!e.currentTarget.contains(e.relatedTarget)) setOver(false); }} onDrop=${onDrop}>
       <div class="chat-head row between nowrap">
         <div class="row nowrap" style=${{gap: '8px', minWidth: 0}}>
           ${phone ? html`<button type="button" class="iconbtn" aria-label="Rooms" onClick=${() => setListOpen(true)}><${icons.more}/></button>` : null}
@@ -7670,10 +7820,14 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       </div>
       <div class="chat-composer">
         ${editing ? html`<div class="tiny ink62" style=${{marginBottom: '4px'}}>Editing. Escape to stop.</div>` : null}
+        ${pending.length ? html`<div class="chat-attach" id="chat-attach">${pending.map((f, i) => html`<span key=${i} class="chip"><span class="chat-file-name">${f.name}</span><span class="tiny ink62"> ${fmtSize(f.size)}</span><button type="button" class="chip-x" aria-label=${'Remove ' + f.name} onClick=${() => setPending(p => p.filter((_, k) => k !== i))}><${icons.x}/></button></span>`)}</div>` : null}
+        ${busy ? html`<div class="tiny ink62" id="chat-busy" style=${{marginBottom: '4px'}}>${busy}</div>` : null}
         <div class="row nowrap" style=${{gap: '8px', alignItems: 'flex-end'}}>
-          <textarea ref=${boxRef} id="chat-input" class="input grow" rows=${1} placeholder=${'Message ' + title + '. @ a name, or @everyone'} value=${text}
-            onInput=${e => setText(e.target.value)} onKeyDown=${onKey} aria-label="Message"/>
-          <${UI.Btn} id="chat-send" disabled=${!text.trim()} onClick=${go}>${editing ? 'Save' : 'Send'}<//>
+          <input ref=${fileRef} type="file" id="chat-file" multiple style=${{display: 'none'}} onChange=${e => { pick(e.target.files); e.target.value = ''; }} aria-label="Attach files"/>
+          <button type="button" class="iconbtn" id="chat-attach-btn" aria-label="Attach a file" title="Attach any file, up to 25 MB" disabled=${!!busy || !!editing} onClick=${() => fileRef.current && fileRef.current.click()}><${icons.plus}/></button>
+          <textarea ref=${boxRef} id="chat-input" class="input grow" rows=${1} placeholder=${'Message ' + title + '. @ a name, or @everyone. Drop or paste files here'} value=${text}
+            onInput=${e => setText(e.target.value)} onKeyDown=${onKey} onPaste=${onPaste} aria-label="Message"/>
+          <${UI.Btn} id="chat-send" disabled=${(!text.trim() && !pending.length) || !!busy} onClick=${go}>${editing ? 'Save' : 'Send'}<//>
         </div>
       </div>
     </section>`;
@@ -7681,8 +7835,50 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     return html`<div class=${'chat' + (phone ? (listOpen ? ' show-list' : ' show-pane') : '')} id="chat">${list}${pane}</div>`;
   }
 
-  M.rooms = {roomsOf, messagesOf, unreadIn, unreadRooms, inboxItems, dmId, isDm, dmOther, send, makeRoom, markRead, readMark};
+  /* ---------- the watcher: a line for you becomes a notice, wherever you are in m360 ---------- */
+  const noticeAll = () => M.prefs.get('noticeAll', '0') === '1';
+  function ChatWatch() {
+    const ctx = M.useCtx();
+    const uid = ctx.uid;
+    const seenAt = useRef(Date.now());
+    const ids = useMemo(() => ctx.activeMembers.map(m => m.uid), [ctx.activeMembers]);
+    const profs = M.useProfiles(ids);
+    const nameOf = id => (profs[id] && profs[id].name) || (ctx.members[id] && ctx.members[id].name) || 'Someone';
+    useEffect(() => {
+      if (!uid || !ctx.coll.chat.ready) return;
+      const rooms = roomsOf(ctx);
+      const roomName = id => ((rooms.find(r => r.id === id) || {}).name || id);
+      const hm = /^#chat\/(.+)$/.exec(location.hash);
+      const openRoom = hm ? decodeURIComponent(hm[1]) : (location.hash === '#chat' ? (M.prefs.get('chatRoom.' + uid, '') || 'general') : '');
+      const since = seenAt.current;
+      seenAt.current = Date.now();
+      const fresh = [];
+      const all = rooms.map(r => r.id).concat(dmRoomsOf(ctx));
+      for (const room of all) {
+        for (const m of messagesOf(ctx, room)) {
+          if (m.by === uid || (m.at || 0) <= since || Date.now() - (m.at || 0) > 90000) continue;
+          const dm = isDm(room);
+          const forMe = dm || mentionsMe(m, ctx, nameOf(uid));
+          if (!forMe && !noticeAll()) continue;
+          if (room === openRoom && !document.hidden) continue;
+          fresh.push({room, m, dm});
+        }
+      }
+      if (!fresh.length) return;
+      fresh.sort((a, b) => (a.m.at || 0) - (b.m.at || 0));
+      for (const it of fresh.slice(-3)) {
+        const files = (it.m.files || []);
+        const body = it.m.text || (files.length ? 'Sent ' + (files.length === 1 ? files[0].name : files.length + ' files') : 'New message');
+        M.notices.push({key: 'chat:' + it.m.id, who: it.m.by, title: nameOf(it.m.by) + (it.dm ? '' : ' in #' + roomName(it.room)), body, hidden: it.dm ? 'New message' : 'New message in #' + roomName(it.room), href: '#chat/' + it.room});
+      }
+      M.sound.play('soft');
+    }, [ctx.coll.chat, uid]);
+    return null;
+  }
+
+  M.rooms = {roomsOf, messagesOf, unreadIn, unreadRooms, inboxItems, dmId, isDm, dmOther, send, makeRoom, markRead, readMark, noticeAll};
   M.pages.Chat = Chat;
+  M.parts.ChatWatch = ChatWatch;
 })();
 
 /* ==== 30-week.js ==== */
@@ -7852,6 +8048,114 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   M.pages.Week = Week;
 })();
 
+/* ==== 31-notes.js ==== */
+/* module: notes. A private notebook for each person: rough work, thoughts, whatever. Nobody else can read
+   it, not even the founder (it lives under data/users/<uid>, the private space). An index of notes at
+   data/users/<uid>/notes, each note's text at data/users/<uid>/note.<id>. Saves itself as you type. */
+'use strict';
+(function () {
+  const {html, React, U, UI, icons} = M;
+  const {useState, useEffect, useMemo, useRef} = React;
+
+  const NOTE_MAX = 60000;
+  const indexPath = ctx => 'data/users/' + ctx.uid + '/notes';
+  const notePath = (ctx, id) => 'data/users/' + ctx.uid + '/note.' + id;
+  const firstLine = t => String(t || '').split('\n').map(x => x.trim()).find(Boolean) || '';
+
+  function Notes() {
+    const ctx = M.useCtx();
+    const idx = M.useDoc(ctx.db, indexPath(ctx));
+    const items = (idx.data && idx.data.items) || {};
+    const ids = useMemo(() => Object.keys(items).filter(k => items[k] && !items[k].gone).sort((a, b) => ((items[b].pinned ? 1 : 0) - (items[a].pinned ? 1 : 0)) || ((items[b].updated || 0) - (items[a].updated || 0))), [idx.data]);
+    const [cur, setCur] = useState(() => { try { return localStorage.getItem('m360.note') || ''; } catch (e) { return ''; } });
+    const [q, setQ] = useState('');
+    const phone = M.usePhone();
+    const [listOpen, setListOpen] = useState(true);
+    useEffect(() => { if (idx.ready && ids.length && (!cur || !items[cur])) setCur(ids[0]); }, [idx.ready, ids.join(',')]);
+    useEffect(() => { try { if (cur) localStorage.setItem('m360.note', cur); } catch (e) { /* private */ } }, [cur]);
+
+    const make = async () => {
+      const id = U.uid();
+      await ctx.W.merge(indexPath(ctx), {items: {[id]: {title: '', updated: Date.now(), at: Date.now()}}});
+      await ctx.W.set(notePath(ctx, id), {text: '', updated: Date.now()}).catch(() => {});
+      setCur(id); setListOpen(false);
+    };
+    const pin = async id => { await ctx.W.merge(indexPath(ctx), {items: {[id]: {pinned: !(items[id] && items[id].pinned)}}}); };
+    const remove = async id => {
+      await ctx.W.merge(indexPath(ctx), {items: {[id]: {gone: true, updated: Date.now()}}});
+      await ctx.W.del(notePath(ctx, id)).catch(() => {});
+      if (cur === id) setCur('');
+      M.toast('Note deleted');
+    };
+    const shown = ids.filter(id => !q || String(items[id].title || '').toLowerCase().includes(q.toLowerCase()));
+
+    const list = html`<aside class="notes-list" id="notes-list">
+      <div class="row nowrap" style=${{gap: '6px'}}>
+        <input id="notes-q" class="input grow" placeholder="Find a note" value=${q} onInput=${e => setQ(e.target.value)} aria-label="Find a note"/>
+        <${UI.Btn} sm=${true} id="notes-new" onClick=${make}>New<//>
+      </div>
+      <div class="stack tight" style=${{marginTop: '8px'}}>
+        ${!idx.ready ? html`<${M.Thinking} label="Opening your notes"/>` : !shown.length ? html`<div class="small ink62" style=${{padding: '8px 2px'}}>${ids.length ? 'No note matches.' : 'Nothing here yet. Your notes are yours alone.'}</div>`
+          : shown.map(id => html`<button key=${id} type="button" class=${'note-row' + (id === cur ? ' active' : '')} onClick=${() => { setCur(id); setListOpen(false); }}>
+            <span class="grow" style=${{minWidth: 0}}><span class="note-title">${items[id].pinned ? html`<span class="note-pinned">pinned</span>` : null}${items[id].title || 'Untitled'}</span>
+              <span class="tiny ink62">${items[id].updated ? U.timeAgo(items[id].updated) : ''}</span></span>
+          </button>`)}
+      </div>
+    </aside>`;
+
+    return html`<div class=${'notes' + (phone ? (listOpen ? ' show-list' : ' show-pane') : '')} id="notes">
+      ${list}
+      <section class="notes-pane">
+        ${cur && items[cur] ? html`<${Editor} key=${cur} ctx=${ctx} id=${cur} meta=${items[cur]} onPin=${() => pin(cur)} onRemove=${() => remove(cur)} onBack=${phone ? () => setListOpen(true) : null}/>`
+          : html`<div class="notes-empty"><${UI.Empty} text="Pick a note, or make one. Only you can read them."/></div>`}
+      </section>
+    </div>`;
+  }
+
+  function Editor({ctx, id, meta, onPin, onRemove, onBack}) {
+    const doc = M.useDoc(ctx.db, notePath(ctx, id));
+    const [text, setText] = useState(null);
+    const [saved, setSaved] = useState('');
+    const timer = useRef(0);
+    const dirty = useRef(false);
+    useEffect(() => { if (doc.ready && text === null) setText((doc.data && doc.data.text) || ''); }, [doc.ready]);
+    const save = async t => {
+      const title = firstLine(t).slice(0, 80);
+      await ctx.W.merge(notePath(ctx, id), {text: t.slice(0, NOTE_MAX), updated: Date.now()}).catch(() => {});
+      await ctx.W.merge(indexPath(ctx), {items: {[id]: {title, updated: Date.now()}}}).catch(() => {});
+      dirty.current = false; setSaved(U.hhmm ? U.hhmm(new Date()) : 'now');
+    };
+    const onInput = t => {
+      setText(t); dirty.current = true; setSaved('');
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => save(t), 700);
+    };
+    useEffect(() => () => { clearTimeout(timer.current); }, []);
+    /* leaving with unsaved keystrokes: save now */
+    useEffect(() => { const f = () => { if (dirty.current && text != null) save(text); }; window.addEventListener('beforeunload', f); return () => { window.removeEventListener('beforeunload', f); f(); }; }, [text]);
+    if (text === null) return html`<div style=${{padding: '20px'}}><${M.Thinking} label="Opening"/></div>`;
+    const words = String(text).trim() ? String(text).trim().split(/\s+/).length : 0;
+    return html`<div class="note-editor">
+      <div class="row between nowrap note-head">
+        <div class="row nowrap" style=${{gap: '8px', minWidth: 0}}>
+          ${onBack ? html`<button type="button" class="iconbtn" aria-label="All notes" onClick=${onBack}><${icons.more}/></button>` : null}
+          <span class="small ink62">${saved ? 'Saved ' + saved : dirty.current ? 'Saving' : 'Only you can read this'}${meta.updated ? ' · ' + U.timeAgo(meta.updated) : ''}</span>
+        </div>
+        <span class="row nowrap" style=${{gap: '6px'}}>
+          <button type="button" class="linky tiny" id="note-pin" onClick=${onPin}>${meta.pinned ? 'Unpin' : 'Pin'}</button>
+          <${UI.ConfirmBtn} kind="ghost" sm=${true} onConfirm=${onRemove}>Delete<//>
+        </span>
+      </div>
+      <textarea id="note-text" class="note-text" value=${text} placeholder="Write anything. The first line becomes the title." spellCheck="true"
+        onInput=${e => onInput(e.target.value)} aria-label="Note"/>
+      <div class="tiny ink62 num note-foot">${words} words${text.length > NOTE_MAX * .9 ? ' · near the size limit, start a new note' : ''}</div>
+    </div>`;
+  }
+
+  M.pages.Notes = Notes;
+  M.parts.Notes = Notes;
+})();
+
 /* ==== 31-scores.js ==== */
 /* module: scores (BRIEF 7.11 and section 9). Points, podium, leaderboard, breakdowns. */
 'use strict';
@@ -7948,6 +8252,127 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   }
 
   M.pages.Scores = Scores;
+})();
+
+/* ==== 32-music.js ==== */
+/* module: music. The team's playlist and a player that keeps playing while you move around m360.
+   Paste a Spotify, Apple Music or YouTube link: it becomes a card in the shared list (music/team), and
+   Play puts it in the dock at the bottom, which stays mounted across every section. Full songs on
+   Spotify and Apple need you signed in to that service in this browser; otherwise you get previews.
+   YouTube plays in full. */
+'use strict';
+(function () {
+  const {html, React, U, UI, icons} = M;
+  const {useState, useEffect, useMemo} = React;
+
+  const DOC = 'music/team';
+  const subs = new Set();
+  let now = null;   /* {id, title, kind, embed, url, by} */
+  let open = true;
+  const emit = () => subs.forEach(f => { try { f({now, open}); } catch (e) { /* page handler */ } });
+
+  /* a public link into an embeddable player */
+  function embedOf(url) {
+    let u;
+    try { u = new URL(String(url || '').trim()); } catch (e) { return null; }
+    const h = u.hostname.replace(/^www\./, '');
+    if (h === 'open.spotify.com') {
+      const m = /^\/(intl-[a-z]+\/)?(track|album|playlist|episode|show|artist)\/([A-Za-z0-9]+)/.exec(u.pathname);
+      if (m) return {kind: 'spotify', embed: 'https://open.spotify.com/embed/' + m[2] + '/' + m[3] + '?utm_source=m360', label: m[2]};
+    }
+    if (h === 'music.apple.com') {
+      return {kind: 'apple', embed: 'https://embed.music.apple.com' + u.pathname + u.search, label: (u.pathname.split('/')[2] || 'music')};
+    }
+    if (h === 'youtube.com' || h === 'm.youtube.com' || h === 'youtu.be' || h === 'music.youtube.com') {
+      const id = h === 'youtu.be' ? u.pathname.slice(1).split('/')[0] : (u.searchParams.get('v') || (/^\/(embed|shorts)\/([^/?]+)/.exec(u.pathname) || [])[2] || '');
+      const list = u.searchParams.get('list');
+      if (id) return {kind: 'youtube', embed: 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) + '?autoplay=1&rel=0' + (list ? '&list=' + encodeURIComponent(list) : ''), label: 'video'};
+      if (list) return {kind: 'youtube', embed: 'https://www.youtube-nocookie.com/embed/videoseries?list=' + encodeURIComponent(list) + '&autoplay=1', label: 'playlist'};
+    }
+    if (h === 'soundcloud.com') return {kind: 'soundcloud', embed: 'https://w.soundcloud.com/player/?url=' + encodeURIComponent(u.href) + '&auto_play=true', label: 'track'};
+    return null;
+  }
+
+  M.music = {
+    embedOf,
+    play(item) { now = item; open = true; emit(); },
+    stop() { now = null; emit(); },
+    toggle() { open = !open; emit(); },
+    state: () => ({now, open}),
+    on: f => { subs.add(f); return () => subs.delete(f); }
+  };
+
+  /* ---------- the page: the team's list ---------- */
+  function Music() {
+    const ctx = M.useCtx();
+    const doc = M.useDoc(ctx.db, DOC);
+    const items = (doc.data && Array.isArray(doc.data.items)) ? doc.data.items : [];
+    const [link, setLink] = useState('');
+    const [title, setTitle] = useState('');
+    const [st, setSt] = useState(M.music.state());
+    useEffect(() => M.music.on(setSt), []);
+    const probe = useMemo(() => embedOf(link), [link]);
+    const ids = useMemo(() => Array.from(new Set(items.map(i => i.by).filter(Boolean))), [items]);
+    const profs = M.useProfiles(ids);
+    const add = async () => {
+      const e = embedOf(link);
+      if (!e) { M.toast('Paste a Spotify, Apple Music, YouTube or SoundCloud link', true); return; }
+      const item = {id: U.uid(), title: (title.trim() || (e.kind + ' ' + e.label)).slice(0, 80), url: link.trim(), kind: e.kind, embed: e.embed, by: ctx.uid, at: Date.now()};
+      await ctx.W.merge(DOC, {items: items.concat([item]).slice(-200), updated: Date.now()}).catch(() => {});
+      setLink(''); setTitle(''); M.toast('Added to the team list');
+    };
+    const remove = async it => { await ctx.W.merge(DOC, {items: items.filter(x => x.id !== it.id), updated: Date.now()}).catch(() => {}); };
+    const kindPill = k => html`<${UI.Pill} kind=${k === 'spotify' ? 'ink' : 'warm'}>${k}<//>`;
+    return html`<div class="stack" style=${{gap: '14px'}}>
+      <${UI.Card} title="Add to the team list" id="music-add">
+        <div class="row" style=${{gap: '8px', flexWrap: 'wrap'}}>
+          <input id="music-link" class="input" style=${{flex: '2 1 260px'}} placeholder="Paste a Spotify, Apple Music, YouTube or SoundCloud link" value=${link} onInput=${e => setLink(e.target.value)} aria-label="Music link"/>
+          <input id="music-title" class="input" style=${{flex: '1 1 160px'}} placeholder="Name it, optional" value=${title} onInput=${e => setTitle(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') add(); }} aria-label="Name"/>
+          <${UI.Btn} id="music-save" disabled=${!probe} onClick=${add}>Add<//>
+        </div>
+        <p class="tiny ink62" style=${{margin: '8px 0 0'}}>Full songs on Spotify and Apple Music need you signed in to that service in this browser; otherwise you hear previews. YouTube plays in full.</p>
+      <//>
+      <${UI.Card} title="The team's list" id="music-list" action=${html`<span class="tiny ink62">${items.length} ${items.length === 1 ? 'pick' : 'picks'}</span>`}>
+        ${!items.length ? html`<${UI.Empty} text="Nothing yet. Paste the first link above."/>` : html`<div class="music-grid">
+          ${items.slice().reverse().map(it => html`<div key=${it.id} class=${'music-card' + (st.now && st.now.id === it.id ? ' playing' : '')}>
+            <div class="row between nowrap" style=${{gap: '8px'}}>
+              <div style=${{minWidth: 0}}><div class="music-title">${it.title}</div><div class="tiny ink62">${kindPill(it.kind)} <${UI.Name} id=${it.by}/> · ${U.timeAgo(it.at)}</div></div>
+              <span class="row nowrap" style=${{gap: '4px'}}>
+                <${UI.Btn} sm=${true} onClick=${() => M.music.play(it)}>${st.now && st.now.id === it.id ? 'Playing' : 'Play'}<//>
+                ${it.by === ctx.uid || ctx.isFounder ? html`<button type="button" class="iconbtn" aria-label="Remove" onClick=${() => remove(it)}><${icons.x}/></button>` : null}
+              </span>
+            </div>
+          </div>`)}
+        </div>`}
+      <//>
+    </div>`;
+  }
+
+  /* ---------- the dock: stays mounted, keeps playing ---------- */
+  function MusicDock() {
+    const [st, setSt] = useState(M.music.state());
+    useEffect(() => M.music.on(setSt), []);
+    if (!st.now) return null;
+    const n = st.now;
+    const tall = n.kind === 'youtube' ? 200 : n.kind === 'apple' ? 175 : 152;
+    return html`<div class=${'music-dock' + (st.open ? '' : ' folded')} id="music-dock">
+      <div class="row between nowrap music-dock-head">
+        <button type="button" class="music-dock-title" onClick=${() => M.music.toggle()} title=${st.open ? 'Fold the player' : 'Show the player'} aria-label=${(st.open ? 'Fold the player: ' : 'Show the player: ') + n.title}>
+          <span class="music-eq" aria-hidden="true"><i/><i/><i/></span><span class="grow" style=${{minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>${n.title}</span>
+        </button>
+        <span class="row nowrap" style=${{gap: '2px'}}>
+          <button type="button" class="iconbtn" aria-label="Open the list" title="The team's list" onClick=${() => M.nav('#music')}><${icons.more}/></button>
+          <button type="button" class="iconbtn" aria-label="Stop" title="Stop" onClick=${() => M.music.stop()}><${icons.x}/></button>
+        </span>
+      </div>
+      <iframe class="music-frame" style=${{height: tall + 'px'}} src=${n.embed} title=${n.title} allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"
+        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms" referrerPolicy="strict-origin-when-cross-origin"/>
+    </div>`;
+  }
+
+  M.pages.Music = Music;
+  M.parts.Music = Music;
+  M.parts.MusicDock = MusicDock;
 })();
 
 /* ==== 32-people.js ==== */
@@ -11282,7 +11707,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       <//>
       <${M.SectionTabs} section="vibe" active=${t}/>
       ${t === 'feed' ? html`<${Wrapped}/>` : null}
-      ${t === 'crew' ? html`<${Embed} page="People" id=${id}/>` : t === 'pulse' ? html`<${Embed} page="Voice"/>` : t === 'scores' ? html`<${Embed} page="Scores"/>` : html`<${Embed} page="Feed"/>`}
+      ${t === 'crew' ? html`<${Embed} page="People" id=${id}/>` : t === 'pulse' ? html`<${Embed} page="Voice"/>` : t === 'scores' ? html`<${Embed} page="Scores"/>` : t === 'music' ? html`<${Embed} page="Music"/>` : html`<${Embed} page="Feed"/>`}
     </div>`;
   }
 
@@ -11311,9 +11736,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       <//>
       <${M.SectionTabs} section="me" active=${t}/>
       ${t === 'profile' && M.parts.ProfileCard ? html`<${UI.Fold} title="Your profile" summary="photo, pronouns, city, bio, links, birthday" id="fold-profile"><${M.parts.ProfileCard}/><//>` : null}
-      ${t === 'leave' ? html`<${Embed} page="Leave"/>` : t === 'handbook' ? html`<${Embed} page="Handbook" id=${id}/>`
+      ${t === 'leave' ? html`<${Embed} page="Leave"/>` : t === 'handbook' ? html`<${Embed} page="Handbook" id=${id}/>` : t === 'notes' ? html`<${Embed} page="Notes" id=${id}/>`
         : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>` : t === 'trophies' ? (M.parts.Trophies ? html`<${M.parts.Trophies}/>` : null) : html`<${Embed} page="People" id=${ctx.uid}/>`}
-      ${t === 'profile' ? html`<${UI.Fold} title="Your m360" summary="look, sounds, shortcuts" id="fold-prefs"><${Prefs}/><//>` : null}
+      ${t === 'profile' ? html`<${UI.Fold} title="Your m360" summary="look, sounds, notices, shortcuts" id="fold-prefs"><${Prefs}/><//>` : null}
       ${t === 'profile' && M.parts.EmailCard ? html`<${UI.Fold} title="Your email" summary="for sign-in links" id="fold-email"><${M.parts.EmailCard}/><//>` : null}
       ${t === 'profile' && M.parts.DeviceCard ? html`<${UI.Fold} title="Your devices" summary="where you are signed in" id="fold-devices"><${M.parts.DeviceCard}/><//>` : null}
       ${t === 'profile' ? (M.meCards || []).map((C, i) => html`<${C} key=${i}/>`) : null}
@@ -11325,6 +11750,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const theme = M.useTheme();
     const [sound, setSound] = useState(M.sound.on());
     const [voiceOn, setVoiceOn] = useState(() => M.prefs.get('buddyVoice') !== '0');
+    const [previews, setPreviews] = useState(() => M.notices ? M.notices.previews() : true);
+    const [allRooms, setAllRooms] = useState(() => M.prefs.get('noticeAll', '0') === '1');
+    const [perm, setPerm] = useState(() => { try { return window.Notification ? Notification.permission : 'denied'; } catch (e) { return 'denied'; } });
     const wk = U.periodRange('week');
     const ctx = M.useCtx();
     const deep = M.focus ? M.focus.minutes(ctx, ctx.uid, wk.from, wk.to) : 0;
@@ -11347,6 +11775,17 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${voiceOn ? 'on' : 'off'} ariaLabel="Buddy voice"
             onChange=${v => { M.prefs.set('buddyVoice', v === 'on' ? '1' : '0'); setVoiceOn(v === 'on'); if (v === 'on' && M.speech) M.speech.say('Hi, I am here whenever you need me.'); }}/>
         </div>
+        <div class="row between">
+          <span>Message previews in notices</span>
+          <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'Show'}, {v: 'off', label: 'Hide'}]} value=${previews ? 'on' : 'off'} ariaLabel="Message previews"
+            onChange=${v => { if (M.notices) M.notices.setPreviews(v === 'on'); setPreviews(v === 'on'); }}/>
+        </div>
+        <div class="row between">
+          <span>Notices for every room message</span>
+          <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${allRooms ? 'on' : 'off'} ariaLabel="Room notices"
+            onChange=${v => { M.prefs.set('noticeAll', v === 'on' ? '1' : '0'); setAllRooms(v === 'on'); }}/>
+        </div>
+        ${perm === 'default' ? html`<div class="row between"><span>Notices while m360 is in the background</span><button type="button" class="linky small" id="notify-ask" onClick=${() => M.notices && M.notices.ask().then(p => setPerm(p || 'denied'))}>Allow</button></div>` : null}
         <div class="row between"><span>The tour</span><button type="button" class="linky small" id="tour-again" onClick=${() => M.tour && M.tour.start()}>Show me around</button></div>
         <div class="row between"><span>Keyboard shortcuts</span><button type="button" class="linky small" onClick=${() => window.dispatchEvent(new CustomEvent('m360:keys'))}>Show the sheet</button></div>
       </div>
@@ -11362,6 +11801,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       ${M.parts.MailCard ? html`<${UI.Fold} title="Email sending" summary="Resend key and sender" id="fold-mail"><${M.parts.MailCard}/><//>` : null}
       ${M.parts.VoiceCard ? html`<${UI.Fold} title="The buddy's voice" summary="a natural voice for the cursor buddy" id="fold-voice"><${M.parts.VoiceCard}/><//>` : null}
       ${M.parts.GoogleCard ? html`<${UI.Fold} title="Google Workspace" summary="mail, calendar, meetings and drive for everyone" id="fold-google"><${M.parts.GoogleCard}/><//>` : null}
+      ${M.parts.BrowserCard ? html`<${UI.Fold} title="The browser" summary="reading mode, m360 Desktop, the frame helper" id="fold-browser"><${M.parts.BrowserCard}/><//>` : null}
       ${(M.adminCards || []).map((C, i) => html`<${UI.Fold} key=${i} title="Radar settings" summary="keywords, sources, channels" id=${'fold-admin-' + i}><${C}/><//>`)}
       <${Embed} page="Desk"/>
     </div>`;
@@ -11794,6 +12234,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       say: 'Workspace. Your Gmail, your calendar and meetings, your drive, right here, once you sign in with Google.'},
     {go: '#web', sel: '#web-url, .main .card', title: 'Web',
       say: 'Web. A browser inside m360, with the team\'s bookmarks. Canva, Apollo, LinkedIn, all without leaving.'},
+    {go: '#notes', sel: '#notes-new, #notes, .main .card', title: 'Notes',
+      say: 'Your notes. Rough work, thoughts, anything. Nobody else can read them, and they save themselves as you type.'},
+    {go: '#music', sel: '#music-add, .main .card', title: 'Music',
+      say: 'Music. Paste a Spotify, Apple Music or YouTube link for the team, press play, and it keeps playing while you move around m360.'},
     {go: '#me', sel: '#fold-profile, .main .card', title: 'Me',
       say: 'Me. Your photo and profile, your leave, the handbook. If a number ever looks wrong, request a correction here and Kaavish approves it.'},
     {go: '#hq', founder: true, sel: '#fold-brief, .main h1', title: 'HQ',
@@ -12532,6 +12976,70 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   }
 
   M.parts.MicButton = MicButton;
+})();
+
+/* ==== 60-notices.js ==== */
+/* module: notices. Small cards in the top right corner, the way a phone shows a message: who, and a line
+   of what, unless previews are off (Me, Prefs), in which case only who. A tap opens the thing. They stack,
+   they slide away after a few seconds, and when the tab is hidden the same notice goes through the
+   browser's own notification, honouring the same preview setting. */
+'use strict';
+(function () {
+  const {html, React, UI} = M;
+  const {useState, useEffect} = React;
+
+  const LIFE = 6500;
+  const MAX = 4;
+  let seq = 0;
+  const subs = new Set();
+  let list = [];
+  const emit = () => subs.forEach(f => { try { f(list); } catch (e) { /* page handler */ } });
+
+  M.notices = {
+    previews: () => M.prefs.get('noticePreview', '1') !== '0',
+    setPreviews: v => M.prefs.set('noticePreview', v ? '1' : '0'),
+    /* {key, who (uid), title, body, href, icon} */
+    push(n) {
+      if (!n || !n.title) return;
+      if (n.key && list.some(x => x.key === n.key)) return;
+      const item = {...n, id: ++seq, at: Date.now()};
+      list = list.filter(x => x.key !== n.key).concat([item]).slice(-MAX);
+      emit();
+      setTimeout(() => { list = list.filter(x => x.id !== item.id); emit(); }, n.life || LIFE);
+      /* the tab is away: the browser shows it too */
+      try {
+        if (document.hidden && window.Notification && Notification.permission === 'granted') {
+          const nn = new Notification(n.title, {body: M.notices.previews() ? String(n.body || '').slice(0, 140) : 'New message', tag: n.key || ('m360-' + item.id), icon: 'icons/icon-192.png'});
+          nn.onclick = () => { try { window.focus(); if (n.href) M.nav(n.href); nn.close(); } catch (e) { /* closed */ } };
+        }
+      } catch (e) { /* no notices here */ }
+    },
+    dismiss(id) { list = list.filter(x => x.id !== id); emit(); },
+    clear() { list = []; emit(); },
+    ask: () => { try { if (window.Notification && Notification.permission === 'default') return Notification.requestPermission(); } catch (e) { /* none */ } return Promise.resolve(window.Notification ? Notification.permission : 'denied'); },
+    on: f => { subs.add(f); return () => subs.delete(f); }
+  };
+
+  function Notices() {
+    const [items, setItems] = useState(list);
+    useEffect(() => M.notices.on(setItems), []);
+    if (!items.length) return null;
+    const previews = M.notices.previews();
+    return html`<div class="notices" id="notices" aria-live="polite">
+      ${items.map(n => html`<div key=${n.id} class="notice" role="status">
+        <button type="button" class="notice-body" onClick=${() => { M.notices.dismiss(n.id); if (n.href) M.nav(n.href); }}>
+          ${n.who ? html`<${UI.Avatar} id=${n.who} size=${34}/>` : html`<span class="notice-mark"><${M.Mark} width="34px"/></span>`}
+          <span class="grow" style=${{minWidth: 0}}>
+            <span class="notice-title">${n.title}</span>
+            <span class="notice-text">${previews ? (n.body || '') : (n.hidden || 'New message')}</span>
+          </span>
+        </button>
+        <button type="button" class="notice-x" aria-label="Dismiss" onClick=${() => M.notices.dismiss(n.id)}><${M.icons.x}/></button>
+      </div>`)}
+    </div>`;
+  }
+
+  M.parts.Notices = Notices;
 })();
 
 /* ==== 60-team.js ==== */
@@ -17079,10 +17587,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 /* module: web. The browser inside m360, laid out like Arc: a rail on the left with the address, the team's
    spaces (bookmarks as app tiles) and the open tabs; the page on the right. Full screen mode hides the
    rest of m360 and gives the page the whole window (Escape brings it back). Links anywhere in m360 that
-   would have opened a new browser tab open here instead (M.web.open). With the frame helper installed,
-   links a framed site tries to pop out come back in here too, and the address bar follows navigation
-   inside the frame. Inside m360 Desktop (window.m360desktop) every tab is a real Chromium view: no site
-   can refuse, logins work, and the same rail drives it. Bookmarks live in links/team. */
+   would have opened a new browser tab open here instead (M.web.open). A site that refuses frames opens
+   in reading mode: the team site fetches the page itself (/api/browse), links inside it stay inside, and
+   the address bar follows. Inside m360 Desktop (window.m360desktop) every tab is a real Chromium view:
+   no site can refuse, logins work, and the same rail drives it. Bookmarks live in links/team. */
 'use strict';
 (function () {
   const {html, React, U, UI, icons} = M;
@@ -17109,6 +17617,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   const pathOf = u => { try { const x = new URL(u); return (x.pathname === '/' ? '' : x.pathname).replace(/\/$/, ''); } catch (e) { return ''; } };
   const ALWAYS_REFUSE = /(^|\.)(google\.com|gmail\.com|youtube\.com|meet\.google\.com|docs\.google\.com|linkedin\.com|facebook\.com|instagram\.com|whatsapp\.com|x\.com|twitter\.com)$/i;
   const refusesForSure = u => !native() && ALWAYS_REFUSE.test(hostOf(u));
+  /* reading mode: the team site fetches the page and serves it from here, links routed back through it */
+  const QS = () => { try { return location.search && location.search.length > 1 ? location.search.slice(1) + '&' : ''; } catch (e) { return ''; } };
+  const proxyUrl = u => '/api/browse?' + QS() + 'u=' + encodeURIComponent(u);
+  const DESKTOP_URL = 'https://github.com/kavishrmofficial-hash/indulge/releases/latest';
 
   /* ---------- the queue other parts of m360 drop links into ---------- */
   const queue = [];
@@ -17161,7 +17673,6 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const [adding, setAdding] = useState(false);
     const [title, setTitle] = useState('');
     const [slow, setSlow] = useState(false);
-    const [helperOn, setHelperOn] = useState(helper);
     const [focus, setFocus] = useState(() => { try { return sessionStorage.getItem('m360.webFocus') === '1'; } catch (e) { return false; } });
     const timer = useRef(0);
     const urlRef = useRef(null);
@@ -17174,7 +17685,6 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const nat = native();
     useEffect(() => { persist(tabs); }, [tabs]);
     useEffect(() => { setTyped(tab ? tab.url : ''); }, [cur, tab && tab.url]);
-    useEffect(() => { const t = setInterval(() => setHelperOn(helper()), 1500); return () => clearInterval(t); }, []);
     /* full screen inside m360: the rest of the shell steps aside */
     useEffect(() => {
       document.body.classList.toggle('web-focus', focus);
@@ -17197,21 +17707,24 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         setTyped(c);
         return;
       }
+      /* already reading this site through the server: the next page of it stays in reading mode */
+      const stay = standalone() && (t.mode === 'proxy' || t.mode === 'reader') && hostOf(c) === hostOf(t.url) && !(opts && opts.frame);
       patch(id, x => {
         const hist = opts && opts.nohist ? x.hist : x.hist.slice(0, x.at + 1).concat([c]);
-        return {url: c, hist, at: opts && opts.nohist ? x.at : hist.length - 1, title: hostOf(c), mode: 'frame', check: null, reader: null, key: x.key + 1, loading: true};
+        return {url: c, hist, at: opts && opts.nohist ? x.at : hist.length - 1, title: hostOf(c), mode: stay ? 'proxy' : 'frame', check: stay ? x.check : null, reader: null, key: x.key + 1, loading: true};
       });
       setTyped(c); setSlow(false);
       clearTimeout(timer.current);
       timer.current = setTimeout(() => setSlow(true), 7000);
-      if (!standalone() || helper()) return;
-      if (ALWAYS_REFUSE.test(hostOf(c))) { patch(id, {mode: 'refused', check: {why: 'this site never allows frames'}, loading: false}); readerFor(id, c); return; }
+      if (stay || !standalone() || helper()) return;
+      if (ALWAYS_REFUSE.test(hostOf(c))) { patch(id, {mode: 'proxy', check: {why: 'this site never allows frames', signin: true}, loading: true}); return; }
       try {
         const r = await window.M360_API('framecheck', {url: c});
-        if (r && r.frameable === false) { patch(id, {mode: 'refused', check: r, loading: false}); readerFor(id, c); }
+        if (r && r.frameable === false) patch(id, x => x.url === c ? {mode: 'proxy', check: r, loading: true} : {});
       } catch (e) { /* unknown: try the frame */ }
     }, [nat]);
     const readerFor = async (id, url) => {
+      patch(id, {mode: 'reader', reader: null, loading: false});
       try { const r = await window.M360_API('readpage', {url}); patch(id, {reader: r, title: r.title || hostOf(url)}); }
       catch (e) { patch(id, {reader: {err: (e && e.message) || 'This page did not answer.'}}); }
     };
@@ -17251,16 +17764,21 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         const d = e.data;
         if (!d || typeof d !== 'object' || !d.m360ext) return;
         if (d.m360ext === 'open' && d.url) openNew(String(d.url));
+        /* a link inside reading mode: the m360 page navigates the frame, so the request carries the session */
+        if (d.m360ext === 'go' && d.url) { const t = tabsRef.current[curRef.current]; if (t && (t.mode === 'proxy' || t.mode === 'reader')) go(String(d.url)); }
         /* the frame moved on its own (a link inside it): the address and history follow */
         if (d.m360ext === 'nav' && d.url) {
           const t = tabsRef.current[curRef.current];
-          if (t && t.url !== d.url) patch(t.id, x => ({url: String(d.url), title: hostOf(d.url) + pathOf(d.url), hist: x.hist.slice(0, x.at + 1).concat([String(d.url)]), at: x.at + 1, loading: false}));
+          const ttl = String(d.title || '').trim().slice(0, 80);
+          if (t && t.url !== d.url) patch(t.id, x => ({url: String(d.url), title: ttl || (hostOf(d.url) + pathOf(d.url)), hist: x.hist.slice(0, x.at + 1).concat([String(d.url)]), at: x.at + 1, loading: false}));
+          else if (t) patch(t.id, {loading: false, title: ttl || t.title});
           setTyped(String(d.url));
+          clearTimeout(timer.current); setSlow(false);
         }
       };
       window.addEventListener('message', onMsg);
       return () => { un(); window.removeEventListener('message', onMsg); };
-    }, [openNew]);
+    }, [openNew, go]);
 
     /* the desktop: native views follow the slot, the active tab, and report back */
     useEffect(() => {
@@ -17299,7 +17817,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     }, [openNew]);
 
     const list = marks.length ? marks : STARTERS.map(s => ({...s, id: 's:' + s.title, starter: true}));
-    const refused = tab && tab.mode === 'refused' && !nat;
+    const proxied = tab && tab.mode === 'proxy' && !nat;
+    const reading = tab && tab.mode === 'reader' && !nat;
     const canBack = tab && (nat ? tab.canBack : tab.at > 0), canFwd = tab && (nat ? tab.canFwd : tab.at < tab.hist.length - 1);
 
     const rail = html`<aside class="web-rail" id="web-rail">
@@ -17329,8 +17848,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           <button type="button" class="web-tab-x" aria-label=${'Close ' + (t.title || 'tab')} onClick=${() => closeTab(i)}><${icons.x}/></button>
         </div>`)}
       </div>
-      ${standalone() && !nat && !helperOn && !phone ? html`<${Helper} compact=${true}/>` : null}
-      ${nat ? html`<div class="tiny ink62" style=${{marginTop: '12px'}}>m360 Desktop: every site opens here.</div>` : null}
+      ${nat ? html`<div class="tiny ink62" style=${{marginTop: '12px'}}>m360 Desktop: every site opens here.</div>`
+        : standalone() && !phone ? html`<div class="tiny ink62 web-foot" id="web-foot">Sites that need a sign-in, like Google or LinkedIn, open in <a href=${DESKTOP_URL} target="_blank" rel="noopener" data-out="1">m360 Desktop</a>.</div>` : null}
     </aside>`;
 
     const toolbar = html`<div class="web-toolbar">
@@ -17349,14 +17868,15 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         <div class="web-hello"><${M.Mark} width="120px"/><div class="ink62" style=${{marginTop: '10px'}}>Search or type an address on the left. Your spaces are the team's shared apps.</div></div>
       </div>`
       : nat ? html`<div ref=${slotRef} class="web-slot" id="web-slot"/>`
-      : refused ? html`<div class="web-reader" id="web-reader">
-        <div class="row between" style=${{gap: '8px', flexWrap: 'wrap', padding: '12px 16px', borderBottom: '1px solid var(--line)'}}>
-          <div class="small"><b>${hostOf(tab.url)}</b> refuses to open inside another site${tab.check && tab.check.why ? ' (' + tab.check.why + ')' : ''}. Here is the page as text.</div>
-          <span class="row nowrap" style=${{gap: '6px'}}>
-            <${UI.Btn} sm=${true} onClick=${() => patch(tab.id, {mode: 'frame', key: tab.key + 1})}>Try the frame anyway<//>
-            <${UI.Btn} kind="sec" sm=${true} onClick=${() => openOut()}>Open outside<//>
-          </span>
-        </div>
+      : proxied ? html`<div class="web-frame-wrap" id="web-proxy-wrap">
+        <div class="web-note row between small"><span class="ink62"><b>${hostOf(tab.url)}</b> refuses frames, so this is reading mode: the page as m360 fetched it. ${tab.check && tab.check.signin ? 'Signing in needs m360 Desktop.' : 'Public pages only.'}</span>
+          <span class="row nowrap" style=${{gap: '6px'}}><button type="button" class="linky tiny" id="web-text" onClick=${() => readerFor(tab.id, tab.url)}>Just the text</button><button type="button" class="linky tiny" onClick=${() => patch(tab.id, {mode: 'frame', check: null, key: tab.key + 1, loading: true})}>Try the frame</button><button type="button" class="linky tiny" onClick=${() => openOut()}>Outside</button></span></div>
+        <iframe key=${'p' + tab.key} id="web-frame" class="web-frame" data-mode="proxy" src=${proxyUrl(tab.url)} title=${hostOf(tab.url)} onLoad=${loaded}
+          sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads" referrerPolicy="no-referrer"/>
+      </div>`
+      : reading ? html`<div class="web-reader" id="web-reader">
+        <div class="web-note row between small"><span class="ink62">The text of <b>${hostOf(tab.url)}</b>.</span>
+          <span class="row nowrap" style=${{gap: '6px'}}><button type="button" class="linky tiny" onClick=${() => patch(tab.id, {mode: 'proxy', key: tab.key + 1, loading: true})}>Reading mode</button><button type="button" class="linky tiny" onClick=${() => openOut()}>Outside</button></span></div>
         <div class="web-reader-body">
           ${!tab.reader ? html`<${M.Thinking} label="Reading the page"/>`
             : tab.reader.err ? html`<div class="small flame-t">${tab.reader.err}</div>`
@@ -17366,12 +17886,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
               ${(tab.reader.links || []).length ? html`<div class="micro" style=${{marginTop: '14px'}}>links on this page</div>
                 <div class="row" style=${{gap: '6px', flexWrap: 'wrap', marginTop: '6px'}}>${tab.reader.links.map((l, i) => html`<button key=${i} type="button" class="chip" title=${l.href} onClick=${() => go(l.href)}>${l.label}</button>`)}</div>` : null}
             </div>`}
-          ${standalone() && !helperOn ? html`<${Helper}/>` : null}
         </div>
       </div>`
       : html`<div class="web-frame-wrap">
         ${slow ? html`<div class="web-slow row between small"><span class="ink62">${hostOf(tab.url)} has not drawn anything yet. Some sites refuse frames without saying so.</span>
-          <span class="row nowrap" style=${{gap: '6px'}}><${UI.Btn} sm=${true} onClick=${() => { patch(tab.id, {mode: 'refused', check: {why: 'blank frame'}}); readerFor(tab.id, tab.url); }}>Read it here<//><${UI.Btn} kind="sec" sm=${true} onClick=${() => openOut()}>Open outside<//></span></div>` : null}
+          <span class="row nowrap" style=${{gap: '6px'}}>${standalone() ? html`<${UI.Btn} sm=${true} id="web-readmode" onClick=${() => patch(tab.id, {mode: 'proxy', check: {why: 'blank frame'}, key: tab.key + 1, loading: true})}>Reading mode<//>` : null}<${UI.Btn} kind="sec" sm=${true} onClick=${() => openOut()}>Open outside<//></span></div>` : null}
         <iframe key=${tab.key} id="web-frame" class="web-frame" src=${tab.url} title=${hostOf(tab.url)} onLoad=${loaded}
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals" referrerPolicy="no-referrer-when-downgrade" allow="clipboard-write; fullscreen; camera; microphone"/>
       </div>`;
@@ -17382,20 +17901,18 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     </div>`;
   }
 
-  /* the frame helper: a tiny browser extension that lets sites open inside m360 and keeps their links here */
-  function Helper({compact}) {
-    const [open, setOpen] = useState(false);
-    return html`<div class=${'web-helper' + (compact ? ' compact' : '')} id="web-helper">
-      <div class="small"><b>Want every site to open in here, links included?</b> Install the m360 frame helper in Chrome or Edge, once per laptop.</div>
-      <div class="row" style=${{gap: '6px', marginTop: '6px', flexWrap: 'wrap'}}><a class="btn sm" href="m360-frame-helper.zip" download data-out="1">Download</a><button type="button" class="linky small" onClick=${() => setOpen(x => !x)}>${open ? 'Hide steps' : 'Steps'}</button></div>
-      ${open ? html`<ol class="small" style=${{margin: '8px 0 0', paddingLeft: '18px'}}>
-        <li>Unzip the download. You get a folder called m360-frame-helper.</li>
-        <li>In Chrome open chrome://extensions (Edge: edge://extensions). Switch on Developer mode, top right.</li>
-        <li>Tap Load unpacked and pick that folder. Reload m360.</li>
-        <li>Google, Meet, LinkedIn and WhatsApp still refuse by their own rules. For those, m360 Desktop.</li>
-      </ol>` : null}
-    </div>`;
+  /* Admin: how the browser reaches sites that refuse frames. Reading mode is automatic; the desktop app
+     and the frame helper are the two ways to get every site, logins included. */
+  function BrowserCard() {
+    return html`<${UI.Card} id="browser-card" title="The browser">
+      <div class="stack tight small">
+        <div><b>Reading mode</b> is on for everyone: a site that refuses frames is fetched by the team site and shown here, links included. Public pages only; nothing to install.</div>
+        <div><b>m360 Desktop</b> is the real thing: every site, every login, inside the same m360. Mac and Windows installers are on the <a href=${DESKTOP_URL} target="_blank" rel="noopener" data-out="1">releases page</a> (a GitHub sign-in with access to the repo is needed to download).</div>
+        <div><b>The frame helper</b> is a small Chrome or Edge extension for laptops that stay in the browser: sites that only refuse by header open in the frame, and their pop-out links come back inside. <a href="m360-frame-helper.zip" download data-out="1">Download</a>, unzip, then in chrome://extensions switch on Developer mode, tap Load unpacked and pick the folder. Google, Meet, LinkedIn and WhatsApp still refuse by their own rules.</div>
+      </div>
+    <//>`;
   }
+  M.parts.BrowserCard = BrowserCard;
 
   M.pages.Web = Web;
 })();

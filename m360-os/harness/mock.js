@@ -18,7 +18,7 @@
     outsider: {id: 'u_out', name: 'Rohan Verma', email: 'rohan@mask360.agency', color: '#9A9A9A', isOwner: false, canEdit: false, avatarUrl: AV('RV', '#9A9A9A')}
   };
   const who = IDENT[q.get('as') || 'founder'] || IDENT.founder;
-  const ME = q.get('noid') === '1' ? {...who, id: null, name: '', email: null, isOwner: false, canEdit: false} : who;
+  const ME = q.get('noid') === '1' ? {...who, id: null, name: '', email: null, isOwner: false, canEdit: false} : (q.get('edit') === '1' ? {...who, canEdit: true} : who);
 
   /* ---------------- rules (section 5) ---------------- */
   const RULES = [
@@ -293,6 +293,14 @@
   window.__downloads = [];
   const downloads = Object.freeze({save: ({filename, data}) => { window.__downloads.push({filename, data: typeof data === 'string' ? data : '[binary]'}); return Promise.resolve({status: 'saved'}); }});
 
+  /* ---------------- assets: uploads kept in memory as object urls ---------------- */
+  window.__assets = [];
+  const assets = Object.freeze({
+    upload: blob => { const id = 'as' + String(window.__assets.length + 1).padStart(30, '0'); const url = URL.createObjectURL(blob); window.__assets.push({id, url, name: blob.name || '', sizeBytes: blob.size, contentType: blob.type}); return new Promise(r => setTimeout(() => r({id, url, sizeBytes: blob.size, contentType: blob.type || 'application/octet-stream'}), 30)); },
+    list: () => Promise.resolve({assets: window.__assets.slice(), usage: {bytes: window.__assets.reduce((n, a) => n + a.sizeBytes, 0)}}),
+    delete: id => { window.__assets = window.__assets.filter(a => a.id !== id); return Promise.resolve(); }
+  });
+
   /* ---------------- sample: canned Claude answers, shaped like the real thing ---------------- */
   window.__sampleCalls = [];
   window.M360_WELCOME_OFF = true;   /* tests ask for the welcome bubble explicitly */
@@ -428,7 +436,7 @@
   };
 
   const caps = {db: q.get('nocap') === '1' ? null : db, user: q.get('nocap') === '1' ? null : user,
-    mcp: q.get('nomcp') === '1' ? null : mcp, downloads: q.get('nodl') === '1' ? null : downloads, permissions,
+    mcp: q.get('nomcp') === '1' ? null : mcp, downloads: q.get('nodl') === '1' ? null : downloads, permissions, assets: q.get('noassets') === '1' ? null : assets,
     sample: q.get('noai') === '1' ? null : sample, room: q.get('noroom') === '1' ? null : room};
   const memo = {};
   window.claude = {use: name => memo[name] || (memo[name] = new Promise(r => setTimeout(() => r(caps[name] === undefined ? null : caps[name]), 40)))};

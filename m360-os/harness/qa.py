@@ -12,7 +12,7 @@ from harness.lib import run  # noqa: E402
 
 F, M1, M2, M3 = 'u_founder', 'u_m1', 'u_m2', 'u_m3'
 PAGES = ['#home', '#work', '#projects', '#projects/p1', '#week', '#accounts', '#pitches', '#vibe', '#people',
-         '#people/u_m1', '#voice', '#scores', '#me', '#leave', '#handbook', '#hiring', '#hq', '#command', '#admin']
+         '#people/u_m1', '#voice', '#scores', '#music', '#me', '#notes', '#leave', '#handbook', '#hiring', '#hq', '#command', '#admin']
 MEMBER_PAGES = [p for p in PAGES if p not in ('#hq', '#command', '#admin')]
 
 

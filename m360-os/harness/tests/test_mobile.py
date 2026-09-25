@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from harness.lib import run, ROOT  # noqa: E402
 from harness.qa import seed  # noqa: E402
 
-PAGES = ['#home', '#chat', '#work', '#projects', '#clients', '#pitches', '#crm', '#web', '#mail', '#gcal', '#drive', '#feed', '#people', '#scores', '#me',
+PAGES = ['#home', '#chat', '#work', '#projects', '#clients', '#pitches', '#crm', '#web', '#mail', '#gcal', '#drive', '#feed', '#people', '#scores', '#music', '#me', '#notes',
          '#leave', '#handbook', '#hq', '#admin']
 FOUNDER_ONLY = ('#hq', '#admin')
 

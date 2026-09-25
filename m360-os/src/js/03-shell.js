@@ -36,7 +36,7 @@
       {k: 'clients', label: 'Clients', route: 'clients'}, {k: 'pipeline', label: 'Pipeline', route: 'pitches'}, {k: 'crm', label: 'CRM', route: 'crm'}]},
     vibe: {label: 'Vibe', icon: 'feed', page: 'Vibe', tabs: [
       {k: 'feed', label: 'Feed', route: 'feed'}, {k: 'crew', label: 'Crew', route: 'people'},
-      {k: 'pulse', label: 'Pulse and ideas', route: 'voice'}, {k: 'scores', label: 'Leaderboard', route: 'scores'}]},
+      {k: 'pulse', label: 'Pulse and ideas', route: 'voice'}, {k: 'scores', label: 'Leaderboard', route: 'scores'}, {k: 'music', label: 'Music', route: 'music'}]},
     base: {label: 'Base', icon: 'database', page: 'Base', tabs: [
       {k: 'people', label: 'People', route: 'base'}, {k: 'companies', label: 'Companies', route: 'companies'}, {k: 'import', label: 'Import', route: 'import'}]},
     chat: {label: 'Chat', icon: 'send', page: 'Chat'},
@@ -46,7 +46,7 @@
     radar: {label: 'Radar', icon: 'radar', page: 'Radar', tabs: [
       {k: 'news', label: 'News', route: 'radar'}, {k: 'awards', label: 'Awards', route: 'awards'}, {k: 'watch', label: 'Watch', route: 'watch'}]},
     me: {label: 'Me', icon: 'people', page: 'Me', tabs: [
-      {k: 'profile', label: 'Profile', route: 'me'}, {k: 'trophies', label: 'Trophies', route: 'trophies'}, {k: 'leave', label: 'Leave', route: 'leave'},
+      {k: 'profile', label: 'Profile', route: 'me'}, {k: 'notes', label: 'Notes', route: 'notes'}, {k: 'trophies', label: 'Trophies', route: 'trophies'}, {k: 'leave', label: 'Leave', route: 'leave'},
       {k: 'handbook', label: 'Handbook', route: 'handbook'}, {k: 'hiring', label: 'Hiring', route: 'hiring'}]},
     hq: {label: 'HQ', icon: 'command', page: 'HQ', founder: true, tabs: [
       {k: 'brief', label: 'Intelligence', route: 'hq'}, {k: 'dashboard', label: 'Dashboard', route: 'command'},
@@ -77,6 +77,8 @@
       case 'people': case 'crew': return {s: 'vibe', t: 'crew', id};
       case 'voice': case 'pulse': return {s: 'vibe', t: 'pulse'};
       case 'scores': return {s: 'vibe', t: 'scores'};
+      case 'music': case 'playlist': return {s: 'vibe', t: 'music'};
+      case 'notes': case 'note': return {s: 'me', t: 'notes', id};
       case 'base': case 'contacts': case 'people-base': return {s: 'base', t: 'people', id};
       case 'companies': case 'orgs': return {s: 'base', t: 'companies', id};
       case 'import': return {s: 'base', t: 'import'};
@@ -395,6 +397,9 @@
       ${keysOpen ? html`<${Keys} onClose=${() => setKeysOpen(false)}/>` : null}
       ${M.parts.FocusHost ? html`<${M.parts.FocusHost}/>` : null}
       ${M.parts.BreatheHost ? html`<${M.parts.BreatheHost}/>` : null}
+      ${M.parts.ChatWatch ? html`<${M.parts.ChatWatch}/>` : null}
+      ${M.parts.Notices ? html`<${M.parts.Notices}/>` : null}
+      ${M.parts.MusicDock ? html`<${M.parts.MusicDock}/>` : null}
       ${newTask && M.parts.TaskDrawer ? html`<${M.parts.TaskDrawer} taskId=${null} defaults=${{owner: ctx.uid}} onClose=${() => setNewTask(false)}/>` : null}
       <${M.ToastHost}/>
     </div>`;

@@ -210,7 +210,7 @@
       <//>
       <${M.SectionTabs} section="vibe" active=${t}/>
       ${t === 'feed' ? html`<${Wrapped}/>` : null}
-      ${t === 'crew' ? html`<${Embed} page="People" id=${id}/>` : t === 'pulse' ? html`<${Embed} page="Voice"/>` : t === 'scores' ? html`<${Embed} page="Scores"/>` : html`<${Embed} page="Feed"/>`}
+      ${t === 'crew' ? html`<${Embed} page="People" id=${id}/>` : t === 'pulse' ? html`<${Embed} page="Voice"/>` : t === 'scores' ? html`<${Embed} page="Scores"/>` : t === 'music' ? html`<${Embed} page="Music"/>` : html`<${Embed} page="Feed"/>`}
     </div>`;
   }
 
@@ -239,9 +239,9 @@
       <//>
       <${M.SectionTabs} section="me" active=${t}/>
       ${t === 'profile' && M.parts.ProfileCard ? html`<${UI.Fold} title="Your profile" summary="photo, pronouns, city, bio, links, birthday" id="fold-profile"><${M.parts.ProfileCard}/><//>` : null}
-      ${t === 'leave' ? html`<${Embed} page="Leave"/>` : t === 'handbook' ? html`<${Embed} page="Handbook" id=${id}/>`
+      ${t === 'leave' ? html`<${Embed} page="Leave"/>` : t === 'handbook' ? html`<${Embed} page="Handbook" id=${id}/>` : t === 'notes' ? html`<${Embed} page="Notes" id=${id}/>`
         : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>` : t === 'trophies' ? (M.parts.Trophies ? html`<${M.parts.Trophies}/>` : null) : html`<${Embed} page="People" id=${ctx.uid}/>`}
-      ${t === 'profile' ? html`<${UI.Fold} title="Your m360" summary="look, sounds, shortcuts" id="fold-prefs"><${Prefs}/><//>` : null}
+      ${t === 'profile' ? html`<${UI.Fold} title="Your m360" summary="look, sounds, notices, shortcuts" id="fold-prefs"><${Prefs}/><//>` : null}
       ${t === 'profile' && M.parts.EmailCard ? html`<${UI.Fold} title="Your email" summary="for sign-in links" id="fold-email"><${M.parts.EmailCard}/><//>` : null}
       ${t === 'profile' && M.parts.DeviceCard ? html`<${UI.Fold} title="Your devices" summary="where you are signed in" id="fold-devices"><${M.parts.DeviceCard}/><//>` : null}
       ${t === 'profile' ? (M.meCards || []).map((C, i) => html`<${C} key=${i}/>`) : null}
@@ -253,6 +253,9 @@
     const theme = M.useTheme();
     const [sound, setSound] = useState(M.sound.on());
     const [voiceOn, setVoiceOn] = useState(() => M.prefs.get('buddyVoice') !== '0');
+    const [previews, setPreviews] = useState(() => M.notices ? M.notices.previews() : true);
+    const [allRooms, setAllRooms] = useState(() => M.prefs.get('noticeAll', '0') === '1');
+    const [perm, setPerm] = useState(() => { try { return window.Notification ? Notification.permission : 'denied'; } catch (e) { return 'denied'; } });
     const wk = U.periodRange('week');
     const ctx = M.useCtx();
     const deep = M.focus ? M.focus.minutes(ctx, ctx.uid, wk.from, wk.to) : 0;
@@ -275,6 +278,17 @@
           <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${voiceOn ? 'on' : 'off'} ariaLabel="Buddy voice"
             onChange=${v => { M.prefs.set('buddyVoice', v === 'on' ? '1' : '0'); setVoiceOn(v === 'on'); if (v === 'on' && M.speech) M.speech.say('Hi, I am here whenever you need me.'); }}/>
         </div>
+        <div class="row between">
+          <span>Message previews in notices</span>
+          <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'Show'}, {v: 'off', label: 'Hide'}]} value=${previews ? 'on' : 'off'} ariaLabel="Message previews"
+            onChange=${v => { if (M.notices) M.notices.setPreviews(v === 'on'); setPreviews(v === 'on'); }}/>
+        </div>
+        <div class="row between">
+          <span>Notices for every room message</span>
+          <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${allRooms ? 'on' : 'off'} ariaLabel="Room notices"
+            onChange=${v => { M.prefs.set('noticeAll', v === 'on' ? '1' : '0'); setAllRooms(v === 'on'); }}/>
+        </div>
+        ${perm === 'default' ? html`<div class="row between"><span>Notices while m360 is in the background</span><button type="button" class="linky small" id="notify-ask" onClick=${() => M.notices && M.notices.ask().then(p => setPerm(p || 'denied'))}>Allow</button></div>` : null}
         <div class="row between"><span>The tour</span><button type="button" class="linky small" id="tour-again" onClick=${() => M.tour && M.tour.start()}>Show me around</button></div>
         <div class="row between"><span>Keyboard shortcuts</span><button type="button" class="linky small" onClick=${() => window.dispatchEvent(new CustomEvent('m360:keys'))}>Show the sheet</button></div>
       </div>
@@ -290,6 +304,7 @@
       ${M.parts.MailCard ? html`<${UI.Fold} title="Email sending" summary="Resend key and sender" id="fold-mail"><${M.parts.MailCard}/><//>` : null}
       ${M.parts.VoiceCard ? html`<${UI.Fold} title="The buddy's voice" summary="a natural voice for the cursor buddy" id="fold-voice"><${M.parts.VoiceCard}/><//>` : null}
       ${M.parts.GoogleCard ? html`<${UI.Fold} title="Google Workspace" summary="mail, calendar, meetings and drive for everyone" id="fold-google"><${M.parts.GoogleCard}/><//>` : null}
+      ${M.parts.BrowserCard ? html`<${UI.Fold} title="The browser" summary="reading mode, m360 Desktop, the frame helper" id="fold-browser"><${M.parts.BrowserCard}/><//>` : null}
       ${(M.adminCards || []).map((C, i) => html`<${UI.Fold} key=${i} title="Radar settings" summary="keywords, sources, channels" id=${'fold-admin-' + i}><${C}/><//>`)}
       <${Embed} page="Desk"/>
     </div>`;

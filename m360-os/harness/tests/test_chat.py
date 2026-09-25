@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Chat: rooms and direct messages on the mock (two people, one page each), the unread badge, the inbox,
-mentions, edit and delete, a new room; then on the EdgeOne stand-in, a direct message never reaches a
-third person, even in a snapshot.
+mentions, edit and delete, a new room, attachments (a picture inline, a document as a card) and the
+notices a line for you raises anywhere in m360, with previews on and off; then on the EdgeOne stand-in,
+a direct message never reaches a third person, even in a snapshot, and neither does a file sent in one.
 
 Run: cd m360-os && python3 harness/tests/test_chat.py
 """
@@ -20,6 +21,8 @@ from harness.qa import seed  # noqa: E402
 import build_edgeone  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# a 1 by 1 png
+PNG = bytes.fromhex('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da63f8cfc0f01f0006010201e2cb46390000000049454e44ae426082')
 
 
 def mock_part(h):
@@ -82,6 +85,60 @@ def mock_part(h):
     check(k.locator('.chat-msg:has-text("(edited)")').count() == 1, 'edited mark')
     k.locator('.chat-msg:has-text("12 percent") .linky', has_text='Delete').click()
     k.wait_for_function('() => !document.querySelector(".chat-msg")')
+    # attachments: a picture shows inline, a document becomes a card with a download; Durvesh sees both
+    check(k.locator('#chat-attach-btn').count() == 1, 'an attach button')
+    k.set_input_files('#chat-file', [{'name': 'brief.png', 'mimeType': 'image/png', 'buffer': PNG}, {'name': 'rate-card.pdf', 'mimeType': 'application/pdf', 'buffer': b'%PDF-1.4 rate card'}])
+    k.wait_for_selector('#chat-attach .chip:has-text("brief.png")')
+    check(k.locator('#chat-attach .chip').count() == 2, 'two files waiting to go')
+    check(k.locator('#chat-send').is_enabled(), 'send is possible with files and no text')
+    k.locator('#chat-send').click()
+    k.wait_for_selector('.chat-msg .chat-img')
+    check(k.locator('.chat-msg .chat-file:has-text("rate-card.pdf")').count() == 1, 'a document becomes a card')
+    check('Download' in k.inner_text('.chat-msg .chat-file'), 'the card offers a download')
+    check(k.locator('#chat-attach').count() == 0, 'the waiting list clears after sending')
+    d.wait_for_selector('.chat-msg .chat-img', timeout=8000)
+    check(d.locator('.chat-file:has-text("rate-card.pdf")').count() == 1, 'the other person gets the card too')
+    # a file over the limit never goes up
+    k.evaluate('() => { const dt = new DataTransfer(); dt.items.add(new File([new Uint8Array(25 * 1024 * 1024 + 10)], "huge.bin", {type: "application/octet-stream"})); const inp = document.querySelector("#chat-file"); inp.files = dt.files; inp.dispatchEvent(new Event("change", {bubbles: true})); }')
+    k.wait_for_selector('.toast:has-text("over 25 MB")')
+    check(k.locator('#chat-attach').count() == 0, 'a file over the limit is refused')
+    # notices: Durvesh is on Home; a direct message for him shows top right, with the line
+    h.go(d, 'm1', hash='#home', width=1280)
+    d.wait_for_selector('.sidebar')
+    k.fill('#chat-input', 'Ping: the deck is ready'); k.keyboard.press('Enter')
+    d.wait_for_selector('#notices .notice:has-text("deck is ready")', timeout=8000)
+    nt = d.locator('#notices .notice:has-text("deck is ready")').inner_text()
+    check('Kaavish' in nt and 'deck is ready' in nt, 'the notice names the sender and shows the line, got %r' % nt)
+    # previews off: who, not what
+    d.evaluate('() => M.notices.setPreviews(false)')
+    k.fill('#chat-input', 'Second ping with the rate'); k.keyboard.press('Enter')
+    d.wait_for_selector('#notices .notice:has-text("New message")', timeout=8000)
+    nt2 = d.locator('#notices .notice:has-text("New message")').last.inner_text()
+    check('Second ping' not in nt2 and 'Kaavish' in nt2, 'with previews off the line must stay hidden, got %r' % nt2)
+    d.evaluate('() => M.notices.setPreviews(true)')
+    # a tap on the notice opens the room
+    d.locator('#notices .notice:has-text("New message") .notice-body').last.click()
+    d.wait_for_function('() => location.hash.startsWith("#chat/dm.")')
+    d.wait_for_selector('.chat-msg:has-text("Second ping")')
+    # a general line does not raise a notice unless asked for; a mention always does
+    h.go(d, 'm1', hash='#home', width=1280)
+    d.wait_for_selector('.sidebar')
+    h.go(k, 'founder', hash='#chat/general', width=1280)
+    k.wait_for_selector('#chat-input')
+    k.fill('#chat-input', 'Lunch is at one'); k.keyboard.press('Enter')
+    k.wait_for_selector('.chat-msg:has-text("Lunch is at one")')
+    k.fill('#chat-input', '@Durvesh Patil your turn on the deck'); k.keyboard.press('Enter')
+    d.wait_for_selector('#notices .notice:has-text("your turn")', timeout=8000)
+    check(d.locator('#notices .notice:has-text("Lunch")').count() == 0, 'a plain room line raises no notice by default')
+    d.evaluate('() => M.prefs.set("noticeAll", "1")')
+    k.fill('#chat-input', 'Coffee is here'); k.keyboard.press('Enter')
+    d.wait_for_selector('#notices .notice:has-text("Coffee")', timeout=8000)
+    check('in #general' in d.inner_text('#notices .notice:has-text("Coffee")'), 'a room notice names the room')
+    d.evaluate('() => M.prefs.set("noticeAll", "0")')
+    h.go(k, 'founder', hash='#chat/' + k.evaluate('() => M.rooms.dmId(M.lastCtx.uid, "u_m1")'), width=1280)
+    k.wait_for_selector('#chat-input')
+    h.go(d, 'm1', hash='#chat', width=1280)
+    d.wait_for_selector('#chat-list')
     # a new room
     k.locator('#chat-new-room').click(); k.fill('#chat-room-name', 'Swisse squad'); k.keyboard.press('Enter')
     k.wait_for_function('() => location.hash === "#chat/swisse-squad"')
@@ -146,6 +203,39 @@ def standalone_part():
             # but general reaches everyone
             k.evaluate('() => M.rooms.send(M.lastCtx, "general", "Hello all", [])')
             t.wait_for_function('() => M.rooms.messagesOf(M.lastCtx, "general").some(m => m.text === "Hello all")', timeout=15000)
+            # a file in the dm goes up in parts; the two of them get the bytes back, the third gets nothing
+            up = k.evaluate('''async ([room]) => {
+              const bytes = new Uint8Array(1500 * 1024); for (let i = 0; i < bytes.length; i++) bytes[i] = (i * 7) % 251;
+              const f = new File([bytes], 'cut.bin', {type: 'application/octet-stream'});
+              const steps = []; const r = await M.files.upload(f, room, (p, t) => steps.push(p + '/' + t));
+              const got = await fetch(r.url); const buf = new Uint8Array(await got.arrayBuffer());
+              let same = buf.length === bytes.length; for (let i = 0; same && i < buf.length; i += 997) same = buf[i] === bytes[i];
+              return {id: r.id, url: r.url, size: r.size, steps, status: got.status, type: got.headers.get('content-type'), disp: got.headers.get('content-disposition'), same, len: buf.length};
+            }''', [room])
+            check(up['steps'] == ['0/3', '1/3', '2/3'] and up['same'] and up['status'] == 200, 'a 1.5 MB file goes up in three parts and comes back whole, got %r' % {k2: up[k2] for k2 in ('steps', 'status', 'same', 'len')})
+            check('attachment' in (up['disp'] or ''), 'a binary comes back as a download, got %r' % up['disp'])
+            fid = up['id']
+            r_d = d.evaluate('u => fetch(u).then(r => r.status)', up['url'])
+            r_t = t.evaluate('u => fetch(u).then(r => r.status)', up['url'])
+            check(r_d == 200 and r_t == 404, 'the other half of the dm reads the file, a third person gets nothing, got %r %r' % (r_d, r_t))
+            meta_t = t.evaluate('id => window.M360_API("filemeta", {id}).then(() => "seen", e => e.status)', fid)
+            check(meta_t == 404, 'a third person cannot even see the record, got %r' % meta_t)
+            # a picture in general shows inline to everyone, with its own type
+            pic = k.evaluate('''async () => {
+              const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP4z8DwHwAGAQIB4stGOQAAAABJRU5ErkJggg=='), c => c.charCodeAt(0));
+              const r = await M.files.upload(new File([png], 'dot.png', {type: 'image/png'}), 'general');
+              await M.rooms.send(M.lastCtx, 'general', '', [], [r]);
+              return r;
+            }''')
+            got = t.evaluate('u => fetch(u).then(r => ({status: r.status, type: r.headers.get("content-type"), disp: r.headers.get("content-disposition")}))', pic['url'])
+            check(got['status'] == 200 and got['type'] == 'image/png' and 'inline' in (got['disp'] or ''), 'a picture in general is served inline to everyone, got %r' % got)
+            t.wait_for_function('() => M.rooms.messagesOf(M.lastCtx, "general").some(m => (m.files || []).some(f => f.name === "dot.png"))', timeout=15000)
+            # the uploader can take it down; a stranger to the file cannot
+            dd = d.evaluate('id => window.M360_API("filedel", {id}).then(() => "gone", e => e.status)', pic['id'])
+            check(dd == 403, 'only the uploader or an admin removes a file, got %r' % dd)
+            kd = k.evaluate('id => window.M360_API("filedel", {id}).then(() => "gone", e => e.status)', pic['id'])
+            after = t.evaluate('u => fetch(u, {cache: "no-store"}).then(r => r.status)', pic['url'])
+            check(kd == 'gone' and after == 404, 'after removal the file is gone, got %r %r' % (kd, after))
             browser.close()
     finally:
         srv.terminate()

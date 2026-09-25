@@ -117,6 +117,13 @@ async function fakeFetch(url, init) {
   }
   const g = await fakeGoogle(String(url), init || {});
   if (g) return g;
+  /* a site that refuses frames, with links, for reading mode */
+  if (/^https?:\/\/blocked\.example\//.test(String(url))) {
+    const u = new URL(String(url));
+    const page = u.pathname === '/two' ? '<!doctype html><html><head><title>Page two</title></head><body><h1>Second page</h1><a href="/">Back home</a></body></html>'
+      : '<!doctype html><html><head><title>Blocked home</title><meta http-equiv="Content-Security-Policy" content="frame-ancestors \'none\'"></head><body><h1>Blocked home</h1><p>Only reading mode shows this inside.</p><a href="/two">Go to page two</a> <a href="https://blocked.example/img.png">a picture</a></body></html>';
+    return new Response(page, {status: 200, headers: {'content-type': 'text/html; charset=utf-8', 'x-frame-options': 'DENY', 'content-security-policy': "frame-ancestors 'none'"}});
+  }
   const body = JSON.parse(init.body);
   if (String(url).includes('api.resend.com')) {
     if (!/^Bearer re_/.test(init.headers.authorization || '')) return new Response(JSON.stringify({message: 'bad key'}), {status: 401});
@@ -155,6 +162,15 @@ const TYPES = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript; cha
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
+  if (url.pathname === '/api/file' || url.pathname === '/api/browse') {
+    const request = new Request('http://' + (req.headers.host || 'localhost') + req.url, {method: req.method, headers: req.headers});
+    const out = await (url.pathname === '/api/file' ? app.file(request) : app.browse(request));
+    const headers = {};
+    out.headers.forEach((v, k) => { headers[k] = v; });
+    res.writeHead(out.status, headers);
+    res.end(Buffer.from(await out.arrayBuffer()));
+    return;
+  }
   if (url.pathname === '/api/google') {
     const request = new Request(url, {method: req.method, headers: req.headers});
     const out = await app.google(request);

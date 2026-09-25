@@ -1,5 +1,6 @@
 name: m360 desktop
-# Builds the desktop app (a real browser inside m360) for Mac and Windows. Download the artifacts from the run.
+# Builds the desktop app (a real browser inside m360) for Mac and Windows, then publishes both installers
+# as the "desktop" release, so the team always finds them at /releases/latest.
 on:
   workflow_dispatch:
   push:
@@ -40,3 +41,28 @@ jobs:
         with:
           name: m360-win
           path: m360-os/desktop/dist/*.exe
+  release:
+    needs: [mac, win]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+      - name: Name the installers
+        run: |
+          set -e
+          mkdir -p rel
+          cp "$(ls out/m360-mac/*.dmg | head -n 1)" rel/m360-mac.dmg
+          cp "$(ls out/m360-win/*.exe | head -n 1)" rel/m360-win.exe
+          ls -la rel
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: desktop
+          name: m360 Desktop
+          body: 'The desktop app: every site inside m360, logins included. Mac: m360-mac.dmg. Windows: m360-win.exe. Rebuilt on every change to the app.'
+          files: |
+            rel/m360-mac.dmg
+            rel/m360-win.exe
+          prerelease: false

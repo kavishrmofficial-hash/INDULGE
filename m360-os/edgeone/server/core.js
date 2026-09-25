@@ -26,7 +26,8 @@ import {safetyActions} from './safety.js';
 import {peekActions} from './peek.js';
 import {voiceActions} from './voice.js';
 import {googleActions} from './google.js';
-import {webActions} from './web.js';
+import {webActions, browseHandler} from './web.js';
+import {fileActions} from './files.js';
 
 const LEVEL = {view: 0, interact: 1, admin: 2, owner: 3};
 const SESSION_DAYS = 180;
@@ -982,6 +983,9 @@ export function createApp({store, env = {}}) {
   const google = googleActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError, log, rand, docKey});
   Object.assign(actions, google.actions);
   Object.assign(actions, webActions({env, getJ, putJ, levelOf, LEVEL, HttpError}));
+  const files = fileActions({store, getJ, putJ, levelOf, LEVEL, HttpError, log, rand, listAll});
+  Object.assign(actions, files.actions);
+  const browse = browseHandler({env, levelOf, LEVEL});
   /* safety: trash, daily backups, restore. It may register hooks.beforeDelete and hooks.upkeep. */
   Object.assign(actions, safetyActions({store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, pathOfKey, isObj, hooks, log, stampKey, inventory}));
   Object.assign(actions, peekActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError}));
@@ -1022,7 +1026,9 @@ export function createApp({store, env = {}}) {
       return json({error: {code, message: e instanceof HttpError ? e.message : 'server error'}}, status);
     }
   };
-  /* GET /api/google: Google's sign-in comes back here */
+  /* GET /api/google: Google's sign-in comes back here; /api/file serves attachments; /api/browse renders a page inside */
   handle.google = request => google.googleCallback(request);
+  handle.file = request => files.fileGet(request, viewer);
+  handle.browse = request => browse(request, viewer);
   return handle;
 }

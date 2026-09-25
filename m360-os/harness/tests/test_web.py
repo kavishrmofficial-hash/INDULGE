@@ -1,16 +1,26 @@
 #!/usr/bin/env python3
 """The browser inside m360: tabs, spaces, full screen inside the shell, links from the rest of m360
 opening here, the frame helper's messages (a popped out link comes back in, the address follows the
-frame), and the desktop bridge (window.m360desktop) driving native views.
+frame), the desktop bridge (window.m360desktop) driving native views; then on the EdgeOne stand-in,
+reading mode: a site that refuses frames is fetched by the server and shown inside, its links stay
+inside, the address and the title follow, and no helper nag anywhere.
 
 Run: cd m360-os && python3 harness/tests/test_web.py
 """
 import os
+import socket
+import subprocess
 import sys
+import tempfile
+import time
+import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from harness.lib import run  # noqa: E402
 from harness.qa import seed  # noqa: E402
+import build_edgeone  # noqa: E402
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 FAKE_DESKTOP = '''
 window.__native = {calls: [], updates: null, news: null, seq: 0};
@@ -44,6 +54,7 @@ def test(h):
     # the layout: a rail with spaces and tabs, a stage
     h.go(p, 'founder', hash='#web', width=1280)
     p.wait_for_selector('#web-rail')
+    check(p.locator('#web-helper').count() == 0, 'no helper nag in the rail')
     check(p.locator('#web-marks .web-space:not(.add)').count() >= 4, 'starter spaces')
     check(p.locator('#web-tabs .web-tab').count() == 1, 'one empty tab to begin with')
     p.fill('#web-url', 'example.com'); p.keyboard.press('Enter')
@@ -123,6 +134,78 @@ def test(h):
     return fails
 
 
+def standalone_part():
+    fails = []
+
+    def check(cond, msg):
+        if not cond:
+            fails.append(msg)
+    build_edgeone.main()
+    s = socket.socket(); s.bind(('', 0)); port = s.getsockname()[1]; s.close()
+    store = tempfile.mktemp(suffix='.json')
+    srv = subprocess.Popen(['node', os.path.join(ROOT, 'edgeone', 'dev', 'server.mjs'), str(port), store], env=dict(os.environ, MOCK_AI='1'), stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+    base = 'http://localhost:%d/' % port
+    try:
+        for _ in range(50):
+            try:
+                urllib.request.urlopen(base, timeout=1); break
+            except Exception:
+                time.sleep(0.1)
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as pw:
+            exe = os.environ.get('PW_CHROMIUM')
+            browser = pw.chromium.launch(executable_path=exe) if exe else pw.chromium.launch()
+            k = browser.new_context(viewport={'width': 1280, 'height': 900}).new_page(); k.set_default_timeout(20000)
+            errs = []
+            k.on('pageerror', lambda e: errs.append(str(e)))
+            k.goto(base); k.wait_for_selector('#signin-name')
+            k.fill('#signin-name', 'Kaavish Ramchandani'); k.fill('#signin-email', 'kaavish@mask360.agency'); k.fill('#signin-pw', 'web-test-pw-2026')
+            k.get_by_role('button', name='Set up the workspace').click(); k.wait_for_selector('.sidebar'); k.wait_for_timeout(400)
+            k.goto(base + '#web'); k.wait_for_selector('#web-rail')
+            check(k.locator('#web-helper').count() == 0, 'no helper nag on the team site')
+            check(k.locator('#web-foot').count() == 1 and 'Desktop' in k.inner_text('#web-foot'), 'the rail points at m360 Desktop instead')
+            # a site that refuses frames opens in reading mode, inside
+            k.fill('#web-url', 'blocked.example'); k.keyboard.press('Enter')
+            k.wait_for_selector('#web-frame[data-mode="proxy"]')
+            src = k.evaluate('() => document.querySelector("#web-frame").getAttribute("src")')
+            check(src.startswith('/api/browse?') and 'u=https%3A%2F%2Fblocked.example' in src, 'the frame goes through the server, got %r' % src)
+            fr = k.frame_locator('#web-frame')
+            fr.locator('h1:has-text("Blocked home")').wait_for()
+            k.wait_for_function('() => document.querySelector("#web-tabs .web-tab.active .web-tab-title").textContent === "Blocked home"')
+            check('reading mode' in k.inner_text('.web-note'), 'the note says it is reading mode')
+            # a link inside stays inside; the address and the title follow; Back returns
+            fr.locator('a:has-text("Go to page two")').click()
+            fr.locator('h1:has-text("Second page")').wait_for()
+            k.wait_for_function('() => document.querySelector("#web-url").value === "https://blocked.example/two"')
+            check(k.evaluate('() => document.querySelector("#web-tabs .web-tab.active .web-tab-title").textContent') == 'Page two', 'the title follows the frame')
+            check(k.locator('#web-back').is_enabled(), 'Back is possible after a link inside')
+            k.locator('#web-back').click()
+            fr.locator('h1:has-text("Blocked home")').wait_for()
+            k.wait_for_function('() => document.querySelector("#web-url").value === "https://blocked.example/"')
+            # the page runs in a sandbox: no cookies, no reach into m360
+            sb = k.evaluate('() => document.querySelector("#web-frame").getAttribute("sandbox") || ""')
+            check('allow-same-origin' not in sb, 'the reading frame must not share the origin')
+            hdr = k.evaluate('() => fetch("/api/browse?u=https%3A%2F%2Fblocked.example%2F").then(r => r.headers.get("content-security-policy") || "")')
+            check(hdr.startswith('sandbox'), 'the served page carries its own sandbox, got %r' % hdr)
+            # just the text, and back to reading mode
+            k.locator('#web-text').click()
+            k.wait_for_selector('#web-reader .reader-text')
+            check('Only reading mode shows this inside' in k.inner_text('#web-reader'), 'the text view shows the page text')
+            # a private address is refused by the server
+            st = k.evaluate('() => fetch("/api/browse?u=http%3A%2F%2F127.0.0.1%3A81%2F").then(r => r.status)')
+            check(st == 400, 'a private address is refused, got %r' % st)
+            check(not errs, 'page errors: %r' % errs[:3])
+            browser.close()
+    finally:
+        srv.terminate()
+        try:
+            os.remove(store)
+        except Exception:
+            pass
+    return fails
+
+
 if __name__ == '__main__':
     fails = run(test)
+    fails += standalone_part()
     print('PASS' if not fails else 'FAIL: ' + '; '.join(fails))
