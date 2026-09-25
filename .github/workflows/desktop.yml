@@ -1,0 +1,42 @@
+name: m360 desktop
+# Builds the desktop app (a real browser inside m360) for Mac and Windows. Download the artifacts from the run.
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/amazing-euler-c4ngj2]
+    paths: ['m360-os/desktop/**', '.github/workflows/desktop.yml']
+jobs:
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build
+        working-directory: m360-os/desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          npm install --no-audit --no-fund
+          npm run dist:mac
+      - uses: actions/upload-artifact@v4
+        with:
+          name: m360-mac
+          path: m360-os/desktop/dist/*.dmg
+  win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build
+        working-directory: m360-os/desktop
+        run: |
+          npm install --no-audit --no-fund
+          npm run dist:win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: m360-win
+          path: m360-os/desktop/dist/*.exe

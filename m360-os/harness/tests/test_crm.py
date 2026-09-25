@@ -39,18 +39,18 @@ def test(h):
     h.go(p, 'm1', hash='#crm', width=1280)
     p.wait_for_selector('#crm-table')
     check(p.locator('#crm-table thead th:has-text("in play")').count() == 0, 'members never see value in play')
-    # the Web page: bookmarks are shared, a site frames
+    # the Web page: spaces are shared, a site frames
     h.go(p, 'founder', hash='#web', width=1280)
     p.wait_for_selector('#web-url')
-    check(p.locator('#web-marks .chip').count() >= 4, 'starter bookmarks missing')
+    check(p.locator('#web-marks .web-space:not(.add)').count() >= 4, 'starter spaces missing')
     p.fill('#web-url', 'example.com'); p.locator('#web-go').click()
     p.wait_for_selector('#web-frame')
     check(p.evaluate('() => document.querySelector("#web-frame").src') == 'https://example.com/', 'the frame should load the address, got %r' % p.evaluate('() => document.querySelector("#web-frame").src'))
     p.locator('#web-save').click(); p.wait_for_selector('#web-title'); p.fill('#web-title', 'Example'); p.keyboard.press('Enter')
-    p.wait_for_selector('#web-marks .chip:has-text("Example")')
+    p.wait_for_selector('#web-marks .web-space:has-text("Example")')
     h.go(p, 'm1', hash='#web', width=1280)
-    p.wait_for_selector('#web-marks .chip:has-text("Example")')
-    check(p.locator('#web-marks .chip').count() == 1, 'a saved bookmark replaces the starters for everyone')
+    p.wait_for_selector('#web-marks .web-space:has-text("Example")')
+    check(p.locator('#web-marks .web-space:not(.add)').count() == 1, 'a saved space replaces the starters for everyone')
     # WFH: the roster allowance for one person beats the team default
     h.go(p, 'founder', hash='#admin', width=1280)
     p.wait_for_timeout(300)

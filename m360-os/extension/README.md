@@ -1,8 +1,10 @@
 # m360 frame helper
 
-A tiny Chrome or Edge extension. In tabs that show m360 OS, pages framed inside the Web section lose the
-headers that forbid framing (X-Frame-Options and Content-Security-Policy frame-ancestors). No other tab is
-touched, nothing is read, nothing is sent anywhere.
+A tiny Chrome or Edge extension. In tabs that show m360 OS it does three things, and nothing anywhere else:
+
+1. Pages framed inside the Web section lose the headers that forbid framing, so they open inside m360.
+2. A link a framed page tries to pop out into a new browser tab comes back into m360 as a new m360 tab.
+3. When you click around inside the frame, m360's address bar follows.
 
 Install, once per laptop:
 
@@ -10,4 +12,4 @@ Install, once per laptop:
 2. Chrome: open chrome://extensions. Edge: edge://extensions. Switch on Developer mode (top right).
 3. Load unpacked, pick the folder. Reload m360.
 
-Sites that also refuse by script (Google, Meet, YouTube, LinkedIn, WhatsApp, Instagram) still open outside.
+Google, Meet, YouTube, LinkedIn, WhatsApp and Instagram also refuse by script. For those, m360 Desktop.

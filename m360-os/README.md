@@ -141,6 +141,13 @@ Closed in the same release: a second person with Full access reads shared founde
 - **Chat** (`29-chat.js`): rooms (general plus any the team makes) and direct messages. Messages live per room per sender (`chat/<room>:<uid>`) so nobody overwrites anybody; a direct message room (`dm.<a>.<b>`) is readable by those two alone, enforced on the server. Read marks in each person's private state, unread badges on Chat, DMs and mentions in the inbox, browser notices when the tab is hidden, edit and delete your own lines, @everyone.
 - **Web, second pass** (`79-web.js`, `edgeone/server/web.js`): tabs, back and forward, reload, search from the bar. Before framing, the server asks the site whether it allows frames; a site that refuses opens as text with its links (the reader view) and one tap to open it outside. The **frame helper** (`extension/`, zipped to `m360-frame-helper.zip` at build) is a Chrome or Edge extension that strips the no-framing headers only inside m360 tabs; with it, most sites open inside. Google, Meet, LinkedIn, WhatsApp and Instagram refuse by script and always open outside; that is why Workspace goes through Google's API instead.
 
+## What is in v12: the browser, properly
+
+- **Laid out like Arc** (`79-web.js`): a rail on the left with the address, the team's spaces (bookmarks as app tiles with favicons) and the open tabs; the page on the right with back, forward, reload, the address pill and a full screen button. Full screen hides the rest of m360 and gives the page the whole window; Escape brings it back. Cmd L jumps to the address, Cmd T a new tab, Cmd W closes one.
+- **Links stay inside**: any link in m360 that would have opened a browser tab (a news story, a link in chat, a file) opens as a tab in the Web section instead (`M.web.open`). Sites that always refuse frames still go outside.
+- **The frame helper, 1.1** (`extension/`): a link a framed site tries to pop out comes back into m360 as a new tab, and when you click around inside the frame the address bar follows.
+- **m360 Desktop** (`desktop/`): an Electron app for Mac and Windows with a real Chromium view per tab, laid over the Web section's stage. Every site opens, logins persist, popups become tabs. The page talks to it through `window.m360desktop` (preload.js); `.github/workflows/desktop.yml` builds the .dmg and the installer as run artifacts. Built here without an Electron runtime to run it, so the first real launch is the test.
+
 ## Launch day
 
 1. Admin > Team: invite each person by email. They get a link, type their email and pick a password. Without an email key the invite shows a link to copy instead.

@@ -1,0 +1,25 @@
+{
+  "name": "m360-desktop",
+  "productName": "m360",
+  "version": "1.0.0",
+  "description": "m360 OS on the desktop, with a real browser inside.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist:mac": "electron-builder --mac dmg --publish never",
+    "dist:win": "electron-builder --win nsis --publish never"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "agency.mask360.m360",
+    "productName": "m360",
+    "files": ["main.js", "preload.js", "package.json"],
+    "mac": {"target": ["dmg"], "category": "public.app-category.productivity", "identity": null},
+    "win": {"target": ["nsis"]},
+    "nsis": {"oneClick": true, "perMachine": false}
+  }
+}

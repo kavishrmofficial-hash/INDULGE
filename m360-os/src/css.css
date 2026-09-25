@@ -730,9 +730,6 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .hero-clock{display:inline-flex; align-items:baseline; gap:6px; color:rgba(255,255,255,.7); font-size:12px; letter-spacing:.14em}
 .hero-clock .clock{color:#fff; font-size:13px; letter-spacing:0}
 
-/* ---------- the web page ---------- */
-.web-frame{width:100%; height:calc(100vh - 300px); min-height:420px; border:0; border-radius:12px; background:#fff; display:block}
-.web-frame-card{padding:12px}
 .crm-table td{vertical-align:middle}
 
 /* ---------- chat ---------- */
@@ -781,12 +778,63 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .cal-ev.past{opacity:.55}
 .cal-time{width:130px; flex:none; font-size:13px; color:var(--ink62)}
 @media (max-width:600px){ .mail-from{width:96px} .cal-time{width:auto} .cal-ev{flex-wrap:wrap} }
-/* ---------- web: tabs, reader, helper ---------- */
-.web-tabs{display:flex; gap:4px; align-items:center; overflow-x:auto; padding-bottom:2px}
-.web-tab{display:inline-flex; align-items:center; border:1px solid var(--line2); border-radius:10px; background:#fff; max-width:200px; flex:none}
-.web-tab.active{background:var(--ink); color:#fff; border-color:var(--ink)}
-.web-tab-btn{border:0; background:transparent; font:inherit; color:inherit; padding:5px 4px 5px 10px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px; font-size:13px}
-.web-tab-x{border:0; background:transparent; color:inherit; padding:4px 6px; cursor:pointer; display:inline-flex; opacity:.7}
+
+/* ---------- the browser: a rail, a stage, full screen ---------- */
+.web{display:grid; grid-template-columns:236px minmax(0,1fr); gap:14px; height:calc(100vh - 72px); min-height:520px}
+.web-rail{background:#fff; border:1px solid var(--line); border-radius:20px; padding:12px; overflow:auto; display:flex; flex-direction:column; min-height:0}
+.web-address{display:flex; gap:6px}
+.web-address .input{min-height:40px; font-size:14px}
+.web-spaces{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px}
+.web-space{display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line2); background:#fff; border-radius:10px; padding:5px 8px 5px 6px; font:inherit; font-size:13px; color:var(--ink); cursor:pointer; position:relative; max-width:100%}
+.web-space:hover{background:var(--warm)}
+.web-space.add{border-style:dashed; color:var(--ink62)}
+.web-space-x{display:none; position:absolute; right:-6px; top:-6px; width:18px; height:18px; border-radius:999px; background:var(--ink); color:#fff; align-items:center; justify-content:center}
+.web-space-x svg{width:10px; height:10px}
+.web-space:hover .web-space-x{display:inline-flex}
+.web-ico{width:16px; height:16px; border-radius:4px; flex:none; display:block}
+.web-letter{width:16px; height:16px; border-radius:4px; background:var(--warm); color:var(--ink62); font-size:10px; font-weight:600; display:inline-flex; align-items:center; justify-content:center; flex:none}
+.web-tabs{display:flex; flex-direction:column; gap:3px; margin-top:6px}
+.web-tab{display:flex; align-items:center; border-radius:10px; padding:0 2px 0 0}
+.web-tab:hover{background:var(--warm)}
+.web-tab.active{background:var(--ink); color:#fff}
+.web-tab.active .web-letter{background:rgba(255,255,255,.18); color:#fff}
+.web-tab-btn{display:flex; align-items:center; gap:8px; flex:1; min-width:0; border:0; background:transparent; font:inherit; font-size:13px; color:inherit; padding:7px 8px; text-align:left; cursor:pointer}
+.web-tab-title{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.web-tab-x{border:0; background:transparent; color:inherit; padding:6px; cursor:pointer; display:inline-flex; opacity:.55; border-radius:8px}
+.web-tab-x:hover{opacity:1}
 .web-tab-x svg{width:12px; height:12px}
-.reader-text{white-space:pre-wrap; line-height:1.6; font-size:15px; max-height:60vh; overflow:auto}
+.web-tab.loading .web-tab-title{opacity:.6}
+.web-stage{background:#fff; border:1px solid var(--line); border-radius:20px; display:flex; flex-direction:column; min-height:0; overflow:hidden}
+.web-toolbar{display:flex; align-items:center; gap:6px; padding:8px 10px; border-bottom:1px solid var(--line); flex:none}
+.web-pill{display:flex; align-items:center; gap:8px; min-width:0; height:36px; padding:0 12px; border-radius:999px; background:var(--warm); font-size:13px; cursor:text}
+.web-pill-host{font-weight:500; white-space:nowrap}
+.web-pill-path{color:var(--ink62); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0}
+.web-spin{width:10px; height:10px; border-radius:999px; border:2px solid var(--line2); border-top-color:var(--flame); animation:spin .8s linear infinite; flex:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.web-frame-wrap{flex:1; min-height:0; display:flex; flex-direction:column}
+.web-slow{padding:8px 12px; gap:8px; border-bottom:1px solid var(--line); flex:none}
+.web-frame{flex:1; width:100%; min-height:0; border:0; background:#fff; display:block}
+.web-slot{flex:1; min-height:0; background:var(--warm)}
+.web-stage-empty{flex:1; display:flex; align-items:center; justify-content:center; padding:24px; text-align:center}
+.web-hello{max-width:420px}
+.web-hello .mark{margin:0 auto; color:var(--mark); width:120px}
+.web-reader{flex:1; min-height:0; display:flex; flex-direction:column}
+.web-reader-body{flex:1; overflow:auto; padding:16px 20px}
+.reader-text{white-space:pre-wrap; line-height:1.6; font-size:15px}
 .web-helper{margin-top:12px; padding:12px 14px; border:1px dashed var(--line2); border-radius:14px; background:var(--warm)}
+.web-helper.compact{margin-top:auto; font-size:13px}
+/* full screen inside m360: the shell steps aside, the browser takes the window */
+body.web-focus .sidebar, body.web-focus .topbar, body.web-focus .tabbar, body.web-focus .buddy-home{display:none !important}
+body.web-focus{overflow:hidden}
+body.web-focus .web{position:fixed; inset:0; z-index:60; height:auto; min-height:0; gap:0; grid-template-rows:minmax(0,1fr); background:var(--paper)}
+body.web-focus .web-rail, body.web-focus .web-stage{border-radius:0; border-width:0}
+body.web-focus .web-rail{border-right-width:1px; padding-top:calc(12px + env(safe-area-inset-top, 0px))}
+@media (max-width:860px){
+  .web{grid-template-columns:1fr; grid-template-rows:auto minmax(0,1fr); height:calc(100vh - 150px); gap:10px}
+  .web-rail{padding:10px; max-height:38vh}
+  .web-tabs{flex-direction:row; overflow-x:auto; gap:4px}
+  .web-tab{flex:none; max-width:170px}
+  .web-helper.compact{display:none}
+  body.web-focus .web{grid-template-rows:auto minmax(0,1fr)}
+  body.web-focus .web-rail{border-right-width:0; border-bottom-width:1px}
+}

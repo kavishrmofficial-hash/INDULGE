@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "m360 frame helper",
-  "version": "1.0",
-  "description": "Lets sites open inside the Web section of m360 OS. It only acts on frames inside m360 tabs.",
-  "permissions": ["declarativeNetRequest", "tabs"],
+  "version": "1.1",
+  "description": "Lets sites open inside the Web section of m360 OS, keeps their links inside, and follows navigation. It only acts in m360 tabs.",
+  "permissions": ["declarativeNetRequest", "tabs", "webNavigation"],
   "host_permissions": ["<all_urls>"],
   "background": {"service_worker": "background.js"},
   "content_scripts": [{"matches": ["https://m360os-wx9u1bqs.edgeone.dev/*", "https://*.edgeone.dev/*", "http://localhost/*", "http://127.0.0.1/*"], "js": ["content.js"], "run_at": "document_start", "all_frames": false}]
