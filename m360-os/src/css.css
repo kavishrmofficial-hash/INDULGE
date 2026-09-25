@@ -734,3 +734,59 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .web-frame{width:100%; height:calc(100vh - 300px); min-height:420px; border:0; border-radius:12px; background:#fff; display:block}
 .web-frame-card{padding:12px}
 .crm-table td{vertical-align:middle}
+
+/* ---------- chat ---------- */
+.chat{display:grid; grid-template-columns:240px minmax(0,1fr); gap:16px; min-height:calc(100vh - 220px)}
+.chat-list{background:#fff; border:1px solid var(--line); border-radius:20px; padding:14px; align-self:start; position:sticky; top:16px; max-height:calc(100vh - 120px); overflow:auto}
+.chat-room{display:flex; align-items:center; gap:8px; width:100%; border:0; background:transparent; text-align:left; padding:8px 10px; border-radius:10px; font:inherit; color:var(--ink); cursor:pointer}
+.chat-room:hover{background:var(--warm)}
+.chat-room.active{background:var(--ink); color:#fff}
+.chat-room .badge{position:static}
+.chat-room .dot.on{width:8px; height:8px; border-radius:999px; background:var(--flame); display:inline-block}
+.chat-pane{background:#fff; border:1px solid var(--line); border-radius:20px; display:flex; flex-direction:column; min-height:520px; max-height:calc(100vh - 120px)}
+.chat-head{padding:14px 18px; border-bottom:1px solid var(--line)}
+.chat-scroll{flex:1; overflow:auto; padding:12px 18px}
+.chat-day{display:flex; align-items:center; gap:10px; margin:12px 0 8px; color:var(--micro); font-size:11px; letter-spacing:.14em; text-transform:lowercase}
+.chat-day::before,.chat-day::after{content:""; flex:1; height:1px; background:var(--line)}
+.chat-msg{display:flex; gap:10px; padding:6px 8px; border-radius:12px; align-items:flex-start}
+.chat-msg:hover{background:var(--warm)}
+.chat-msg.cont{padding-top:1px; padding-bottom:1px}
+.chat-msg.hot{background:rgba(245,57,1,.06)}
+.chat-gap{width:30px; flex:none}
+.chat-text{white-space:pre-wrap; word-break:break-word; line-height:1.5}
+.chat-text .mention{font-weight:600; color:var(--flame)}
+.chat-tools{opacity:0; gap:8px; flex:none}
+.chat-msg:hover .chat-tools{opacity:1}
+.chat-composer{padding:12px 18px; border-top:1px solid var(--line)}
+.chat-composer textarea{resize:none; min-height:44px; max-height:160px}
+.chat-empty{padding:40px 0}
+@media (max-width:860px){
+  .chat{grid-template-columns:1fr; min-height:0}
+  .chat-list,.chat-pane{position:static; max-height:none}
+  .chat.show-pane .chat-list{display:none}
+  .chat.show-list .chat-pane{display:none}
+  .chat-pane{min-height:calc(100vh - 220px)}
+  .chat-tools{opacity:1}
+}
+/* ---------- workspace ---------- */
+.mail-row{display:flex; gap:10px; align-items:center; width:100%; text-align:left; border:0; background:transparent; font:inherit; color:var(--ink); padding:10px 8px; border-bottom:1px solid var(--line); cursor:pointer}
+.mail-row:hover{background:var(--warm)}
+.mail-row.unread .mail-from,.mail-row.unread .mail-subj > span:first-child{font-weight:600}
+.mail-from{width:160px; flex:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.mail-subj{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.mail-frame{width:100%; min-height:420px; border:0; background:#fff}
+.mail-body{font-size:15px; line-height:1.55}
+.cal-ev{display:flex; gap:12px; align-items:center; padding:10px 8px; border-bottom:1px solid var(--line)}
+.cal-ev.soon{background:rgba(245,57,1,.06); border-radius:12px}
+.cal-ev.past{opacity:.55}
+.cal-time{width:130px; flex:none; font-size:13px; color:var(--ink62)}
+@media (max-width:600px){ .mail-from{width:96px} .cal-time{width:auto} .cal-ev{flex-wrap:wrap} }
+/* ---------- web: tabs, reader, helper ---------- */
+.web-tabs{display:flex; gap:4px; align-items:center; overflow-x:auto; padding-bottom:2px}
+.web-tab{display:inline-flex; align-items:center; border:1px solid var(--line2); border-radius:10px; background:#fff; max-width:200px; flex:none}
+.web-tab.active{background:var(--ink); color:#fff; border-color:var(--ink)}
+.web-tab-btn{border:0; background:transparent; font:inherit; color:inherit; padding:5px 4px 5px 10px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px; font-size:13px}
+.web-tab-x{border:0; background:transparent; color:inherit; padding:4px 6px; cursor:pointer; display:inline-flex; opacity:.7}
+.web-tab-x svg{width:12px; height:12px}
+.reader-text{white-space:pre-wrap; line-height:1.6; font-size:15px; max-height:60vh; overflow:auto}
+.web-helper{margin-top:12px; padding:12px 14px; border:1px dashed var(--line2); border-radius:14px; background:var(--warm)}

@@ -739,6 +739,62 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .web-frame-card{padding:12px}
 .crm-table td{vertical-align:middle}
 
+/* ---------- chat ---------- */
+.chat{display:grid; grid-template-columns:240px minmax(0,1fr); gap:16px; min-height:calc(100vh - 220px)}
+.chat-list{background:#fff; border:1px solid var(--line); border-radius:20px; padding:14px; align-self:start; position:sticky; top:16px; max-height:calc(100vh - 120px); overflow:auto}
+.chat-room{display:flex; align-items:center; gap:8px; width:100%; border:0; background:transparent; text-align:left; padding:8px 10px; border-radius:10px; font:inherit; color:var(--ink); cursor:pointer}
+.chat-room:hover{background:var(--warm)}
+.chat-room.active{background:var(--ink); color:#fff}
+.chat-room .badge{position:static}
+.chat-room .dot.on{width:8px; height:8px; border-radius:999px; background:var(--flame); display:inline-block}
+.chat-pane{background:#fff; border:1px solid var(--line); border-radius:20px; display:flex; flex-direction:column; min-height:520px; max-height:calc(100vh - 120px)}
+.chat-head{padding:14px 18px; border-bottom:1px solid var(--line)}
+.chat-scroll{flex:1; overflow:auto; padding:12px 18px}
+.chat-day{display:flex; align-items:center; gap:10px; margin:12px 0 8px; color:var(--micro); font-size:11px; letter-spacing:.14em; text-transform:lowercase}
+.chat-day::before,.chat-day::after{content:""; flex:1; height:1px; background:var(--line)}
+.chat-msg{display:flex; gap:10px; padding:6px 8px; border-radius:12px; align-items:flex-start}
+.chat-msg:hover{background:var(--warm)}
+.chat-msg.cont{padding-top:1px; padding-bottom:1px}
+.chat-msg.hot{background:rgba(245,57,1,.06)}
+.chat-gap{width:30px; flex:none}
+.chat-text{white-space:pre-wrap; word-break:break-word; line-height:1.5}
+.chat-text .mention{font-weight:600; color:var(--flame)}
+.chat-tools{opacity:0; gap:8px; flex:none}
+.chat-msg:hover .chat-tools{opacity:1}
+.chat-composer{padding:12px 18px; border-top:1px solid var(--line)}
+.chat-composer textarea{resize:none; min-height:44px; max-height:160px}
+.chat-empty{padding:40px 0}
+@media (max-width:860px){
+  .chat{grid-template-columns:1fr; min-height:0}
+  .chat-list,.chat-pane{position:static; max-height:none}
+  .chat.show-pane .chat-list{display:none}
+  .chat.show-list .chat-pane{display:none}
+  .chat-pane{min-height:calc(100vh - 220px)}
+  .chat-tools{opacity:1}
+}
+/* ---------- workspace ---------- */
+.mail-row{display:flex; gap:10px; align-items:center; width:100%; text-align:left; border:0; background:transparent; font:inherit; color:var(--ink); padding:10px 8px; border-bottom:1px solid var(--line); cursor:pointer}
+.mail-row:hover{background:var(--warm)}
+.mail-row.unread .mail-from,.mail-row.unread .mail-subj > span:first-child{font-weight:600}
+.mail-from{width:160px; flex:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.mail-subj{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.mail-frame{width:100%; min-height:420px; border:0; background:#fff}
+.mail-body{font-size:15px; line-height:1.55}
+.cal-ev{display:flex; gap:12px; align-items:center; padding:10px 8px; border-bottom:1px solid var(--line)}
+.cal-ev.soon{background:rgba(245,57,1,.06); border-radius:12px}
+.cal-ev.past{opacity:.55}
+.cal-time{width:130px; flex:none; font-size:13px; color:var(--ink62)}
+@media (max-width:600px){ .mail-from{width:96px} .cal-time{width:auto} .cal-ev{flex-wrap:wrap} }
+/* ---------- web: tabs, reader, helper ---------- */
+.web-tabs{display:flex; gap:4px; align-items:center; overflow-x:auto; padding-bottom:2px}
+.web-tab{display:inline-flex; align-items:center; border:1px solid var(--line2); border-radius:10px; background:#fff; max-width:200px; flex:none}
+.web-tab.active{background:var(--ink); color:#fff; border-color:var(--ink)}
+.web-tab-btn{border:0; background:transparent; font:inherit; color:inherit; padding:5px 4px 5px 10px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px; font-size:13px}
+.web-tab-x{border:0; background:transparent; color:inherit; padding:4px 6px; cursor:pointer; display:inline-flex; opacity:.7}
+.web-tab-x svg{width:12px; height:12px}
+.reader-text{white-space:pre-wrap; line-height:1.6; font-size:15px; max-height:60vh; overflow:auto}
+.web-helper{margin-top:12px; padding:12px 14px; border:1px dashed var(--line2); border-radius:14px; background:var(--warm)}
+
 /* ==== 71-profile.css ==== */
 /* ---------- profile: your photo and details on Me, and what teammates see ---------- */
 .prof-preview{display:flex; align-items:center; gap:14px; padding:14px 16px; border-radius:16px; background:var(--warm); min-width:0}
@@ -2373,7 +2429,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   M.RULE_IDS = ['R01','R02','R03','R04','R05','R06','R07','R08','R09','R10','R11','R12','R13','R14','R15','R16'];
 
   const COLLS = ['checkin','eod','plan','review','rocks','feed','reacts','acks','kudos','leave','leavedec',
-    'tasks','projects','pitches','clients','handbook','candidates','evals','pulse','ideas','votes','access','onboard','me','fixes','contacts','orgs'];
+    'tasks','projects','pitches','clients','handbook','candidates','evals','pulse','ideas','votes','access','onboard','me','fixes','contacts','orgs','chat','chatrooms'];
 
   /* AppState wraps the whole signed-in app: subscribes once per collection, computes ctx. */
   M.AppState = function AppState({boot, children}) {
@@ -2556,6 +2612,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       {k: 'pulse', label: 'Pulse and ideas', route: 'voice'}, {k: 'scores', label: 'Leaderboard', route: 'scores'}]},
     base: {label: 'Base', icon: 'database', page: 'Base', tabs: [
       {k: 'people', label: 'People', route: 'base'}, {k: 'companies', label: 'Companies', route: 'companies'}, {k: 'import', label: 'Import', route: 'import'}]},
+    chat: {label: 'Chat', icon: 'send', page: 'Chat'},
+    workspace: {label: 'Workspace', icon: 'mail', page: 'Workspace', tabs: [
+      {k: 'mail', label: 'Mail', route: 'mail'}, {k: 'gcal', label: 'Calendar', route: 'gcal'}, {k: 'drive', label: 'Drive', route: 'drive'}]},
     web: {label: 'Web', icon: 'link', page: 'Web'},
     radar: {label: 'Radar', icon: 'radar', page: 'Radar', tabs: [
       {k: 'news', label: 'News', route: 'radar'}, {k: 'awards', label: 'Awards', route: 'awards'}, {k: 'watch', label: 'Watch', route: 'watch'}]},
@@ -2583,6 +2642,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       case 'pitches': case 'pipeline': return {s: 'accounts', t: 'pipeline'};
       case 'crm': return {s: 'accounts', t: 'crm'};
       case 'web': case 'browser': return {s: 'web'};
+      case 'chat': case 'dm': return {s: 'chat', id};
+      case 'mail': case 'gmail': case 'workspace': return {s: 'workspace', t: 'mail'};
+      case 'gcal': case 'meetings': return {s: 'workspace', t: 'gcal'};
+      case 'drive': return {s: 'workspace', t: 'drive'};
       case 'vibe': case 'feed': return {s: 'vibe', t: 'feed'};
       case 'people': case 'crew': return {s: 'vibe', t: 'crew', id};
       case 'voice': case 'pulse': return {s: 'vibe', t: 'pulse'};
@@ -2621,6 +2684,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     out.reviews = (M.reviews ? M.reviews.queue(ctx).filter(t => M.reviews.canReview(ctx, t)).length : 0);
     out.work = out.reviews;
     out.inbox = M.inbox ? M.inbox.unread(ctx) : 0;
+    out.chat = (M.rooms && ctx.coll.chat) ? M.rooms.unreadRooms(ctx) : 0;
     if (ctx.isFounder) {
       let pend = 0;
       for (const lu of Object.keys(ctx.coll.leave.map)) {
@@ -2799,7 +2863,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const b = M.badges(ctx);
     const go = k => { setMoreOpen(false); M.nav('#' + k); };
 
-    const mainKeys = ['home', 'work', 'accounts', 'base', 'radar', 'web', 'vibe', 'me'];
+    const mainKeys = ['home', 'chat', 'work', 'accounts', 'workspace', 'base', 'radar', 'web', 'vibe', 'me'];
     const founderKeys = ctx.isFounder ? ['hq', 'admin'] : [];
     const item = k => {
       const s = SECTIONS[k];
@@ -2820,8 +2884,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const newMenu = where => newOpen === where ? html`<${NewMenu} onClose=${() => setNewOpen(false)}
       onTask=${() => setNewTask(true)} onAsk=${() => setAskOpen(true)}/>` : null;
 
-    const tabKeys = ctx.isFounder ? ['home', 'hq', 'work', 'vibe'] : ['home', 'work', 'accounts', 'vibe', 'me'];
-    const moreKeys = ctx.isFounder ? ['accounts', 'base', 'radar', 'web', 'me', 'admin'] : ['base', 'radar', 'web'];
+    const tabKeys = ctx.isFounder ? ['home', 'chat', 'hq', 'work'] : ['home', 'chat', 'work', 'accounts', 'me'];
+    const moreKeys = ctx.isFounder ? ['accounts', 'workspace', 'base', 'radar', 'web', 'me', 'admin'] : ['workspace', 'base', 'radar', 'web'];
     const moreBadge = moreKeys.reduce((n, k) => n + (b[k] || 0), 0);
 
     return html`<div class="app">
@@ -6996,6 +7060,583 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   M.parts.CRM = CRM;
 })();
 
+/* ==== 28-workspace.js ==== */
+/* module: workspace. Google Workspace inside m360: mail, calendar and meetings, drive. On EdgeOne each
+   person signs in with Google once (the server keeps their tokens) and everything comes through the
+   m360 API. On the claude.ai page the connectors from Your day do the reading. */
+'use strict';
+(function () {
+  const {html, React, U, UI, icons} = M;
+  const {useState, useEffect, useMemo, useRef, useCallback} = React;
+
+  const standalone = () => !!(window.M360_STANDALONE && typeof window.M360_API === 'function');
+  const api = (a, body) => window.M360_API(a, body || {});
+  const fmtTime = iso => { const d = new Date(iso); return isNaN(d.getTime()) ? '' : d.toLocaleTimeString('en-IN', {hour: 'numeric', minute: '2-digit'}); };
+  const fmtDate = iso => { const d = new Date(iso); return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-IN', {weekday: 'short', day: 'numeric', month: 'short'}); };
+  const dayOf = iso => U.ymd(new Date(iso));
+  const shortAgo = at => at ? U.timeAgo(at) : '';
+
+  /* one status per page load, shared by every tab; refreshed after a connect */
+  let statusCache = null;
+  function useStatus() {
+    const [st, setSt] = useState(statusCache);
+    const load = useCallback(async () => {
+      if (!standalone()) { setSt({configured: false, connected: false, none: true}); return; }
+      try { const r = await api('googlestatus'); statusCache = r; setSt(r); } catch (e) { setSt({configured: false, connected: false, err: true}); }
+    }, []);
+    useEffect(() => { if (!statusCache) load(); }, []);
+    /* back from Google: a query string says how it went */
+    useEffect(() => {
+      const qs = new URLSearchParams(location.search);
+      if (!qs.has('google')) return;
+      const ok = qs.get('google') === 'ok';
+      M.toast(ok ? 'Google connected' : 'Google did not connect' + (qs.get('why') ? ' (' + qs.get('why') + ')' : ''), !ok);
+      try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) { /* fine */ }
+      statusCache = null; load();
+    }, []);
+    return {st, reload: load};
+  }
+
+  function Connect({st, reload}) {
+    const [busy, setBusy] = useState(false);
+    const ctx = M.useCtx();
+    const start = async () => {
+      setBusy(true);
+      try { const r = await api('googlestart', {back: location.hash || '#mail'}); location.href = r.url; }
+      catch (e) { setBusy(false); M.toast((e && e.message) || 'Could not start', true); }
+    };
+    if (!st) return html`<${UI.Card}><${M.Thinking} label="Checking Google"/><//>`;
+    if (st.none) return html`<${UI.Card} title="Google Workspace">
+      <p class="small ink62" style=${{marginTop: 0}}>On this page Google comes through your claude.ai connectors. Open Home, Your day. On the team site each person signs in with Google once and mail, calendar and drive live here.</p>
+      ${M.parts.YourDay ? html`<${M.parts.YourDay}/>` : null}
+    <//>`;
+    if (!st.configured) return html`<${UI.Card} title="Google Workspace" id="google-unconfigured">
+      <p class="small ink62" style=${{marginTop: 0}}>${ctx.isFounder ? 'Set up the Google sign-in first: Admin, Google Workspace.' : 'Kaavish switches Google on from Admin. Once that is done, connect yours here.'}</p>
+      ${ctx.isFounder ? html`<${UI.Btn} kind="sec" onClick=${() => M.nav('#admin')}>Open Admin<//>` : null}
+    <//>`;
+    return html`<${UI.Card} title="Connect your Google" id="google-connect">
+      <p class="small ink62" style=${{marginTop: 0}}>One sign-in, then your inbox, calendar, meetings and drive are here. Only you see yours. m360 keeps your tokens on the server, never in the page.</p>
+      <${UI.Btn} id="google-go" disabled=${busy} onClick=${start}>${busy ? 'Opening Google' : 'Sign in with Google'}<//>
+    <//>`;
+  }
+
+  /* ---------- mail ---------- */
+  function Mail({st, reload}) {
+    const ctx = M.useCtx();
+    const [q, setQ] = useState('');
+    const [box, setBox] = useState('inbox');
+    const [rows, setRows] = useState(null);
+    const [err, setErr] = useState('');
+    const [open, setOpen] = useState(null);
+    const [compose, setCompose] = useState(null);
+    const [busy, setBusy] = useState(false);
+    const [next, setNext] = useState('');
+    const timer = useRef(0);
+    const query = useMemo(() => (q.trim() ? q.trim() + ' ' : '') + (box === 'inbox' ? 'in:inbox' : box === 'unread' ? 'is:unread' : box === 'sent' ? 'in:sent' : box === 'starred' ? 'is:starred' : ''), [q, box]);
+    const load = useCallback(async (more) => {
+      setBusy(true); setErr('');
+      try {
+        const r = await api('gmail', {q: query, max: 25, pageToken: more ? next : ''});
+        setRows(more ? xs => (xs || []).concat(r.messages) : r.messages); setNext(r.next || '');
+      } catch (e) { setErr((e && e.message) || 'Mail did not load'); if (e && e.code === 'google_off') reload(); }
+      setBusy(false);
+    }, [query, next, reload]);
+    useEffect(() => { load(false); }, [query]);
+    useEffect(() => { clearInterval(timer.current); timer.current = setInterval(() => { if (!document.hidden && !open && !compose) load(false); }, 120000); return () => clearInterval(timer.current); }, [load, open, compose]);
+    const unread = (rows || []).filter(m => m.unread).length;
+    const openMsg = async m => {
+      setOpen({...m, loading: true});
+      try { const full = await api('gmailread', {id: m.id}); setOpen(full); setRows(xs => (xs || []).map(x => x.id === m.id ? {...x, unread: false} : x)); }
+      catch (e) { setOpen({...m, loading: false, err: (e && e.message) || 'Could not open'}); }
+    };
+    const mark = async (m, patch) => {
+      try { await api('gmailmark', {id: m.id, ...patch}); setRows(xs => (xs || []).map(x => x.id === m.id ? {...x, ...('unread' in patch ? {unread: patch.unread} : {}), ...('starred' in patch ? {starred: patch.starred} : {})} : x).filter(x => !(patch.archive && x.id === m.id && box === 'inbox'))); if (patch.archive) setOpen(null); }
+      catch (e) { M.toast((e && e.message) || 'That did not stick', true); }
+    };
+    return html`<div class="stack" style=${{gap: '12px'}}>
+      <${UI.Card} id="mail-card">
+        <div class="row" style=${{gap: '8px', flexWrap: 'wrap'}}>
+          <input id="mail-q" class="input" style=${{flex: '1 1 220px'}} placeholder="Search mail" value=${q} onInput=${e => setQ(e.target.value)} aria-label="Search mail"/>
+          <${UI.Seg} sm=${true} ariaLabel="Mailbox" value=${box} onChange=${setBox} options=${[{v: 'inbox', label: 'Inbox'}, {v: 'unread', label: 'Unread'}, {v: 'starred', label: 'Starred'}, {v: 'sent', label: 'Sent'}]}/>
+          <${UI.Btn} sm=${true} id="mail-compose" onClick=${() => setCompose({to: '', subject: '', text: ''})}>New mail<//>
+          <button type="button" class="iconbtn" aria-label="Refresh" title="Refresh" onClick=${() => load(false)}><${icons.clock}/></button>
+        </div>
+        <div class="row between small ink62" style=${{marginTop: '8px'}}><span>${st.who}</span><span>${unread ? unread + ' unread here' : ''}</span></div>
+        ${err ? html`<div class="small flame-t" style=${{marginTop: '8px'}}>${err}</div>` : null}
+        ${rows === null ? html`<div style=${{marginTop: '10px'}}><${M.Thinking} label="Fetching mail"/></div>`
+          : rows.length ? html`<div class="list" id="mail-list" style=${{marginTop: '10px'}}>
+            ${rows.map(m => html`<button key=${m.id} type="button" class=${'listrow mail-row' + (m.unread ? ' unread' : '')} onClick=${() => openMsg(m)}>
+              <span class="mail-from">${m.fromName || m.fromAddress || m.from}</span>
+              <span class="grow mail-subj" style=${{minWidth: 0}}><span>${m.subject}</span><span class="ink62 mail-snip"> ${m.snippet}</span></span>
+              <span class="tiny ink62 num">${shortAgo(m.at)}</span>
+            </button>`)}
+          </div>` : html`<div style=${{marginTop: '10px'}}><${UI.Empty} text="Nothing here."/></div>`}
+        ${next ? html`<button type="button" class="linky small" style=${{marginTop: '8px'}} disabled=${busy} onClick=${() => load(true)}>More</button>` : null}
+      <//>
+      ${open ? html`<${MessageDrawer} m=${open} onClose=${() => setOpen(null)} onMark=${mark} onReply=${() => { setCompose({to: open.fromAddress || open.from, subject: /^re:/i.test(open.subject) ? open.subject : 'Re: ' + open.subject, text: '', threadId: open.threadId, inReplyTo: open.messageId, quote: open.text}); }}/>` : null}
+      ${compose ? html`<${Compose} draft=${compose} me=${st.who} onClose=${() => setCompose(null)} onSent=${() => { setCompose(null); setOpen(null); load(false); }}/>` : null}
+    </div>`;
+  }
+
+  function MessageDrawer({m, onClose, onMark, onReply}) {
+    const safeHtml = m.html ? '<base target="_blank"><style>body{font:15px/1.5 -apple-system,Helvetica,Arial,sans-serif;color:#0a0a0a;margin:0;padding:4px;word-break:break-word}img{max-width:100%;height:auto}</style>' + m.html : '';
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${m.subject || 'Message'}
+      footer=${html`<span class="row nowrap" style=${{gap: '8px'}}>
+        <${UI.Btn} id="mail-reply" onClick=${onReply}>Reply<//>
+        <${UI.Btn} kind="sec" onClick=${() => onMark(m, {archive: true})}>Archive<//>
+        <${UI.Btn} kind="ghost" onClick=${() => onMark(m, {starred: !m.starred})}>${m.starred ? 'Unstar' : 'Star'}<//>
+        <${UI.Btn} kind="ghost" onClick=${() => onMark(m, {unread: true})}>Keep unread<//>
+      </span>`}>
+      <div class="row between small" style=${{gap: '8px'}}><div><span style=${{fontWeight: 500}}>${m.fromName || m.fromAddress}</span> <span class="ink62">${m.fromAddress && m.fromName ? '<' + m.fromAddress + '>' : ''}</span></div><span class="ink62 num">${m.date ? fmtDate(m.date) + ' ' + fmtTime(m.date) : ''}</span></div>
+      ${m.to ? html`<div class="tiny ink62">to ${m.to}${m.cc ? ', cc ' + m.cc : ''}</div>` : null}
+      <hr class="hair"/>
+      ${m.loading ? html`<${M.Thinking} label="Opening"/>` : m.err ? html`<div class="small flame-t">${m.err}</div>`
+        : safeHtml ? html`<iframe class="mail-frame" sandbox="" srcdoc=${safeHtml} title="Message"/>`
+        : html`<div class="mail-body" style=${{whiteSpace: 'pre-wrap'}}>${m.text || m.snippet}</div>`}
+      ${(m.attachments || []).length ? html`<div class="row" style=${{gap: '6px', marginTop: '10px', flexWrap: 'wrap'}}>${m.attachments.map((a, i) => html`<${UI.Pill} key=${i} kind="warm">${a.name}<//>`)}</div>` : null}
+    <//>`;
+  }
+
+  function Compose({draft, me, onClose, onSent}) {
+    const [f, setF] = useState(draft);
+    const [busy, setBusy] = useState(false);
+    const set = k => v => setF(x => ({...x, [k]: v}));
+    const send = async () => {
+      if (busy) return;
+      setBusy(true);
+      try {
+        const text = f.text + (f.quote ? '\n\n' + f.quote.split('\n').map(l => '> ' + l).join('\n') : '');
+        await api('gmailsend', {to: f.to, cc: f.cc || '', subject: f.subject, text, threadId: f.threadId || '', inReplyTo: f.inReplyTo || ''});
+        M.toast('Sent'); onSent();
+      } catch (e) { setBusy(false); M.toast((e && e.message) || 'Not sent', true); }
+    };
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${draft.threadId ? 'Reply' : 'New mail'}
+      footer=${html`<${UI.Btn} id="mail-send" disabled=${busy || !f.to.trim() || !f.text.trim()} onClick=${send}>${busy ? 'Sending' : 'Send'}<//>`}>
+      <div class="tiny ink62">from ${me}</div>
+      <${UI.Input} id="mail-to" label="to" value=${f.to} onChange=${set('to')} placeholder="name@company.com, another@company.com"/>
+      <${UI.Input} id="mail-subject" label="subject" value=${f.subject} onChange=${set('subject')}/>
+      <${UI.TextArea} id="mail-text" label="message" rows=${8} value=${f.text} onChange=${set('text')} placeholder="Write it plainly."/>
+      ${f.quote ? html`<div class="tiny ink62">The message you are replying to rides along below yours.</div>` : null}
+    <//>`;
+  }
+
+  /* ---------- calendar and meetings ---------- */
+  function Calendar({st, reload}) {
+    const ctx = M.useCtx();
+    const [events, setEvents] = useState(null);
+    const [err, setErr] = useState('');
+    const [span, setSpan] = useState('week');
+    const [making, setMaking] = useState(false);
+    const load = useCallback(async () => {
+      setErr('');
+      const from = new Date(); from.setHours(0, 0, 0, 0);
+      const to = new Date(from.getTime() + (span === 'today' ? 1 : span === 'week' ? 7 : 30) * 86400000);
+      try { const r = await api('gcal', {from: from.toISOString(), to: to.toISOString()}); setEvents(r.events); }
+      catch (e) { setErr((e && e.message) || 'Calendar did not load'); if (e && e.code === 'google_off') reload(); }
+    }, [span, reload]);
+    useEffect(() => { load(); const t = setInterval(() => { if (!document.hidden) load(); }, 180000); return () => clearInterval(t); }, [load]);
+    const now = Date.now();
+    const byDay = {};
+    (events || []).forEach(e => { const d = dayOf(e.start); (byDay[d] = byDay[d] || []).push(e); });
+    const days = Object.keys(byDay).sort();
+    const rsvp = async (e, status) => { try { await api('gcalrsvp', {id: e.id, status}); M.toast(status === 'accepted' ? 'Accepted' : status === 'declined' ? 'Declined' : 'Maybe'); load(); } catch (x) { M.toast((x && x.message) || 'That did not stick', true); } };
+    const soon = e => { const s = new Date(e.start).getTime(); return s - now < 15 * 60000 && new Date(e.end).getTime() > now; };
+    return html`<div class="stack" style=${{gap: '12px'}}>
+      <${UI.Card} id="cal-card" title="Meetings" action=${html`<span class="row nowrap" style=${{gap: '6px'}}>
+          <${UI.Seg} sm=${true} ariaLabel="Span" value=${span} onChange=${setSpan} options=${[{v: 'today', label: 'Today'}, {v: 'week', label: '7 days'}, {v: 'month', label: '30 days'}]}/>
+          <${UI.Btn} sm=${true} id="cal-new" onClick=${() => setMaking(true)}>New meeting<//></span>`}>
+        ${err ? html`<div class="small flame-t">${err}</div>` : null}
+        ${events === null ? html`<${M.Thinking} label="Fetching the calendar"/>`
+          : !days.length ? html`<${UI.Empty} text="Nothing on the calendar in this span."/>`
+          : days.map(d => html`<div key=${d} class="cal-day">
+            <div class="micro" style=${{marginTop: '6px'}}>${d === U.todayStr() ? 'today' : fmtDate(d)}</div>
+            ${byDay[d].map(e => html`<div key=${e.id} class=${'cal-ev' + (soon(e) ? ' soon' : '') + (new Date(e.end).getTime() < now ? ' past' : '')} id=${'ev-' + e.id}>
+              <div class="cal-time num">${e.allDay ? 'all day' : fmtTime(e.start) + (e.end ? ' to ' + fmtTime(e.end) : '')}</div>
+              <div class="grow" style=${{minWidth: 0}}>
+                <div style=${{fontWeight: 500}}>${e.title}</div>
+                <div class="tiny ink62">${[e.organizer && !e.mine ? 'by ' + e.organizer : '', e.attendees.length ? e.attendees.length + ' people' : '', e.location].filter(Boolean).join(' · ')}</div>
+                ${!e.mine && e.myStatus === 'needsAction' ? html`<div class="row" style=${{gap: '6px', marginTop: '6px'}}>
+                  <button type="button" class="chip" onClick=${() => rsvp(e, 'accepted')}>Yes</button><button type="button" class="chip" onClick=${() => rsvp(e, 'tentative')}>Maybe</button><button type="button" class="chip" onClick=${() => rsvp(e, 'declined')}>No</button></div>` : null}
+              </div>
+              ${e.meet ? html`<a class="btn sm" href=${e.meet} target="_blank" rel="noopener">Join Meet</a>` : e.link ? html`<a class="btn sec sm" href=${e.link} target="_blank" rel="noopener">Open</a>` : null}
+            </div>`)}
+          </div>`)}
+      <//>
+      ${making ? html`<${NewMeeting} onClose=${() => setMaking(false)} onMade=${() => { setMaking(false); load(); }}/>` : null}
+    </div>`;
+  }
+
+  function NewMeeting({onClose, onMade}) {
+    const ctx = M.useCtx();
+    const [f, setF] = useState(() => { const d = new Date(Date.now() + 3600000); d.setMinutes(0, 0, 0); return {title: '', date: U.ymd(d), start: U.hhmm ? U.hhmm(d) : d.toTimeString().slice(0, 5), mins: 30, who: '', meet: true, description: ''}; });
+    const [team, setTeam] = useState({});
+    const [busy, setBusy] = useState(false);
+    const set = k => v => setF(x => ({...x, [k]: v}));
+    useEffect(() => { api('teamemails').then(r => setTeam(r.people || {})).catch(() => {}); }, []);
+    const chips = Object.keys(team).filter(u => u !== ctx.uid);
+    const add = addr => setF(x => ({...x, who: (x.who.trim() ? x.who.trim().replace(/,\s*$/, '') + ', ' : '') + addr}));
+    const make = async () => {
+      if (busy || !f.title.trim()) return;
+      setBusy(true);
+      const start = new Date(f.date + 'T' + f.start + ':00');
+      const end = new Date(start.getTime() + (Number(f.mins) || 30) * 60000);
+      try {
+        const r = await api('gcalcreate', {title: f.title, start: start.toISOString(), end: end.toISOString(), attendees: f.who.split(/[,;\s]+/).filter(Boolean), meet: f.meet, description: f.description});
+        M.toast(r.meet ? 'Meeting made, Meet link ready' : 'Meeting made');
+        onMade(r);
+      } catch (e) { setBusy(false); M.toast((e && e.message) || 'Not made', true); }
+    };
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title="New meeting"
+      footer=${html`<${UI.Btn} id="cal-make" disabled=${busy || !f.title.trim()} onClick=${make}>${busy ? 'Making' : 'Make the meeting'}<//>`}>
+      <${UI.Input} id="cal-title" label="what" value=${f.title} onChange=${set('title')} placeholder="Swisse creative review"/>
+      <div class="grid2">
+        <${UI.Input} label="date" type="date" value=${f.date} onChange=${set('date')}/>
+        <${UI.Input} label="start" type="time" value=${f.start} onChange=${set('start')}/>
+      </div>
+      <${UI.Field} label="length"><${UI.Seg} sm=${true} ariaLabel="Length" value=${String(f.mins)} onChange=${v => set('mins')(Number(v))} options=${[{v: '15', label: '15'}, {v: '30', label: '30'}, {v: '45', label: '45'}, {v: '60', label: '60'}]}/><//>
+      <${UI.Input} id="cal-who" label="who, emails" value=${f.who} onChange=${set('who')} placeholder="priya@client.com, durvesh@mask360.agency"/>
+      ${chips.length ? html`<div class="row" style=${{gap: '6px', flexWrap: 'wrap'}}>${chips.map(u => html`<button key=${u} type="button" class="chip" onClick=${() => add(team[u].addr)}>${(team[u].name || team[u].addr).split(' ')[0]}</button>`)}</div>` : null}
+      <${UI.Field} label="google meet"><${UI.Seg} sm=${true} ariaLabel="Meet" value=${f.meet ? 'on' : 'off'} onChange=${v => set('meet')(v === 'on')} options=${[{v: 'on', label: 'Add a Meet link'}, {v: 'off', label: 'No link'}]}/><//>
+      <${UI.TextArea} label="agenda, optional" rows=${3} value=${f.description} onChange=${set('description')}/>
+    <//>`;
+  }
+
+  /* ---------- drive ---------- */
+  function Drive({st, reload}) {
+    const [q, setQ] = useState('');
+    const [files, setFiles] = useState(null);
+    const [err, setErr] = useState('');
+    useEffect(() => {
+      const t = setTimeout(async () => {
+        setErr('');
+        try { const r = await api('gdrive', {q: q.trim()}); setFiles(r.files); }
+        catch (e) { setErr((e && e.message) || 'Drive did not load'); if (e && e.code === 'google_off') reload(); }
+      }, q ? 350 : 0);
+      return () => clearTimeout(t);
+    }, [q]);
+    const kind = mime => /spreadsheet|excel/.test(mime) ? 'sheet' : /presentation|powerpoint/.test(mime) ? 'deck' : /document|word/.test(mime) ? 'doc' : /pdf/.test(mime) ? 'pdf' : /image/.test(mime) ? 'image' : /folder/.test(mime) ? 'folder' : 'file';
+    return html`<${UI.Card} id="drive-card" title="Drive">
+      <input id="drive-q" class="input" placeholder="Find a file" value=${q} onInput=${e => setQ(e.target.value)} aria-label="Find a file"/>
+      ${err ? html`<div class="small flame-t" style=${{marginTop: '8px'}}>${err}</div>` : null}
+      ${files === null ? html`<div style=${{marginTop: '10px'}}><${M.Thinking} label="Fetching files"/></div>`
+        : files.length ? html`<div class="list" id="drive-list" style=${{marginTop: '10px'}}>${files.map(f => html`<a key=${f.id} class="listrow" href=${f.link} target="_blank" rel="noopener">
+            <${UI.Pill} kind="warm">${kind(f.mime)}<//><span class="grow" style=${{minWidth: 0}}>${f.name}</span><span class="tiny ink62">${f.owner ? f.owner.split(' ')[0] + ' · ' : ''}${f.modified ? U.timeAgo(new Date(f.modified).getTime()) : ''}</span></a>`)}</div>`
+        : html`<div style=${{marginTop: '10px'}}><${UI.Empty} text="No files match."/></div>`}
+      <p class="tiny ink62" style=${{marginTop: '10px'}}>Google opens documents in their own tab; that is Google's rule, not ours.</p>
+    <//>`;
+  }
+
+  /* ---------- the page ---------- */
+  function Workspace({tab}) {
+    const {st, reload} = useStatus();
+    const t = tab || 'mail';
+    const ready = st && st.connected;
+    return html`<div class="stack" style=${{gap: '20px'}}>
+      <${M.SectionHero} micro="workspace" title="Workspace" sub=${ready ? st.who : 'mail, calendar, meetings, drive'}>
+        ${ready ? html`<button type="button" class="linky small" id="google-disconnect" onClick=${async () => { await api('googledisconnect').catch(() => {}); statusCache = null; reload(); M.toast('Google disconnected'); }}>Disconnect Google</button>` : null}
+      <//>
+      <${M.SectionTabs} section="workspace" active=${t}/>
+      ${!ready ? html`<${Connect} st=${st} reload=${reload}/>`
+        : t === 'gcal' ? html`<${Calendar} st=${st} reload=${reload}/>` : t === 'drive' ? html`<${Drive} st=${st} reload=${reload}/>` : html`<${Mail} st=${st} reload=${reload}/>`}
+    </div>`;
+  }
+
+  /* ---------- Admin: the OAuth client ---------- */
+  function GoogleCard() {
+    const [st, setSt] = useState(null);
+    const [id, setId] = useState('');
+    const [key2, setKey2] = useState('');
+    const [busy, setBusy] = useState(false);
+    const load = () => api('googlestatus').then(r => { setSt(r); setId(r.clientId || ''); }).catch(() => setSt({}));
+    useEffect(() => { load(); }, []);
+    const save = async () => {
+      setBusy(true);
+      try { await api('googlekey', {clientId: id.trim(), clientKey: key2.trim()}); setKey2(''); statusCache = null; M.toast(id.trim() ? 'Google is set up. Everyone can connect from Workspace' : 'Google removed'); load(); }
+      catch (e) { M.toast((e && e.message) || 'Not saved', true); }
+      setBusy(false);
+    };
+    const copy = () => { try { navigator.clipboard.writeText(st.redirect); M.toast('Copied'); } catch (e) { /* select it by hand */ } };
+    if (!st) return html`<${UI.Card} id="google-card"><${M.Thinking} label="Checking"/><//>`;
+    return html`<${UI.Card} id="google-card">
+      <div class="row between"><span class="small">${st.configured ? html`<${UI.Pill} kind="ink">on<//>` : html`<${UI.Pill}>off<//>`} ${st.fromEnv ? 'set on the server' : st.configured ? 'client saved' : 'no client yet'}</span></div>
+      <ol class="small" style=${{paddingLeft: '18px', margin: '10px 0'}}>
+        <li>Open console.cloud.google.com with the mask360.agency account. Make a project called m360.</li>
+        <li>APIs and Services, Library: enable Gmail API, Google Calendar API and Google Drive API.</li>
+        <li>OAuth consent screen: choose Internal (that is what a Workspace organisation gets, no review, no expiry). App name m360 OS.</li>
+        <li>Credentials, Create credentials, OAuth client ID, type Web application. Under Authorised redirect URIs paste exactly:
+          <div class="row nowrap" style=${{gap: '6px', marginTop: '4px'}}><code class="grow" style=${{overflow: 'auto'}} id="google-redirect">${st.redirect}</code><${UI.Btn} kind="sec" sm=${true} onClick=${copy}>Copy<//></div></li>
+        <li>Paste the client ID and the client key below. Then everyone connects their own Google from Workspace.</li>
+      </ol>
+      <${UI.Input} id="google-id" label="client id" value=${id} onChange=${setId} placeholder="1234567890-abc.apps.googleusercontent.com"/>
+      <${UI.Input} id="google-key" label=${st.configured ? 'client key (the GOCSPX value), leave blank to keep the saved one' : 'client key (the GOCSPX value next to the ID)'} value=${key2} onChange=${setKey2} placeholder="GOCSPX-..."/>
+      <div class="row" style=${{gap: '8px'}}>
+        <${UI.Btn} id="google-save" disabled=${busy} onClick=${save}>${st.configured ? 'Save' : 'Switch Google on'}<//>
+        ${st.configured && !st.fromEnv ? html`<${UI.ConfirmBtn} kind="sec" onConfirm=${() => { setId(''); setKey2(''); api('googlekey', {clientId: ''}).then(() => { statusCache = null; load(); M.toast('Google removed'); }); }}>Remove<//>` : null}
+      </div>
+    <//>`;
+  }
+
+  M.pages.Workspace = Workspace;
+  if (standalone()) M.parts.GoogleCard = GoogleCard;
+  M.workspace = {fmtTime, fmtDate};
+})();
+
+/* ==== 29-chat.js ==== */
+/* module: chat. The team's own chat: rooms (general, plus any the team makes) and direct messages.
+   Messages live per room per sender (chat/<room>:<uid> {msgs}), so two people never overwrite each other;
+   a room view merges every sender's doc by time. When a sender's doc passes 300 lines, the oldest go to
+   chatlog/<room>:<uid>:<ts>. Read markers sit in the person's private state (chatRead). A direct message
+   room is dm.<a>.<b> (sorted); on EdgeOne the server lets only those two read it. */
+'use strict';
+(function () {
+  const {html, React, U, UI, icons} = M;
+  const {useState, useEffect, useMemo, useRef} = React;
+
+  const CAP = 300, KEEP = 160;
+  const ROOMS_DOC = 'chatrooms/team';
+  const dmId = (a, b) => 'dm.' + [a, b].sort().join('.');
+  const isDm = id => String(id).startsWith('dm.');
+  const dmOther = (id, me) => String(id).slice(3).split('.').find(u => u !== me) || me;
+  const docId = (room, uid) => room + ':' + uid;
+  const norm = s => String(s || '').toLowerCase();
+
+  /* every room this person can see: general, the team's rooms, and their own direct messages */
+  function roomsOf(ctx) {
+    const doc = ctx.coll.chatrooms.map.team || {};
+    const list = [{id: 'general', name: 'general', kind: 'room', pinned: true}];
+    for (const id of Object.keys(doc.rooms || {})) {
+      const r = doc.rooms[id];
+      if (r && !r.gone && id !== 'general' && !isDm(id)) list.push({id, name: r.name || id, kind: 'room', by: r.by, at: r.at, topic: r.topic || ''});
+    }
+    return list;
+  }
+  /* all messages in one room, every sender merged, oldest first */
+  function messagesOf(ctx, room) {
+    const map = ctx.coll.chat.map;
+    const out = [];
+    for (const key of Object.keys(map)) {
+      const i = key.lastIndexOf(':');
+      if (i < 0 || key.slice(0, i) !== room) continue;
+      const by = key.slice(i + 1);
+      for (const m of ((map[key] || {}).msgs || [])) if (m && !m.del) out.push({...m, by, room});
+    }
+    return out.sort((a, b) => (a.at || 0) - (b.at || 0));
+  }
+  const readMark = (ctx, room) => Number((((ctx.priv && ctx.priv.state && ctx.priv.state.data) || {}).chatRead || {})[room]) || 0;
+  const unreadIn = (ctx, room) => { const mark = readMark(ctx, room); return messagesOf(ctx, room).filter(m => m.by !== ctx.uid && (m.at || 0) > mark).length; };
+  const mentionsMe = (m, ctx, name) => /(^|\s)@everyone\b/i.test(m.text || '') || (name && String(m.text || '').includes('@' + name)) || (m.mentions || []).includes(ctx.uid);
+  /* every dm room with any message in it, from the docs this person can see */
+  function dmRoomsOf(ctx) {
+    const seen = new Set();
+    for (const key of Object.keys(ctx.coll.chat.map)) { const room = key.slice(0, key.lastIndexOf(':')); if (isDm(room) && room.includes(ctx.uid)) seen.add(room); }
+    return Array.from(seen);
+  }
+  /* the badge: rooms with something unread, dms counted by message */
+  function unreadRooms(ctx) {
+    let n = 0;
+    for (const r of roomsOf(ctx)) if (unreadIn(ctx, r.id) > 0) n++;
+    for (const d of dmRoomsOf(ctx)) n += unreadIn(ctx, d);
+    return n;
+  }
+  /* inbox lines: direct messages and mentions since the read mark */
+  function inboxItems(ctx, myName) {
+    const out = [];
+    for (const d of dmRoomsOf(ctx)) {
+      const mark = readMark(ctx, d);
+      for (const m of messagesOf(ctx, d)) if (m.by !== ctx.uid && (m.at || 0) > mark) out.push({id: 'chat:' + d + ':' + m.id, room: d, m, dm: true});
+    }
+    for (const r of roomsOf(ctx)) {
+      const mark = readMark(ctx, r.id);
+      for (const m of messagesOf(ctx, r.id)) if (m.by !== ctx.uid && (m.at || 0) > mark && mentionsMe(m, ctx, myName)) out.push({id: 'chat:' + r.id + ':' + m.id, room: r.id, m, dm: false});
+    }
+    return out;
+  }
+
+  async function send(ctx, room, text, mentions) {
+    const t = String(text || '').trim().slice(0, 4000);
+    if (!t) return;
+    const key = docId(room, ctx.uid);
+    const cur = ((ctx.coll.chat.map[key] || {}).msgs || []).slice();
+    const m = {id: U.uid(), at: Date.now(), text: t, mentions: mentions || []};
+    let msgs = cur.concat([m]);
+    if (msgs.length > CAP) {
+      const old = msgs.slice(0, msgs.length - KEEP);
+      msgs = msgs.slice(msgs.length - KEEP);
+      await ctx.W.set('chatlog/' + key + ':' + Date.now(), {msgs: old, room, by: ctx.uid}).catch(() => {});
+    }
+    await ctx.W.merge('chat/' + key, {msgs, room, by: ctx.uid, updated: Date.now()});
+    return m;
+  }
+  const edit = (ctx, room, id, text) => {
+    const key = docId(room, ctx.uid);
+    const msgs = ((ctx.coll.chat.map[key] || {}).msgs || []).map(m => m.id === id ? {...m, text: String(text || '').trim().slice(0, 4000), edited: Date.now()} : m);
+    return ctx.W.merge('chat/' + key, {msgs, updated: Date.now()});
+  };
+  const remove = (ctx, room, id) => {
+    const key = docId(room, ctx.uid);
+    const msgs = ((ctx.coll.chat.map[key] || {}).msgs || []).map(m => m.id === id ? {...m, del: true, text: ''} : m);
+    return ctx.W.merge('chat/' + key, {msgs, updated: Date.now()});
+  };
+  const markRead = (ctx, room, at) => ctx.W.merge('data/users/' + ctx.uid + '/state', {chatRead: {[room]: at || Date.now()}}).catch(() => {});
+  const makeRoom = async (ctx, name, topic) => {
+    const id = norm(name).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+    if (!id || id === 'general' || id.startsWith('dm')) throw new Error('bad name');
+    await ctx.W.merge(ROOMS_DOC, {rooms: {[id]: {name: String(name).trim().slice(0, 40), topic: String(topic || '').slice(0, 140), by: ctx.uid, at: Date.now()}}, updated: Date.now()});
+    return id;
+  };
+
+  /* text with links and @names lit up */
+  function Rich({text, names}) {
+    const parts = String(text || '').split(/(https?:\/\/[^\s<>"')]+|@everyone|@[A-Z][\w.-]*(?:\s[A-Z][\w.-]*)?)/g);
+    return html`<span>${parts.map((p, i) => {
+      if (/^https?:\/\//.test(p)) return html`<a key=${i} href=${p} target="_blank" rel="noopener">${p.length > 70 ? p.slice(0, 67) + '...' : p}</a>`;
+      if (p === '@everyone' || (p.startsWith('@') && names.some(n => p === '@' + n || p.startsWith('@' + n.split(' ')[0])))) return html`<b key=${i} class="mention">${p}</b>`;
+      return p;
+    })}</span>`;
+  }
+
+  function Chat(props) {
+    const roomFromRoute = props.room || props.id || '';
+    const ctx = M.useCtx();
+    const uid = ctx.uid;
+    const rooms = useMemo(() => roomsOf(ctx), [ctx.coll.chatrooms]);
+    const dms = useMemo(() => dmRoomsOf(ctx), [ctx.coll.chat]);
+    const [room, setRoom] = useState(() => roomFromRoute || (localStorage.getItem('m360.chatRoom') || 'general'));
+    const [text, setText] = useState('');
+    const [q, setQ] = useState('');
+    const [naming, setNaming] = useState(false);
+    const [newName, setNewName] = useState('');
+    const [editing, setEditing] = useState(null);
+    const [listOpen, setListOpen] = useState(!roomFromRoute);
+    const endRef = useRef(null);
+    const boxRef = useRef(null);
+    const phone = M.usePhone();
+    /* the route decides: a room in it opens that room; none means the list (the Chat tab on a phone) */
+    useEffect(() => { if (roomFromRoute) { if (roomFromRoute !== room) setRoom(roomFromRoute); setListOpen(false); } else setListOpen(true); }, [roomFromRoute]);
+    useEffect(() => { try { localStorage.setItem('m360.chatRoom', room); } catch (e) { /* private */ } }, [room]);
+    const people = ctx.activeMembers.filter(m => m.uid !== uid);
+    const ids = useMemo(() => Array.from(new Set(ctx.activeMembers.map(m => m.uid).concat(dms.map(d => dmOther(d, uid))))), [ctx.activeMembers, dms]);
+    const profs = M.useProfiles(ids.concat([uid]));
+    const nameOf = id => (profs[id] && profs[id].name) || (ctx.members[id] && ctx.members[id].name) || 'Someone';
+    const names = ids.map(nameOf).filter(Boolean);
+    const msgs = useMemo(() => messagesOf(ctx, room), [ctx.coll.chat, room]);
+    const latest = msgs.length ? msgs[msgs.length - 1].at : 0;
+    const online = ctx.online || new Set();
+    const isOn = id => online.has ? online.has(id) : (Array.isArray(online) ? online.includes(id) : false);
+
+    /* this room is read up to its latest line while it is open */
+    useEffect(() => {
+      if (!latest || latest <= readMark(ctx, room)) return;
+      const t = setTimeout(() => markRead(ctx, room, latest), 600);
+      return () => clearTimeout(t);
+    }, [room, latest]);
+    useEffect(() => { if (endRef.current && endRef.current.scrollIntoView) endRef.current.scrollIntoView({block: 'end'}); }, [msgs.length, room]);
+
+    /* a browser notice when a line arrives for you while this tab is hidden */
+    const seenAt = useRef(0);
+    useEffect(() => {
+      const items = inboxItems(ctx, nameOf(uid));
+      const fresh = items.filter(it => it.m.at > seenAt.current && Date.now() - it.m.at < 60000);
+      seenAt.current = Date.now();
+      if (!fresh.length || !document.hidden) return;
+      try {
+        if (window.Notification && Notification.permission === 'granted') {
+          const it = fresh[fresh.length - 1];
+          new Notification(nameOf(it.m.by) + (it.dm ? '' : ' in #' + it.room), {body: String(it.m.text).slice(0, 120), tag: 'm360-chat', icon: 'icons/icon-192.png'});
+        }
+      } catch (e) { /* no notices here */ }
+    }, [ctx.coll.chat]);
+
+    const mentionIds = t => ctx.activeMembers.filter(m => String(t).includes('@' + nameOf(m.uid)) || String(t).includes('@' + String(nameOf(m.uid)).split(' ')[0] + ' ')).map(m => m.uid);
+    const go = async () => {
+      const t = text.trim();
+      if (!t) return;
+      setText('');
+      if (editing) { await edit(ctx, room, editing, t).catch(() => {}); setEditing(null); return; }
+      await send(ctx, room, t, mentionIds(t)).catch(() => setText(t));
+      M.sound.play('soft');
+    };
+    const onKey = e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); go(); }
+      if (e.key === 'Escape' && editing) { setEditing(null); setText(''); }
+    };
+    const openDm = other => { setRoom(dmId(uid, other)); setListOpen(false); M.nav('#chat/' + dmId(uid, other)); };
+    const openRoom = id => { setRoom(id); setListOpen(false); M.nav('#chat/' + id); };
+    const create = async () => {
+      try { const id = await makeRoom(ctx, newName); setNaming(false); setNewName(''); openRoom(id); M.toast('Room made'); } catch (e) { M.toast('Pick a simple name', true); }
+    };
+    const askNotify = () => { try { if (window.Notification) Notification.requestPermission().then(p => M.toast(p === 'granted' ? 'You will hear about messages for you' : 'Notices stay off')); } catch (e) { /* none */ } };
+    const title = isDm(room) ? nameOf(dmOther(room, uid)) : '#' + ((rooms.find(r => r.id === room) || {}).name || room);
+    const roomMeta = rooms.find(r => r.id === room);
+    const filtered = people.filter(p => !q || norm(nameOf(p.uid)).includes(norm(q)));
+    const canNotify = !!(window.Notification && Notification.permission === 'default');
+
+    /* day separators */
+    let lastDay = '';
+    const rows = [];
+    msgs.forEach((m, i) => {
+      const day = U.fmtDay ? U.fmtDay(U.ymd(new Date(m.at))) : U.ymd(new Date(m.at));
+      if (day !== lastDay) { rows.push(html`<div key=${'d' + i} class="chat-day"><span>${day === (U.fmtDay ? U.fmtDay(U.todayStr()) : U.todayStr()) ? 'today' : day}</span></div>`); lastDay = day; }
+      const prev = msgs[i - 1];
+      const cont = prev && prev.by === m.by && m.at - prev.at < 5 * 60000;
+      rows.push(html`<div key=${m.id} class=${'chat-msg' + (cont ? ' cont' : '') + (m.by === uid ? ' mine' : '') + (mentionsMe(m, ctx, nameOf(uid)) ? ' hot' : '')}>
+        ${cont ? html`<span class="chat-gap"/>` : html`<${UI.Avatar} id=${m.by} size=${30}/>`}
+        <div class="grow" style=${{minWidth: 0}}>
+          ${cont ? null : html`<div class="row nowrap" style=${{gap: '8px', alignItems: 'baseline'}}><span style=${{fontWeight: 500}}>${nameOf(m.by)}</span><span class="tiny ink62 num">${U.hhmm ? U.hhmm(new Date(m.at)) : new Date(m.at).toLocaleTimeString()}</span></div>`}
+          <div class="chat-text"><${Rich} text=${m.text} names=${names}/>${m.edited ? html` <span class="tiny ink62">(edited)</span>` : null}</div>
+        </div>
+        ${m.by === uid ? html`<span class="chat-tools row nowrap">
+          <button type="button" class="linky tiny" onClick=${() => { setEditing(m.id); setText(m.text); if (boxRef.current) boxRef.current.focus(); }}>Edit</button>
+          <button type="button" class="linky tiny" onClick=${() => remove(ctx, room, m.id)}>Delete</button>
+        </span>` : null}
+      </div>`);
+    });
+
+    const list = html`<aside class="chat-list" id="chat-list">
+      <div class="row between" style=${{marginBottom: '6px'}}><${UI.Micro} plain>rooms<//>
+        <button type="button" class="linky tiny" id="chat-new-room" onClick=${() => setNaming(x => !x)}>New room</button></div>
+      ${naming ? html`<div class="row nowrap" style=${{gap: '6px', marginBottom: '8px'}}>
+        <input id="chat-room-name" class="input grow" placeholder="design, ops, swisse" value=${newName} onInput=${e => setNewName(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') create(); }} aria-label="Room name"/>
+        <${UI.Btn} sm=${true} onClick=${create}>Make<//></div>` : null}
+      ${rooms.map(r => { const n = unreadIn(ctx, r.id); return html`<button key=${r.id} type="button" class=${'chat-room' + (room === r.id ? ' active' : '')} onClick=${() => openRoom(r.id)}>
+        <span class="grow"># ${r.name}</span>${n ? html`<span class="badge">${n}</span>` : null}</button>`; })}
+      <div class="row between" style=${{margin: '14px 0 6px'}}><${UI.Micro} plain>people<//></div>
+      <input id="chat-find" class="input" placeholder="Find someone" value=${q} onInput=${e => setQ(e.target.value)} aria-label="Find someone" style=${{marginBottom: '6px'}}/>
+      ${filtered.map(p => { const d = dmId(uid, p.uid); const n = unreadIn(ctx, d); return html`<button key=${p.uid} type="button" class=${'chat-room' + (room === d ? ' active' : '')} onClick=${() => openDm(p.uid)}>
+        <${UI.Avatar} id=${p.uid} size=${24}/><span class="grow">${nameOf(p.uid)}</span>${isOn(p.uid) ? html`<span class="dot on" title="online"/>` : null}${n ? html`<span class="badge">${n}</span>` : null}</button>`; })}
+      ${!people.length ? html`<div class="small ink62">Just you so far. Invite the team from Admin.</div>` : null}
+    </aside>`;
+
+    const pane = html`<section class="chat-pane" id="chat-pane">
+      <div class="chat-head row between nowrap">
+        <div class="row nowrap" style=${{gap: '8px', minWidth: 0}}>
+          ${phone ? html`<button type="button" class="iconbtn" aria-label="Rooms" onClick=${() => setListOpen(true)}><${icons.more}/></button>` : null}
+          <div style=${{minWidth: 0}}><div style=${{fontWeight: 600, fontSize: '17px', letterSpacing: '-.01em'}} id="chat-title">${title}</div>
+            ${roomMeta && roomMeta.topic ? html`<div class="tiny ink62">${roomMeta.topic}</div>` : isDm(room) ? html`<div class="tiny ink62">${isOn(dmOther(room, uid)) ? 'online now' : 'direct message, only the two of you'}</div>` : html`<div class="tiny ink62">the whole team</div>`}</div>
+        </div>
+        ${canNotify ? html`<button type="button" class="linky tiny" id="chat-notify" onClick=${askNotify}>Turn on notices</button>` : null}
+      </div>
+      <div class="chat-scroll" id="chat-scroll">
+        ${rows.length ? rows : html`<div class="chat-empty"><${UI.Empty} text=${isDm(room) ? 'Say hi. Only ' + nameOf(dmOther(room, uid)) + ' and you see this.' : 'Nothing here yet. Start the room.'}/></div>`}
+        <div ref=${endRef}/>
+      </div>
+      <div class="chat-composer">
+        ${editing ? html`<div class="tiny ink62" style=${{marginBottom: '4px'}}>Editing. Escape to stop.</div>` : null}
+        <div class="row nowrap" style=${{gap: '8px', alignItems: 'flex-end'}}>
+          <textarea ref=${boxRef} id="chat-input" class="input grow" rows=${1} placeholder=${'Message ' + title + '. @ a name, or @everyone'} value=${text}
+            onInput=${e => setText(e.target.value)} onKeyDown=${onKey} aria-label="Message"/>
+          <${UI.Btn} id="chat-send" disabled=${!text.trim()} onClick=${go}>${editing ? 'Save' : 'Send'}<//>
+        </div>
+      </div>
+    </section>`;
+
+    return html`<div class=${'chat' + (phone ? (listOpen ? ' show-list' : ' show-pane') : '')} id="chat">${list}${pane}</div>`;
+  }
+
+  M.rooms = {roomsOf, messagesOf, unreadIn, unreadRooms, inboxItems, dmId, isDm, dmOther, send, makeRoom, markRead, readMark};
+  M.pages.Chat = Chat;
+})();
+
 /* ==== 30-week.js ==== */
 /* module: week (BRIEF 7.10). The attendance grid, EOD cells, outcomes and the Friday review. */
 'use strict';
@@ -10672,6 +11313,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       ${M.parts.AiKeyCard ? html`<${UI.Fold} title="m360 AI" summary="your Anthropic key switches the AI on" id="fold-ai"><${M.parts.AiKeyCard}/><//>` : null}
       ${M.parts.MailCard ? html`<${UI.Fold} title="Email sending" summary="Resend key and sender" id="fold-mail"><${M.parts.MailCard}/><//>` : null}
       ${M.parts.VoiceCard ? html`<${UI.Fold} title="The buddy's voice" summary="a natural voice for the cursor buddy" id="fold-voice"><${M.parts.VoiceCard}/><//>` : null}
+      ${M.parts.GoogleCard ? html`<${UI.Fold} title="Google Workspace" summary="mail, calendar, meetings and drive for everyone" id="fold-google"><${M.parts.GoogleCard}/><//>` : null}
       ${(M.adminCards || []).map((C, i) => html`<${UI.Fold} key=${i} title="Radar settings" summary="keywords, sources, channels" id=${'fold-admin-' + i}><${C}/><//>`)}
       <${Embed} page="Desk"/>
     </div>`;
@@ -11086,6 +11728,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       say: 'Your inbox. Tasks handed to you, mentions, kudos and decisions land here.'},
     {go: '#home', sel: '.side-tools .iconbtn[aria-label="Focus timer"], .quick-btn', title: 'Focus',
       say: 'Focus runs a timer on one task and banks the deep work. Points come from finished work, streaks and kudos.'},
+    {go: '#chat', sel: '#chat-input, #chat-list', title: 'Chat',
+      say: 'Chat. Rooms for the team, and direct messages that only the two of you see. At a name to pull someone in, at everyone for the whole team.'},
     {go: '#tasks', sel: '.main h1, .main .card', title: 'Work',
       say: 'Work. Your tasks board. Drag a task across as it moves. Projects, the calendar and reviews sit in the tabs above.'},
     {go: '#clients', sel: '.main .card, .main h1', title: 'Accounts',
@@ -11098,6 +11742,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       say: 'Vibe. Post an update, give kudos, run a poll, and see the leaderboard.'},
     {go: '#radar', sel: '.main .card, .main h1', title: 'Radar',
       say: 'Radar. Live news about our clients and the industry, plus awards and channels worth watching.'},
+    {go: '#mail', sel: '#mail-card, #google-connect, #google-unconfigured, .main .card', title: 'Workspace',
+      say: 'Workspace. Your Gmail, your calendar and meetings, your drive, right here, once you sign in with Google.'},
     {go: '#web', sel: '#web-url, .main .card', title: 'Web',
       say: 'Web. A browser inside m360, with the team\'s bookmarks. Canva, Apollo, LinkedIn, all without leaving.'},
     {go: '#me', sel: '#fold-profile, .main .card', title: 'Me',
@@ -12353,6 +12999,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       if (p && p.kind === 'announce' && author !== me) push('an:' + p.id, 'feed', p.at || 0, html`${nm(author)} announced: ${String(p.text).slice(0, 90)}`, '#feed', author, true);
       if (p && p.kind === 'poll' && author !== me && !((p.votes || {})[me]) && ((((ctx.coll.votes || {}).map || {})[me] || {}).polls || {})[author + ':' + p.id] === undefined) push('poll:' + p.id, 'feed', p.at || 0, html`${nm(author)} asked: ${String(p.text).slice(0, 80)}`, '#feed', author);
     }
+    /* chat: direct messages and mentions since the read mark */
+    if (M.rooms && ctx.coll.chat) {
+      const myName = ((ctx.coll.me.map[me] || {}).name) || '';
+      for (const it of M.rooms.inboxItems(ctx, myName)) push(it.id, 'chat', it.m.at || 0, html`${nm(it.m.by)}${it.dm ? '' : ' in #' + it.room}: ${String(it.m.text).slice(0, 90)}`, '#chat/' + it.room, it.m.by, it.dm);
+    }
     /* founder: joins and leave requests */
     if (ctx.isFounder) {
       (M.team ? M.team.requests(ctx) : []).forEach(r => push('join:' + r.uid, 'people', r.at, html`${nm(r.uid)} wants to join the team`, '#admin', r.uid, true));
@@ -12378,7 +13029,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   const seenAt = ctx => Number(((ctx.coll.me.map[ctx.uid] || {}).inboxSeen) || 0);
   const unread = ctx => items(ctx).filter(i => i.at > seenAt(ctx)).length;
 
-  const KIND_ICON = {tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift', fix: 'fix'};
+  const KIND_ICON = {tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift', fix: 'fix', chat: 'send'};
 
   function Inbox({onClose}) {
     const ctx = M.useCtx();
@@ -16377,13 +17028,15 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 })();
 
 /* ==== 79-web.js ==== */
-/* module: web. A browser inside m360: an address bar, the team's shared bookmarks, and the page in a frame.
-   Some sites refuse to be framed (banks, Google apps, most logins); those open in a new tab with one tap,
-   and the frame says so instead of sitting blank. Bookmarks live in links/team, editable by anyone. */
+/* module: web. A browser inside m360: tabs, an address bar with search, back and forward, reload,
+   the team's shared bookmarks, and the page in a frame. Before framing, the server asks the site whether
+   it allows frames; a site that refuses gets the reader view (its text and links, through the server)
+   with one tap to open it outside. The frame helper extension (download below) lets almost every site
+   open inside. Bookmarks live in links/team, editable by anyone. */
 'use strict';
 (function () {
   const {html, React, U, UI, icons} = M;
-  const {useState, useEffect, useRef} = React;
+  const {useState, useEffect, useRef, useCallback} = React;
 
   const STARTERS = [
     {title: 'Google', url: 'https://www.google.com/webhp?igu=1'},
@@ -16393,6 +17046,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     {title: 'LinkedIn', url: 'https://www.linkedin.com'},
     {title: 'Notion', url: 'https://www.notion.so'}
   ];
+  const standalone = () => !!(window.M360_STANDALONE && typeof window.M360_API === 'function');
+  const helper = () => !!(document.documentElement.dataset && document.documentElement.dataset.m360ext);
   const clean = u => {
     let s = String(u || '').trim();
     if (!s) return '';
@@ -16400,47 +17055,91 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     try { const x = new URL(s); return x.protocol === 'http:' || x.protocol === 'https:' ? x.href : ''; } catch (e) { return ''; }
   };
   const hostOf = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } };
+  const ALWAYS_REFUSE = /(^|\.)(google\.com|gmail\.com|youtube\.com|meet\.google\.com|docs\.google\.com|linkedin\.com|facebook\.com|instagram\.com|whatsapp\.com|x\.com|twitter\.com)$/i;
+
+  let nextId = 1;
+  const newTab = url => ({id: nextId++, url: url || '', hist: url ? [url] : [], at: url ? 0 : -1, title: url ? hostOf(url) : 'New tab', mode: 'frame', check: null, reader: null, key: 0});
+  const persist = tabs => { try { sessionStorage.setItem('m360.tabs', JSON.stringify(tabs.map(t => ({url: t.url, title: t.title})))); } catch (e) { /* private */ } };
+  const restore = () => { try { const j = JSON.parse(sessionStorage.getItem('m360.tabs') || 'null'); if (Array.isArray(j) && j.length) return j.map(t => newTab(t.url)); } catch (e) { /* none */ } return [newTab('')]; };
 
   function Web() {
     const ctx = M.useCtx();
     const doc = M.useDoc(ctx.db, 'links/team');
     const marks = (doc.data && Array.isArray(doc.data.items)) ? doc.data.items : [];
+    const [tabs, setTabs] = useState(restore);
+    const [cur, setCur] = useState(0);
     const [typed, setTyped] = useState('');
-    const [url, setUrl] = useState(() => { try { return sessionStorage.getItem('m360.web') || ''; } catch (e) { return ''; } });
-    const [slow, setSlow] = useState(false);
     const [adding, setAdding] = useState(false);
     const [title, setTitle] = useState('');
+    const [slow, setSlow] = useState(false);
+    const [helperOn, setHelperOn] = useState(helper);
     const timer = useRef(0);
-    useEffect(() => { try { if (url) sessionStorage.setItem('m360.web', url); } catch (e) { /* private */ } }, [url]);
-    const go = u => {
+    const tab = tabs[cur] || tabs[0];
+    useEffect(() => { persist(tabs); }, [tabs]);
+    useEffect(() => { setTyped(tab ? tab.url : ''); }, [cur, tab && tab.url]);
+    useEffect(() => { const t = setInterval(() => setHelperOn(helper()), 1500); return () => clearInterval(t); }, []);
+    const patch = (id, p) => setTabs(ts => ts.map(t => t.id === id ? {...t, ...(typeof p === 'function' ? p(t) : p)} : t));
+
+    /* open an address in the current tab: ask the server first whether the site allows a frame */
+    const go = useCallback(async (u, opts) => {
       const c = clean(u);
       if (!c) { M.toast('That does not look like an address', true); return; }
-      setUrl(c); setTyped(c); setSlow(false);
+      const t = tabs[cur];
+      if (!t) return;
+      const id = t.id;
+      patch(id, x => {
+        const hist = opts && opts.nohist ? x.hist : x.hist.slice(0, x.at + 1).concat([c]);
+        return {url: c, hist, at: opts && opts.nohist ? x.at : hist.length - 1, title: hostOf(c), mode: 'frame', check: null, reader: null, key: x.key + 1};
+      });
+      setTyped(c); setSlow(false);
       clearTimeout(timer.current);
-      timer.current = setTimeout(() => setSlow(true), 6000);
+      timer.current = setTimeout(() => setSlow(true), 7000);
+      if (!standalone() || helper()) return;
+      if (ALWAYS_REFUSE.test(hostOf(c))) { patch(id, {mode: 'refused', check: {why: 'this site never allows frames'}}); readerFor(id, c); return; }
+      try {
+        const r = await window.M360_API('framecheck', {url: c});
+        if (r && r.frameable === false) { patch(id, {mode: 'refused', check: r}); readerFor(id, c); }
+      } catch (e) { /* unknown: try the frame */ }
+    }, [tabs, cur]);
+    const readerFor = async (id, url) => {
+      try { const r = await window.M360_API('readpage', {url}); patch(id, {reader: r, title: r.title || hostOf(url)}); }
+      catch (e) { patch(id, {reader: {err: (e && e.message) || 'This page did not answer.'}}); }
     };
+    const back = () => { const t = tabs[cur]; if (!t || t.at <= 0) return; const at = t.at - 1; patch(t.id, {at}); go(t.hist[at], {nohist: true}); patch(t.id, {at}); };
+    const fwd = () => { const t = tabs[cur]; if (!t || t.at >= t.hist.length - 1) return; const at = t.at + 1; patch(t.id, {at}); go(t.hist[at], {nohist: true}); patch(t.id, {at}); };
+    const reload = () => { const t = tabs[cur]; if (t && t.url) go(t.url, {nohist: true}); };
+    const addTab = url => { const t = newTab(url || ''); setTabs(ts => ts.concat([t])); setCur(tabs.length); if (url) setTimeout(() => go(url), 0); };
+    const closeTab = i => { setTabs(ts => { const n = ts.filter((_, k) => k !== i); return n.length ? n : [newTab('')]; }); setCur(c => Math.max(0, Math.min(c, tabs.length - 2))); };
     const loaded = () => { clearTimeout(timer.current); setSlow(false); };
-    const openTab = u => { try { window.open(u || url, '_blank', 'noopener'); } catch (e) { /* blocked */ } };
+    const openOut = u => { try { window.open(u || (tab && tab.url), '_blank', 'noopener'); } catch (e) { /* blocked */ } };
     const add = async () => {
-      const c = clean(url);
+      const c = clean(tab && tab.url);
       if (!c) return;
       const items = marks.filter(m => m.url !== c).concat([{id: U.uid(), title: (title || hostOf(c)).slice(0, 60), url: c, by: ctx.uid, at: Date.now()}]).slice(-60);
       await ctx.W.merge('links/team', {items, updated: Date.now()}).catch(() => {});
       setAdding(false); setTitle(''); M.toast('Bookmarked for the team');
     };
-    const remove = async m => {
-      await ctx.W.merge('links/team', {items: marks.filter(x => x.id !== m.id), updated: Date.now()}).catch(() => {});
-    };
+    const remove = async m => { await ctx.W.merge('links/team', {items: marks.filter(x => x.id !== m.id), updated: Date.now()}).catch(() => {}); };
     const list = marks.length ? marks : STARTERS.map(s => ({...s, id: 's:' + s.title, starter: true}));
-    return html`<div class="stack" style=${{gap: '14px'}}>
-      <${UI.Card} id="web-card">
-        <div class="row nowrap" style=${{gap: '8px'}}>
-          <button type="button" class="iconbtn" aria-label="Back" title="Back" onClick=${() => history.back()}><${icons.up}/></button>
+    const refused = tab && tab.mode === 'refused';
+
+    return html`<div class="stack web" style=${{gap: '10px'}}>
+      <${UI.Card} id="web-card" className="web-bar">
+        <div class="web-tabs" role="tablist" id="web-tabs">
+          ${tabs.map((t, i) => html`<span key=${t.id} class=${'web-tab' + (i === cur ? ' active' : '')} role="tab" aria-selected=${i === cur}>
+            <button type="button" class="web-tab-btn" onClick=${() => setCur(i)}>${t.title || 'New tab'}</button>
+            <button type="button" class="web-tab-x" aria-label=${'Close ' + (t.title || 'tab')} onClick=${() => closeTab(i)}><${icons.x}/></button>
+          </span>`)}
+          <button type="button" class="iconbtn" id="web-newtab" aria-label="New tab" title="New tab" onClick=${() => addTab('')}><${icons.plus}/></button>
+        </div>
+        <div class="row nowrap" style=${{gap: '6px', marginTop: '8px'}}>
+          <button type="button" class="iconbtn" id="web-back" aria-label="Back" title="Back" disabled=${!tab || tab.at <= 0} onClick=${back}><${icons.up}/></button>
+          <button type="button" class="iconbtn" id="web-fwd" aria-label="Forward" title="Forward" disabled=${!tab || tab.at >= tab.hist.length - 1} onClick=${fwd}><${icons.down}/></button>
+          <button type="button" class="iconbtn" id="web-reload" aria-label="Reload" title="Reload" disabled=${!tab || !tab.url} onClick=${reload}><${icons.clock}/></button>
           <input id="web-url" class="input grow" placeholder="Type an address, or search" value=${typed} onInput=${e => setTyped(e.target.value)}
-            onKeyDown=${e => { if (e.key === 'Enter') go(typed); }} aria-label="Address" inputMode="url" autoCapitalize="off" autoCorrect="off"/>
+            onKeyDown=${e => { if (e.key === 'Enter') go(typed); }} onFocus=${e => e.target.select()} aria-label="Address" inputMode="url" autoCapitalize="off" autoCorrect="off"/>
           <${UI.Btn} id="web-go" onClick=${() => go(typed)}>Go<//>
-          ${url ? html`<${UI.Btn} kind="sec" id="web-tab" onClick=${() => openTab()}>New tab<//>` : null}
-          ${url ? html`<${UI.Btn} kind="sec" id="web-save" onClick=${() => { setTitle(hostOf(url)); setAdding(true); }}>Bookmark<//>` : null}
+          ${tab && tab.url ? html`<${UI.Btn} kind="sec" id="web-save" onClick=${() => { setTitle(hostOf(tab.url)); setAdding(true); }}>Bookmark<//>` : null}
         </div>
         ${adding ? html`<div class="row" style=${{gap: '8px', marginTop: '10px'}}>
           <input id="web-title" class="input grow" placeholder="Name it" value=${title} onInput=${e => setTitle(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') add(); }} aria-label="Bookmark name"/>
@@ -16453,12 +17152,51 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           </span>`)}
         </div>
       <//>
-      ${url ? html`<${UI.Card} className="web-frame-card">
-        ${slow ? html`<div class="row between small" style=${{marginBottom: '8px'}}><span class="ink62">${hostOf(url)} has not drawn anything yet. Sites that refuse a frame open in a new tab.</span>
-          <${UI.Btn} sm=${true} onClick=${() => openTab()}>Open in a new tab<//></div>` : null}
-        <iframe id="web-frame" class="web-frame" src=${url} title=${hostOf(url)} onLoad=${loaded}
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads" referrerPolicy="no-referrer-when-downgrade" allow="clipboard-write; fullscreen"/>
-      <//>` : html`<${UI.Card}><${UI.Empty} text="Type an address above, or tap a bookmark. Save the pages the team lives in, so nobody has to leave m360."/><//>`}
+      ${!tab || !tab.url ? html`<${UI.Card}>
+        <${UI.Empty} text="Type an address above, or tap a bookmark."/>
+        ${standalone() && !helperOn ? html`<${Helper}/>` : null}
+      <//>`
+      : refused ? html`<${UI.Card} className="web-frame-card" id="web-reader">
+        <div class="row between" style=${{gap: '8px', flexWrap: 'wrap'}}>
+          <div class="small"><b>${hostOf(tab.url)}</b> refuses to open inside another site${tab.check && tab.check.why ? ' (' + tab.check.why + ')' : ''}. Here is the page as text.</div>
+          <span class="row nowrap" style=${{gap: '6px'}}>
+            <${UI.Btn} sm=${true} onClick=${() => patch(tab.id, {mode: 'frame', key: tab.key + 1})}>Try the frame anyway<//>
+            <${UI.Btn} kind="sec" sm=${true} id="web-out" onClick=${() => openOut()}>Open outside<//>
+          </span>
+        </div>
+        ${!tab.reader ? html`<div style=${{marginTop: '10px'}}><${M.Thinking} label="Reading the page"/></div>`
+          : tab.reader.err ? html`<div class="small flame-t" style=${{marginTop: '10px'}}>${tab.reader.err}</div>`
+          : html`<div class="reader" style=${{marginTop: '12px'}}>
+            <h2 style=${{margin: '0 0 8px'}}>${tab.reader.title || hostOf(tab.url)}</h2>
+            <div class="reader-text">${tab.reader.text || 'Nothing readable here.'}</div>
+            ${(tab.reader.links || []).length ? html`<div class="micro" style=${{marginTop: '14px'}}>links on this page</div>
+              <div class="row" style=${{gap: '6px', flexWrap: 'wrap', marginTop: '6px'}}>${tab.reader.links.map((l, i) => html`<button key=${i} type="button" class="chip" title=${l.href} onClick=${() => go(l.href)}>${l.label}</button>`)}</div>` : null}
+          </div>`}
+        ${standalone() && !helperOn ? html`<${Helper}/>` : null}
+      <//>`
+      : html`<${UI.Card} className="web-frame-card">
+        ${slow ? html`<div class="row between small" style=${{marginBottom: '8px', gap: '8px'}}><span class="ink62">${hostOf(tab.url)} has not drawn anything yet. Some sites refuse frames without saying so.</span>
+          <span class="row nowrap" style=${{gap: '6px'}}><${UI.Btn} sm=${true} onClick=${() => { patch(tab.id, {mode: 'refused', check: {why: 'blank frame'}}); readerFor(tab.id, tab.url); }}>Read it here<//><${UI.Btn} kind="sec" sm=${true} onClick=${() => openOut()}>Open outside<//></span></div>` : null}
+        <iframe key=${tab.key} id="web-frame" class="web-frame" src=${tab.url} title=${hostOf(tab.url)} onLoad=${loaded}
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals" referrerPolicy="no-referrer-when-downgrade" allow="clipboard-write; fullscreen; camera; microphone"/>
+      <//>`}
+    </div>`;
+  }
+
+  /* the frame helper: a tiny browser extension that lets sites open inside m360 */
+  function Helper() {
+    const [open, setOpen] = useState(false);
+    return html`<div class="web-helper" id="web-helper">
+      <div class="row between" style=${{gap: '8px', flexWrap: 'wrap'}}>
+        <div class="small"><b>Want everything to open inside m360?</b> Install the m360 frame helper in Chrome or Edge (two minutes, once per laptop).</div>
+        <span class="row nowrap" style=${{gap: '6px'}}><a class="btn sm" href="m360-frame-helper.zip" download>Download the helper</a><button type="button" class="linky small" onClick=${() => setOpen(x => !x)}>${open ? 'Hide steps' : 'Steps'}</button></span>
+      </div>
+      ${open ? html`<ol class="small" style=${{margin: '8px 0 0', paddingLeft: '18px'}}>
+        <li>Unzip the download. You get a folder called m360-frame-helper.</li>
+        <li>In Chrome open chrome://extensions (Edge: edge://extensions). Switch on Developer mode, top right.</li>
+        <li>Tap Load unpacked and pick that folder. Done. Reload m360.</li>
+        <li>It only touches pages framed inside m360. Google, Meet, LinkedIn and WhatsApp still refuse frames by their own rules; those open outside.</li>
+      </ol>` : null}
     </div>`;
   }
 

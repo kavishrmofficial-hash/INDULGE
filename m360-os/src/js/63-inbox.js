@@ -51,6 +51,11 @@
       if (p && p.kind === 'announce' && author !== me) push('an:' + p.id, 'feed', p.at || 0, html`${nm(author)} announced: ${String(p.text).slice(0, 90)}`, '#feed', author, true);
       if (p && p.kind === 'poll' && author !== me && !((p.votes || {})[me]) && ((((ctx.coll.votes || {}).map || {})[me] || {}).polls || {})[author + ':' + p.id] === undefined) push('poll:' + p.id, 'feed', p.at || 0, html`${nm(author)} asked: ${String(p.text).slice(0, 80)}`, '#feed', author);
     }
+    /* chat: direct messages and mentions since the read mark */
+    if (M.rooms && ctx.coll.chat) {
+      const myName = ((ctx.coll.me.map[me] || {}).name) || '';
+      for (const it of M.rooms.inboxItems(ctx, myName)) push(it.id, 'chat', it.m.at || 0, html`${nm(it.m.by)}${it.dm ? '' : ' in #' + it.room}: ${String(it.m.text).slice(0, 90)}`, '#chat/' + it.room, it.m.by, it.dm);
+    }
     /* founder: joins and leave requests */
     if (ctx.isFounder) {
       (M.team ? M.team.requests(ctx) : []).forEach(r => push('join:' + r.uid, 'people', r.at, html`${nm(r.uid)} wants to join the team`, '#admin', r.uid, true));
@@ -76,7 +81,7 @@
   const seenAt = ctx => Number(((ctx.coll.me.map[ctx.uid] || {}).inboxSeen) || 0);
   const unread = ctx => items(ctx).filter(i => i.at > seenAt(ctx)).length;
 
-  const KIND_ICON = {tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift', fix: 'fix'};
+  const KIND_ICON = {tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift', fix: 'fix', chat: 'send'};
 
   function Inbox({onClose}) {
     const ctx = M.useCtx();

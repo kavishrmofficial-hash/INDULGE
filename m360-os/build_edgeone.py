@@ -67,6 +67,13 @@ def main():
     head_part, body_part = page[:page.index('<div id="root">')], page[page.index('<div id="root">'):]
     doc = HEAD + head_part + '<script>\n' + shim + '\n</script></head><body>' + body_part + '</body></html>'
     assert first_script > 0
+    # the frame helper extension, zipped for the Web page's download link
+    import zipfile
+    ext = os.path.join(ROOT, 'extension')
+    if os.path.isdir(ext):
+        with zipfile.ZipFile(os.path.join(PUB, 'm360-frame-helper.zip'), 'w', zipfile.ZIP_DEFLATED) as z:
+            for name in sorted(os.listdir(ext)):
+                if name.endswith(('.json', '.js', '.md')): z.write(os.path.join(ext, name), 'm360-frame-helper/' + name)
     with open(os.path.join(PUB, 'index.html'), 'w', encoding='utf-8') as f:
         f.write(doc)
     # a phone can install it: manifest, icons and a small service worker for the shell

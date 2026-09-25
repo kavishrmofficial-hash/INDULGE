@@ -149,7 +149,7 @@ def mock_part(h):
     for _ in range(6):
         p.locator('.buddy-bubble.tour').get_by_role('button', name='Next').click()
         p.wait_for_timeout(750)
-    check(p.evaluate('() => location.hash') == '#tasks', 'stop seven should open Work, got %r' % p.evaluate('() => location.hash'))
+    check(p.evaluate('() => location.hash') == '#chat', 'stop seven should open Chat, got %r' % p.evaluate('() => location.hash'))
     check(p.evaluate('() => window.__spoken.length') == 7, 'every stop should be spoken once, got %r' % p.evaluate('() => window.__spoken.length'))
     check(p.locator('.buddy-bubble.tour:has-text("7 of")').count() == 1, 'progress should read 7 of N')
     p.wait_for_function('() => !M.buddy.state().flying'); p.wait_for_timeout(300)

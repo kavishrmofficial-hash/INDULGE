@@ -571,8 +571,10 @@ export function safetyActions(h) {
     async integrity(v) {
       await admin(v);
       const {colls, bad} = await readEverything();
-      const inv = {};
-      for (const b of await listAll('d/')) {
+      /* the same tags sync uses (markers over the listing), so a cache written from a marker is never called stale */
+      let inv = {};
+      if (h.inventory) inv = await h.inventory();
+      else for (const b of await listAll('d/')) {
         const s = segs(pathOfKey(b.key));
         if (s.length < 2 || s.length % 2) continue;
         (inv[s.slice(0, -1).join('/')] = inv[s.slice(0, -1).join('/')] || {})[s[s.length - 1]] = normTag(b.etag);

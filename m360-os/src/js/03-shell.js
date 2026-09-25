@@ -39,6 +39,9 @@
       {k: 'pulse', label: 'Pulse and ideas', route: 'voice'}, {k: 'scores', label: 'Leaderboard', route: 'scores'}]},
     base: {label: 'Base', icon: 'database', page: 'Base', tabs: [
       {k: 'people', label: 'People', route: 'base'}, {k: 'companies', label: 'Companies', route: 'companies'}, {k: 'import', label: 'Import', route: 'import'}]},
+    chat: {label: 'Chat', icon: 'send', page: 'Chat'},
+    workspace: {label: 'Workspace', icon: 'mail', page: 'Workspace', tabs: [
+      {k: 'mail', label: 'Mail', route: 'mail'}, {k: 'gcal', label: 'Calendar', route: 'gcal'}, {k: 'drive', label: 'Drive', route: 'drive'}]},
     web: {label: 'Web', icon: 'link', page: 'Web'},
     radar: {label: 'Radar', icon: 'radar', page: 'Radar', tabs: [
       {k: 'news', label: 'News', route: 'radar'}, {k: 'awards', label: 'Awards', route: 'awards'}, {k: 'watch', label: 'Watch', route: 'watch'}]},
@@ -66,6 +69,10 @@
       case 'pitches': case 'pipeline': return {s: 'accounts', t: 'pipeline'};
       case 'crm': return {s: 'accounts', t: 'crm'};
       case 'web': case 'browser': return {s: 'web'};
+      case 'chat': case 'dm': return {s: 'chat', id};
+      case 'mail': case 'gmail': case 'workspace': return {s: 'workspace', t: 'mail'};
+      case 'gcal': case 'meetings': return {s: 'workspace', t: 'gcal'};
+      case 'drive': return {s: 'workspace', t: 'drive'};
       case 'vibe': case 'feed': return {s: 'vibe', t: 'feed'};
       case 'people': case 'crew': return {s: 'vibe', t: 'crew', id};
       case 'voice': case 'pulse': return {s: 'vibe', t: 'pulse'};
@@ -104,6 +111,7 @@
     out.reviews = (M.reviews ? M.reviews.queue(ctx).filter(t => M.reviews.canReview(ctx, t)).length : 0);
     out.work = out.reviews;
     out.inbox = M.inbox ? M.inbox.unread(ctx) : 0;
+    out.chat = (M.rooms && ctx.coll.chat) ? M.rooms.unreadRooms(ctx) : 0;
     if (ctx.isFounder) {
       let pend = 0;
       for (const lu of Object.keys(ctx.coll.leave.map)) {
@@ -282,7 +290,7 @@
     const b = M.badges(ctx);
     const go = k => { setMoreOpen(false); M.nav('#' + k); };
 
-    const mainKeys = ['home', 'work', 'accounts', 'base', 'radar', 'web', 'vibe', 'me'];
+    const mainKeys = ['home', 'chat', 'work', 'accounts', 'workspace', 'base', 'radar', 'web', 'vibe', 'me'];
     const founderKeys = ctx.isFounder ? ['hq', 'admin'] : [];
     const item = k => {
       const s = SECTIONS[k];
@@ -303,8 +311,8 @@
     const newMenu = where => newOpen === where ? html`<${NewMenu} onClose=${() => setNewOpen(false)}
       onTask=${() => setNewTask(true)} onAsk=${() => setAskOpen(true)}/>` : null;
 
-    const tabKeys = ctx.isFounder ? ['home', 'hq', 'work', 'vibe'] : ['home', 'work', 'accounts', 'vibe', 'me'];
-    const moreKeys = ctx.isFounder ? ['accounts', 'base', 'radar', 'web', 'me', 'admin'] : ['base', 'radar', 'web'];
+    const tabKeys = ctx.isFounder ? ['home', 'chat', 'hq', 'work'] : ['home', 'chat', 'work', 'accounts', 'me'];
+    const moreKeys = ctx.isFounder ? ['accounts', 'workspace', 'base', 'radar', 'web', 'me', 'admin'] : ['workspace', 'base', 'radar', 'web'];
     const moreBadge = moreKeys.reduce((n, k) => n + (b[k] || 0), 0);
 
     return html`<div class="app">

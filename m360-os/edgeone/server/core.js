@@ -25,6 +25,8 @@ import {radarActions} from './radar.js';
 import {safetyActions} from './safety.js';
 import {peekActions} from './peek.js';
 import {voiceActions} from './voice.js';
+import {googleActions} from './google.js';
+import {webActions} from './web.js';
 
 const LEVEL = {view: 0, interact: 1, admin: 2, owner: 3};
 const SESSION_DAYS = 180;
@@ -225,6 +227,12 @@ export function createApp({store, env = {}}) {
     return LEVEL.view;
   }
   function access(path, uid, level) {
+    const s = segs(path);
+    /* a direct message (chat/dm.<a>.<b>:<sender>) is the two people's alone, whatever the rules say */
+    if ((s[0] === 'chat' || s[0] === 'chatlog') && s[1] && s[1].startsWith('dm.')) {
+      const pair = s[1].split(':')[0].slice(3).split('.');
+      if (pair.indexOf(uid) < 0) return {read: false, write: false};
+    }
     if (level >= LEVEL.interact) return ruleAccess(path, uid, level);
     return guestAccess(path, uid);
   }
@@ -971,8 +979,11 @@ export function createApp({store, env = {}}) {
   };
   /* radar actions (news, awards, watch) live in radar.js and share the store helpers */
   Object.assign(actions, radarActions({store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, isObj, stampKey}));
+  const google = googleActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError, log, rand, docKey});
+  Object.assign(actions, google.actions);
+  Object.assign(actions, webActions({env, getJ, putJ, levelOf, LEVEL, HttpError}));
   /* safety: trash, daily backups, restore. It may register hooks.beforeDelete and hooks.upkeep. */
-  Object.assign(actions, safetyActions({store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, pathOfKey, isObj, hooks, log, stampKey}));
+  Object.assign(actions, safetyActions({store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, pathOfKey, isObj, hooks, log, stampKey, inventory}));
   Object.assign(actions, peekActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError}));
   Object.assign(actions, voiceActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError, log}));
 
@@ -980,7 +991,7 @@ export function createApp({store, env = {}}) {
     status, headers: {'content-type': 'application/json', 'cache-control': 'no-store', ...extra}
   });
 
-  return async function handle(request) {
+  const handle = async function handle(request) {
     if (request.method !== 'POST') return json({error: {code: 'invalid_argument', message: 'POST only'}}, 405);
     /* JSON only: a cross-site form or text/plain post cannot reach an action */
     if (!/^application\/json\b/i.test(request.headers.get('content-type') || '')) return json({error: {code: 'invalid_argument', message: 'JSON only'}}, 415);
@@ -1011,4 +1022,7 @@ export function createApp({store, env = {}}) {
       return json({error: {code, message: e instanceof HttpError ? e.message : 'server error'}}, status);
     }
   };
+  /* GET /api/google: Google's sign-in comes back here */
+  handle.google = request => google.googleCallback(request);
+  return handle;
 }
