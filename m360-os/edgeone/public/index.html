@@ -734,6 +734,11 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .hero-clock{display:inline-flex; align-items:baseline; gap:6px; color:rgba(255,255,255,.7); font-size:12px; letter-spacing:.14em}
 .hero-clock .clock{color:#fff; font-size:13px; letter-spacing:0}
 
+/* ---------- the web page ---------- */
+.web-frame{width:100%; height:calc(100vh - 300px); min-height:420px; border:0; border-radius:12px; background:#fff; display:block}
+.web-frame-card{padding:12px}
+.crm-table td{vertical-align:middle}
+
 /* ==== 71-profile.css ==== */
 /* ---------- profile: your photo and details on Me, and what teammates see ---------- */
 .prof-preview{display:flex; align-items:center; gap:14px; padding:14px 16px; border-radius:16px; background:var(--warm); min-width:0}
@@ -2545,12 +2550,13 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       {k: 'calendar', label: 'Calendar', route: 'calendar'}, {k: 'reviews', label: 'Reviews', route: 'reviews'},
       {k: 'week', label: 'The week', route: 'week'}]},
     accounts: {label: 'Accounts', icon: 'clients', page: 'Accounts', tabs: [
-      {k: 'clients', label: 'Clients', route: 'clients'}, {k: 'pipeline', label: 'Pipeline', route: 'pitches'}]},
+      {k: 'clients', label: 'Clients', route: 'clients'}, {k: 'pipeline', label: 'Pipeline', route: 'pitches'}, {k: 'crm', label: 'CRM', route: 'crm'}]},
     vibe: {label: 'Vibe', icon: 'feed', page: 'Vibe', tabs: [
       {k: 'feed', label: 'Feed', route: 'feed'}, {k: 'crew', label: 'Crew', route: 'people'},
       {k: 'pulse', label: 'Pulse and ideas', route: 'voice'}, {k: 'scores', label: 'Leaderboard', route: 'scores'}]},
     base: {label: 'Base', icon: 'database', page: 'Base', tabs: [
       {k: 'people', label: 'People', route: 'base'}, {k: 'companies', label: 'Companies', route: 'companies'}, {k: 'import', label: 'Import', route: 'import'}]},
+    web: {label: 'Web', icon: 'link', page: 'Web'},
     radar: {label: 'Radar', icon: 'radar', page: 'Radar', tabs: [
       {k: 'news', label: 'News', route: 'radar'}, {k: 'awards', label: 'Awards', route: 'awards'}, {k: 'watch', label: 'Watch', route: 'watch'}]},
     me: {label: 'Me', icon: 'people', page: 'Me', tabs: [
@@ -2575,6 +2581,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       case 'trophies': return {s: 'me', t: 'trophies'};
       case 'accounts': case 'clients': return {s: 'accounts', t: 'clients'};
       case 'pitches': case 'pipeline': return {s: 'accounts', t: 'pipeline'};
+      case 'crm': return {s: 'accounts', t: 'crm'};
+      case 'web': case 'browser': return {s: 'web'};
       case 'vibe': case 'feed': return {s: 'vibe', t: 'feed'};
       case 'people': case 'crew': return {s: 'vibe', t: 'crew', id};
       case 'voice': case 'pulse': return {s: 'vibe', t: 'pulse'};
@@ -2791,11 +2799,12 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const b = M.badges(ctx);
     const go = k => { setMoreOpen(false); M.nav('#' + k); };
 
-    const mainKeys = ['home', 'work', 'accounts', 'base', 'radar', 'vibe', 'me'];
+    const mainKeys = ['home', 'work', 'accounts', 'base', 'radar', 'web', 'vibe', 'me'];
     const founderKeys = ctx.isFounder ? ['hq', 'admin'] : [];
     const item = k => {
       const s = SECTIONS[k];
-      const subs = r.s === k ? visibleTabs(ctx, k, b) : [];
+      /* the open section lists its tabs; Me always does for members, so Leave and the Handbook are never hidden */
+      const subs = (r.s === k || (k === 'me' && !ctx.isFounder)) ? visibleTabs(ctx, k, b) : [];
       return html`<${React.Fragment} key=${k}>
         <button type="button"
           class=${'side-item' + (r.s === k ? ' active' : '') + (s.founder ? ' founder' : '')} onClick=${() => go(k)}>
@@ -2812,7 +2821,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       onTask=${() => setNewTask(true)} onAsk=${() => setAskOpen(true)}/>` : null;
 
     const tabKeys = ctx.isFounder ? ['home', 'hq', 'work', 'vibe'] : ['home', 'work', 'accounts', 'vibe', 'me'];
-    const moreKeys = ctx.isFounder ? ['accounts', 'base', 'radar', 'me', 'admin'] : ['base', 'radar'];
+    const moreKeys = ctx.isFounder ? ['accounts', 'base', 'radar', 'web', 'me', 'admin'] : ['base', 'radar', 'web'];
     const moreBadge = moreKeys.reduce((n, k) => n + (b[k] || 0), 0);
 
     return html`<div class="app">
@@ -3502,7 +3511,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 
       /* R06: WFH check-ins this week over the cap */
       run('R06', () => {
-        const cap = Number(S.wfhCap);
+        const own = (ctx.members && ctx.members[u]) || {};
+        const cap = (own.wfhCap != null && String(own.wfhCap) !== '' && Number(own.wfhCap) >= 0) ? Math.floor(Number(own.wfhCap)) : Number(S.wfhCap);
         if (!(cap >= 0)) return;
         let n = 0;
         for (const d of U.weekDays(U.mondayOf(now))) {
@@ -4001,6 +4011,12 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   }
 
   /* WFH check-ins Monday to Saturday of the week that holds mondayDate */
+  /* WFH days a week for one person: their own allowance when set on the roster, else the team default */
+  function wfhCapFor(ctx, uid) {
+    const m = (ctx && ctx.members && ctx.members[uid]) || {};
+    if (m.wfhCap != null && String(m.wfhCap) !== '' && Number(m.wfhCap) >= 0) return Math.floor(Number(m.wfhCap));
+    return Number(ctx && ctx.settings && ctx.settings.wfhCap) || 0;
+  }
   function wfhUsed(ctx, uid, mondayDate) {
     const days = daysOf(ctx, uid);
     const mon = U.mondayOf(mondayDate || new Date());
@@ -4050,7 +4066,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const uid = ctx.uid;
     const today = U.todayStr();
     const ds = dayStatus(ctx, uid, today);
-    const cap = Number(ctx.settings.wfhCap) || 0;
+    const cap = wfhCapFor(ctx, uid);
     const used = wfhUsed(ctx, uid, new Date());
     const atCap = used >= cap;
 
@@ -4142,7 +4158,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   }
 
   M.parts.CheckinCard = CheckinCard;
-  M.att = {dayStatus, isLate, wfhUsed, locFrom, placeText, distText, modeLabel, PLACES};
+  M.att = {dayStatus, isLate, wfhUsed, wfhCapFor, locFrom, placeText, distText, modeLabel, PLACES};
 })();
 
 /* ==== 12-eod.js ==== */
@@ -6057,8 +6073,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       setBusy(true);
       const now = Date.now();
       const id = isNew ? U.uid() : pitchId;
+      const orgMatch = (M.base && M.base.all) ? (M.base.all(ctx).orgs || []).find(o => !o.archived && String(o.name || '').trim().toLowerCase() === f.brand.trim().toLowerCase()) : null;
       const body = {brand: f.brand.trim(), category: f.category.trim(), contact: f.contactId || f.contact.trim(),
-        source: f.source.trim(), owner: f.owner || ctx.uid, updated: now};
+        source: f.source.trim(), owner: f.owner || ctx.uid, updated: now, ...(orgMatch ? {org: orgMatch.id} : {})};
       let p;
       if (isNew) {
         p = W.set('pitches/' + id, {...body, stage: 'lead', stageAt: now, next: '', nextDate: '', project: '', lost: '', created: now});
@@ -6843,6 +6860,140 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 
   M.pages.Clients = Clients;
   M.clients = {completeness, shares, openTaskCount, STATUS, FIELDS, BRAIN, HEALTH, health, domainOf, domainFrom, cleanSite, newsFor, eodMentions, brandWord, MODEL_LINE};
+})();
+
+/* ==== 27-crm.js ==== */
+/* module: crm. One table of every account we touch: Base companies, clients and pitch brands, folded into
+   one row per company with its stage, owner, people, open pitches, open tasks, next step and last activity.
+   Nothing new is stored here: it is the join across Base, Accounts, the pipeline and Work, in one place. */
+'use strict';
+(function () {
+  const {html, React, U, UI} = M;
+  const {useState, useMemo} = React;
+
+  const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const DAY = 86400000;
+
+  /* every account, one row each: keyed by company id when the Base knows it, else by name */
+  function accounts(ctx) {
+    const rows = {};
+    const byName = {};
+    const rowFor = (key, name) => {
+      if (!rows[key]) rows[key] = {key, name, org: null, client: null, pitches: [], contacts: 0, tasks: 0, last: 0, next: '', nextText: '', owner: ''};
+      return rows[key];
+    };
+    const ix = M.base && M.base.all ? M.base.all(ctx) : null;
+    const orgs = ix && ix.orgs ? ix.orgs : [];
+    for (const o of orgs) {
+      if (o.archived) continue;
+      const r = rowFor('o:' + o.id, o.name);
+      r.org = o; byName[norm(o.name)] = r.key;
+      r.last = Math.max(r.last, Number(o.updated) || 0);
+    }
+    const contacts = ix && ix.contacts ? ix.contacts : [];
+    for (const c of contacts) {
+      if (c.archived) continue;
+      const key = c.org && rows['o:' + c.org] ? 'o:' + c.org : (c.orgName && byName[norm(c.orgName)]) || null;
+      if (!key) continue;
+      rows[key].contacts++;
+      rows[key].last = Math.max(rows[key].last, Number(c.updated) || 0);
+    }
+    const cm = ctx.coll.clients.map;
+    for (const id of Object.keys(cm)) {
+      const c = {id, ...cm[id]};
+      const key = (c.org && rows['o:' + c.org]) ? 'o:' + c.org : (byName[norm(c.name)] || ('c:' + id));
+      const r = rowFor(key, c.name);
+      r.client = c; r.owner = r.owner || c.owner || '';
+      byName[norm(c.name)] = key;
+      r.last = Math.max(r.last, Number(c.updated) || 0);
+    }
+    const pm = ctx.coll.pitches.map;
+    for (const id of Object.keys(pm)) {
+      const p = {id, ...pm[id]};
+      const key = (p.org && rows['o:' + p.org]) ? 'o:' + p.org : (byName[norm(p.brand)] || ('p:' + norm(p.brand)));
+      const r = rowFor(key, p.brand);
+      r.pitches.push(p); r.owner = r.owner || p.owner || '';
+      byName[norm(p.brand)] = key;
+      r.last = Math.max(r.last, Number(p.updated) || Number(p.stageAt) || Number(p.created) || 0);
+      if (p.stage !== 'won' && p.stage !== 'lost' && p.nextDate && (!r.next || p.nextDate < r.next)) { r.next = p.nextDate; r.nextText = p.next || ''; }
+    }
+    const tm = ctx.coll.tasks.map;
+    for (const id of Object.keys(tm)) {
+      const t = tm[id];
+      if (!t || t.status === 'done' || !t.client) continue;
+      const r = Object.values(rows).find(x => x.client && x.client.id === t.client);
+      if (r) { r.tasks++; r.last = Math.max(r.last, Number(t.updated) || 0); }
+    }
+    return Object.values(rows);
+  }
+
+  const stageOf = r => {
+    if (r.client) return {label: r.client.status === 'live' ? 'live client' : (r.client.status || 'client'), kind: r.client.status === 'live' ? 'ink' : 'warm'};
+    const open = r.pitches.filter(p => p.stage !== 'won' && p.stage !== 'lost');
+    if (open.length) { const p = open.sort((a, b) => (b.stageAt || 0) - (a.stageAt || 0))[0]; return {label: 'pitch: ' + (p.stage || 'lead'), kind: 'warm'}; }
+    if (r.pitches.some(p => p.stage === 'won')) return {label: 'won', kind: 'ink'};
+    if (r.pitches.some(p => p.stage === 'lost')) return {label: 'lost', kind: undefined};
+    return {label: 'in the base', kind: undefined};
+  };
+
+  function CRM() {
+    const ctx = M.useCtx();
+    const [q, setQ] = useState('');
+    const [view, setView] = useState('all');
+    const today = U.todayStr();
+    const now = ctx.now || Date.now();
+    const all = useMemo(() => accounts(ctx), [ctx.coll.orgs, ctx.coll.contacts, ctx.coll.clients, ctx.coll.pitches, ctx.coll.tasks]);
+    const fe = ctx.isFounder && ctx.priv && ctx.priv.finance && ctx.priv.finance.data ? (ctx.priv.finance.data.pitch || {}) : {};
+    const value = r => r.pitches.filter(p => p.stage !== 'won' && p.stage !== 'lost').reduce((n, p) => n + (Number((fe[p.id] || {}).value) || 0), 0);
+    const owners = M.useProfiles(Array.from(new Set(all.map(r => r.owner).filter(Boolean))));
+    const list = all.filter(r => {
+      if (view === 'clients' && !r.client) return false;
+      if (view === 'pipeline' && !r.pitches.some(p => p.stage !== 'won' && p.stage !== 'lost')) return false;
+      if (view === 'quiet' && (r.last && now - r.last < 30 * DAY)) return false;
+      if (q && !norm(r.name).includes(norm(q)) && !(r.owner && norm((owners[r.owner] || {}).name).includes(norm(q)))) return false;
+      return true;
+    }).sort((a, b) => (a.next && b.next ? a.next.localeCompare(b.next) : a.next ? -1 : b.next ? 1 : (b.last - a.last)));
+    const open = r => {
+      if (r.org) M.nav('#companies/' + r.org.id);
+      else if (r.client) M.nav('#clients/' + r.client.id);
+      else M.nav('#pitches');
+    };
+    const nextPill = r => {
+      if (!r.next) return null;
+      const late = r.next < today;
+      return html`<${UI.Pill} kind=${late ? 'flame' : 'warm'}>${late ? 'overdue: ' : ''}${U.fmtDay ? U.fmtDay(r.next) : r.next}<//>`;
+    };
+    const counts = {all: all.length, clients: all.filter(r => r.client).length, pipeline: all.filter(r => r.pitches.some(p => p.stage !== 'won' && p.stage !== 'lost')).length, quiet: all.filter(r => !r.last || now - r.last >= 30 * DAY).length};
+    return html`<${UI.Card} title="Every account, connected" id="crm-card"
+      action=${html`<span class="tiny ink62">${all.length} accounts</span>`}>
+      <p class="small ink62" style=${{marginTop: 0}}>Base companies, clients and pitches folded into one row each. Open a row for its people, pitches, projects and brain.</p>
+      <div class="row" style=${{gap: '8px', flexWrap: 'wrap'}}>
+        <input id="crm-q" class="input" style=${{flex: '1 1 200px'}} placeholder="Find a company or an owner" value=${q} onInput=${e => setQ(e.target.value)} aria-label="Find an account"/>
+        <${UI.Seg} sm=${true} ariaLabel="View" value=${view} onChange=${setView}
+          options=${[{v: 'all', label: 'All ' + counts.all}, {v: 'clients', label: 'Clients ' + counts.clients}, {v: 'pipeline', label: 'Pipeline ' + counts.pipeline}, {v: 'quiet', label: 'Quiet ' + counts.quiet}]}/>
+      </div>
+      ${list.length ? html`<div class="tbl-wrap" style=${{marginTop: '12px'}}><table class="tbl crm-table" id="crm-table">
+        <thead><tr><th>account</th><th>stage</th><th>owner</th><th class="num">people</th><th class="num">pitches</th><th class="num">tasks</th><th>next step</th><th>last touch</th>${ctx.isFounder ? html`<th class="num">in play</th>` : null}</tr></thead>
+        <tbody>${list.map(r => {
+          const st = stageOf(r);
+          const openP = r.pitches.filter(p => p.stage !== 'won' && p.stage !== 'lost').length;
+          return html`<tr key=${r.key} class="crm-row" onClick=${() => open(r)} style=${{cursor: 'pointer'}}>
+            <td data-label="account"><span style=${{fontWeight: 500}}>${r.name}</span>${r.org ? null : html` <span class="tiny ink62">not in Base</span>`}</td>
+            <td data-label="stage"><${UI.Pill} kind=${st.kind}>${st.label}<//></td>
+            <td data-label="owner">${r.owner ? html`<${UI.Name} id=${r.owner}/>` : html`<span class="ink62">nobody</span>`}</td>
+            <td data-label="people" class="num">${r.contacts}</td>
+            <td data-label="pitches" class="num">${openP}${r.pitches.length > openP ? html`<span class="tiny ink62"> of ${r.pitches.length}</span>` : null}</td>
+            <td data-label="tasks" class="num">${r.tasks}</td>
+            <td data-label="next step">${nextPill(r)}${r.nextText ? html` <span class="small">${r.nextText}</span>` : null}</td>
+            <td data-label="last touch" class="small ink62">${r.last ? U.timeAgo(r.last) : 'never'}</td>
+            ${ctx.isFounder ? html`<td data-label="in play" class="num">${value(r) ? U.inr(value(r)) : ''}</td>` : null}
+          </tr>`;
+        })}</tbody></table></div>` : html`<${UI.Empty} text="Nothing here yet. Add a client, a pitch, or import the Apollo CSV into Base."/>`}
+    </${UI.Card}>`;
+  }
+
+  M.crm = {accounts, stageOf};
+  M.parts.CRM = CRM;
 })();
 
 /* ==== 30-week.js ==== */
@@ -9194,7 +9345,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       title: (member && member.title) || title || '', pod: (member && member.pod) || '',
       role: (member && (member.role === 'lead' || member.role === 'founder')) ? member.role : 'member',
       joined: (member && member.joined) || U.todayStr(),
-      start: (member && member.start) || '', probationEnd: (member && member.probationEnd) || ''
+      start: (member && member.start) || '', probationEnd: (member && member.probationEnd) || '',
+      wfhCap: (member && member.wfhCap != null && member.wfhCap !== '') ? String(member.wfhCap) : ''
     }));
     const set = (k, v) => setF(x => ({...x, [k]: v}));
     async function save() {
@@ -9202,7 +9354,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const existing = roster.members[person.id];
       const empId = (existing && existing.empId) || ('M360-' + String(roster.nextEmp || 2).padStart(3, '0'));
       const body = {role: f.role, empId, title: f.title, pod: f.pod, joined: f.joined,
-        start: f.start, probationEnd: f.probationEnd, active: true};
+        start: f.start, probationEnd: f.probationEnd, active: true,
+        wfhCap: String(f.wfhCap).trim() === '' ? '' : Math.max(0, Math.min(6, Math.floor(Number(f.wfhCap) || 0)))};
       const patch = {members: {[person.id]: body}, updated: Date.now()};
       if (!existing) patch.nextEmp = (roster.nextEmp || 2) + 1;
       await ctx.W.merge('roster/team', patch);
@@ -9223,6 +9376,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       <${UI.Input} label="joined" type="date" value=${f.joined} onChange=${v => set('joined', v)}/>
       <${UI.Input} label="start time, optional" type="time" value=${f.start} onChange=${v => set('start', v)}/>
       <${UI.Input} label="probation end, optional" type="date" value=${f.probationEnd} onChange=${v => set('probationEnd', v)}/>
+      <${UI.Input} id="desk-wfh" label=${'WFH days a week, blank for the team default (' + (Number(ctx.settings.wfhCap) || 0) + ')'} type="number" value=${f.wfhCap} onChange=${v => set('wfhCap', v)}/>
     <//>`;
   }
 
@@ -10375,7 +10529,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         </div>
       <//>
       <${M.SectionTabs} section="accounts" active=${t}/>
-      ${t === 'pipeline' ? html`<${Embed} page="Pitches"/>` : html`<${Embed} page="Clients"/>`}
+      ${t === 'pipeline' ? html`<${Embed} page="Pitches"/>` : t === 'crm' && M.parts.CRM ? html`<${M.parts.CRM}/>` : html`<${Embed} page="Clients"/>`}
     </div>`;
   }
 
@@ -10936,12 +11090,16 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       say: 'Work. Your tasks board. Drag a task across as it moves. Projects, the calendar and reviews sit in the tabs above.'},
     {go: '#clients', sel: '.main .card, .main h1', title: 'Accounts',
       say: 'Accounts. Every client we serve. Open one and you get its brain, its people, its news and a meeting prep note.'},
+    {go: '#crm', sel: '#crm-card, .main .card', title: 'CRM',
+      say: 'CRM. Every company we touch on one line: its stage, its owner, its people, open pitches, tasks and the next step. Open a row and everything about that account is there.'},
     {go: '#base', sel: '#base-q, .main .card', title: 'Base',
       say: 'Base is everyone we know. Search a name or a company here before you reach out, and add the people you talk to.'},
     {go: '#feed', sel: '.main .card, .main h1', title: 'Vibe',
       say: 'Vibe. Post an update, give kudos, run a poll, and see the leaderboard.'},
     {go: '#radar', sel: '.main .card, .main h1', title: 'Radar',
       say: 'Radar. Live news about our clients and the industry, plus awards and channels worth watching.'},
+    {go: '#web', sel: '#web-url, .main .card', title: 'Web',
+      say: 'Web. A browser inside m360, with the team\'s bookmarks. Canva, Apollo, LinkedIn, all without leaving.'},
     {go: '#me', sel: '#fold-profile, .main .card', title: 'Me',
       say: 'Me. Your photo and profile, your leave, the handbook. If a number ever looks wrong, request a correction here and Kaavish approves it.'},
     {go: '#hq', founder: true, sel: '#fold-brief, .main h1', title: 'HQ',
@@ -14996,7 +15154,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const client = o && o.client ? ctx.coll.clients.map[o.client] : null;
     const projects = client ? Object.keys(ctx.coll.projects.map).map(k => ({id: k, ...ctx.coll.projects.map[k]})).filter(p => p.client === o.client && !p.archived) : [];
     const pn = norm.name(o ? o.name : f.orgName), cn = client ? norm.name(client.name) : '';
-    const pitches = Object.keys(ctx.coll.pitches.map).map(k => ({id: k, ...ctx.coll.pitches.map[k]})).filter(p => { const b = norm.name(p.brand); return b && (b === pn || (cn && b === cn)); });
+    const pitches = Object.keys(ctx.coll.pitches.map).map(k => ({id: k, ...ctx.coll.pitches.map[k]})).filter(p => { if (o && p.org === o.id) return true; const b = norm.name(p.brand); return b && (b === pn || (cn && b === cn)); });
 
     const pickOrg = v => setF(x => ({...x, org: v, orgName: v && ix.oById[v] ? ix.oById[v].name : x.orgName}));
     const newOrg = async () => {
@@ -16216,6 +16374,95 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   M.parts.Connections = Connections;
   M.parts.AskBase = AskBase;
   M.parts.BaseNudges = BaseNudges;
+})();
+
+/* ==== 79-web.js ==== */
+/* module: web. A browser inside m360: an address bar, the team's shared bookmarks, and the page in a frame.
+   Some sites refuse to be framed (banks, Google apps, most logins); those open in a new tab with one tap,
+   and the frame says so instead of sitting blank. Bookmarks live in links/team, editable by anyone. */
+'use strict';
+(function () {
+  const {html, React, U, UI, icons} = M;
+  const {useState, useEffect, useRef} = React;
+
+  const STARTERS = [
+    {title: 'Google', url: 'https://www.google.com/webhp?igu=1'},
+    {title: 'Wikipedia', url: 'https://www.wikipedia.org'},
+    {title: 'Canva', url: 'https://www.canva.com'},
+    {title: 'Apollo', url: 'https://app.apollo.io'},
+    {title: 'LinkedIn', url: 'https://www.linkedin.com'},
+    {title: 'Notion', url: 'https://www.notion.so'}
+  ];
+  const clean = u => {
+    let s = String(u || '').trim();
+    if (!s) return '';
+    if (!/^https?:\/\//i.test(s)) s = (/\s/.test(s) || !/\./.test(s)) ? 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(s) : 'https://' + s;
+    try { const x = new URL(s); return x.protocol === 'http:' || x.protocol === 'https:' ? x.href : ''; } catch (e) { return ''; }
+  };
+  const hostOf = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } };
+
+  function Web() {
+    const ctx = M.useCtx();
+    const doc = M.useDoc(ctx.db, 'links/team');
+    const marks = (doc.data && Array.isArray(doc.data.items)) ? doc.data.items : [];
+    const [typed, setTyped] = useState('');
+    const [url, setUrl] = useState(() => { try { return sessionStorage.getItem('m360.web') || ''; } catch (e) { return ''; } });
+    const [slow, setSlow] = useState(false);
+    const [adding, setAdding] = useState(false);
+    const [title, setTitle] = useState('');
+    const timer = useRef(0);
+    useEffect(() => { try { if (url) sessionStorage.setItem('m360.web', url); } catch (e) { /* private */ } }, [url]);
+    const go = u => {
+      const c = clean(u);
+      if (!c) { M.toast('That does not look like an address', true); return; }
+      setUrl(c); setTyped(c); setSlow(false);
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => setSlow(true), 6000);
+    };
+    const loaded = () => { clearTimeout(timer.current); setSlow(false); };
+    const openTab = u => { try { window.open(u || url, '_blank', 'noopener'); } catch (e) { /* blocked */ } };
+    const add = async () => {
+      const c = clean(url);
+      if (!c) return;
+      const items = marks.filter(m => m.url !== c).concat([{id: U.uid(), title: (title || hostOf(c)).slice(0, 60), url: c, by: ctx.uid, at: Date.now()}]).slice(-60);
+      await ctx.W.merge('links/team', {items, updated: Date.now()}).catch(() => {});
+      setAdding(false); setTitle(''); M.toast('Bookmarked for the team');
+    };
+    const remove = async m => {
+      await ctx.W.merge('links/team', {items: marks.filter(x => x.id !== m.id), updated: Date.now()}).catch(() => {});
+    };
+    const list = marks.length ? marks : STARTERS.map(s => ({...s, id: 's:' + s.title, starter: true}));
+    return html`<div class="stack" style=${{gap: '14px'}}>
+      <${UI.Card} id="web-card">
+        <div class="row nowrap" style=${{gap: '8px'}}>
+          <button type="button" class="iconbtn" aria-label="Back" title="Back" onClick=${() => history.back()}><${icons.up}/></button>
+          <input id="web-url" class="input grow" placeholder="Type an address, or search" value=${typed} onInput=${e => setTyped(e.target.value)}
+            onKeyDown=${e => { if (e.key === 'Enter') go(typed); }} aria-label="Address" inputMode="url" autoCapitalize="off" autoCorrect="off"/>
+          <${UI.Btn} id="web-go" onClick=${() => go(typed)}>Go<//>
+          ${url ? html`<${UI.Btn} kind="sec" id="web-tab" onClick=${() => openTab()}>New tab<//>` : null}
+          ${url ? html`<${UI.Btn} kind="sec" id="web-save" onClick=${() => { setTitle(hostOf(url)); setAdding(true); }}>Bookmark<//>` : null}
+        </div>
+        ${adding ? html`<div class="row" style=${{gap: '8px', marginTop: '10px'}}>
+          <input id="web-title" class="input grow" placeholder="Name it" value=${title} onInput=${e => setTitle(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') add(); }} aria-label="Bookmark name"/>
+          <${UI.Btn} sm=${true} onClick=${add}>Save<//><${UI.Btn} kind="ghost" sm=${true} onClick=${() => setAdding(false)}>Cancel<//>
+        </div>` : null}
+        <div class="row" style=${{gap: '6px', marginTop: '10px', flexWrap: 'wrap'}} id="web-marks">
+          ${list.map(m => html`<span key=${m.id} class="row nowrap" style=${{gap: '2px'}}>
+            <button type="button" class="chip" onClick=${() => go(m.url)} title=${m.url}>${m.title}</button>
+            ${m.starter ? null : html`<button type="button" class="iconbtn" style=${{width: '26px', height: '26px'}} aria-label=${'Remove ' + m.title} onClick=${() => remove(m)}><${icons.x}/></button>`}
+          </span>`)}
+        </div>
+      <//>
+      ${url ? html`<${UI.Card} className="web-frame-card">
+        ${slow ? html`<div class="row between small" style=${{marginBottom: '8px'}}><span class="ink62">${hostOf(url)} has not drawn anything yet. Sites that refuse a frame open in a new tab.</span>
+          <${UI.Btn} sm=${true} onClick=${() => openTab()}>Open in a new tab<//></div>` : null}
+        <iframe id="web-frame" class="web-frame" src=${url} title=${hostOf(url)} onLoad=${loaded}
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads" referrerPolicy="no-referrer-when-downgrade" allow="clipboard-write; fullscreen"/>
+      <//>` : html`<${UI.Card}><${UI.Empty} text="Type an address above, or tap a bookmark. Save the pages the team lives in, so nobody has to leave m360."/><//>`}
+    </div>`;
+  }
+
+  M.pages.Web = Web;
 })();
 
 /* ==== 80-voice.js ==== */

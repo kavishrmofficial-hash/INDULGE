@@ -585,7 +585,7 @@
     const client = o && o.client ? ctx.coll.clients.map[o.client] : null;
     const projects = client ? Object.keys(ctx.coll.projects.map).map(k => ({id: k, ...ctx.coll.projects.map[k]})).filter(p => p.client === o.client && !p.archived) : [];
     const pn = norm.name(o ? o.name : f.orgName), cn = client ? norm.name(client.name) : '';
-    const pitches = Object.keys(ctx.coll.pitches.map).map(k => ({id: k, ...ctx.coll.pitches.map[k]})).filter(p => { const b = norm.name(p.brand); return b && (b === pn || (cn && b === cn)); });
+    const pitches = Object.keys(ctx.coll.pitches.map).map(k => ({id: k, ...ctx.coll.pitches.map[k]})).filter(p => { if (o && p.org === o.id) return true; const b = norm.name(p.brand); return b && (b === pn || (cn && b === cn)); });
 
     const pickOrg = v => setF(x => ({...x, org: v, orgName: v && ix.oById[v] ? ix.oById[v].name : x.orgName}));
     const newOrg = async () => {

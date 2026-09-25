@@ -218,7 +218,8 @@
 
       /* R06: WFH check-ins this week over the cap */
       run('R06', () => {
-        const cap = Number(S.wfhCap);
+        const own = (ctx.members && ctx.members[u]) || {};
+        const cap = (own.wfhCap != null && String(own.wfhCap) !== '' && Number(own.wfhCap) >= 0) ? Math.floor(Number(own.wfhCap)) : Number(S.wfhCap);
         if (!(cap >= 0)) return;
         let n = 0;
         for (const d of U.weekDays(U.mondayOf(now))) {

@@ -729,3 +729,8 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .clock{font-variant-numeric:tabular-nums; font-weight:600; letter-spacing:-.02em}
 .hero-clock{display:inline-flex; align-items:baseline; gap:6px; color:rgba(255,255,255,.7); font-size:12px; letter-spacing:.14em}
 .hero-clock .clock{color:#fff; font-size:13px; letter-spacing:0}
+
+/* ---------- the web page ---------- */
+.web-frame{width:100%; height:calc(100vh - 300px); min-height:420px; border:0; border-radius:12px; background:#fff; display:block}
+.web-frame-card{padding:12px}
+.crm-table td{vertical-align:middle}

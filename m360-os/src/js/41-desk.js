@@ -34,7 +34,8 @@
       title: (member && member.title) || title || '', pod: (member && member.pod) || '',
       role: (member && (member.role === 'lead' || member.role === 'founder')) ? member.role : 'member',
       joined: (member && member.joined) || U.todayStr(),
-      start: (member && member.start) || '', probationEnd: (member && member.probationEnd) || ''
+      start: (member && member.start) || '', probationEnd: (member && member.probationEnd) || '',
+      wfhCap: (member && member.wfhCap != null && member.wfhCap !== '') ? String(member.wfhCap) : ''
     }));
     const set = (k, v) => setF(x => ({...x, [k]: v}));
     async function save() {
@@ -42,7 +43,8 @@
       const existing = roster.members[person.id];
       const empId = (existing && existing.empId) || ('M360-' + String(roster.nextEmp || 2).padStart(3, '0'));
       const body = {role: f.role, empId, title: f.title, pod: f.pod, joined: f.joined,
-        start: f.start, probationEnd: f.probationEnd, active: true};
+        start: f.start, probationEnd: f.probationEnd, active: true,
+        wfhCap: String(f.wfhCap).trim() === '' ? '' : Math.max(0, Math.min(6, Math.floor(Number(f.wfhCap) || 0)))};
       const patch = {members: {[person.id]: body}, updated: Date.now()};
       if (!existing) patch.nextEmp = (roster.nextEmp || 2) + 1;
       await ctx.W.merge('roster/team', patch);
@@ -63,6 +65,7 @@
       <${UI.Input} label="joined" type="date" value=${f.joined} onChange=${v => set('joined', v)}/>
       <${UI.Input} label="start time, optional" type="time" value=${f.start} onChange=${v => set('start', v)}/>
       <${UI.Input} label="probation end, optional" type="date" value=${f.probationEnd} onChange=${v => set('probationEnd', v)}/>
+      <${UI.Input} id="desk-wfh" label=${'WFH days a week, blank for the team default (' + (Number(ctx.settings.wfhCap) || 0) + ')'} type="number" value=${f.wfhCap} onChange=${v => set('wfhCap', v)}/>
     <//>`;
   }
 

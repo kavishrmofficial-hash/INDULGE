@@ -203,8 +203,9 @@
       setBusy(true);
       const now = Date.now();
       const id = isNew ? U.uid() : pitchId;
+      const orgMatch = (M.base && M.base.all) ? (M.base.all(ctx).orgs || []).find(o => !o.archived && String(o.name || '').trim().toLowerCase() === f.brand.trim().toLowerCase()) : null;
       const body = {brand: f.brand.trim(), category: f.category.trim(), contact: f.contactId || f.contact.trim(),
-        source: f.source.trim(), owner: f.owner || ctx.uid, updated: now};
+        source: f.source.trim(), owner: f.owner || ctx.uid, updated: now, ...(orgMatch ? {org: orgMatch.id} : {})};
       let p;
       if (isNew) {
         p = W.set('pitches/' + id, {...body, stage: 'lead', stageAt: now, next: '', nextDate: '', project: '', lost: '', created: now});

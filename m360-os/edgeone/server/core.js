@@ -352,14 +352,48 @@ export function createApp({store, env = {}}) {
 
   /* ---------- documents ---------- */
   /* every document key with its etag, grouped by collection */
+  /* Every change also stamps a small marker per collection (x/v/<coll>: which ids exist and a tag per id),
+     read with strong consistency. The blob listing can lag behind writes on the edge, so the markers
+     correct it: a fresh write shows at once, a deleted id is dropped, and a stale etag never wins. */
+  const markerKey = coll => 'x/v/' + coll;
+  const GONE_MS = 86400000;
+  async function bumpMarker(coll, id, tag) {
+    for (let i = 0; i < 3; i++) {
+      const m = (await getJ(markerKey(coll)).catch(() => null)) || {ids: {}, gone: {}};
+      const ids = {...(m.ids || {})}, gone = {};
+      const now = Date.now();
+      for (const g of Object.keys(m.gone || {})) if (now - m.gone[g] < GONE_MS) gone[g] = m.gone[g];
+      if (tag == null) { delete ids[id]; gone[id] = now; } else { ids[id] = tag; delete gone[id]; }
+      await putJ(markerKey(coll), {ids, gone, v: now});
+      const chk = await getJ(markerKey(coll)).catch(() => null);
+      const ok = chk && chk.ids && (tag == null ? !(id in chk.ids) : chk.ids[id] === tag);
+      if (ok) return;
+    }
+  }
+  /* for the safety module: a document written or removed outside write() stamps its marker too */
+  const stampKey = async (key, str) => {
+    const sg = segs(pathOfKey(key));
+    if (sg.length < 2) return;
+    await bumpMarker(sg.slice(0, -1).join('/'), sg[sg.length - 1], str == null ? null : digest([String(str)]));
+  };
   async function inventory() {
     const by = {};
-    for (const b of await listAll('d/')) {
+    const [blobs, marks] = await Promise.all([listAll('d/'), listAll('x/v/')]);
+    for (const b of blobs) {
       const path = pathOfKey(b.key), s = segs(path);
       if (s.length < 2 || s.length % 2) continue;
       const coll = s.slice(0, -1).join('/');
       (by[coll] = by[coll] || {})[s[s.length - 1]] = normTag(b.etag);
     }
+    await Promise.all(marks.map(async b => {
+      const coll = b.key.slice(4);
+      const m = await getJ(b.key).catch(() => null);
+      if (!m || !isObj(m.ids)) return;
+      const tags = by[coll] || {};
+      for (const id of Object.keys(m.ids)) tags[id] = String(m.ids[id]);
+      for (const id of Object.keys(m.gone || {})) delete tags[id];
+      if (Object.keys(tags).length) by[coll] = tags; else delete by[coll];
+    }));
     return by;
   }
   const versionOf = tags => digest(Object.keys(tags || {}).map(id => id + ':' + tags[id]));
@@ -439,7 +473,7 @@ export function createApp({store, env = {}}) {
       await putJ('p/' + uid, {name, email, at: Date.now()});
       await putJ(emailKey(email), {uid});
       await putJ('o/owner', {uid});
-      await Promise.all(Object.keys(SEED).map(path => putJ(docKey(path), SEED[path])));
+      await Promise.all(Object.keys(SEED).map(async path => { await putJ(docKey(path), SEED[path]); await stampKey(docKey(path), JSON.stringify(SEED[path])).catch(() => {}); }));
       const token = await startSession(uid, req.ua);
       await log(uid, 'setup', '', req.ua);
       return {__cookie: cookie(token), uid};
@@ -592,6 +626,7 @@ export function createApp({store, env = {}}) {
         /* nothing is erased outright: safety.js keeps a copy in the trash first */
         if (hooks.beforeDelete) await hooks.beforeDelete(key, path, v.uid).catch(() => {});
         await store.delete(key).catch(() => {});
+        await bumpMarker(s.slice(0, -1).join('/'), s[s.length - 1], null).catch(() => {});
         await log(v.uid, 'delete', path, '');
         return {ok: true, doc: null};
       }
@@ -606,6 +641,7 @@ export function createApp({store, env = {}}) {
       /* every move is backed up: safety.js keeps the version being replaced */
       if (hooks.beforeWrite) await hooks.beforeWrite(key, path, v.uid, cur).catch(() => {});
       await store.set(key, str);
+      await bumpMarker(s.slice(0, -1).join('/'), s[s.length - 1], digest([str])).catch(() => {});
       await log(v.uid, op, path, summarize(path, data));
       /* someone taken off the roster is signed out of every device at once */
       if (path === 'roster/team') {
@@ -781,6 +817,7 @@ export function createApp({store, env = {}}) {
         if (!cur) team.nextEmp = (team.nextEmp || 2) + 1;
         team.updated = Date.now();
         await store.set(docKey('roster/team'), JSON.stringify(team));
+        await bumpMarker('roster', 'team', digest([JSON.stringify(team)])).catch(() => {});
       }
       await store.delete('i/' + code).catch(() => {});
       const token = await startSession(uid, req.ua);
@@ -933,9 +970,9 @@ export function createApp({store, env = {}}) {
     }
   };
   /* radar actions (news, awards, watch) live in radar.js and share the store helpers */
-  Object.assign(actions, radarActions({store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, isObj}));
+  Object.assign(actions, radarActions({store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, isObj, stampKey}));
   /* safety: trash, daily backups, restore. It may register hooks.beforeDelete and hooks.upkeep. */
-  Object.assign(actions, safetyActions({store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, pathOfKey, isObj, hooks, log}));
+  Object.assign(actions, safetyActions({store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, pathOfKey, isObj, hooks, log, stampKey}));
   Object.assign(actions, peekActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError}));
   Object.assign(actions, voiceActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError, log}));
 

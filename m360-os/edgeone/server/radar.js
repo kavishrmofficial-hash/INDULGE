@@ -285,7 +285,9 @@ export function radarActions(h) {
     const s = (await getJ(key)) || {};
     const radar = s.radar || {};
     const next = fn({channels: Array.isArray(radar.channels) ? radar.channels.slice() : [], dropped: Array.isArray(radar.dropped) ? radar.dropped.slice() : []});
-    await store.set(key, JSON.stringify({...s, radar: {...radar, channels: next.channels, dropped: next.dropped}, updated: Date.now()}));
+    const str = JSON.stringify({...s, radar: {...radar, channels: next.channels, dropped: next.dropped}, updated: Date.now()});
+    await store.set(key, str);
+    if (h.stampKey) await h.stampKey(key, str).catch(() => {});
     await store.delete('n/videos').catch(() => {});
     return next;
   }

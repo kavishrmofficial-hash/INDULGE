@@ -59,6 +59,12 @@
   }
 
   /* WFH check-ins Monday to Saturday of the week that holds mondayDate */
+  /* WFH days a week for one person: their own allowance when set on the roster, else the team default */
+  function wfhCapFor(ctx, uid) {
+    const m = (ctx && ctx.members && ctx.members[uid]) || {};
+    if (m.wfhCap != null && String(m.wfhCap) !== '' && Number(m.wfhCap) >= 0) return Math.floor(Number(m.wfhCap));
+    return Number(ctx && ctx.settings && ctx.settings.wfhCap) || 0;
+  }
   function wfhUsed(ctx, uid, mondayDate) {
     const days = daysOf(ctx, uid);
     const mon = U.mondayOf(mondayDate || new Date());
@@ -108,7 +114,7 @@
     const uid = ctx.uid;
     const today = U.todayStr();
     const ds = dayStatus(ctx, uid, today);
-    const cap = Number(ctx.settings.wfhCap) || 0;
+    const cap = wfhCapFor(ctx, uid);
     const used = wfhUsed(ctx, uid, new Date());
     const atCap = used >= cap;
 
@@ -200,5 +206,5 @@
   }
 
   M.parts.CheckinCard = CheckinCard;
-  M.att = {dayStatus, isLate, wfhUsed, locFrom, placeText, distText, modeLabel, PLACES};
+  M.att = {dayStatus, isLate, wfhUsed, wfhCapFor, locFrom, placeText, distText, modeLabel, PLACES};
 })();

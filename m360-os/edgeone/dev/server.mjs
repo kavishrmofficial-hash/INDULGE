@@ -17,7 +17,8 @@ const file = process.argv[3] || path.join(here, '.store.json');
 
 let data = {};
 try { data = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) { data = {}; }
-const save = () => fs.writeFileSync(file, JSON.stringify(data));
+const views = [];   /* listing snapshots, for LIST_LAG_MS */
+const save = () => { fs.writeFileSync(file, JSON.stringify(data)); if (process.env.LIST_LAG_MS) { views.push({at: Date.now(), data: {...data}}); if (views.length > 400) views.shift(); } };
 const md5 = s => crypto.createHash('md5').update(s).digest('hex');
 const store = {
   async get(key, opts) {
@@ -28,7 +29,16 @@ const store = {
   async delete(key) { delete data[key]; save(); },
   async list(opts) {
     const p = (opts && opts.prefix) || '';
-    return {blobs: Object.keys(data).filter(k => k.startsWith(p)).sort().map(k => ({key: k, etag: '&quot;' + md5(data[k]) + '&quot;'})), directories: []};
+    /* LIST_LAG_MS: the listing answers from a copy that old, the way an edge listing can lag a write */
+    const lag = Number(process.env.LIST_LAG_MS) || 0;
+    let view = data;
+    /* only document blobs lag (the way a busy prefix does); markers and the rest list fresh */
+    if (lag && p.startsWith('d/')) {
+      const cut = Date.now() - lag;
+      const snap = views.filter(x => x.at <= cut).pop();
+      view = snap ? snap.data : {};
+    }
+    return {blobs: Object.keys(view).filter(k => k.startsWith(p)).sort().map(k => ({key: k, etag: '&quot;' + md5(view[k]) + '&quot;'})), directories: []};
   }
 };
 

@@ -127,6 +127,14 @@ Three reviewers read the buddy, the server and the data flow between features; t
 
 Closed in the same release: a second person with Full access reads shared founder docs from the owner (the roster remembers who owns the workspace) and keeps their own finance notes; the activity log prunes itself once a day (90 days on EdgeOne, the same from the founder's browser on the artifact); someone waiting to join sees that a roster exists but no names on it; an admin who is not the owner never sees another person's private docs in version history, the trash, backups or the site export.
 
+## What is in v10 (day one feedback)
+
+- **Everyone sees the same thing**: every write now stamps a strongly consistent marker per collection (`x/v/<coll>`) that sync reads alongside the blob listing, because an edge listing can lag a write for a while and people were seeing different client states. Restores and reverts stamp too. `test_sync.py` proves it against a listing sixty seconds stale.
+- **CRM** under Accounts: Base companies, clients and pitch brands folded into one row each, with stage, owner, people, open pitches, open tasks, next step (overdue in flame), last touch and, for the founder, value in play. A pitch remembers its Base company when the names match.
+- **Web**: a browser inside m360 with shared bookmarks (`links/team`). Sites that refuse a frame open in a new tab with one tap.
+- **WFH allowance per person**: Admin > Team > edit a person > WFH days a week. Blank means the team default. Check-in and the WFH rule use it. WFH was never leave; leave stays leave.
+- **The handbook** and the rest of Me stay listed in members' sidebars whichever section is open.
+
 ## Launch day
 
 1. Admin > Team: invite each person by email. They get a link, type their email and pick a password. Without an email key the invite shows a link to copy instead.

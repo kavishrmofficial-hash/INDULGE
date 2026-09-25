@@ -33,12 +33,13 @@
       {k: 'calendar', label: 'Calendar', route: 'calendar'}, {k: 'reviews', label: 'Reviews', route: 'reviews'},
       {k: 'week', label: 'The week', route: 'week'}]},
     accounts: {label: 'Accounts', icon: 'clients', page: 'Accounts', tabs: [
-      {k: 'clients', label: 'Clients', route: 'clients'}, {k: 'pipeline', label: 'Pipeline', route: 'pitches'}]},
+      {k: 'clients', label: 'Clients', route: 'clients'}, {k: 'pipeline', label: 'Pipeline', route: 'pitches'}, {k: 'crm', label: 'CRM', route: 'crm'}]},
     vibe: {label: 'Vibe', icon: 'feed', page: 'Vibe', tabs: [
       {k: 'feed', label: 'Feed', route: 'feed'}, {k: 'crew', label: 'Crew', route: 'people'},
       {k: 'pulse', label: 'Pulse and ideas', route: 'voice'}, {k: 'scores', label: 'Leaderboard', route: 'scores'}]},
     base: {label: 'Base', icon: 'database', page: 'Base', tabs: [
       {k: 'people', label: 'People', route: 'base'}, {k: 'companies', label: 'Companies', route: 'companies'}, {k: 'import', label: 'Import', route: 'import'}]},
+    web: {label: 'Web', icon: 'link', page: 'Web'},
     radar: {label: 'Radar', icon: 'radar', page: 'Radar', tabs: [
       {k: 'news', label: 'News', route: 'radar'}, {k: 'awards', label: 'Awards', route: 'awards'}, {k: 'watch', label: 'Watch', route: 'watch'}]},
     me: {label: 'Me', icon: 'people', page: 'Me', tabs: [
@@ -63,6 +64,8 @@
       case 'trophies': return {s: 'me', t: 'trophies'};
       case 'accounts': case 'clients': return {s: 'accounts', t: 'clients'};
       case 'pitches': case 'pipeline': return {s: 'accounts', t: 'pipeline'};
+      case 'crm': return {s: 'accounts', t: 'crm'};
+      case 'web': case 'browser': return {s: 'web'};
       case 'vibe': case 'feed': return {s: 'vibe', t: 'feed'};
       case 'people': case 'crew': return {s: 'vibe', t: 'crew', id};
       case 'voice': case 'pulse': return {s: 'vibe', t: 'pulse'};
@@ -279,11 +282,12 @@
     const b = M.badges(ctx);
     const go = k => { setMoreOpen(false); M.nav('#' + k); };
 
-    const mainKeys = ['home', 'work', 'accounts', 'base', 'radar', 'vibe', 'me'];
+    const mainKeys = ['home', 'work', 'accounts', 'base', 'radar', 'web', 'vibe', 'me'];
     const founderKeys = ctx.isFounder ? ['hq', 'admin'] : [];
     const item = k => {
       const s = SECTIONS[k];
-      const subs = r.s === k ? visibleTabs(ctx, k, b) : [];
+      /* the open section lists its tabs; Me always does for members, so Leave and the Handbook are never hidden */
+      const subs = (r.s === k || (k === 'me' && !ctx.isFounder)) ? visibleTabs(ctx, k, b) : [];
       return html`<${React.Fragment} key=${k}>
         <button type="button"
           class=${'side-item' + (r.s === k ? ' active' : '') + (s.founder ? ' founder' : '')} onClick=${() => go(k)}>
@@ -300,7 +304,7 @@
       onTask=${() => setNewTask(true)} onAsk=${() => setAskOpen(true)}/>` : null;
 
     const tabKeys = ctx.isFounder ? ['home', 'hq', 'work', 'vibe'] : ['home', 'work', 'accounts', 'vibe', 'me'];
-    const moreKeys = ctx.isFounder ? ['accounts', 'base', 'radar', 'me', 'admin'] : ['base', 'radar'];
+    const moreKeys = ctx.isFounder ? ['accounts', 'base', 'radar', 'web', 'me', 'admin'] : ['base', 'radar', 'web'];
     const moreBadge = moreKeys.reduce((n, k) => n + (b[k] || 0), 0);
 
     return html`<div class="app">

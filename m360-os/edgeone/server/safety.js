@@ -55,6 +55,9 @@ async function eachChunk(list, fn) {
 
 export function safetyActions(h) {
   const {store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, pathOfKey, isObj, hooks, log} = h;
+  const stampKey = h.stampKey || (async () => {});
+  /* every document put back here is stamped, so every open page sees it at once */
+  const putDoc = async (key, str) => { await store.set(key, str); await stampKey(key, str).catch(() => {}); };
   const raw = key => store.get(key, {type: 'text', consistency: 'strong'});
   const admin = async v => { if (!v || (await levelOf(v.uid)) < LEVEL.admin) throw new HttpError(403, 'invalid_argument'); };
   const owner = async v => { if (!v || v.uid !== (await ownerUid())) throw new HttpError(403, 'invalid_argument'); };
@@ -390,8 +393,8 @@ export function safetyActions(h) {
       const h = await getJ(histPrefix(key) + id).catch(() => null);
       if (!h || h.doc == null) throw new HttpError(404, 'invalid_argument', 'That version is gone.');
       await hooks.beforeWrite(key, path, v.uid, null);
-      if (isObj(h.doc) && typeof h.doc.raw === 'string' && Object.keys(h.doc).length === 1) await store.set(key, h.doc.raw);
-      else await store.set(key, JSON.stringify(h.doc));
+      if (isObj(h.doc) && typeof h.doc.raw === 'string' && Object.keys(h.doc).length === 1) await putDoc(key, h.doc.raw);
+      else await putDoc(key, JSON.stringify(h.doc));
       await store.delete('a/' + key.slice(2).split('~').slice(0, -1).join('~')).catch(() => {});
       await log(v.uid, 'revert', path, 'to the version from ' + new Date(h.at || histMs(id)).toISOString());
       return {ok: true, path, at: h.at};
@@ -419,8 +422,8 @@ export function safetyActions(h) {
       const cur = await raw(key).catch(() => null);
       if (cur != null && body.force !== true) throw new HttpError(409, 'exists', 'A document is already there.');
       if (cur != null) await hooks.beforeDelete(key, t.path, v.uid);
-      if (isObj(t.doc) && typeof t.doc.raw === 'string' && Object.keys(t.doc).length === 1) await store.set(key, t.doc.raw);
-      else await store.set(key, JSON.stringify(t.doc));
+      if (isObj(t.doc) && typeof t.doc.raw === 'string' && Object.keys(t.doc).length === 1) await putDoc(key, t.doc.raw);
+      else await putDoc(key, JSON.stringify(t.doc));
       await store.delete('t/' + id).catch(() => {});
       await log(v.uid, 'restore', t.path, cur != null ? 'from the trash, replaced the current one' : 'from the trash');
       return {ok: true, path: t.path};
@@ -502,7 +505,7 @@ export function safetyActions(h) {
           await hooks.beforeDelete(key, path, by);
           trashed++;
         }
-        await store.set(key, site.docs[path]);
+        await putDoc(key, site.docs[path]);
         touched.add(segs(path).slice(0, -1).join('/'));
         docs++;
       }
@@ -557,7 +560,7 @@ export function safetyActions(h) {
           await hooks.beforeDelete(key, path, v.uid);
           trashed++;
         }
-        await store.set(key, JSON.stringify(docs[id]));
+        await putDoc(key, JSON.stringify(docs[id]));
         written++;
       }
       await log(v.uid, 'restore', coll, mode + ' from ' + ymd + ': ' + written + ' written, ' + skipped + ' skipped, ' + trashed + ' to the trash');
