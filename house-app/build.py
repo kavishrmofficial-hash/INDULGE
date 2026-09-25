@@ -30,9 +30,9 @@ def main():
             raise SystemExit('the page contains a dash the copy rules forbid: %r' % bad)
     standalone = ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
                   '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
-                  '<meta name="color-scheme" content="dark">\n'
+                  '<meta name="color-scheme" content="light dark">\n'
                   '<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}'
-                  'html{background:#0B0A08}[hidden]{display:none!important}</style>\n'
+                  'html{background:#FFFFFF}@media (prefers-color-scheme:dark){html{background:#0F0F10}}[hidden]{display:none!important}</style>\n'
                   '</head>\n<body>\n' + inner + '</body>\n</html>\n')
     with open(os.path.join(ROOT, 'index.html'), 'w', encoding='utf-8') as f:
         f.write(standalone)

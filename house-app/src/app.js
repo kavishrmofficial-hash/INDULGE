@@ -57,7 +57,7 @@ function fresh() {
     follows: {zara: true, kabir: true, meher: true, riya: true, vikram: true},
     tables: {t1: true}, guests: [{name: 'Kunal Mehta', when: 'Sat 19 Sep, 20:00', where: 'The Dining Room', past: true}],
     passes: D.me.passes, credits: D.me.credits, nominations: [{name: 'R. Kapoor', what: 'Sports physician', status: 'Under review'}],
-    settings: {directory: true, coach: true, quiet: false, source: 'WHOOP'},
+    settings: {directory: true, coach: true, quiet: false, source: 'WHOOP', theme: 'system'},
     threads: JSON.parse(JSON.stringify(D.threads)),
     day: 6, interest: {}, notifRead: false,
     bookSeg: 'train', bookDate: 0, connectSeg: 'feed', eventFilter: 'all', dirQuery: '', dirFilter: 'all', checkedIn: false
@@ -253,8 +253,8 @@ V.form = () => {
     <div class="card stack g12">
       <div class="row between"><span class="micro">Sleep</span><span class="num small sub">need ${hm(d.need)}</span></div>
       <div class="row" style="align-items:baseline;gap:6px"><span class="h-display h2">${hm(d.sleep)}</span><span class="small ${perf >= 90 ? 'good-t' : 'warn-t'}">${perf}%</span></div>
-      <div class="stages"><i style="width:${d.deep / tot * 100}%;background:#5E86B0"></i><i style="width:${d.rem / tot * 100}%;background:var(--cool)"></i><i style="width:${d.light / tot * 100}%;background:rgba(147,180,218,.45)"></i><i style="width:${d.awake / tot * 100}%;background:var(--ink-15)"></i></div>
-      <div class="legend"><span><i style="background:#5E86B0"></i>Deep ${hm(d.deep)}</span><span><i style="background:var(--cool)"></i>REM ${hm(d.rem)}</span><span><i style="background:rgba(147,180,218,.45)"></i>Light ${hm(d.light)}</span><span><i style="background:var(--ink-15)"></i>Awake ${Math.round(d.awake * 60)}m</span></div>
+      <div class="stages"><i style="width:${d.deep / tot * 100}%;background:var(--cool-2)"></i><i style="width:${d.rem / tot * 100}%;background:var(--cool)"></i><i style="width:${d.light / tot * 100}%;background:rgba(147,180,218,.45)"></i><i style="width:${d.awake / tot * 100}%;background:var(--ink-15)"></i></div>
+      <div class="legend"><span><i style="background:var(--cool-2)"></i>Deep ${hm(d.deep)}</span><span><i style="background:var(--cool)"></i>REM ${hm(d.rem)}</span><span><i style="background:rgba(147,180,218,.45)"></i>Light ${hm(d.light)}</span><span><i style="background:var(--ink-15)"></i>Awake ${Math.round(d.awake * 60)}m</span></div>
     </div>
     <div class="card stack g12">
       <div class="row between"><span class="micro">Seven days</span><span class="num small sub">avg ${Math.round(D.days.reduce((a, x) => a + x.recovery, 0) / 7)}%</span></div>
@@ -595,6 +595,11 @@ V.settings = () => `
       ${[['directory', 'Visible to members', 'Your name and sport in the directory and in the room'], ['coach', 'Share form with the House', 'Riya and Priya see your recovery, sleep and strain'], ['quiet', 'Quiet hours', 'No notifications between 22:00 and 06:00']].map(([k, t, s]) => `<div class="li"><div class="grow"><div class="t">${t}</div><div class="s">${s}</div></div><button class="switch ${S.settings[k] ? 'on' : ''}" data-toggle="${k}" aria-label="${t}"></button></div>`).join('')}
     </div>
     <div class="card stack g12">
+      <p class="micro">Appearance</p>
+      <div class="segs">${[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([k, l]) => `<button class="seg ${(S.settings.theme || 'system') === k ? 'on' : ''}" data-act="theme:${k}">${l}</button>`).join('')}</div>
+      <p class="small sub">White paper by day, near black by night. System follows your phone.</p>
+    </div>
+    <div class="card stack g12">
       <p class="micro">Form comes from</p>
       <div class="segs">${['WHOOP', 'Apple Health', 'Garmin'].map(s => `<button class="seg ${S.settings.source === s ? 'on' : ''}" data-act="source:${s}">${s}</button>`).join('')}</div>
       <p class="small sub">Synced every hour while the app is open. Raw data stays with your device and the House.</p>
@@ -691,6 +696,7 @@ const A = {
   guestsheet: where => guestSheet(where || ''),
   interest: n => { S.interest[n] = !S.interest[n]; save(); render(); if (S.interest[n]) toast('Noted. You will hear first.'); },
   source: s => { S.settings.source = s; save(); render(); },
+  theme: t => { S.settings.theme = t; save(); applyTheme(); render(); },
   signout: () => { S.unlocked = false; S.stack = []; S.view = 'gate'; save(); render(); }
 };
 
@@ -730,6 +736,13 @@ const F = {
   table: f => { D.tables.unshift({id: 'u' + Date.now(), title: f.querySelector('#tt').value.trim(), when: f.querySelector('#tw').value.trim().split(',')[0], where: f.querySelector('#tw').value.trim().split(',').slice(1).join(',').trim() || 'The House', host: 'me', cap: 6, in: ['me']}); closeSheet(); toast('Your table is open. The House will seat it.'); render(); }
 };
 
+/* ---------- appearance ---------- */
+function applyTheme() {
+  const t = S.settings.theme || 'system'; const root = document.documentElement;
+  root.classList.toggle('force-dark', t === 'dark'); root.classList.toggle('force-light', t === 'light');
+  const th = document.getElementById('themes'); if (th) [...th.querySelectorAll('button')].forEach(b => b.classList.toggle('on', b.dataset.theme === t));
+}
+
 /* ---------- after render: animations, tilt ---------- */
 function afterRender(view) {
   requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -762,14 +775,16 @@ function bind() {
   root.addEventListener('keydown', e => { if (e.key === 'Escape' && sheetOpen) closeSheet(); });
   const idx = document.getElementById('idx');
   if (idx) idx.addEventListener('click', e => { const b = e.target.closest('button[data-go]'); if (!b) return; const [v, p] = b.dataset.go.split(':'); if (v === 'gate') { S.unlocked = false; S.stack = []; S.view = 'gate'; save(); return render(); } if (!S.unlocked) { S.unlocked = true; } S.stack = []; S.view = v; S.param = p || null; save(); render('enter'); });
-  const reset = document.getElementById('reset'); if (reset) reset.addEventListener('click', () => { try { localStorage.removeItem(KEY); } catch (e) {} S = fresh(); render(); });
+  const themes = document.getElementById('themes');
+  if (themes) themes.addEventListener('click', e => { const b = e.target.closest('button[data-theme]'); if (!b) return; A.theme(b.dataset.theme); });
+  const reset = document.getElementById('reset'); if (reset) reset.addEventListener('click', () => { try { localStorage.removeItem(KEY); } catch (e) {} S = fresh(); applyTheme(); render(); });
 }
 
 /* ---------- boot ---------- */
 function start(data) {
   load();
   if (data && data.S) S = Object.assign(fresh(), data.S);
-  bind(); render();
+  bind(); applyTheme(); render();
   try { window.claude && window.claude.hot && window.claude.hot.snapshot && window.claude.hot.snapshot(() => ({S})); } catch (e) {}
 }
 if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(start); else start((window.claude && window.claude.hot && window.claude.hot.data) || {});

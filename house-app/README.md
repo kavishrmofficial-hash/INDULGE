@@ -35,14 +35,16 @@ Open `index.html` in any browser. On a desktop it shows the phone on a stage wit
 | 16 | Settings | Visible to members, share form with the House, quiet hours, where form comes from (WHOOP, Apple Health, Garmin), the discretion note. |
 | 17 | Notifications | From the coach, the form, members, events, the committee and the House. |
 
-Screenshots of every screen are in `shots/`.
+Screenshots of every screen, in both schemes, are in `shots/light/` and `shots/dark/`.
 
 ## Design
 
-- **World.** Daylight at a private house, the way the Soho House app reads: ivory grounds (`#F5F2EB`), ink type (`#151412`), white cards with hairlines, photography, and one black object, the Key. Brass (`#8C672A` on paper, `#C9A55E` as a fill) appears on the Key, the House's own notices and the interview stage, and nowhere else. Recovery green, amber and red exist only inside Form.
-- **The sky.** Today and Connect open under a tint that follows the time of day at the House: gold in the morning, pale blue by day, peach in the evening (`.sky`, `.sky.morning`, `.sky.day`). It is the wash at the top of the first reference screen, made to mean something.
+- **Two grounds, one system.** White paper by day, near black by night, following the phone's setting. Every colour is a token on `:root` (the light palette), redefined under `prefers-color-scheme: dark` and again under an explicit `data-theme="dark"`, so components never carry a colour of their own. Settings has an Appearance switch (System, Light, Dark) and so does the reviewer rail on desktop; it adds `force-light` or `force-dark` to the root and wins over the host.
+- **Ink and paper.** Light: `#FFFFFF` ground, `#151412` type, white cards with hairlines. Dark: `#0F0F10` ground, `#F4F2EE` type, `#171719` cards. Brass (`#8C672A` by day, `#D8B46C` by night, `#C9A55E` as a fill) appears on the Key, the House's own notices and the interview stage, and nowhere else. Recovery green, amber and red exist only inside Form.
+- **The sky.** Today and Connect open under a tint that follows the time of day at the House: gold in the morning, pale blue by day, peach in the evening, and a deeper glow of each at night. It is the wash at the top of the first reference screen, made to mean something.
+- **The Key.** The membership card is black with brass in both schemes, the one object that never changes. At night it carries a brass edge so it still reads as a card.
 - **Type.** Instrument Serif for headlines and the wordmark, Instrument Sans for reading, DM Mono for micro labels, times and every number. Loaded from Google Fonts with real fallbacks.
-- **Photographs.** The out-of-focus photography in the reference designs is made here from layered light and grain in CSS (`.atm-track`, `.atm-table`, `.atm-plunge` and so on), so the build ships with no photographs and no likeness rights to clear. Captions sit on frosted white glass. Replace each atmosphere with a real image when the House has its own photography.
+- **Photographs.** The out-of-focus photography in the reference designs is made here from layered light and grain in CSS (`.atm-track`, `.atm-table`, `.atm-plunge` and so on), so the build ships with no photographs and no likeness rights to clear. Captions sit on frosted glass: white by day, dark by night. Replace each atmosphere with a real image when the House has its own photography.
 - **Full-bleed pages.** An event or a member opens on the photograph, and the paper sheet rises over it with the title, the RSVP and the rest, the way the reference screens do.
 - **Motion.** One rise on each screen change, the door opening on entry, the ring and gauges filling once. `prefers-reduced-motion` is respected.
 
@@ -55,8 +57,8 @@ src/data.js        seed data: the House, members, events, rooms, seven days of f
 src/app.js         the app: routing, screens, sheets, actions
 src/page.html      the stage, the reviewer rail and the phone frame
 build.py           assembles index.html and dist/artifact.html (the page for the claude.ai Artifact tool)
-tools/shots.py     screenshots every screen with Playwright into shots/
-shots/             the screenshots
+tools/shots.py     screenshots every screen in both schemes with Playwright into shots/
+shots/             the screenshots, light/ and dark/
 ```
 
 Build: `python3 build.py`. Screenshots: `pip install playwright pillow` then `python3 tools/shots.py`. The build refuses a page that contains an em dash or an en dash.
