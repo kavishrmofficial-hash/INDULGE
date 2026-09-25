@@ -39,10 +39,11 @@ Screenshots of every screen are in `shots/`.
 
 ## Design
 
-- **World.** One look by choice: a private house after dark. Warm ink grounds (`#0B0A08`), bone type (`#EDE6D6`), and a single accent of brass (`#C9A55E`) that appears on the Key, the active tab and the House's own notices, and nowhere else. Recovery green, amber and red exist only inside Form.
+- **World.** Daylight at a private house, the way the Soho House app reads: ivory grounds (`#F5F2EB`), ink type (`#151412`), white cards with hairlines, photography, and one black object, the Key. Brass (`#8C672A` on paper, `#C9A55E` as a fill) appears on the Key, the House's own notices and the interview stage, and nowhere else. Recovery green, amber and red exist only inside Form.
+- **The sky.** Today and Connect open under a tint that follows the time of day at the House: gold in the morning, pale blue by day, peach in the evening (`.sky`, `.sky.morning`, `.sky.day`). It is the wash at the top of the first reference screen, made to mean something.
 - **Type.** Instrument Serif for headlines and the wordmark, Instrument Sans for reading, DM Mono for micro labels, times and every number. Loaded from Google Fonts with real fallbacks.
-- **Atmospheres.** The out-of-focus photography in the reference designs is made here from layered light and grain in CSS (`.atm-track`, `.atm-table`, `.atm-plunge` and so on), so the build ships with no photographs and no likeness rights to clear. Replace each with a real image when the House has its own photography.
-- **Glass.** Panels over atmospheres use a blurred, translucent surface with a hairline edge, the way the reference screens do.
+- **Photographs.** The out-of-focus photography in the reference designs is made here from layered light and grain in CSS (`.atm-track`, `.atm-table`, `.atm-plunge` and so on), so the build ships with no photographs and no likeness rights to clear. Captions sit on frosted white glass. Replace each atmosphere with a real image when the House has its own photography.
+- **Full-bleed pages.** An event or a member opens on the photograph, and the paper sheet rises over it with the title, the RSVP and the rest, the way the reference screens do.
 - **Motion.** One rise on each screen change, the door opening on entry, the ring and gauges filling once. `prefers-reduced-motion` is respected.
 
 ## Layout of this folder

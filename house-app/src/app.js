@@ -80,7 +80,8 @@ const hm = h => `${Math.floor(h)}h ${String(Math.round((h % 1) * 60)).padStart(2
 const inr = n => '₹' + n.toLocaleString('en-IN');
 const hash = s => { let h = 7; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
 const greeting = () => { const h = D.club.today.getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; };
-const dateLabel = i => { const d = new Date(D.club.today); d.setDate(d.getDate() + i); return {dow: d.toLocaleDateString('en-GB', {weekday: 'short'}), n: d.getDate(), full: d.toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric', month: 'short'})}; };
+const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const dateLabel = i => { const d = new Date(D.club.today); d.setDate(d.getDate() + i); return {dow: DOW[d.getDay()], n: d.getDate(), full: `${DOW[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]}`}; };
 const names = ids => ids.map(first);
 const listNames = ids => { const n = names(ids); if (n.length <= 3) return n.join(n.length === 2 ? ' and ' : ', ').replace(/, ([^,]*)$/, ' and $1'); return `${n[0]}, ${n[1]}, ${n[2]} and ${n.length - 3} others`; };
 
@@ -128,14 +129,18 @@ function topbar(title, right = '', backBtn = true) {
 /* ---------- gate ---------- */
 V.gate = () => `
   <div class="gate">
-    <div class="wordmark">${D.club.mark}<small>${esc(D.club.cobrand)}</small></div>
-    <div class="stack g16">
-      <h1 class="big">This House is <span class="ital">by invitation.</span></h1>
-      <p class="sub">Enter the code on your invitation to present yourself at the door.</p>
-      <form class="code" data-form="gate" autocomplete="off"><input id="code" placeholder="GGN-0041" spellcheck="false" aria-label="Invitation code"><button class="go" type="submit" aria-label="Present">${I.arrow}</button></form>
-      <p class="small sub">Membership is granted by application, interview and committee review. Capacity is capped. <button class="link" data-go="application">Track an application</button></p>
+    <div class="window atm atm-dawn"><div class="fig"></div><div class="fade"></div>
+      <div class="wordmark">${D.club.mark}<small>${esc(D.club.cobrand)}</small></div>
+      <p class="micro" style="color:rgba(255,255,255,.85)">House No. 1 · Gurugram · MMXXVI</p>
     </div>
-    <div class="foot"><p class="micro">House No. 1 · Gurugram · MMXXVI</p></div>
+    <div class="below">
+      <div class="stack g16">
+        <h1 class="big">This House is <span class="ital">by invitation.</span></h1>
+        <p class="sub">Enter the code on your invitation to present yourself at the door.</p>
+        <form class="code" data-form="gate" autocomplete="off"><input id="code" placeholder="GGN-0041" spellcheck="false" aria-label="Invitation code"><button class="go" type="submit" aria-label="Present">${I.arrow}</button></form>
+      </div>
+      <div class="foot"><p class="small sub">Membership is granted by application, interview and committee review. Capacity is capped. <button class="link" data-go="application">Track an application</button></p></div>
+    </div>
   </div>`;
 
 V.application = () => `
@@ -160,28 +165,27 @@ V.application = () => `
   </div>`;
 
 /* ---------- today ---------- */
+const skyClass = () => { const h = D.club.today.getHours(); return h < 11 ? 'morning' : h < 17 ? 'day' : ''; };
 V.today = () => {
   const t = D.days[6]; const nxt = S.bookings.find(b => !b.done && b.date === dateLabel(0).full);
-  const wk = D.events.slice(0, 4);
+  const wk = D.events.slice(0, 4); const here = D.inHouseNow;
   return `
+  <div class="sky ${skyClass()}"></div>
   <div class="pad">
     <div class="topbar">
       <div class="l"><div class="wordmark">${D.club.mark}<small>${D.club.house}</small></div></div>
-      <div class="r"><button class="iconbtn" data-go="notifications" aria-label="Notifications">${I.bell}${S.notifRead ? '' : '<span class="badge">3</span>'}</button><button data-go="profile:me" aria-label="Your profile">${av('me')}</button></div>
+      <div class="r"><button class="iconbtn glass" data-go="notifications" aria-label="Notifications">${I.bell}${S.notifRead ? '' : '<span class="badge">3</span>'}</button><button data-go="profile:me" aria-label="Your profile">${av('me')}</button></div>
     </div>
     <div class="stack g4">
       <h1 class="h-display h1">${greeting()}, <span class="ital">${D.me.first}.</span></h1>
       <p class="micro" style="letter-spacing:.12em">${D.club.today.toLocaleDateString('en-GB', {weekday: 'long', day: 'numeric', month: 'long'})} · Doors until 23:00</p>
     </div>
-    <div class="tiles">
-      <button class="tile link" data-go="form"><span class="micro tight" style="letter-spacing:.12em">Recovery</span><span class="v ${band(t.recovery)}-t">${t.recovery}<small>%</small></span><span class="small sub">${bandName(t.recovery)} day</span></button>
-      <button class="tile link" data-go="form"><span class="micro tight" style="letter-spacing:.12em">Sleep</span><span class="v">${hm(t.sleep)}</span><span class="small sub">${Math.round(t.sleep / t.need * 100)}% of need</span></button>
-      <button class="tile link" data-go="form"><span class="micro tight" style="letter-spacing:.12em">Strain</span><span class="v cool-t">${t.strain.toFixed(1)}</span><span class="small sub">Room for more</span></button>
-    </div>
+    <div class="section-h" style="margin-top:0"><h3 class="h4">In the House now</h3><button class="link" data-go="connect">${here.length} members</button></div>
+    <div class="strip">${here.slice(0, 9).map(id => `<button data-go="profile:${id}">${av(id, 'lg')}</button>`).join('')}<button class="av lg" style="--g:var(--paper-2);color:var(--ink-50);font-size:13px;font-weight:500" data-go="connect">+${here.length - 9}</button></div>
     ${nxt ? `
     <div class="hero-card atm atm-plunge" data-go="book">
       <div class="fig"></div>
-      <div class="top"><span class="pill" style="background:rgba(12,11,8,.4);backdrop-filter:blur(10px)">Next at the House</span><span class="pill" style="background:rgba(12,11,8,.4)">${nxt.time}</span></div>
+      <div class="top"><span class="pill glass">Next at the House</span><span class="pill glass">${nxt.time}</span></div>
       <div class="glass">
         <div class="title">${esc(nxt.name)}</div>
         <div class="meta">${esc(nxt.sub)} · 2 of 4 places</div>
@@ -191,16 +195,17 @@ V.today = () => {
         </div>
       </div>
     </div>` : ''}
-    <div class="section-h"><h3 class="h4">In the House now</h3><button class="link" data-go="connect">See who</button></div>
-    <button class="row" data-go="connect" style="text-align:left">
-      <span class="av-stack">${D.inHouseNow.slice(0, 5).map(id => av(id, 'sm')).join('')}</span>
-      <span class="small sub grow">${listNames(D.inHouseNow.slice(0, 3))} and ${D.inHouseNow.length - 3} others</span>
-    </button>
+    <div class="section-h"><h3 class="h4">Your form this morning</h3><button class="link" data-go="form">Form</button></div>
+    <div class="tiles">
+      <button class="tile link" data-go="form"><span class="micro tight" style="letter-spacing:.12em">Recovery</span><span class="v ${band(t.recovery)}-t">${t.recovery}<small>%</small></span><span class="small sub">${bandName(t.recovery)} day</span></button>
+      <button class="tile link" data-go="form"><span class="micro tight" style="letter-spacing:.12em">Sleep</span><span class="v">${hm(t.sleep)}</span><span class="small sub">${Math.round(t.sleep / t.need * 100)}% of need</span></button>
+      <button class="tile link" data-go="form"><span class="micro tight" style="letter-spacing:.12em">Strain</span><span class="v cool-t">${t.strain.toFixed(1)}</span><span class="small sub">Room for more</span></button>
+    </div>
     <div class="section-h"><h3 class="h4">This week</h3><button class="link" data-tab="events">What’s on</button></div>
     <div class="chips" style="gap:12px">${wk.map(e => `
       <div class="hero-card short atm ${e.atm}" style="flex:none;width:250px" data-go="event:${e.id}">
         <div class="fig"></div>
-        <div class="top"><span class="pill" style="background:rgba(12,11,8,.4)">${e.date}</span>${S.rsvp[e.id] === 'going' ? `<span class="pill on">Going</span>` : ''}</div>
+        <div class="top"><span class="pill glass">${e.date}</span>${S.rsvp[e.id] === 'going' ? `<span class="pill on">Going</span>` : ''}</div>
         <div class="glass"><div class="title" style="font-size:20px">${esc(e.title)}</div><div class="meta">${e.time} · ${esc(e.place.split(',')[0])}</div></div>
       </div>`).join('')}</div>
     <div class="card stack g12">
@@ -210,7 +215,7 @@ V.today = () => {
     </div>
     <div class="grid2">
       ${[['book', I.book, 'Book a room', 'Train, recover, courts, the table'], ['guests', I.guest, 'Bring a guest', `${S.passes} of ${D.me.passesTotal} passes left`], ['thread:concierge', I.concierge, 'Concierge', 'Always on, always discreet'], ['nominate', I.nominate, 'Nominate', 'Two a year, to the committee']].map(([g, ic, t, s]) => `
-      <button class="card raised stack" data-go="${g}" style="text-align:left;gap:14px"><span class="ico brass">${ic}</span><span><b style="font-weight:500;display:block">${t}</b><span class="small sub">${s}</span></span></button>`).join('')}
+      <button class="card stack" data-go="${g}" style="text-align:left;gap:14px"><span class="ico brass">${ic}</span><span><b style="font-weight:500;display:block">${t}</b><span class="small sub">${s}</span></span></button>`).join('')}
     </div>
   </div>`;
 };
@@ -248,8 +253,8 @@ V.form = () => {
     <div class="card stack g12">
       <div class="row between"><span class="micro">Sleep</span><span class="num small sub">need ${hm(d.need)}</span></div>
       <div class="row" style="align-items:baseline;gap:6px"><span class="h-display h2">${hm(d.sleep)}</span><span class="small ${perf >= 90 ? 'good-t' : 'warn-t'}">${perf}%</span></div>
-      <div class="stages"><i style="width:${d.deep / tot * 100}%;background:#5E86B0"></i><i style="width:${d.rem / tot * 100}%;background:var(--cool)"></i><i style="width:${d.light / tot * 100}%;background:rgba(147,180,218,.45)"></i><i style="width:${d.awake / tot * 100}%;background:var(--bone-20)"></i></div>
-      <div class="legend"><span><i style="background:#5E86B0"></i>Deep ${hm(d.deep)}</span><span><i style="background:var(--cool)"></i>REM ${hm(d.rem)}</span><span><i style="background:rgba(147,180,218,.45)"></i>Light ${hm(d.light)}</span><span><i style="background:var(--bone-20)"></i>Awake ${Math.round(d.awake * 60)}m</span></div>
+      <div class="stages"><i style="width:${d.deep / tot * 100}%;background:#5E86B0"></i><i style="width:${d.rem / tot * 100}%;background:var(--cool)"></i><i style="width:${d.light / tot * 100}%;background:rgba(147,180,218,.45)"></i><i style="width:${d.awake / tot * 100}%;background:var(--ink-15)"></i></div>
+      <div class="legend"><span><i style="background:#5E86B0"></i>Deep ${hm(d.deep)}</span><span><i style="background:var(--cool)"></i>REM ${hm(d.rem)}</span><span><i style="background:rgba(147,180,218,.45)"></i>Light ${hm(d.light)}</span><span><i style="background:var(--ink-15)"></i>Awake ${Math.round(d.awake * 60)}m</span></div>
     </div>
     <div class="card stack g12">
       <div class="row between"><span class="micro">Seven days</span><span class="num small sub">avg ${Math.round(D.days.reduce((a, x) => a + x.recovery, 0) / 7)}%</span></div>
@@ -316,7 +321,7 @@ V.events = () => {
     ${list.length ? list.map((e, i) => `
     <div class="hero-card ${i === 0 ? 'tall' : ''} atm ${e.atm}" data-go="event:${e.id}">
       <div class="fig"></div>
-      <div class="top"><span class="pill" style="background:rgba(12,11,8,.4);backdrop-filter:blur(10px)">${e.date}${e.time ? ' · ' + e.time : ''}</span>${S.rsvp[e.id] ? `<span class="pill ${S.rsvp[e.id] === 'going' ? 'on' : ''}">${S.rsvp[e.id] === 'going' ? 'Going' : S.rsvp[e.id] === 'maybe' ? 'Maybe' : 'Not going'}</span>` : e.cap ? `<span class="pill" style="background:rgba(12,11,8,.4)">${e.cap - e.going.length} places</span>` : ''}</div>
+      <div class="top"><span class="pill glass">${e.date}${e.time ? ' · ' + e.time : ''}</span>${S.rsvp[e.id] ? `<span class="pill ${S.rsvp[e.id] === 'going' ? 'on' : ''}">${S.rsvp[e.id] === 'going' ? 'Going' : S.rsvp[e.id] === 'maybe' ? 'Maybe' : 'Not going'}</span>` : e.cap ? `<span class="pill glass">${e.cap - e.going.length} places</span>` : ''}</div>
       <div class="glass"><div class="title">${esc(e.title)}</div><div class="meta">${esc(e.place)} · with ${first(e.host)}</div></div>
     </div>`).join('') : '<div class="empty">Nothing here yet.</div>'}
   </div>`;
@@ -372,7 +377,7 @@ V.connect = () => {
   if (seg === 'feed') {
     const posts = S.posts.concat(D.posts);
     body = `
-      <button class="composer" data-act="postsheet">${av('me', 'sm')}<span class="ph">Say something to the House</span>${I.edit.replace('<svg', '<svg style="width:18px;height:18px;stroke:var(--bone-60);fill:none;stroke-width:1.5"')}</button>
+      <button class="composer" data-act="postsheet">${av('me', 'sm')}<span class="ph">Say something to the House</span>${I.edit.replace('<svg', '<svg style="width:18px;height:18px;stroke:var(--ink-50);fill:none;stroke-width:1.5"')}</button>
       <div class="card" style="padding:2px 18px">
         ${posts.map(p => { const m = member(p.who); const liked = !!S.likes[p.id]; const likes = p.likes + (liked ? 1 : 0); const cm = p.comments + (S.comments[p.id] || 0); return `
         <div class="post">
@@ -395,12 +400,13 @@ V.connect = () => {
     const q = S.dirQuery.toLowerCase(); const f = S.dirFilter;
     const list = D.members.filter(m => !m.founder).filter(m => f === 'all' || (f === 'staff' ? m.staff : m.city === f)).filter(m => !q || (m.name + m.discipline + m.work + m.city).toLowerCase().includes(q));
     body = `
-      <div class="input"><span style="color:var(--bone-40);display:grid">${I.search.replace('<svg', '<svg style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6"')}</span><input id="dirq" data-input="dir" placeholder="Name, sport, work" value="${esc(S.dirQuery)}" aria-label="Search members"></div>
+      <div class="input"><span style="color:var(--ink-35);display:grid">${I.search.replace('<svg', '<svg style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6"')}</span><input id="dirq" data-input="dir" placeholder="Name, sport, work" value="${esc(S.dirQuery)}" aria-label="Search members"></div>
       <div class="chips">${[['all', 'Everyone'], ['Gurugram', 'Gurugram'], ['New Delhi', 'Delhi'], ['Mumbai', 'Mumbai'], ['staff', 'The team']].map(([k, l]) => `<button class="chip ${f === k ? 'on' : ''}" data-act="dirfilter:${k}">${l}</button>`).join('')}</div>
       <div class="card" style="padding:4px 18px" id="dirlist">${dirList(list)}</div>
       <p class="micro center">Only members who chose to be visible appear here.</p>`;
   }
   return `
+  <div class="sky ${skyClass()}"></div>
   <div class="pad">
     <div class="topbar"><div class="l"><h2 class="h-display h2">Connect</h2></div><div class="r"><button class="iconbtn" data-act="connectseg:directory" aria-label="Search members">${I.search}</button><button class="iconbtn" data-go="messages" aria-label="Messages">${I.messages}${unread ? `<span class="badge">${unread}</span>` : ''}</button></div></div>
     <div class="cloud">
@@ -467,7 +473,7 @@ V.thread = id => {
   if (!t) { const m = member(id); if (!m) return V.messages(); t = {id, name: m.name, sub: m.discipline, msgs: []}; S.threads.push(t); }
   t.read = true;
   return `
-  <div class="bleed" style="background:var(--ink)">
+  <div class="chat">
     <div class="pad" style="padding-bottom:10px;flex:none">
       <div class="topbar"><div class="l"><button class="iconbtn" data-back aria-label="Back">${I.back}</button><button class="row" ${t.house ? 'data-go="key"' : `data-go="profile:${id}"`}>${t.house ? avHouse() : av(id)}<div style="text-align:left"><div style="font-weight:500">${esc(t.name)}</div><div class="small sub">${esc(t.sub || '')}</div></div></button></div></div>
     </div>
@@ -475,7 +481,7 @@ V.thread = id => {
       <div class="thread">${t.msgs.length ? t.msgs.map(m => `<div class="msg ${m.who}">${esc(m.text)}<span class="t">${esc(m.t)}</span></div>`).join('') : `<div class="empty">Say hello. ${esc(t.name.split(' ')[0])} will see it when they are next in the House.</div>`}</div>
     </div>
     ${t.house ? `<div class="quick">${D.quickAsks.map(q => `<button class="chip" data-act="say:${esc(q)}">${esc(q)}</button>`).join('')}</div>` : ''}
-    <form class="compose-bar" data-form="say"><div class="input"><input id="say" placeholder="${t.house ? 'Ask the House' : 'Write to ' + esc(t.name.split(' ')[0])}" autocomplete="off" aria-label="Message"></div><button class="iconbtn" type="submit" aria-label="Send" style="background:var(--bone);color:var(--ink)">${I.send}</button></form>
+    <form class="compose-bar" data-form="say"><div class="input"><input id="say" placeholder="${t.house ? 'Ask the House' : 'Write to ' + esc(t.name.split(' ')[0])}" autocomplete="off" aria-label="Message"></div><button class="iconbtn dark" type="submit" aria-label="Send">${I.send}</button></form>
   </div>`;
 };
 
@@ -497,7 +503,7 @@ V.key = () => `
     <div class="key" id="keycard">
       <div class="sheen"></div>
       <div class="row between" style="align-items:flex-start"><div class="wm">${D.club.mark}<small>${esc(D.club.cobrand)}</small></div><div class="no">No. 1<br>Gurugram</div></div>
-      <span class="chip"></span>
+      <span class="emv"></span>
       <div><div class="name">${esc(D.me.name)}</div><div class="meta"><span>Member ${D.me.number}</span><span>${esc(D.me.tier)}</span><span>2026 to 2027</span></div></div>
     </div>
     <button class="btn primary block" data-act="doorsheet">${I.door}Show at the door</button>
