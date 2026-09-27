@@ -150,8 +150,11 @@ def t(h):
     check(p.locator('#home-hero .sun').count() == 1 and p.locator('#home-hero .moon').count() == 0, 'no sun at 10:00')
     check(p.evaluate('document.querySelector("#home-hero").dataset.mode') == 'day', 'hero mode at 10:00')
     check('Good morning' in p.inner_text('#home-hero'), 'greeting at 10:00')
-    check(p.locator('#home-hero .hero-panel .btn.xl').count() == 1, 'check-in button missing from the day hero')
-    check(p.locator('#home-hero .moods .mood').count() == 5, 'mood row missing from the day hero')
+    sunday = p.evaluate('() => new Date().getDay() === 0')
+    if not sunday:  # on a Sunday the hero rests: no check-in, no mood, by the app's own rule
+        check(p.locator('#home-hero .hero-panel .btn.xl').count() == 1, 'check-in button missing from the day hero')
+    if not sunday:
+        check(p.locator('#home-hero .moods .mood').count() == 5, 'mood row missing from the day hero')
     check(p.locator('#home-hero .chipline').count() == 4, 'stat chips missing from the day hero')
     check(p.locator('#home-hero .hero-clock .clock').count() == 1, 'hero clock missing')
     p.locator('#home-hero').screenshot(path=os.path.join(ROOT, 'harness', 'shots', 'hero-day-1280.png'))

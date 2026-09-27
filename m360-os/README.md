@@ -165,6 +165,14 @@ Closed in the same release: a second person with Full access reads shared founde
 - **Import plans once**: the plan is worked out when the file, the mapping or the database changes, never while its writes are running.
 - `harness/tests/test_bigbase.py` imports 26,000 people (17 MB, 175 pages) against the stand-in: the page never blocks for more than a fraction of a second, a fresh browser gets the base in rounds under the budget, and one edit costs one page.
 
+## What is in v13.2: the real Apollo export
+
+- Tried against the real thing: an Apollo export of 25,413 people, 83 columns, 141 MB. Three things stood in its way, all fixed.
+- **The file is read in slices** (`readCsvFile` in `76-base.js`): the bytes are scanned for rows and cells, and only the mapped columns are decoded, each into its own string. The page holds about 150 MB less than before and never one giant string. Mapping a column that was not kept reads the file again with it.
+- **Pages are placed by bytes as well as rows**: Apollo's Keywords run to hundreds of terms, which put a page of 200 companies at 553 KB, over the server's 256 KiB document limit, so the first write was refused. Keywords and tags now keep at most 40 entries, any text field 600 characters, and a page closes at 160 KB.
+- **A stopped import says so** under the button, with the reason; every page written stays whole, and importing the same file again only adds what is missing.
+- Measured on the stand-in with that file: 4 seconds to read and plan, 81 seconds to write 169 pages, no freeze over a fifth of a second, a fresh browser loads the whole base in about 36 seconds.
+
 ## Launch day
 
 1. Admin > Team: invite each person by email. They get a link, type their email and pick a password. Without an email key the invite shows a link to copy instead.

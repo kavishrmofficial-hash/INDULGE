@@ -9,6 +9,9 @@
   const {useState, useEffect, useMemo, useRef} = React;
 
   const PAGE_MAX = 200;
+  const PAGE_BYTES = 160 * 1024;   /* a page document stays well under the server's 256 KiB */
+  const LIST_MAX = 40;             /* keywords and tags per record; Apollo sends hundreds */
+  const TEXT_MAX = 600;            /* any one text field */
   const STAGES = [{v: '', label: 'No stage'}, {v: 'lead', label: 'Lead'}, {v: 'contacted', label: 'Contacted'},
     {v: 'replied', label: 'Replied'}, {v: 'meeting', label: 'Meeting'}, {v: 'client', label: 'Client'}, {v: 'lost', label: 'Lost'}];
   const STAGE_PILL = {client: 'ink', meeting: 'warm', lost: 'flame-o'};
@@ -54,8 +57,8 @@
       return n;
     },
     phone: s => String(s || '').replace(/[^\d+]/g, ''),
-    list: s => Array.isArray(s) ? s.map(x => norm.text(x)).filter(Boolean)
-      : String(s || '').split(/[,;|]/).map(x => x.trim()).filter(Boolean)
+    list: s => (Array.isArray(s) ? s.map(x => norm.text(x)).filter(Boolean)
+      : String(s || '').split(/[,;|]/).map(x => x.trim()).filter(Boolean)).slice(0, LIST_MAX)
   };
   norm['email'] = norm.mail;
   const uniq = xs => { const seen = {}; return (xs || []).filter(x => { const k = String(x).toLowerCase(); if (seen[k]) return false; seen[k] = true; return true; }); };
@@ -115,12 +118,16 @@
   };
   const pageFor = (ctx, coll, id) => (coll === 'orgs' ? index(ctx).oPage[id] : index(ctx).cPage[id]) || null;
   /* the last page with room, else the next page id */
-  function roomIn(ctx, coll, counts) {
+  const bytesOf = x => JSON.stringify(x === undefined ? null : x).length;
+  function roomIn(ctx, coll, counts, bytes, need) {
     const ix = index(ctx);
     const map = ctx.coll[coll].map;
     const pages = uniq((coll === 'orgs' ? ix.oPages : ix.cPages).concat(counts ? Object.keys(counts) : [])).sort();
     const count = pid => counts && counts[pid] != null ? counts[pid] : Object.keys((map[pid] || {}).rows || {}).length;
-    for (let i = pages.length - 1; i >= 0; i--) { if (count(pages[i]) < PAGE_MAX) return {pid: pages[i], n: count(pages[i]), isNew: !map[pages[i]]}; }
+    const size = pid => { if (bytes && bytes[pid] != null) return bytes[pid]; const b = map[pid] ? bytesOf(map[pid].rows || {}) : 0; if (bytes) bytes[pid] = b; return b; };
+    for (let i = pages.length - 1; i >= 0; i--) {
+      if (count(pages[i]) < PAGE_MAX && size(pages[i]) + (need || 0) <= PAGE_BYTES) return {pid: pages[i], n: count(pages[i]), isNew: !map[pages[i]]};
+    }
     let next = 0;
     for (const p of pages) { const k = parseInt(String(p).slice(1), 10); if (k >= next) next = k + 1; }
     return {pid: 'p' + String(next).padStart(3, '0'), n: 0, isNew: true};
@@ -307,6 +314,80 @@
   }
   const csvCell = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
 
+  /* A CSV file read in slices, so a 140 MB Apollo export never sits in memory as one string. The
+     bytes are scanned for rows and cells; only the columns in keep (by index) are decoded, each into
+     its own string, so nothing pins a slice of the file in memory. The first five rows keep every
+     column for the preview and the mapping table. With no keep given, the columns Apollo names in a
+     way we know are kept. Rows are sparse arrays indexed by column, the shape planImport expects. */
+  const QUOTE = 34, COMMA = 44, CR = 13, LF = 10;
+  async function readCsvFile(file, opts) {
+    const keepIn = opts && opts.keep ? new Set(opts.keep) : null;
+    const onProgress = opts && opts.onProgress;
+    const dec = new TextDecoder('utf-8');
+    const SLICE = 4 * 1024 * 1024;
+    let headers = null, keep = null;
+    const rows = [];
+    const cellText = (b, a, z, quoted) => { let t = dec.decode(b.subarray(a, z)); if (quoted) t = t.replace(/""/g, '"'); return t; };
+    /* one complete row of bytes [a, z): its cells, kept ones decoded */
+    const takeRow = (b, a, z) => {
+      const row = [];
+      let ci = 0, i = a, any = false;
+      const wantAll = !headers || rows.length < 5;
+      while (i <= z) {
+        let quoted = false, cs = i, ce = i;
+        if (i < z && b[i] === QUOTE) {
+          quoted = true; cs = i + 1; let j = cs;
+          while (j < z) { if (b[j] === QUOTE) { if (b[j + 1] === QUOTE && j + 1 < z) { j += 2; continue; } break; } j++; }
+          ce = j; i = j + 1;
+          while (i < z && b[i] !== COMMA) i++;
+        } else {
+          let j = i; while (j < z && b[j] !== COMMA) j++;
+          ce = j; i = j;
+        }
+        if (wantAll || (keep && keep.has(ci))) { const t = cellText(b, cs, ce, quoted); row[ci] = t; if (!any && t.trim() !== '') any = true; }
+        else if (!any && ce > cs) any = true;
+        ci++;
+        if (i >= z) break;
+        i++; /* past the comma */
+        if (i === z) { if (wantAll || (keep && keep.has(ci))) row[ci] = ''; ci++; break; }
+      }
+      if (!headers) {
+        headers = row.map(h => String(h || '').trim());
+        keep = keepIn || new Set(headers.map((h, k) => ALIAS[headerKey(h)] ? k : -1).filter(k => k >= 0));
+      } else if (any) rows.push(row);
+    };
+    let carry = new Uint8Array(0);
+    let first = true;
+    for (let at = 0; at < file.size; at += SLICE) {
+      const fresh = new Uint8Array(await file.slice(at, Math.min(file.size, at + SLICE)).arrayBuffer());
+      let b;
+      if (carry.length) { b = new Uint8Array(carry.length + fresh.length); b.set(carry); b.set(fresh, carry.length); } else b = fresh;
+      let i = 0;
+      if (first) { first = false; if (b[0] === 0xEF && b[1] === 0xBB && b[2] === 0xBF) i = 3; }
+      let rowStart = i, q = false, lastEnd = i;
+      const n = b.length;
+      const last = at + SLICE >= file.size;
+      while (i < n) {
+        const c = b[i];
+        if (q) { if (c === QUOTE) { if (b[i + 1] === QUOTE) { i += 2; continue; } q = false; } i++; continue; }
+        if (c === QUOTE) { q = true; i++; continue; }
+        if (c === CR || c === LF) {
+          if (c === CR && i + 1 >= n && !last) break; /* the LF may be in the next slice */
+          takeRow(b, rowStart, i);
+          i++; if (c === CR && b[i] === LF) i++;
+          rowStart = i; lastEnd = i;
+          continue;
+        }
+        i++;
+      }
+      if (last) { if (rowStart < n) takeRow(b, rowStart, n); carry = new Uint8Array(0); }
+      else carry = b.slice(lastEnd);
+      if (onProgress) onProgress(Math.min(1, (at + SLICE) / file.size));
+    }
+    if (!headers) headers = [];
+    return {headers, rows, kept: keep || new Set(), preview: rows.slice(0, 5), file, size: file.size};
+  }
+
   /* ---------- Apollo's columns: the ones that matter, by alias ---------- */
   const ALIAS = {
     'first name': 'first', 'last name': 'last', 'name': 'name', 'full name': 'name', 'title': 'title', 'job title': 'title',
@@ -385,7 +466,7 @@
       const p = {}, o = {};
       mapping.forEach((m, ci) => {
         if (!m.field) return;
-        const v = norm.text(row[ci]);
+        const v = norm.text(row[ci]).slice(0, TEXT_MAX);
         if (!v) return;
         if (m.field.indexOf('org') === 0) { const k = orgKey(m.field); if (!o[k]) o[k] = v; }
         else if (!p[m.field]) p[m.field] = v;
@@ -450,12 +531,19 @@
     });
 
     /* pages: existing rows stay where they are, new rows fill the last page with room */
+    /* pages: existing rows stay where they are; new rows fill the last page with room, counted in rows and in bytes */
     const pages = {contacts: {}, orgs: {}};
     const counts = {contacts: {}, orgs: {}};
+    const bytes = {contacts: {}, orgs: {}};
     const place = (coll, id, w) => {
       let pid = coll === 'orgs' ? ix.oPage[id] : ix.cPage[id];
       let room = null;
-      if (!pid) { room = roomIn(ctx, coll, counts[coll]); pid = room.pid; counts[coll][pid] = (counts[coll][pid] != null ? counts[coll][pid] : room.n) + 1; }
+      const need = bytesOf(w.doc) + id.length + 4;
+      if (!pid) {
+        room = roomIn(ctx, coll, counts[coll], bytes[coll], need); pid = room.pid;
+        counts[coll][pid] = (counts[coll][pid] != null ? counts[coll][pid] : room.n) + 1;
+        bytes[coll][pid] = (bytes[coll][pid] || 0) + need;
+      }
       const pg = pages[coll][pid] = pages[coll][pid] || {rows: {}, isNew: !!(room && room.isNew), n: 0};
       if (room && room.isNew) pg.isNew = true;
       pg.rows[id] = w.doc;
@@ -995,7 +1083,9 @@
     const ownerOf = s => owners[String(s || '').trim().toLowerCase()] || '';
     /* the plan is worked out again when the file, the mapping or the database changes; never while its writes are running,
        when every page written would otherwise re-plan the whole file */
-    const plan = useMemo(() => parsed ? planImport(ctx, parsed, mapping, ownerOf) : null, [parsed, mapping, busy ? null : ix, owners]);
+    const ixRef = useRef(ix);
+    if (!busy) ixRef.current = ix;
+    const plan = useMemo(() => parsed ? planImport(ctx, parsed, mapping, ownerOf) : null, [parsed, mapping, ixRef.current, owners]);
 
     if (!ctx.isFounder) {
       return html`<${UI.Card} title="Import"><div class="small">Imports are done by Kaavish. Search People for anyone already in the database.</div><//>`;
@@ -1005,17 +1095,33 @@
       if (!p.headers.length) { M.toast('That file has no columns', true); return; }
       setParsed(p); setMapping(mapApollo(p.headers)); setSummary(null); setFileName(name || 'pasted text');
     };
+    const [reading, setReading] = useState('');
+    const readFile = async (file, keep, keepMapping) => {
+      setReading('Reading ' + file.name);
+      try {
+        const p = await readCsvFile(file, {keep, onProgress: f => setReading('Reading ' + file.name + ', ' + Math.round(f * 100) + '%')});
+        if (!p.headers.length) { M.toast('That file has no columns', true); setReading(''); return; }
+        setParsed(p); if (!keepMapping) setMapping(mapApollo(p.headers)); setSummary(null); setFileName(file.name);
+      } catch (e) { M.toast('That file could not be read', true); }
+      setReading('');
+    };
     const onFile = e => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
-      const rd = new FileReader();
-      rd.onload = () => load(String(rd.result || ''), file.name);
-      rd.onerror = () => M.toast('That file could not be read', true);
-      rd.readAsText(file);
+      readFile(file, null, false);
     };
     const mappedCols = mapping.filter(m => m.field).length;
-    const setField = (i, v) => setMapping(m => m.map((x, j) => j === i ? {...x, field: v} : x));
-    const preview = parsed ? parsed.rows.slice(0, 5).map(row => {
+    /* a column mapped after the read was not kept: the file is read again with it */
+    const setField = (i, v) => {
+      const next = mapping.map((x, j) => j === i ? {...x, field: v} : x);
+      setMapping(next);
+      if (v && parsed && parsed.file && parsed.kept && !parsed.kept.has(i)) {
+        const keep = next.map((m, j) => m.field ? j : -1).filter(j => j >= 0);
+        setTimeout(() => readFile(parsed.file, keep, true), 0);
+        setMapping(next);
+      }
+    };
+    const preview = parsed ? (parsed.preview || parsed.rows.slice(0, 5)).map(row => {
       const o = {};
       mapping.forEach((m, ci) => { if (m.field && row[ci] && !o[m.field]) o[m.field] = norm.text(row[ci]); });
       return o;
@@ -1029,7 +1135,11 @@
         setParsed(null); setMapping([]); setPaste('');
         M.burst(document.getElementById('import-go'));
         M.toast('Imported ' + plan.added + ' new ' + (plan.added === 1 ? 'person' : 'people'));
-      } catch (e) { setProg(''); }
+      } catch (e) {
+        /* every page written so far is whole; the same file imported again only adds what is missing */
+        setProg('Stopped: ' + ((e && e.message) || 'a page could not be written') + '. What went in stays; import the same file again to finish.');
+        M.toast('The import stopped. See the note under the button.', true);
+      }
       setBusy(false);
     };
     const n = plan ? plan.people : 0;
@@ -1039,9 +1149,10 @@
         <div class="row" style=${{alignItems: 'flex-start'}}>
           <div class="field grow">
             <label for="import-file">csv file</label>
-            <input id="import-file" class="input bs-file" type="file" accept=".csv,text/csv" onChange=${onFile}/>
+            <input id="import-file" class="input bs-file" type="file" accept=".csv,text/csv" onChange=${onFile} disabled=${!!reading}/>
           </div>
         </div>
+        ${reading ? html`<div class="row nowrap small ink62" id="import-reading" style=${{gap: '8px', marginTop: '8px'}}><${M.Thinking} label=${reading}/></div>` : null}
         <${UI.Fold} title="Or paste the CSV text" summary="For a small list">
           <div class="stack tight" style=${{marginTop: '10px'}}>
             <${UI.TextArea} id="import-paste" label="or paste csv text" value=${paste} onChange=${setPaste} rows=${4} placeholder="First Name,Last Name,Title,Company,Email"/>
@@ -1151,5 +1262,5 @@
   M.parts.ContactDrawer = ContactDrawer;
   M.parts.OrgDrawer = OrgDrawer;
   M.base = {all, contact, org, peopleAt, orgForClient, find, upsertContact, upsertOrg, pageFor, linkOrgToClient, unlinkOrg,
-    makeClientFromOrg, STAGES, norm, parseCsv, mapApollo, planImport, runImport, PAGE_MAX};
+    makeClientFromOrg, STAGES, norm, parseCsv, readCsvFile, mapApollo, planImport, runImport, PAGE_MAX};
 })();

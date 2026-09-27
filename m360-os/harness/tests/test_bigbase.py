@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A big Base on the team site: an Apollo export of 26,000 people (17 MB) imports without freezing the
+"""A big Base on the team site: an Apollo export of 26,000 people (30 MB, long keyword lists) imports without freezing the
 page, every page of it reaches a second browser in rounds that stay under the sync budget, and after
 that an edit to one person costs one page document on the wire, never the whole collection.
 
@@ -24,7 +24,8 @@ GEN = '''(n) => {
   const inds = ['Luxury Goods','Retail','Hospitality','Real Estate','Marketing','Media'];
   for (let i = 0; i < n; i++) {
     const co = 'Company ' + (i % 9000);
-    const r = ['Person' + i, 'Surname' + (i % 700), 'Head of Marketing, Brand', co, co, 'person' + i + '@company' + (i % 9000) + '.com', 'Verified', 'Director', 'Marketing', 'kaavish@mask360.agency', '+91 98' + String(i).padStart(8, '0'), '', 'Cold', 'Q4 luxury, Mumbai', String(50 + i % 900), inds[i % 6], 'luxury, watches, "brand", retail', 'https://linkedin.com/in/person' + i, 'https://company' + (i % 9000) + '.com', '', 'Mumbai', 'Maharashtra', 'India', 'Mumbai', 'Maharashtra', 'India', '+91 22 1234', 'A description with, commas and "quotes" inside the SEO text of the company that goes on for a while', 'Shopify, Klaviyo', '5M', 'ac' + i, 'aa' + (i % 9000), ''];
+    const kw = new Array(120).fill(0).map((_, k) => 'keyword number ' + k + ' for ' + (i % 9000)).join(', ');
+    const r = ['Person' + i, 'Surname' + (i % 700), 'Head of Marketing, Brand', co, co, 'person' + i + '@company' + (i % 9000) + '.com', 'Verified', 'Director', 'Marketing', 'kaavish@mask360.agency', '+91 98' + String(i).padStart(8, '0'), '', 'Cold', 'Q4 luxury, Mumbai', String(50 + i % 900), inds[i % 6], kw, 'https://linkedin.com/in/person' + i, 'https://company' + (i % 9000) + '.com', '', 'Mumbai', 'Maharashtra', 'India', 'Mumbai', 'Maharashtra', 'India', '+91 22 1234', 'A description with, commas and "quotes" inside the SEO text of the company that goes on for a while', 'Shopify, Klaviyo', '5M', 'ac' + i, 'aa' + (i % 9000), ''];
     lines.push(r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(','));
   }
   return lines.join('\\n');
@@ -65,7 +66,8 @@ def main():
               const make = eval(gen);
               const text = make(%d);
               const t1 = performance.now();
-              const parsed = M.base.parseCsv(text);
+              /* the file the way the page reads it: in slices, only the mapped columns kept */
+              const parsed = await M.base.readCsvFile(new File([text], 'apollo-contacts-export.csv', {type: 'text/csv'}));
               const mapping = M.base.mapApollo(parsed.headers);
               const plan = M.base.planImport(M.lastCtx, parsed, mapping, () => '');
               const t2 = performance.now();
@@ -73,10 +75,13 @@ def main():
               try { new PerformanceObserver(l => l.getEntries().forEach(e => { window.__long = Math.max(window.__long, e.duration); })).observe({entryTypes: ['longtask']}); } catch (e) { /* none */ }
               await M.base.runImport(M.lastCtx, plan, p => window.__prog.push(p));
               const t3 = performance.now();
-              return {bytes: text.length, rows: parsed.rows.length, added: plan.added, orgs: plan.orgsNew, pages: Object.keys(plan.pages.contacts).length + Object.keys(plan.pages.orgs).length, prep: Math.round(t2 - t1), write: Math.round(t3 - t2), longest: Math.round(window.__long), steps: window.__prog.length};
+              const biggest = Math.max(...['contacts', 'orgs'].flatMap(c => Object.keys(plan.pages[c]).map(k => JSON.stringify(plan.pages[c][k]).length)));
+              return {bytes: text.length, rows: parsed.rows.length, kept: parsed.kept.size, added: plan.added, orgs: plan.orgsNew, pages: Object.keys(plan.pages.contacts).length + Object.keys(plan.pages.orgs).length, biggest, prep: Math.round(t2 - t1), write: Math.round(t3 - t2), longest: Math.round(window.__long), steps: window.__prog.length};
             }''' % ROWS, GEN)
             print('import', r, 'wall %.1fs' % (time.time() - t0))
             check(r['rows'] == ROWS and r['added'] == ROWS and r['pages'] >= 170, 'the plan covers every row: %r' % r)
+            check(r['biggest'] <= 200 * 1024, 'every page must stay under the document limit, biggest %r bytes' % r['biggest'])
+            check(r['kept'] < 33, 'only the mapped columns are kept, got %r' % r['kept'])
             check(r['longest'] < 2500, 'the page froze for %r ms while writing' % r['longest'])
             check(r['steps'] >= r['pages'], 'progress should be reported per page, got %r for %r pages' % (r['steps'], r['pages']))
             # the founder's own page holds everything once the writes settle
@@ -98,7 +103,7 @@ def main():
             }''')
             print('rounds', rounds)
             check(rounds['rounds'] >= 3 and rounds['biggest'] <= 2600000, 'a big collection should come in rounds under the budget, got %r' % rounds)
-            check(rounds['contactsPages'] == 130, 'contacts pages held: %r' % rounds['contactsPages'])
+            check(rounds['contactsPages'] >= 130, 'contacts pages held: %r' % rounds['contactsPages'])
             # an edit to one person: the next sync carries that one page and nothing else
             one = k.evaluate('''async () => {
               const c = M.base.all(M.lastCtx).contacts[123];
