@@ -36,3 +36,18 @@ jobs:
           try "$CID" "$RED" "the given client id"
           try "ffffffffffffffffffffffffffffffff" "$RED" "a bad client id"
           try "$CID" "https://example.com/" "the given client id with a foreign redirect"
+          # the token endpoint names an unknown client without any secret: a client credentials call with a wrong secret
+          probe() {
+            local cid="$1" label="$2"
+            echo "== token probe, $label: client_id=$cid"
+            curl -sS -m 30 -o tok.json -w 'status %{http_code}\n' -X POST https://accounts.spotify.com/api/token -u "$cid:not-the-secret" -d grant_type=client_credentials || echo "(curl failed)"
+            cat tok.json; echo
+            echo "== token probe in the body, $label"
+            curl -sS -m 30 -o tok2.json -w 'status %{http_code}\n' -X POST https://accounts.spotify.com/api/token -d "grant_type=client_credentials&client_id=$cid&client_secret=not-the-secret" || echo "(curl failed)"
+            cat tok2.json; echo
+            echo "== pkce style refresh probe, $label"
+            curl -sS -m 30 -o tok3.json -w 'status %{http_code}\n' -X POST https://accounts.spotify.com/api/token -d "grant_type=refresh_token&refresh_token=not-a-token&client_id=$cid" || echo "(curl failed)"
+            cat tok3.json; echo
+          }
+          probe "$CID" "the given client id"
+          probe "ffffffffffffffffffffffffffffffff" "a bad client id"
