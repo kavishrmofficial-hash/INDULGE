@@ -1,0 +1,38 @@
+name: spotify-check
+# What Spotify's authorize page answers a server for a client ID and this site's redirect URI, run from a
+# GitHub runner because the development sandbox cannot reach Spotify. Prints the status, the Location
+# header and every INVALID_CLIENT line, for the client ID given and for a known bad one.
+on:
+  workflow_dispatch:
+    inputs:
+      client_id:
+        description: the client ID to try (32 characters)
+        required: false
+        default: ffffffffffffffffffffffffffffffff
+      redirect:
+        description: the redirect URI to try
+        required: false
+        default: https://m360os-wx9u1bqs.edgeone.dev/
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ask Spotify
+        env:
+          CID: ${{ github.event.inputs.client_id }}
+          RED: ${{ github.event.inputs.redirect }}
+        run: |
+          try() {
+            local cid="$1" red="$2" label="$3"
+            echo "== $label: client_id=$cid redirect=$red"
+            local url="https://accounts.spotify.com/authorize?client_id=$cid&response_type=code&redirect_uri=$(python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1],safe=""))' "$red")&scope=streaming&state=m360check&code_challenge_method=S256&code_challenge=m360-check-challenge-0123456789abcdefghijklmnopqrstuv"
+            curl -sS -m 30 -o body.html -D head.txt -A 'Mozilla/5.0 (compatible; m360/1.0)' -H 'accept: text/html' "$url" || echo "(curl failed)"
+            echo "-- status and location"; head -1 head.txt; grep -i '^location:' head.txt || true
+            echo "-- bytes: $(wc -c < body.html)"
+            echo "-- INVALID_CLIENT lines"; grep -o 'INVALID_CLIENT[^<"]*' body.html | head -5 || true
+            echo "-- error words in the first 4000 bytes: $(head -c 4000 body.html | grep -o -i 'error' | wc -l)"
+            echo "-- first 400 bytes"; head -c 400 body.html; echo
+          }
+          try "$CID" "$RED" "the given client id"
+          try "ffffffffffffffffffffffffffffffff" "$RED" "a bad client id"
+          try "$CID" "https://example.com/" "the given client id with a foreign redirect"
