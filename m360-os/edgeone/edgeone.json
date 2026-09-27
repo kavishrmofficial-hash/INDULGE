@@ -1,3 +1,17 @@
 {
-  "outputDirectory": "public"
+  "outputDirectory": "public",
+  "headers": [
+    {"source": "/", "headers": [{"key": "Cache-Control", "value": "no-cache, must-revalidate"}]},
+    {"source": "/index.html", "headers": [{"key": "Cache-Control", "value": "no-cache, must-revalidate"}]},
+    {"source": "/sw.js", "headers": [{"key": "Cache-Control", "value": "no-cache, must-revalidate"}]},
+    {"source": "/version.json", "headers": [{"key": "Cache-Control", "value": "no-store"}]},
+    {"source": "/manifest.json", "headers": [{"key": "Cache-Control", "value": "no-cache, must-revalidate"}]}
+  ],
+  "caches": [
+    {"source": "/", "cacheTtl": 0},
+    {"source": "/index.html", "cacheTtl": 0},
+    {"source": "/sw.js", "cacheTtl": 0},
+    {"source": "/version.json", "cacheTtl": 0},
+    {"source": "/manifest.json", "cacheTtl": 0}
+  ]
 }
