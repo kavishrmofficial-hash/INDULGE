@@ -38,7 +38,7 @@ LOCAL = {builder.CDN[0]: 'vendor/react.js', builder.CDN[1]: 'vendor/react-dom.js
 
 
 SW = '''/* m360 OS service worker: the shell loads offline, the API always goes to the network */
-const CACHE = 'm360-v8';
+const CACHE = 'm360-__BUILD__';
 const SHELL = ['/', '/index.html', '/vendor/react.js', '/vendor/react-dom.js', '/vendor/htm.js', '/manifest.json', '/icon.svg', '/icons/icon-192.png', '/icons/apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
@@ -49,6 +49,20 @@ self.addEventListener('fetch', e => {
     .catch(() => caches.match(e.request).then(m => m || caches.match('/index.html'))));
 });
 '''
+
+
+def build_stamp():
+    """<short commit>.<yymmdd-hhmm> of the commit being built; the working tree's moment when it has changes."""
+    import subprocess
+    import datetime
+    try:
+        sha = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], capture_output=True, text=True, cwd=ROOT).stdout.strip() or 'local'
+        dirty = subprocess.run(['git', 'status', '--porcelain', '--', 'src', 'edgeone/server', 'build_edgeone.py'], capture_output=True, text=True, cwd=ROOT).stdout.strip()
+        when = subprocess.run(['git', 'log', '-1', '--format=%cI'], capture_output=True, text=True, cwd=ROOT).stdout.strip()
+        t = datetime.datetime.now(datetime.timezone.utc) if (dirty or not when) else datetime.datetime.fromisoformat(when).astimezone(datetime.timezone.utc)
+    except Exception:
+        sha, t, dirty = 'local', datetime.datetime.now(datetime.timezone.utc), ''
+    return '%s%s.%s' % (sha, '+' if dirty else '', t.strftime('%y%m%d-%H%M'))
 
 
 def main():
@@ -65,7 +79,12 @@ def main():
     # the title and viewport lines the artifact page opens with move into the head
     first_script = page.index('<script')
     head_part, body_part = page[:page.index('<div id="root">')], page[page.index('<div id="root">'):]
-    doc = HEAD + head_part + '<script>\n' + shim + '\n</script></head><body>' + body_part + '</body></html>'
+    # the build stamp: the commit and the moment, shown in the app and written to version.json, so anyone can tell
+    # which build a page runs and the page can say when a newer one is up
+    build = build_stamp()
+    doc = HEAD + head_part + '<script>window.M360_BUILD = %s;</script><script>\n' % json.dumps(build) + shim + '\n</script></head><body>' + body_part + '</body></html>'
+    with open(os.path.join(PUB, 'version.json'), 'w') as f:
+        json.dump({'build': build}, f)
     assert first_script > 0
     # the frame helper extension, zipped for the Web page's download link
     import zipfile
@@ -91,7 +110,7 @@ def main():
                              {'src': 'icons/maskable-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'},
                              {'src': 'icon.svg', 'sizes': 'any', 'type': 'image/svg+xml', 'purpose': 'any'}]}, f)
     with open(os.path.join(PUB, 'sw.js'), 'w') as f:
-        f.write(SW)
+        f.write(SW.replace('__BUILD__', build))
     # the pinned UMD builds are committed under edgeone/public/vendor; refresh them from the harness copy when present
     for name in ('react.js', 'react-dom.js', 'htm.js'):
         src = os.path.join(ROOT, 'harness', 'vendor', name)

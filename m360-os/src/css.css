@@ -924,3 +924,8 @@ body.web-focus .music-dock{display:none}
 .web-note{padding:8px 12px; gap:8px; border-bottom:1px solid var(--line); flex:none; flex-wrap:wrap}
 .web-foot{margin-top:auto; padding-top:12px; line-height:1.45}
 .web-foot a{color:inherit}
+
+/* a newer build is up */
+.newer{position:fixed; top:0; left:0; right:0; z-index:96; display:flex; align-items:center; justify-content:center; gap:12px; padding:8px 16px; background:var(--dark); color:#fff; font-size:13px}
+.newer .iconbtn.on-dark{color:#fff}
+body:has(.newer) .topbar{top:36px}

@@ -173,6 +173,12 @@ Closed in the same release: a second person with Full access reads shared founde
 - **A stopped import says so** under the button, with the reason; every page written stays whole, and importing the same file again only adds what is missing.
 - Measured on the stand-in with that file: 4 seconds to read and plan, 81 seconds to write 169 pages, no freeze over a fifth of a second, a fresh browser loads the whole base in about 36 seconds.
 
+## Which build is the site running
+
+Every EdgeOne build carries a stamp, `<commit>[+].<yymmdd-hhmm>` (the plus means the tree had changes past that commit when it was built). It shows in Me > Your m360 under "This build" and in the Admin hero, and it is served at `/version.json`. A page checks that file on load, when its tab comes back, and every ten minutes; when the server has a newer build it shows one line at the top with a Reload. The service worker's cache is keyed to the same stamp, so an old shell never lingers past one reload.
+
+If a push does not show up: the EdgeOne console, project `mask360os`, Deployments, should list the commit; if it does not, the git integration did not fire (Redeploy from there, or check that the branch is `claude/luxury-concierge-research-orbwp5` with root `m360-os/edgeone`). If it does and the page is still old, open `/version.json` on the site: a new stamp there with an old one in the app means the tab is stale, so reload; the same old stamp in both means the deploy has not finished.
+
 ## Launch day
 
 1. Admin > Team: invite each person by email. They get a link, type their email and pick a password. Without an email key the invite shows a link to copy instead.

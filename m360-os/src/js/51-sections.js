@@ -291,6 +291,7 @@
         ${perm === 'default' ? html`<div class="row between"><span>Notices while m360 is in the background</span><button type="button" class="linky small" id="notify-ask" onClick=${() => M.notices && M.notices.ask().then(p => setPerm(p || 'denied'))}>Allow</button></div>` : null}
         <div class="row between"><span>The tour</span><button type="button" class="linky small" id="tour-again" onClick=${() => M.tour && M.tour.start()}>Show me around</button></div>
         <div class="row between"><span>Keyboard shortcuts</span><button type="button" class="linky small" onClick=${() => window.dispatchEvent(new CustomEvent('m360:keys'))}>Show the sheet</button></div>
+        <div class="row between"><span>This build</span><span class="num tiny ink62" id="build-stamp">${window.M360_BUILD || 'claude.ai page'}</span></div>
       </div>
     <//>`;
   }
@@ -298,7 +299,7 @@
   /* ---------- Admin ---------- */
   function Admin() {
     return html`<div class="stack" style=${{gap: '20px'}}>
-      <${M.SectionHero} color="ink" micro="founder" title="Admin"
+      <${M.SectionHero} color="ink" micro=${'founder' + (window.M360_BUILD ? ' · build ' + window.M360_BUILD : '')} title="Admin"
         sub="Team, rules, corrections, the activity log, payroll export and your super controls."/>
       ${M.parts.AiKeyCard ? html`<${UI.Fold} title="m360 AI" summary="your Anthropic key switches the AI on" id="fold-ai"><${M.parts.AiKeyCard}/><//>` : null}
       ${M.parts.MailCard ? html`<${UI.Fold} title="Email sending" summary="Resend key and sender" id="fold-mail"><${M.parts.MailCard}/><//>` : null}

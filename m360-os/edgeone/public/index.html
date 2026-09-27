@@ -929,6 +929,11 @@ body.web-focus .music-dock{display:none}
 .web-foot{margin-top:auto; padding-top:12px; line-height:1.45}
 .web-foot a{color:inherit}
 
+/* a newer build is up */
+.newer{position:fixed; top:0; left:0; right:0; z-index:96; display:flex; align-items:center; justify-content:center; gap:12px; padding:8px 16px; background:var(--dark); color:#fff; font-size:13px}
+.newer .iconbtn.on-dark{color:#fff}
+body:has(.newer) .topbar{top:36px}
+
 /* ==== 71-profile.css ==== */
 /* ---------- profile: your photo and details on Me, and what teammates see ---------- */
 .prof-preview{display:flex; align-items:center; gap:14px; padding:14px 16px; border-radius:16px; background:var(--warm); min-width:0}
@@ -1345,7 +1350,7 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
   .cl-news .t{flex-basis:100%}
 }
 </style>
-<script>
+<script>window.M360_BUILD = "9b4ceac+.260927-1126";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -1688,6 +1693,20 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
     window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
   }
+  /* a newer build on the server: say so, once, with a reload; checked on load, when the tab comes back, and every ten minutes */
+  let toldBuild = false;
+  async function checkBuild() {
+    if (toldBuild || !window.M360_BUILD) return;
+    try {
+      const r = await fetch('version.json?t=' + Date.now(), {cache: 'no-store', credentials: 'same-origin'});
+      if (!r.ok) return;
+      const j = await r.json();
+      if (j && j.build && j.build !== window.M360_BUILD) { toldBuild = true; window.M360_NEWER = j.build; window.dispatchEvent(new CustomEvent('m360:newer', {detail: j.build})); }
+    } catch (e) { /* offline, or an older server */ }
+  }
+  setTimeout(checkBuild, 8000);
+  setInterval(checkBuild, 600000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkBuild(); });
   window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); window.M360_INSTALL = e; window.dispatchEvent(new CustomEvent('m360:installable')); });
 
   /* ---------- the contract ---------- */
@@ -3129,12 +3148,25 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       ${M.parts.FocusHost ? html`<${M.parts.FocusHost}/>` : null}
       ${M.parts.BreatheHost ? html`<${M.parts.BreatheHost}/>` : null}
       ${M.parts.ChatWatch ? html`<${M.parts.ChatWatch}/>` : null}
+      <${NewerBuild}/>
       ${M.parts.Notices ? html`<${M.parts.Notices}/>` : null}
       ${M.parts.MusicDock ? html`<${M.parts.MusicDock}/>` : null}
       ${newTask && M.parts.TaskDrawer ? html`<${M.parts.TaskDrawer} taskId=${null} defaults=${{owner: ctx.uid}} onClose=${() => setNewTask(false)}/>` : null}
       <${M.ToastHost}/>
     </div>`;
   };
+
+  /* the server has a newer build than this tab: one line at the top, with a reload */
+  function NewerBuild() {
+    const [b, setB] = React.useState(window.M360_NEWER || '');
+    React.useEffect(() => { const f = e => setB(e.detail || 'new'); window.addEventListener('m360:newer', f); return () => window.removeEventListener('m360:newer', f); }, []);
+    if (!b) return null;
+    return html`<div class="newer" id="newer-build" role="status">
+      <span>A newer m360 is up (build ${b}). Reload to get it.</span>
+      <button type="button" class="btn sm on-dark" onClick=${() => location.reload()}>Reload</button>
+      <button type="button" class="iconbtn on-dark" aria-label="Later" onClick=${() => setB('')}><${M.icons.x}/></button>
+    </div>`;
+  }
 
   /* shared hero for section pages */
   M.SectionHero = function SectionHero({color, micro, title, sub, children, right}) {
@@ -11812,6 +11844,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         ${perm === 'default' ? html`<div class="row between"><span>Notices while m360 is in the background</span><button type="button" class="linky small" id="notify-ask" onClick=${() => M.notices && M.notices.ask().then(p => setPerm(p || 'denied'))}>Allow</button></div>` : null}
         <div class="row between"><span>The tour</span><button type="button" class="linky small" id="tour-again" onClick=${() => M.tour && M.tour.start()}>Show me around</button></div>
         <div class="row between"><span>Keyboard shortcuts</span><button type="button" class="linky small" onClick=${() => window.dispatchEvent(new CustomEvent('m360:keys'))}>Show the sheet</button></div>
+        <div class="row between"><span>This build</span><span class="num tiny ink62" id="build-stamp">${window.M360_BUILD || 'claude.ai page'}</span></div>
       </div>
     <//>`;
   }
@@ -11819,7 +11852,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   /* ---------- Admin ---------- */
   function Admin() {
     return html`<div class="stack" style=${{gap: '20px'}}>
-      <${M.SectionHero} color="ink" micro="founder" title="Admin"
+      <${M.SectionHero} color="ink" micro=${'founder' + (window.M360_BUILD ? ' · build ' + window.M360_BUILD : '')} title="Admin"
         sub="Team, rules, corrections, the activity log, payroll export and your super controls."/>
       ${M.parts.AiKeyCard ? html`<${UI.Fold} title="m360 AI" summary="your Anthropic key switches the AI on" id="fold-ai"><${M.parts.AiKeyCard}/><//>` : null}
       ${M.parts.MailCard ? html`<${UI.Fold} title="Email sending" summary="Resend key and sender" id="fold-mail"><${M.parts.MailCard}/><//>` : null}

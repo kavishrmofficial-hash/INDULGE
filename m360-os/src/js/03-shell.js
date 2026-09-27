@@ -398,12 +398,25 @@
       ${M.parts.FocusHost ? html`<${M.parts.FocusHost}/>` : null}
       ${M.parts.BreatheHost ? html`<${M.parts.BreatheHost}/>` : null}
       ${M.parts.ChatWatch ? html`<${M.parts.ChatWatch}/>` : null}
+      <${NewerBuild}/>
       ${M.parts.Notices ? html`<${M.parts.Notices}/>` : null}
       ${M.parts.MusicDock ? html`<${M.parts.MusicDock}/>` : null}
       ${newTask && M.parts.TaskDrawer ? html`<${M.parts.TaskDrawer} taskId=${null} defaults=${{owner: ctx.uid}} onClose=${() => setNewTask(false)}/>` : null}
       <${M.ToastHost}/>
     </div>`;
   };
+
+  /* the server has a newer build than this tab: one line at the top, with a reload */
+  function NewerBuild() {
+    const [b, setB] = React.useState(window.M360_NEWER || '');
+    React.useEffect(() => { const f = e => setB(e.detail || 'new'); window.addEventListener('m360:newer', f); return () => window.removeEventListener('m360:newer', f); }, []);
+    if (!b) return null;
+    return html`<div class="newer" id="newer-build" role="status">
+      <span>A newer m360 is up (build ${b}). Reload to get it.</span>
+      <button type="button" class="btn sm on-dark" onClick=${() => location.reload()}>Reload</button>
+      <button type="button" class="iconbtn on-dark" aria-label="Later" onClick=${() => setB('')}><${M.icons.x}/></button>
+    </div>`;
+  }
 
   /* shared hero for section pages */
   M.SectionHero = function SectionHero({color, micro, title, sub, children, right}) {

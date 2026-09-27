@@ -340,6 +340,20 @@
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
     window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
   }
+  /* a newer build on the server: say so, once, with a reload; checked on load, when the tab comes back, and every ten minutes */
+  let toldBuild = false;
+  async function checkBuild() {
+    if (toldBuild || !window.M360_BUILD) return;
+    try {
+      const r = await fetch('version.json?t=' + Date.now(), {cache: 'no-store', credentials: 'same-origin'});
+      if (!r.ok) return;
+      const j = await r.json();
+      if (j && j.build && j.build !== window.M360_BUILD) { toldBuild = true; window.M360_NEWER = j.build; window.dispatchEvent(new CustomEvent('m360:newer', {detail: j.build})); }
+    } catch (e) { /* offline, or an older server */ }
+  }
+  setTimeout(checkBuild, 8000);
+  setInterval(checkBuild, 600000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkBuild(); });
   window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); window.M360_INSTALL = e; window.dispatchEvent(new CustomEvent('m360:installable')); });
 
   /* ---------- the contract ---------- */
