@@ -188,22 +188,17 @@
     const canSave = !!f.brand.trim() && !busy;
 
     /* contacts from the Base: the ones at this pitch's client company when it is linked, else everyone */
-    const contactOpts = useMemo(() => {
-      if (!M.search || !M.search.contacts) return [];
-      const all = M.search.contacts(ctx);
-      const cid = clientFor(ctx, f.brand);
-      const org = cid ? M.search.orgOfClient(ctx, cid) : null;
-      const list = org ? all.filter(c => c.org === org.id) : all;
-      return list.map(c => ({v: c.id, label: M.search.nameOf(c) + (c.title ? ', ' + c.title : '') + (!org && c.orgName ? ' (' + c.orgName + ')' : '')}))
-        .sort((a, b) => a.label.localeCompare(b.label)).slice(0, 200);
-    }, [ctx.coll.contacts, ctx.coll.orgs, ctx.coll.clients, f.brand]);
+    const cidForBrand = clientFor(ctx, f.brand);
+    const cq = M.base && M.base.useQuery ? M.base.useQuery('contacts', {client: cidForBrand || '', limit: 200}) : {rows: []};
+    const contactOpts = useMemo(() => cq.rows.map(c => ({v: c.id, label: (c.name || [c.first, c.last].filter(Boolean).join(' ') || 'Someone') + (c.title ? ', ' + c.title : '') + (!cidForBrand && c.orgName ? ' (' + c.orgName + ')' : '')}))
+      .sort((a, b) => a.label.localeCompare(b.label)), [cq.rows, cidForBrand]);
 
     const save = () => {
       if (!canSave) return;
       setBusy(true);
       const now = Date.now();
       const id = isNew ? U.uid() : pitchId;
-      const orgMatch = (M.base && M.base.all) ? (M.base.all(ctx).orgs || []).find(o => !o.archived && String(o.name || '').trim().toLowerCase() === f.brand.trim().toLowerCase()) : null;
+      const orgMatch = (!M.base.remote() && M.base.all) ? (M.base.all(ctx).orgs || []).find(o => !o.archived && String(o.name || '').trim().toLowerCase() === f.brand.trim().toLowerCase()) : null;
       const body = {brand: f.brand.trim(), category: f.category.trim(), contact: f.contactId || f.contact.trim(),
         source: f.source.trim(), owner: f.owner || ctx.uid, updated: now, ...(orgMatch ? {org: orgMatch.id} : {})};
       let p;

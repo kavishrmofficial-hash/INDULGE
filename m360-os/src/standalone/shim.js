@@ -58,13 +58,17 @@
   const meReady = signedIn.then(() => call('me')).then(m => { meInfo = m; if (inviteCode) clearHash(); return m; }).catch(() => { meInfo = {uid: null, down: true}; return meInfo; });
 
   /* ---------- db: a local mirror of every readable collection, kept fresh by polling ---------- */
-  const colls = {};          /* path -> {v, docs, tags} */
+  const colls = {};          /* path -> {v, docs, tags, complete} */
+  /* the Base (contacts, orgs) is searched on the server; a page holds it only when something subscribes (the founder's Import) */
+  const LAZY = new Set(['contacts', 'orgs']);
+  const wanted = new Set();
   const frozen = new WeakMap(); /* a doc object -> its frozen copy, so an unchanged doc is never cloned twice */
   const docSubs = new Map(); /* doc path -> Set(fn) */
   const collSubs = new Map();/* coll path -> Set(fn) */
   let loaded = false;
   const waiters = [];
   const meta = {fromCache: false, hasPendingWrites: false};
+  const metaOf = path => { const c = colls[path]; const partial = c ? c.complete === false : LAZY.has(path); return partial ? {fromCache: false, hasPendingWrites: false, partial: true} : meta; };
 
   function snapDoc(path) {
     const s = segs(path);
@@ -72,7 +76,7 @@
     const d = c && c.docs[s[s.length - 1]];
     let data;
     if (d !== undefined) {
-      if (d && typeof d === 'object') { data = frozen.get(d); if (!data) { data = freeze(clone(d)); frozen.set(d, data); } }
+      if (d && typeof d === 'object') { data = frozen.get(d); if (!data) { data = freeze(d); frozen.set(d, data); } }
       else data = d;
     }
     return {id: s[s.length - 1], exists: data !== undefined, data: () => data, metadata: meta};
@@ -80,7 +84,7 @@
   function snapColl(path) {
     const c = colls[path];
     const docs = c ? Object.keys(c.docs).map(id => snapDoc(path + '/' + id)) : [];
-    return {docs, size: docs.length, empty: !docs.length, metadata: meta, forEach: fn => docs.forEach(fn)};
+    return {docs, size: docs.length, empty: !docs.length, metadata: metaOf(path), forEach: fn => docs.forEach(fn)};
   }
   function notifyColl(coll) {
     const cs = collSubs.get(coll);
@@ -98,22 +102,29 @@
       if (inflight[coll]) continue;
       const n = next[coll];
       if (n.delta) {
-        const c = colls[coll] || (colls[coll] = {v: '', docs: {}, tags: {}});
+        const c = colls[coll] || (colls[coll] = {v: '', docs: {}, tags: {}, complete: false});
         for (const id of n.gone || []) { delete c.docs[id]; delete c.tags[id]; }
         for (const id of Object.keys(n.docs || {})) c.docs[id] = n.docs[id];
         for (const id of Object.keys(n.tags || {})) c.tags[id] = n.tags[id];
-        if (!n.partial) c.v = n.v;
-        if ((n.gone || []).length || Object.keys(n.docs || {}).length) notifyColl(coll);
+        const wasComplete = c.complete;
+        if (!n.partial) { c.v = n.v; c.complete = true; }
+        if ((n.gone || []).length || Object.keys(n.docs || {}).length || (c.complete && !wasComplete)) notifyColl(coll);
         continue;
       }
-      colls[coll] = {v: n.v, docs: n.docs || {}, tags: {}};
+      colls[coll] = {v: n.v, docs: n.docs || {}, tags: {}, complete: true};
       notifyColl(coll);
     }
   }
-  const tagsHeld = () => { const t = {}; Object.keys(colls).forEach(k => { t[k] = colls[k].tags || {}; }); return t; };
+  const tagsHeld = () => {
+    const t = {};
+    Object.keys(colls).forEach(k => { if (!LAZY.has(k) || wanted.has(k)) t[k] = colls[k].tags || {}; });
+    wanted.forEach(k => { if (!(k in t)) t[k] = {}; });
+    return t;
+  };
+  const lazyList = () => Array.from(LAZY);
   async function loadAll() {
     for (let round = 0; round < 60; round++) {
-      const r = await call('snapshot', {tags: tagsHeld()});
+      const r = await call('snapshot', {tags: tagsHeld(), lazy: lazyList()});
       applyColls(r.colls);
       if (!r.more) break;
     }
@@ -127,7 +138,7 @@
     syncing = true;
     try {
       for (let round = 0; round < 60; round++) {
-        const r = await call('sync', {tags: tagsHeld()});
+        const r = await call('sync', {tags: tagsHeld(), lazy: lazyList()});
         applyColls(r.colls);
         /* a level change means other documents may be readable now: hold no tags, so everything is asked for again */
         if (r.level != null && meInfo && r.level !== meInfo.level) { meInfo.level = r.level; Object.keys(colls).forEach(k => { colls[k].tags = {}; }); }
@@ -147,7 +158,11 @@
     if (!s.length || s.length % 2) throw {code: 'invalid_argument', message: 'document path needs an even number of segments'};
     await whenLoaded();
     const coll = s.slice(0, -1).join('/'), id = s[s.length - 1];
-    const c = colls[coll] || (colls[coll] = {v: '', docs: {}, tags: {}});
+    if (LAZY.has(coll) && !wanted.has(coll)) {
+      const r = await call('write', {op, path, data: op === 'delete' ? undefined : data}).catch(e => { if (e && e.status === 401) kick(); throw e; });
+      return r;
+    }
+    const c = colls[coll] || (colls[coll] = {v: '', docs: {}, tags: {}, complete: !LAZY.has(coll)});
     const before = c.docs[id];
     if (op === 'update' && before === undefined) throw {code: 'invalid_argument', message: 'update on missing document'};
     /* optimistic: the page sees its own write at once */
@@ -194,6 +209,8 @@
       onSnapshot(fn, onErr) {
         if (!collSubs.has(path)) collSubs.set(path, new Set());
         collSubs.get(path).add(fn);
+        /* the first subscriber to a lazy collection asks for it; it arrives over the next sync rounds */
+        if (LAZY.has(path) && !wanted.has(path)) { wanted.add(path); if (!colls[path]) colls[path] = {v: '', docs: {}, tags: {}, complete: false}; whenLoaded().then(() => setTimeout(sync, 0)); }
         whenLoaded().then(() => fn(snapColl(path)), onErr);
         return () => { const s = collSubs.get(path); if (s) s.delete(fn); };
       }

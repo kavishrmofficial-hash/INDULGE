@@ -28,6 +28,7 @@ import {voiceActions} from './voice.js';
 import {googleActions} from './google.js';
 import {webActions, browseHandler} from './web.js';
 import {fileActions} from './files.js';
+import {baseActions} from './base.js';
 
 const LEVEL = {view: 0, interact: 1, admin: 2, owner: 3};
 const SESSION_DAYS = 180;
@@ -448,18 +449,25 @@ export function createApp({store, env = {}}) {
      stay under SYNC_BUDGET bytes: a big collection (26,000 contacts in 130 pages) arrives over a few
      rounds, more: true asking for the next one, and an import that touches one page costs one page. */
   const SYNC_BUDGET = 2500000;
-  async function deltaFor(uid, level, mine) {
+  async function deltaFor(uid, level, mine, lazy) {
     const inv = await inventory();
     const out = {};
     const names = Array.from(new Set(Object.keys(inv).concat(Object.keys(mine || {})))).sort();
+    const skip = new Set(Array.isArray(lazy) ? lazy.map(String) : []);
     let bytes = 0, more = false;
     for (const coll of names) {
       if (hidden(coll, uid)) continue;
+      /* a lazy collection (the Base) travels only to a page that holds it or asks for it */
+      if (skip.has(coll) && !(mine && Object.prototype.hasOwnProperty.call(mine, coll))) continue;
       const tags = inv[coll] || {};
       const have = isObj(mine && mine[coll]) ? mine[coll] : {};
       const changed = Object.keys(tags).filter(id => have[id] !== tags[id]).sort();
       const gone = Object.keys(have).filter(id => !(id in tags));
-      if (!changed.length && !gone.length) continue;
+      if (!changed.length && !gone.length) {
+        /* a lazy collection asked for the first time and empty: say so, or the page waits for it forever */
+        if (skip.has(coll) && mine && Object.prototype.hasOwnProperty.call(mine, coll) && !Object.keys(have).length) out[coll] = {v: versionOf(tags), docs: {}, tags: {}, gone: [], delta: true, partial: false};
+        continue;
+      }
       if (more) break;
       /* a page with nothing yet reads the whole collection through its cache; otherwise the few that moved */
       let source = {};
@@ -646,7 +654,7 @@ export function createApp({store, env = {}}) {
     async snapshot(v, body) {
       if (!v) throw new HttpError(401, 'noid');
       const level = await levelOf(v.uid);
-      if (body && isObj(body.tags)) { const r = await deltaFor(v.uid, level, body.tags); return {colls: r.colls, more: r.more, level}; }
+      if (body && isObj(body.tags)) { const r = await deltaFor(v.uid, level, body.tags, body.lazy); return {colls: r.colls, more: r.more, level}; }
       return {colls: await collsFor(v.uid, level, null), level};
     },
 
@@ -654,7 +662,7 @@ export function createApp({store, env = {}}) {
     async sync(v, body) {
       if (!v) throw new HttpError(401, 'noid');
       const level = await levelOf(v.uid);
-      if (isObj(body.tags)) { const r = await deltaFor(v.uid, level, body.tags); return {colls: r.colls, more: r.more, level}; }
+      if (isObj(body.tags)) { const r = await deltaFor(v.uid, level, body.tags, body.lazy); return {colls: r.colls, more: r.more, level}; }
       const have = isObj(body.have) ? body.have : {};
       return {colls: await collsFor(v.uid, level, have), level};
     },
@@ -1031,6 +1039,7 @@ export function createApp({store, env = {}}) {
   const files = fileActions({store, getJ, putJ, levelOf, LEVEL, HttpError, log, rand, listAll});
   Object.assign(actions, files.actions);
   const browse = browseHandler({env, levelOf, LEVEL});
+  Object.assign(actions, baseActions({getJ, putJ, levelOf, LEVEL, HttpError, inventory, readColl, versionOf, docKey}).actions);
   /* safety: trash, daily backups, restore. It may register hooks.beforeDelete and hooks.upkeep. */
   Object.assign(actions, safetyActions({store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, pathOfKey, isObj, hooks, log, stampKey, inventory}));
   Object.assign(actions, peekActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError}));

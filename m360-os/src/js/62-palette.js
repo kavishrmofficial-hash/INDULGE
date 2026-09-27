@@ -92,12 +92,13 @@
     const inp = useRef(null);
     const names = M.useProfiles(ctx.activeMembers.map(m => m.uid));
     const log = M.search ? M.search.useLog(ctx, q) : null;
+    const remoteHits = M.search && M.search.useBaseHits ? M.search.useBaseHits(q) : null;
     const closeThen = fn => { onClose(); setTimeout(fn, 20); };
 
     const items = useMemo(() => {
       const own = buildItems(ctx, q, closeThen);
       const query = q.trim();
-      const found = query ? (M.search ? M.search.hits(ctx, query, {names, log}) : localHits(ctx, query, names)) : [];
+      const found = (query ? (M.search ? M.search.hits(ctx, query, {names, log}) : localHits(ctx, query, names)) : []).concat(query && remoteHits ? remoteHits : []);
       const list = own.concat(found.map(h => ({...h, run: h.more ? () => setShowAll({q: query, group: h.more}) : () => closeThen(() => M.nav(h.hash))})));
       const real = found.filter(h => !h.more).length;
       if (real > 0 && M.parts.SearchAll) list.push({key: 'more', group: 'more', label: 'Show all ' + real + (real === 1 ? ' result' : ' results'), icon: 'search', more: 'all',
@@ -105,7 +106,7 @@
       list.sort((a, b) => ORDER.indexOf(a.group) - ORDER.indexOf(b.group));
       if (query && M.ai.on(ctx)) list.push({key: 'ai', group: 'ask', label: 'Ask m360: ' + query, icon: null, ai: true, run: () => closeThen(() => onAsk(query))});
       return list;
-    }, [q, ctx, names, log]);
+    }, [q, ctx, names, log, remoteHits]);
 
     useEffect(() => { setSel(0); }, [q]);
     useEffect(() => { if (inp.current) inp.current.focus(); }, []);

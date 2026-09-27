@@ -223,7 +223,8 @@
     const [group, setGroup] = useState(group0 || 'all');
     const names = M.useProfiles(ctx.activeMembers.map(m => m.uid));
     const log = useLog(ctx, q);
-    const all = useMemo(() => hits(ctx, q, {names, cap: 60, log}), [ctx, q, names, log]);
+    const remoteHits = useBaseHits(q);
+    const all = useMemo(() => hits(ctx, q, {names, cap: 60, log}).concat(remoteHits || []), [ctx, q, names, log, remoteHits]);
     const rows = all.filter(x => !x.more);
     const counts = {};
     rows.forEach(x => { counts[x.group] = (counts[x.group] || 0) + 1; });
@@ -491,7 +492,31 @@
     return html`<${UI.Fold} title="Nudges from the base" summary=${list.length ? list.length + (list.length === 1 ? ' nudge' : ' nudges') : 'all quiet'} open=${list.length > 0} hot=${list.some(s => s.k === 'quiet')} id="fold-nudges">${body}<//>`;
   }
 
-  M.search = {hits, rankOf, GROUPS, GROUP_LABEL, GROUP_ICON, useLog, contacts, orgs, contactById, orgById, nameOf, orgOfClient, peopleAt, clientOfPitch, connectionsOf};
+  /* on the team site the Base is not in the page: people and companies come from the server as you type */
+  function useBaseHits(q) {
+    const [st, setSt] = useState({q: '', hits: []});
+    const isRemote = !!(M.base && M.base.remote && M.base.remote());
+    useEffect(() => {
+      if (!isRemote) return;
+      const query = String(q || '').trim();
+      if (!words(query).length) { setSt({q: query, hits: []}); return; }
+      let live = true;
+      const t = setTimeout(() => {
+        Promise.all([M.base.query(null, 'contacts', {q: query, limit: 6}), M.base.query(null, 'orgs', {q: query, limit: 4})]).then(([c, o]) => {
+          if (!live) return;
+          const hits = [];
+          (c.rows || []).forEach((x, i) => hits.push({key: 'c' + x.id, group: 'people', icon: 'people', label: nameOf(x), sub: [x.title, x.orgName].filter(Boolean).join(', '), hash: '#base/' + x.id, cid: x.id, rank: 3 - Math.min(2, i)}));
+          if (c.total > (c.rows || []).length) hits.push({key: 'people:more', group: 'people', label: 'Show all in Base', sub: (c.total - c.rows.length) + ' more', icon: 'search', more: 'people', rank: 0});
+          (o.rows || []).forEach((x, i) => hits.push({key: 'o' + x.id, group: 'companies', icon: 'database', label: x.name || 'Company', sub: [x.industry, x.city].filter(Boolean).join(', '), hash: '#companies/' + x.id, rank: 3 - Math.min(2, i)}));
+          if (o.total > (o.rows || []).length) hits.push({key: 'companies:more', group: 'companies', label: 'Show all companies', sub: (o.total - o.rows.length) + ' more', icon: 'search', more: 'companies', rank: 0});
+          setSt({q: query, hits});
+        }, () => { if (live) setSt({q: query, hits: []}); });
+      }, 140);
+      return () => { live = false; clearTimeout(t); };
+    }, [q, isRemote]);
+    return isRemote ? st.hits : null;
+  }
+  M.search = {hits, rankOf, GROUPS, GROUP_LABEL, GROUP_ICON, useLog, useBaseHits, contacts, orgs, contactById, orgById, nameOf, orgOfClient, peopleAt, clientOfPitch, connectionsOf};
   M.intel = {quietLeads, suggestions, tools, slice};
   M.parts.SearchAll = SearchAll;
   M.parts.Connections = Connections;

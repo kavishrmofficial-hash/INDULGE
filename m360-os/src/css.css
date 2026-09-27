@@ -929,3 +929,7 @@ body.web-focus .music-dock{display:none}
 .newer{position:fixed; top:0; left:0; right:0; z-index:96; display:flex; align-items:center; justify-content:center; gap:12px; padding:8px 16px; background:var(--dark); color:#fff; font-size:13px}
 .newer .iconbtn.on-dark{color:#fff}
 body:has(.newer) .topbar{top:36px}
+/* the base: a company picker that searches */
+.bs-orgpick{position:relative}
+.bs-orgpick-list{position:absolute; left:0; right:0; top:100%; z-index:5; background:var(--paper); border:1px solid var(--line); border-radius:12px; box-shadow:0 12px 30px var(--shadow); padding:4px; max-height:260px; overflow:auto}
+.bs-orgpick-list .listrow{padding:8px 10px}

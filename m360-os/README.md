@@ -179,6 +179,14 @@ Every EdgeOne build carries a stamp, `<commit>[+].<yymmdd-hhmm>` (the plus means
 
 If a push does not show up: the EdgeOne console, project `mask360os`, Deployments, should list the commit; if it does not, the git integration did not fire (Redeploy from there, or check that the branch is `claude/luxury-concierge-research-orbwp5` with root `m360-os/edgeone`). If it does and the page is still old, open `/version.json` on the site: a new stamp there with an old one in the app means the tab is stale, so reload; the same old stamp in both means the deploy has not finished.
 
+## What is in v14: the Base lives on the server
+
+- **A page never holds the base.** After the Apollo import every page of m360 carried 25,000 people and re-read them on every change, and the whole OS lagged. Now the team site keeps a compact index per collection on the server (`edgeone/server/base.js`, `n/bx/<coll>`, rebuilt when the collection's version moves) and answers `basesearch` (rows, counts, facets, matching companies), `baseget` (one full row and its page), `basestats`, `baseroom` (where a new row goes) and `baseexport` (a CSV of what matches, up to 5,000 rows). The browser receives only the rows it shows.
+- **Search never loads it.** The palette and the People and Companies pages ask the server as you type; the company picker in a person's record searches the same way. The sync marks `contacts` and `orgs` as lazy: they travel only to a page that subscribes to them.
+- **Only Import holds everything**, because a clean import must dedupe against the whole base. Its screen says "Opening the whole database" and waits for the last page before it plans; the plan never runs against half a base.
+- Clients, pitches and the CRM read the company and its people through the same layer (`M.base.useQuery`, `useRow`, `useOrgForClient`, `usePeopleAt`, `useStats`). On the claude.ai page and in tests the same calls run against the page's own index, so nothing changes there.
+- `test_bigbase.py` now also proves that a fresh browser on Home holds no base pages and stays light, that a search and an edit travel one row at a time, that the palette finds a person through the server, and that Import still opens the whole base.
+
 ## Launch day
 
 1. Admin > Team: invite each person by email. They get a link, type their email and pick a password. Without an email key the invite shows a link to copy instead.

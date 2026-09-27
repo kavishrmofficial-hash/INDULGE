@@ -216,17 +216,24 @@ M.useColl = function useColl(db, path) {
   const [s, set] = React.useState({ready: false, map: {}});
   React.useEffect(() => {
     if (!db || !path) { set({ready: true, map: {}}); return; }
+    set({ready: false, map: {}});
     let un;
     try {
       un = db.collection(path).onSnapshot(q => {
         const m = {};
         q.docs.forEach(d => { if (d.exists) m[d.id] = d.data(); });
-        set({ready: true, map: m});
+        /* a collection still arriving in rounds is not ready: nothing dedupes against half of it */
+        set({ready: !(q.metadata && q.metadata.partial), map: m});
       }, e => set(x => ({...x, ready: true, err: e && e.code})));
     } catch (e) { set({ready: true, map: {}}); }
     return () => { if (un) un(); };
   }, [db, path]);
   return s;
+};
+/* the Base in the page: only while something needs the whole of it (the founder's Import); everything else asks the server */
+M.baseNeed = {n: 0, subs: new Set(), notify() { M.baseNeed.subs.forEach(f => { try { f(M.baseNeed.n); } catch (e) { /* page handler */ } }); }};
+M.useBase = function useBase() {
+  React.useEffect(() => { M.baseNeed.n++; M.baseNeed.notify(); return () => { M.baseNeed.n--; M.baseNeed.notify(); }; }, []);
 };
 M.useDoc = function useDoc(db, path) {
   const [s, set] = React.useState({ready: false, data: null});

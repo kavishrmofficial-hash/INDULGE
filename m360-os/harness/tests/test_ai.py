@@ -28,15 +28,17 @@ def test(h):
     # ---- tap in as a member with no check-in today, with a mood ----
     h.go(page, 'm3', hash='#home', width=1280, seed=True)
     page.wait_for_timeout(400)
-    check(page.get_by_role('button', name='Check in, office').is_visible(), 'check in shows in the hero for someone not in yet')
-    page.get_by_role('button', name='on fire').click()
-    page.get_by_role('button', name='Check in, office').click()
-    page.wait_for_timeout(700)
-    ci = page.evaluate('() => window.__db.get("checkin/u_m3")') or {}
-    day = list((ci.get('days') or {}).values())
-    check(day and day[-1].get('mood') == 5, 'mood saved with the check-in: %r' % day)
-    check(day and day[-1]['loc']['verified'] is True, 'check-in verified at the office')
-    check('In since' in page.inner_text('main'), 'hero switches to the in-the-day state')
+    sunday = page.evaluate('() => new Date().getDay() === 0')
+    if not sunday:  # on a Sunday the OS rests: no check-in in the hero, by its own rule
+        check(page.get_by_role('button', name='Check in, office').is_visible(), 'check in shows in the hero for someone not in yet')
+        page.get_by_role('button', name='on fire').click()
+        page.get_by_role('button', name='Check in, office').click()
+        page.wait_for_timeout(700)
+        ci = page.evaluate('() => window.__db.get("checkin/u_m3")') or {}
+        day = list((ci.get('days') or {}).values())
+        check(day and day[-1].get('mood') == 5, 'mood saved with the check-in: %r' % day)
+        check(day and day[-1]['loc']['verified'] is True, 'check-in verified at the office')
+        check('In since' in page.inner_text('main'), 'hero switches to the in-the-day state')
 
     # ---- status ----
     page.get_by_role('button', name='Set a status').click()
@@ -131,7 +133,7 @@ def test(h):
     hqc = page.evaluate('() => window.__db.get("data/users/u_founder/ai")') or {}
     check(bool(hqc.get('hq', {}).get('data', {}).get('headline')), 'HQ brief cached privately')
     fp = page.evaluate('window.__sampleCalls')[-1]['text']
-    check('PIPELINE' in fp and 'LATE' in fp, 'founder prompt carries the whole company')
+    check('PIPELINE' in fp and (sunday or 'LATE' in fp), 'founder prompt carries the whole company')
 
     # ---- founder HQ: rebalance ----
     page.get_by_role('button', name='Rebalance').click()
@@ -169,41 +171,42 @@ def test(h):
         check('AI is off for you' in page.inner_text('main'), 'friendly copy when AI is declined')
     check(h.overflow(page) == 0, 'no overflow at 390')
 
-    # ---- check-in edge cases, each in its own browser session ----
-    far = h.session('founder', width=390, hash='#home', reset=True, seed=True, geo=(19.2, 72.9, 30))
-    seed(h, far)
-    h.go(far, 'm3', hash='#home', width=390, seed=True)
-    far.wait_for_timeout(300)
-    far.get_by_role('tab', name='WFH', exact=True).click()
-    far.get_by_role('button', name='Check in, WFH').click()
-    far.wait_for_timeout(600)
-    e = list(((far.evaluate('() => window.__db.get("checkin/u_m3")') or {}).get('days') or {}).values())
-    check(e and e[-1]['mode'] == 'wfh' and e[-1]['loc']['verified'] is False and e[-1]['loc']['place'].startswith('Outside office'),
-          'far check-in is unverified with a distance: %r' % (e[-1] if e else None))
-    far.get_by_role('button', name='Check out').click()
-    far.wait_for_timeout(600)
-    e = list(((far.evaluate('() => window.__db.get("checkin/u_m3")') or {}).get('days') or {}).values())
-    check(e and e[-1].get('out'), 'check out stamps the time')
-    check('Done for today' in far.inner_text('main'), 'hero shows the day as done')
-    # WFH cap: Aanya already has two WFH days this week
-    h.go(far, 'm2', hash='#home', width=390, seed=True)
-    far.wait_for_timeout(300)
-    if far.get_by_role('button', name='Check in, office').count():
+    if not sunday:  # check-ins rest on a Sunday, by the app's own rule
+        # ---- check-in edge cases, each in its own browser session ----
+        far = h.session('founder', width=390, hash='#home', reset=True, seed=True, geo=(19.2, 72.9, 30))
+        seed(h, far)
+        h.go(far, 'm3', hash='#home', width=390, seed=True)
+        far.wait_for_timeout(300)
         far.get_by_role('tab', name='WFH', exact=True).click()
-        far.wait_for_timeout(200)
-        check(far.get_by_role('button', name='Check in, office').count() == 1, 'WFH is refused at the cap')
+        far.get_by_role('button', name='Check in, WFH').click()
+        far.wait_for_timeout(600)
+        e = list(((far.evaluate('() => window.__db.get("checkin/u_m3")') or {}).get('days') or {}).values())
+        check(e and e[-1]['mode'] == 'wfh' and e[-1]['loc']['verified'] is False and e[-1]['loc']['place'].startswith('Outside office'),
+              'far check-in is unverified with a distance: %r' % (e[-1] if e else None))
+        far.get_by_role('button', name='Check out').click()
+        far.wait_for_timeout(600)
+        e = list(((far.evaluate('() => window.__db.get("checkin/u_m3")') or {}).get('days') or {}).values())
+        check(e and e[-1].get('out'), 'check out stamps the time')
+        check('Done for today' in far.inner_text('main'), 'hero shows the day as done')
+        # WFH cap: Aanya already has two WFH days this week
+        h.go(far, 'm2', hash='#home', width=390, seed=True)
+        far.wait_for_timeout(300)
+        if far.get_by_role('button', name='Check in, office').count():
+            far.get_by_role('tab', name='WFH', exact=True).click()
+            far.wait_for_timeout(200)
+            check(far.get_by_role('button', name='Check in, office').count() == 1, 'WFH is refused at the cap')
 
-    nogeo = h.session('founder', width=1280, hash='#home', reset=True, seed=True)
-    seed(h, nogeo)
-    h.go(nogeo, 'm3', hash='#home', width=1280, seed=True)
-    nogeo.wait_for_timeout(300)
-    nogeo.get_by_role('button', name='Check in, office').click()
-    nogeo.wait_for_selector('text=Where are you checking in from?', timeout=15000)
-    nogeo.get_by_role('button', name='Client site').click()
-    nogeo.wait_for_timeout(500)
-    e = list(((nogeo.evaluate('() => window.__db.get("checkin/u_m3")') or {}).get('days') or {}).values())
-    check(e and e[-1]['loc']['src'] == 'self' and e[-1]['loc']['place'] == 'Client site' and e[-1]['loc']['verified'] is False,
-          'blocked location falls back to a self-reported place: %r' % (e[-1] if e else None))
+        nogeo = h.session('founder', width=1280, hash='#home', reset=True, seed=True)
+        seed(h, nogeo)
+        h.go(nogeo, 'm3', hash='#home', width=1280, seed=True)
+        nogeo.wait_for_timeout(300)
+        nogeo.get_by_role('button', name='Check in, office').click()
+        nogeo.wait_for_selector('text=Where are you checking in from?', timeout=15000)
+        nogeo.get_by_role('button', name='Client site').click()
+        nogeo.wait_for_timeout(500)
+        e = list(((nogeo.evaluate('() => window.__db.get("checkin/u_m3")') or {}).get('days') or {}).values())
+        check(e and e[-1]['loc']['src'] == 'self' and e[-1]['loc']['place'] == 'Client site' and e[-1]['loc']['verified'] is False,
+              'blocked location falls back to a self-reported place: %r' % (e[-1] if e else None))
 
     check(not h.errors(), 'console errors: %r' % h.errors()[:3])
     return fails

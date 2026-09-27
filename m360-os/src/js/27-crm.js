@@ -10,28 +10,20 @@
   const DAY = 86400000;
 
   /* every account, one row each: keyed by company id when the Base knows it, else by name */
-  function accounts(ctx) {
+  function accounts(ctx, orgList) {
     const rows = {};
     const byName = {};
     const rowFor = (key, name) => {
       if (!rows[key]) rows[key] = {key, name, org: null, client: null, pitches: [], contacts: 0, tasks: 0, last: 0, next: '', nextText: '', owner: ''};
       return rows[key];
     };
-    const ix = M.base && M.base.all ? M.base.all(ctx) : null;
-    const orgs = ix && ix.orgs ? ix.orgs : [];
-    for (const o of orgs) {
+    /* companies with their people counts: from the server on the team site, from the page elsewhere */
+    for (const o of orgList || []) {
       if (o.archived) continue;
       const r = rowFor('o:' + o.id, o.name);
       r.org = o; byName[norm(o.name)] = r.key;
-      r.last = Math.max(r.last, Number(o.updated) || 0);
-    }
-    const contacts = ix && ix.contacts ? ix.contacts : [];
-    for (const c of contacts) {
-      if (c.archived) continue;
-      const key = c.org && rows['o:' + c.org] ? 'o:' + c.org : (c.orgName && byName[norm(c.orgName)]) || null;
-      if (!key) continue;
-      rows[key].contacts++;
-      rows[key].last = Math.max(rows[key].last, Number(c.updated) || 0);
+      r.last = Math.max(r.last, Number(o.updated) || 0, Number(o.lastPerson) || 0);
+      r.contacts += Number(o.people) || 0;
     }
     const cm = ctx.coll.clients.map;
     for (const id of Object.keys(cm)) {
@@ -77,7 +69,8 @@
     const [view, setView] = useState('all');
     const today = U.todayStr();
     const now = ctx.now || Date.now();
-    const all = useMemo(() => accounts(ctx), [ctx.coll.orgs, ctx.coll.contacts, ctx.coll.clients, ctx.coll.pitches, ctx.coll.tasks]);
+    const orgq = M.base.useQuery('orgs', {limit: 20000});
+    const all = useMemo(() => accounts(ctx, orgq.rows), [orgq.rows, ctx.coll.clients, ctx.coll.pitches, ctx.coll.tasks]);
     const fe = ctx.isFounder && ctx.priv && ctx.priv.finance && ctx.priv.finance.data ? (ctx.priv.finance.data.pitch || {}) : {};
     const value = r => r.pitches.filter(p => p.stage !== 'won' && p.stage !== 'lost').reduce((n, p) => n + (Number((fe[p.id] || {}).value) || 0), 0);
     const owners = M.useProfiles(Array.from(new Set(all.map(r => r.owner).filter(Boolean))));

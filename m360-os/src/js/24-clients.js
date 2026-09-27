@@ -86,7 +86,13 @@
     return (BASES[k] || 'https://') + encodeURIComponent(v.replace(/^@/, ''));
   }
   const socialText = v => { v = String(v || '').trim(); return /^https?:\/\//i.test(v) || v.indexOf('/') >= 0 ? v.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split(/[/?#]/)[0].slice(0, 32) : '@' + v.replace(/^@/, ''); };
-  const orgOf = (ctx, id) => (id && M.base && M.base.orgForClient) ? M.base.orgForClient(ctx, id) : null;
+  const orgOf = (ctx, id) => (id && M.base && M.base.orgForClient && !M.base.remote()) ? M.base.orgForClient(ctx, id) : null;
+  /* the client's company in the Base and the people there: the server answers on the team site */
+  function useLinked(clientId, orgId) {
+    const o = M.base && M.base.useOrgForClient ? M.base.useOrgForClient(clientId || null, orgId || null) : {org: null};
+    const p = M.base && M.base.usePeopleAt ? M.base.usePeopleAt(o.org ? o.org.id : null, 60) : {rows: []};
+    return {org: o.org, people: p.rows};
+  }
   /* the client's domain: stored, else from the website, else from the linked company in the Base */
   function domainOf(ctx, id, c) {
     c = c || (id && ctx && ctx.coll.clients.map[id]) || {};
@@ -257,9 +263,8 @@
 
   /* ---------- the company brain ---------- */
   const fieldsOf = src => { const o = {}; BRAIN.forEach(b => { const v = src && src[b.k]; o[b.k] = noDash(typeof v === 'string' ? v : (v == null ? '' : JSON.stringify(v))).trim().slice(0, BRAIN_MAX); }); return o; };
-  function brainPrompt(ctx, id, f, domain, site) {
-    const org = f.org && M.base && M.base.org ? M.base.org(ctx, f.org) : orgOf(ctx, id);
-    const people = org && M.base && M.base.peopleAt ? M.base.peopleAt(ctx, org.id) : [];
+  function brainPrompt(ctx, id, f, domain, site, org, people) {
+    org = org || null; people = people || [];
     const pname = p => String(p.name || ((p.first || '') + ' ' + (p.last || ''))).trim();
     return [
       'Build the company brain for the client ' + f.name + ' of Mask360, from the material below.',
@@ -284,6 +289,7 @@
   }
   function Brain({id, f}) {
     const ctx = M.useCtx();
+    const linked = useLinked(id, f.org);
     const doc = ctx.coll.clients.map[id] || {};
     const saved = doc.brain || null;
     const savedKey = JSON.stringify(saved || {});
@@ -319,7 +325,7 @@
         }
         if (c.signal.aborted) return;
         setStep('Thinking');
-        const out = await M.ai.json(ctx, brainPrompt(ctx, id, f, domain, site), {signal: c.signal, cache: false});
+        const out = await M.ai.json(ctx, brainPrompt(ctx, id, f, domain, site, linked.org, linked.people), {signal: c.signal, cache: false});
         if (c.signal.aborted) return;
         const fields = fieldsOf(out);
         const brain = {...fields, sources: sources.length ? sources : ['model'], at: Date.now(), by: ctx.uid};
@@ -372,6 +378,7 @@
   /* ---------- meeting prep: one screen from everything m360 has on this client ---------- */
   function Prep({id, f, news}) {
     const ctx = M.useCtx();
+    const linked = useLinked(id, f.org);
     const r = M.ai.useRun();
     if (!M.ai.on(ctx)) return null;
     async function go() {
@@ -383,8 +390,7 @@
       const tasks = tasksOf(ctx, id, projects).filter(t => t.status !== 'done');
       const eods = eodMentions(ctx, f.name, 14).slice(0, 6);
       const pitches = pitchesOf(ctx, id, f.name).filter(p => p.stage !== 'won' && p.stage !== 'lost');
-      const org = f.org && M.base && M.base.org ? M.base.org(ctx, f.org) : orgOf(ctx, id);
-      const people = org && M.base && M.base.peopleAt ? M.base.peopleAt(ctx, org.id) : [];
+      const org = linked.org, people = linked.people;
       const pname = p => String(p.name || ((p.first || '') + ' ' + (p.last || ''))).trim();
       const h = health(ctx, id);
       const brainLines = BRAIN.map(x => b[x.k] ? '- ' + x.label + ': ' + b[x.k] : '').filter(Boolean);
@@ -444,10 +450,13 @@
     const field = (k, v) => set(k, String(v || '').slice(0, LIMITS[k] || 200));
     const owners = ctx.activeMembers.map(m => ({v: m.uid, label: m.title ? m.empId + ' ' + m.title : m.empId}));
     /* the company in the Base this client is, when the Base has companies */
+    const linked = useLinked(id, f.org);
+    const orgq = M.base && M.base.useQuery ? M.base.useQuery('orgs', {q: '', limit: 400}) : {rows: []};
     const orgOpts = useMemo(() => {
-      const list = (M.search && M.search.orgs) ? M.search.orgs(ctx) : [];
+      const list = orgq.rows.slice();
+      if (linked.org && !list.some(o => o.id === linked.org.id)) list.push(linked.org);
       return list.map(o => ({v: o.id, label: o.name || o.id})).sort((a, b) => a.label.localeCompare(b.label));
-    }, [ctx.coll.orgs]);
+    }, [orgq.rows, linked.org]);
     const draft = {...(existing || {}), ...f, socials: {instagram: f.instagram, linkedin: f.linkedin, youtube: f.youtube}};
     const domain = domainOf(ctx, id, draft);
     const news = useNews(!!id);
@@ -472,7 +481,7 @@
         if (v === null) { M.toast('Check the ' + s.label + ' handle. A handle or a link works.', true); return; }
         socials[s.k] = v;
       }
-      const org = f.org && M.base && M.base.org ? M.base.org(ctx, f.org) : orgOf(ctx, id);
+      const org = linked.org;
       const cid = id || U.uid();
       const doc = {name: f.name.trim(), status: f.status, pod: f.pod, owner: f.owner,
         memory: f.memory, approvals: f.approvals, never: f.never, links: f.links, ...(f.org ? {org: f.org} : (id ? {org: ''} : {})),
@@ -482,7 +491,7 @@
         updated: Date.now(), by: ctx.uid};
       setBusy(true);
       try {
-        const before = id ? orgOf(ctx, id) : null;
+        const before = id ? (existing && existing.org && linked.org && linked.org.id === existing.org ? linked.org : (M.base && M.base.orgForClientAsync ? await M.base.orgForClientAsync(ctx, id) : null)) : null;
         if (id) await ctx.W.update('clients/' + id, doc);
         else await ctx.W.set('clients/' + cid, doc);
         /* the company row points back at the client, both ways, always */

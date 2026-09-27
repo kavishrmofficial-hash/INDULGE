@@ -38,6 +38,7 @@
   const COLLS = ['checkin','eod','plan','review','rocks','feed','reacts','acks','kudos','leave','leavedec',
     'tasks','projects','pitches','clients','handbook','candidates','evals','pulse','ideas','votes','access','onboard','me','fixes','contacts','orgs','chat','chatrooms'];
 
+  const OFF_COLL = Object.freeze({ready: false, map: Object.freeze({}), off: true});
   /* AppState wraps the whole signed-in app: subscribes once per collection, computes ctx. */
   M.AppState = function AppState({boot, children}) {
     const {db, user, mcp, downloads, permissions, sample, room, me} = boot;
@@ -54,8 +55,13 @@
 
     const rosterDoc = M.useDoc(db, 'roster/team');
     const settingsDoc = M.useDoc(db, 'settings/app');
+    /* on the team site the Base is searched on the server; the page holds it only while something needs all of it */
+    const remoteBase = !!window.M360_STANDALONE;
+    const [baseOn, setBaseOn] = React.useState(() => !remoteBase || M.baseNeed.n > 0);
+    React.useEffect(() => { if (!remoteBase) return; const f = n => { if (n > 0) setBaseOn(true); }; M.baseNeed.subs.add(f); return () => M.baseNeed.subs.delete(f); }, []);
     const coll = {};
-    for (const c of COLLS) coll[c] = M.useColl(db, c);
+    for (const c of COLLS) coll[c] = M.useColl(db, (c === 'contacts' || c === 'orgs') && !baseOn ? null : c);
+    if (!baseOn) { coll.contacts = OFF_COLL; coll.orgs = OFF_COLL; }
     /* join requests: only the founder lists them; everyone else reads their own */
     const rm = ((rosterDoc.data || {}).members || {})[realUid];
     const founderish = !!me.isOwner || !!(rm && rm.role === 'founder' && rm.active !== false);
@@ -163,7 +169,7 @@
       return {db, user, mcp, downloads, permissions, sample, room, me, uid, realUid, viewAs, W,
         priv: {state: privState, keeper: isFounder ? privKeeper : {ready: true, data: null}, finance: isFounder ? privFinance : {ready: true, data: null}},
         ready: rosterDoc.ready && settingsDoc.ready,
-        roster, members, member, activeMembers, isFounder, founderUid, locked,
+        roster, members, member, activeMembers, isFounder, founderUid, locked, remoteBase, baseOn,
         settings, holidays, coll, leaveMap, onLeave, isWorkingDay, startFor, canSee, now, online};
     }, [rosterDoc, settingsDoc, me, uid, realUid, viewAs, isFounder, locked, W, now, online, coll.join,
       privState, privKeeper, privFinance, ...COLLS.map(c => coll[c])]);

@@ -157,6 +157,142 @@
     return {contacts, orgs};
   }
 
+  /* ---------- the data layer: the server on the team site, the local index elsewhere ----------
+     A page never holds 25,000 rows here: lists, search, one row, the people at a company and the counts
+     come from the server (basesearch, baseget, basestats), the browser keeps what it shows. On the
+     claude.ai page and in tests the same calls run against the local index. */
+  const remote = () => !!(window.M360_STANDALONE && typeof window.M360_API === 'function');
+  const api = (a, body) => window.M360_API(a, body || {});
+  let tick = 0;
+  const tickSubs = new Set();
+  const touch = () => { tick++; tickSubs.forEach(f => { try { f(tick); } catch (e) { /* page handler */ } }); };
+  const useTick = () => { const [t, setT] = useState(tick); useEffect(() => { tickSubs.add(setT); return () => tickSubs.delete(setT); }, []); return t; };
+  const countsByOrg = ix => { const n = {}, last = {}; ix.contacts.forEach(c => { if (c.archived || !c.org) return; n[c.org] = (n[c.org] || 0) + 1; last[c.org] = Math.max(last[c.org] || 0, Number(c.updated) || 0); }); return {n, last}; };
+  /* the same answer basesearch gives, from the local index */
+  function localQuery(ctx, coll, o) {
+    o = o || {};
+    const ix = index(ctx);
+    const q = String(o.q || '').trim().toLowerCase();
+    const ids = Array.isArray(o.ids) ? new Set(o.ids) : null;
+    let orgId = o.org || '';
+    if (!orgId && o.client) { const org0 = orgForClient(ctx, o.client); if (!org0) return {total: 0, rows: [], facets: {}, orgs: []}; orgId = org0.id; }
+    const src = coll === 'orgs' ? ix.orgs : ix.contacts;
+    let list = src.filter(r => {
+      if (ids) { if (!ids.has(r.id)) return false; } else if (o.archived ? !r.archived : r.archived) return false;
+      if (orgId && r.org !== orgId) return false;
+      if (o.stage && r.stage !== o.stage) return false;
+      if (o.owner && r.owner !== o.owner) return false;
+      if (o.country && r.country !== o.country) return false;
+      if (o.source && r.source !== o.source) return false;
+      if (o.industry && r.industry !== o.industry) return false;
+      if (o.tag && (r.tags || []).indexOf(o.tag) < 0) return false;
+      if (o.map === 'yes' && !r.client) return false;
+      if (o.map === 'no' && r.client) return false;
+      if (q && r._s.indexOf(q) < 0) return false;
+      return true;
+    });
+    if (q) list = list.map(r => [rank(r, q), r]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
+    const offset = o.offset || 0, limit = o.limit || 60;
+    let rows = list.slice(offset, offset + limit);
+    const pc = countsByOrg(ix);
+    if (coll === 'orgs') rows = rows.map(r => ({...r, people: pc.n[r.id] || 0, lastPerson: pc.last[r.id] || 0}));
+    const facets = coll === 'orgs' ? {industries: distinct(ix.orgs, 'industry'), countries: distinct(ix.orgs, 'country')}
+      : {countries: distinct(ix.contacts, 'country'), tags: uniq(ix.contacts.reduce((a, c) => a.concat(c.tags || []), [])).sort()};
+    const orgs = coll === 'contacts' && q && !orgId ? ix.orgs.filter(r => !r.archived && r._s.indexOf(q) >= 0).map(r => [rank(r, q), r]).sort((a, b) => a[0] - b[0]).slice(0, 6).map(x => ({id: x[1].id, name: x[1].name, people: pc.n[x[1].id] || 0})) : [];
+    return {total: list.length, rows, facets, orgs};
+  }
+  const query = (ctx, coll, o) => remote() ? api('basesearch', {coll, ...(o || {})}) : Promise.resolve(localQuery(ctx, coll, o));
+  /* one full row and its page */
+  async function getRow(ctx, coll, id) {
+    if (remote()) { const r = await api('baseget', {coll, id}); return r && r.row ? {row: r.row, pid: r.pid, people: r.people} : null; }
+    const ix = index(ctx);
+    const row = coll === 'orgs' ? ix.oById[id] : ix.cById[id];
+    return row ? {row, pid: coll === 'orgs' ? ix.oPage[id] : ix.cPage[id]} : null;
+  }
+  async function orgForClientAsync(ctx, clientId) {
+    if (!clientId) return null;
+    if (remote()) { const r = await api('baseget', {coll: 'orgs', client: clientId}); return r && r.row ? {...r.row, pid: r.pid} : null; }
+    const o = orgForClient(ctx, clientId);
+    return o ? {...o, pid: index(ctx).oPage[o.id]} : null;
+  }
+  const peopleAtAsync = (ctx, orgId, limit) => orgId ? query(ctx, 'contacts', {org: orgId, limit: limit || 200}).then(r => r.rows) : Promise.resolve([]);
+  const statsAsync = ctx => {
+    if (remote()) return api('basestats');
+    const {contacts, orgs} = all(ctx); const cm = ctx.coll.clients.map;
+    return Promise.resolve({people: contacts.filter(c => !c.archived).length, companies: orgs.filter(o => !o.archived).length, mapped: orgs.filter(o => !o.archived && o.client && cm[o.client]).length});
+  };
+  /* a query as a hook: the answer, and loading while it is on its way; asked again after any write here */
+  function useQuery(coll, o, on) {
+    const ctx = M.useCtx();
+    const t = useTick();
+    const key = JSON.stringify(o || {});
+    const isRemote = remote();
+    const ix = isRemote ? null : index(ctx);
+    const local = useMemo(() => (isRemote || on === false) ? null : localQuery(ctx, coll, o), [isRemote, on, ix, key, ctx.coll.clients.map]);
+    const [st, setSt] = useState({rows: [], total: 0, facets: {}, orgs: [], loading: true});
+    useEffect(() => {
+      if (!isRemote || on === false) return;
+      let live = true;
+      setSt(x => ({...x, loading: true}));
+      api('basesearch', {coll, ...(o || {})}).then(r => { if (live) setSt({rows: r.rows || [], total: r.total || 0, facets: r.facets || {}, orgs: r.orgs || [], loading: false, v: r.v}); },
+        e => { if (live) setSt(x => ({...x, loading: false, err: (e && e.message) || 'The database did not answer.'})); });
+      return () => { live = false; };
+    }, [isRemote, on, key, t]);
+    if (on === false) return {rows: [], total: 0, facets: {}, orgs: [], loading: false};
+    return local ? {...local, loading: false} : st;
+  }
+  function useRow(coll, id) {
+    const ctx = M.useCtx();
+    const t = useTick();
+    const isRemote = remote();
+    const ix = isRemote ? null : index(ctx);
+    const local = useMemo(() => {
+      if (isRemote || !id) return null;
+      const row = coll === 'orgs' ? ix.oById[id] : ix.cById[id];
+      return {row: row || null, pid: row ? (coll === 'orgs' ? ix.oPage[id] : ix.cPage[id]) : null, loading: false};
+    }, [isRemote, ix, coll, id]);
+    const [st, setSt] = useState({row: null, pid: null, loading: !!id});
+    useEffect(() => {
+      if (!isRemote || !id) return;
+      let live = true;
+      api('baseget', {coll, id}).then(r => { if (live) setSt({row: r && r.row ? r.row : null, pid: r ? r.pid : null, people: r ? r.people : 0, loading: false}); },
+        () => { if (live) setSt({row: null, pid: null, loading: false, err: true}); });
+      return () => { live = false; };
+    }, [isRemote, coll, id, t]);
+    if (!id) return {row: null, pid: null, loading: false};
+    return local || st;
+  }
+  function useOrgForClient(clientId, orgId) {
+    const ctx = M.useCtx();
+    const t = useTick();
+    const isRemote = remote();
+    const ix = isRemote ? null : index(ctx);
+    const local = useMemo(() => { if (isRemote) return null; const o = (orgId && ix.oById[orgId]) || (clientId ? orgForClient(ctx, clientId) : null); return {org: o ? {...o, pid: ix.oPage[o.id]} : null, loading: false}; }, [isRemote, ix, clientId, orgId]);
+    const [st, setSt] = useState({org: null, loading: !!(clientId || orgId)});
+    useEffect(() => {
+      if (!isRemote || !(clientId || orgId)) return;
+      let live = true;
+      const p = orgId ? api('baseget', {coll: 'orgs', id: orgId}) : api('baseget', {coll: 'orgs', client: clientId});
+      p.then(r => { if (live) setSt({org: r && r.row ? {...r.row, pid: r.pid, people: r.people} : null, loading: false}); }, () => { if (live) setSt({org: null, loading: false}); });
+      return () => { live = false; };
+    }, [isRemote, clientId, orgId, t]);
+    if (!(clientId || orgId)) return {org: null, loading: false};
+    return local || st;
+  }
+  const usePeopleAt = (orgId, limit) => useQuery('contacts', {org: orgId || '', limit: limit || 200}, !!orgId);
+  function useStats() {
+    const ctx = M.useCtx();
+    const t = useTick();
+    const isRemote = remote();
+    const ix = isRemote ? null : index(ctx);
+    const [st, setSt] = useState({people: 0, companies: 0, mapped: 0, loading: true});
+    useEffect(() => { if (!isRemote) return; let live = true; api('basestats').then(r => { if (live) setSt({...r, loading: false}); }, () => { if (live) setSt(x => ({...x, loading: false})); }); return () => { live = false; }; }, [isRemote, t, ctx.coll.clients.map]);
+    const local = useMemo(() => { if (isRemote) return null; const cm = ctx.coll.clients.map; return {people: ix.contacts.filter(c => !c.archived).length, companies: ix.orgs.filter(o => !o.archived).length, mapped: ix.orgs.filter(o => !o.archived && o.client && cm[o.client]).length, loading: false}; }, [isRemote, ix, ctx.coll.clients.map]);
+    return local || st;
+  }
+  /* the page a new row goes on */
+  const roomFor = (ctx, coll, need) => remote() ? api('baseroom', {coll, need: need || 0}) : Promise.resolve(roomIn(ctx, coll, null, null, need));
+
   /* ---------- writes ---------- */
   function editedOf(patch) {
     const e = {};
@@ -165,53 +301,58 @@
   }
   async function upsertContact(ctx, patch) {
     const now = Date.now();
-    const ix = index(ctx);
     patch = {...patch};
     if (patch.tags) patch.tags = uniq(norm.list(patch.tags));
-    if (patch.id && ix.cById[patch.id]) {
+    const existing = patch.id ? await getRow(ctx, 'contacts', patch.id) : null;
+    if (existing) {
       const id = patch.id; delete patch.id;
-      if (patch.org && ix.oById[patch.org]) patch.orgName = ix.oById[patch.org].name;
-      await ctx.W.merge('contacts/' + ix.cPage[id], {rows: {[id]: {...patch, edited: editedOf(patch), updated: now, updatedBy: ctx.uid}}});
+      if (patch.org && !patch.orgName) { const o = await getRow(ctx, 'orgs', patch.org); if (o) patch.orgName = o.row.name; }
+      await ctx.W.merge('contacts/' + existing.pid, {rows: {[id]: {...patch, edited: editedOf(patch), updated: now, updatedBy: ctx.uid}}});
+      touch();
       return id;
     }
     const id = patch.id || newId('c_');
     const doc = {...blankContact(), ...patch, id, at: now, updated: now, updatedBy: ctx.uid};
     doc.name = norm.text(doc.name || (doc.first + ' ' + doc.last));
     if (!doc.first && !doc.last && doc.name) { const w = doc.name.split(' '); doc.first = w[0]; doc.last = w.slice(1).join(' '); }
-    if (doc.org && ix.oById[doc.org]) doc.orgName = ix.oById[doc.org].name;
-    const room = roomIn(ctx, 'contacts');
+    if (doc.org && !doc.orgName) { const o = await getRow(ctx, 'orgs', doc.org); if (o) doc.orgName = o.row.name; }
+    const room = await roomFor(ctx, 'contacts', bytesOf(doc) + 40);
     await ctx.W.merge('contacts/' + room.pid, {rows: {[id]: doc}, n: room.n + 1});
+    touch();
     return id;
   }
   async function upsertOrg(ctx, patch) {
     const now = Date.now();
-    const ix = index(ctx);
     patch = {...patch};
     if (patch.tags) patch.tags = uniq(norm.list(patch.tags));
     if (patch.keywords) patch.keywords = uniq(norm.list(patch.keywords));
     if (patch.website && !patch.domain) patch.domain = norm.domain(patch.website);
-    if (patch.id && ix.oById[patch.id]) {
+    const existing = patch.id ? await getRow(ctx, 'orgs', patch.id) : null;
+    if (existing) {
       const id = patch.id; delete patch.id;
-      await ctx.W.merge('orgs/' + ix.oPage[id], {rows: {[id]: {...patch, edited: editedOf(patch), updated: now, updatedBy: ctx.uid}}});
+      await ctx.W.merge('orgs/' + existing.pid, {rows: {[id]: {...patch, edited: editedOf(patch), updated: now, updatedBy: ctx.uid}}});
       /* the company name rides on every contact at the company */
-      if (patch.name && patch.name !== ix.oById[id].name) {
+      if (patch.name && patch.name !== existing.row.name) {
         const byPage = {};
-        peopleAt(ctx, id).forEach(c => { const p = ix.cPage[c.id]; (byPage[p] = byPage[p] || {})[c.id] = {orgName: patch.name}; });
+        (await peopleAtAsync(ctx, id, 2000)).forEach(c => { const p = c.pid || pageFor(ctx, 'contacts', c.id); if (p) (byPage[p] = byPage[p] || {})[c.id] = {orgName: patch.name}; });
         for (const p of Object.keys(byPage)) await ctx.W.merge('contacts/' + p, {rows: byPage[p]});
       }
+      touch();
       return id;
     }
     const id = patch.id || newId('o_');
     const doc = {...blankOrg(), ...patch, id, at: now, updated: now, updatedBy: ctx.uid};
     doc.name = norm.text(doc.name);
-    const room = roomIn(ctx, 'orgs');
+    const room = await roomFor(ctx, 'orgs', bytesOf(doc) + 40);
     await ctx.W.merge('orgs/' + room.pid, {rows: {[id]: doc}, n: room.n + 1});
+    touch();
     return id;
   }
   async function archive(ctx, coll, id, on) {
-    const pid = pageFor(ctx, coll, id);
-    if (!pid) return;
-    await ctx.W.merge(coll + '/' + pid, {rows: {[id]: {archived: on !== false, updated: Date.now(), updatedBy: ctx.uid}}});
+    const cur = await getRow(ctx, coll, id);
+    if (!cur) return;
+    await ctx.W.merge(coll + '/' + cur.pid, {rows: {[id]: {archived: on !== false, updated: Date.now(), updatedBy: ctx.uid}}});
+    touch();
   }
 
   /* ---------- clients: two way mapping ---------- */
@@ -231,46 +372,46 @@
     return null;
   }
   async function linkOrgToClient(ctx, orgId, clientId) {
-    const o = org(ctx, orgId), c = ctx.coll.clients.map[clientId], pid = pageFor(ctx, 'orgs', orgId);
-    if (!o || !c || !pid) return false;
+    const cur = await getRow(ctx, 'orgs', orgId), c = ctx.coll.clients.map[clientId];
+    if (!cur || !c) return false;
     const now = Date.now();
-    if (o.client !== clientId) await ctx.W.merge('orgs/' + pid, {rows: {[orgId]: {client: clientId, updated: now, updatedBy: ctx.uid}}});
+    if (cur.row.client !== clientId) await ctx.W.merge('orgs/' + cur.pid, {rows: {[orgId]: {client: clientId, updated: now, updatedBy: ctx.uid}}});
     if (c.org !== orgId) await ctx.W.update('clients/' + clientId, {org: orgId, updated: now});
+    touch();
     return true;
   }
   async function unlinkOrg(ctx, orgId) {
-    const o = org(ctx, orgId), pid = pageFor(ctx, 'orgs', orgId);
-    if (!o || !pid) return;
+    const cur = await getRow(ctx, 'orgs', orgId);
+    if (!cur) return;
+    const o = cur.row;
     const now = Date.now();
     const c = o.client ? ctx.coll.clients.map[o.client] : null;
-    await ctx.W.merge('orgs/' + pid, {rows: {[orgId]: {client: '', updated: now, updatedBy: ctx.uid}}});
+    await ctx.W.merge('orgs/' + cur.pid, {rows: {[orgId]: {client: '', updated: now, updatedBy: ctx.uid}}});
     if (c && c.org === orgId) await ctx.W.update('clients/' + o.client, {org: '', updated: now});
+    touch();
   }
   async function makeClientFromOrg(ctx, orgId) {
-    const o = org(ctx, orgId), pid = pageFor(ctx, 'orgs', orgId);
-    if (!o || !pid) return null;
+    const cur = await getRow(ctx, 'orgs', orgId);
+    if (!cur) return null;
+    const o = cur.row;
     const now = Date.now();
     const cid = U.uid();
     const doc = {name: o.name || 'Client', status: 'live', pod: '', owner: ctx.uid, memory: '', approvals: '', never: '',
       links: o.website || '', updated: now, by: ctx.uid, org: orgId};
     await ctx.W.set('clients/' + cid, doc);
-    await ctx.W.merge('orgs/' + pid, {rows: {[orgId]: {client: cid, updated: now, updatedBy: ctx.uid}}});
-    const ix = index(ctx);
+    await ctx.W.merge('orgs/' + cur.pid, {rows: {[orgId]: {client: cid, updated: now, updatedBy: ctx.uid}}});
+    /* everyone at the company moves to the client stage */
     const byPage = {};
-    peopleAt(ctx, orgId).forEach(c => {
-      if (c.stage === 'client') return;
-      const p = ix.cPage[c.id];
-      (byPage[p] = byPage[p] || {})[c.id] = {stage: 'client', updated: now, updatedBy: ctx.uid};
-    });
+    (await peopleAtAsync(ctx, orgId, 2000)).forEach(c => { const p = c.pid || pageFor(ctx, 'contacts', c.id); if (p && c.stage !== 'client') (byPage[p] = byPage[p] || {})[c.id] = {stage: 'client', updated: now, updatedBy: ctx.uid}; });
     for (const p of Object.keys(byPage)) await ctx.W.merge('contacts/' + p, {rows: byPage[p]});
+    touch();
     return cid;
   }
-  /* a client created from Accounts with a matching company name gets linked on the next Base render;
-     a client someone unmapped by hand keeps org '' and is left alone */
+  /* clients that were never mapped find their company by name or domain, once, on the claude.ai page (the server maps at import) */
   function useAutoMap(ctx) {
     const tried = useRef({});
     useEffect(() => {
-      if (!ctx.coll.clients.ready || !ctx.coll.orgs.ready) return;
+      if (remote() || !ctx.coll.clients.ready || !ctx.coll.orgs.ready) return;
       const cm = ctx.coll.clients.map;
       const {orgs} = all(ctx);
       for (const cid of Object.keys(cm)) {
@@ -610,8 +751,16 @@
     return [{v: '', label: 'No owner'}].concat(ctx.activeMembers.map(m => ({v: m.uid, label: (profs[m.uid] && profs[m.uid].name) || m.empId || 'Teammate'})));
   }
 
-  async function exportCsv(ctx, kind, rows) {
+  async function exportCsv(ctx, kind, rows, filters) {
     if (!ctx.downloads) { M.toast('Downloads are unavailable here', true); return; }
+    if (remote()) {
+      try {
+        const r = await api('baseexport', {coll: kind, ...(filters || {})});
+        const out = await ctx.downloads.save({filename: 'base-' + (kind === 'orgs' ? 'companies' : 'people') + '-' + U.todayStr() + '.csv', data: r.csv});
+        M.toast((out && out.status === 'delivered' ? 'Sent' : 'Downloaded') + (r.capped ? ', the first ' + r.rows + ' of ' + r.total : ''));
+      } catch (e) { M.toast(e && e.code === 'declined' ? 'Download cancelled' : 'That did not download. Try again in a moment.', true); }
+      return;
+    }
     const cols = kind === 'orgs' ? EXPORT_ORG : EXPORT_CONTACT;
     const cm = ctx.coll.clients.map;
     const lines = [cols.map(csvCell).join(',')];
@@ -654,28 +803,50 @@
     </div>`;
   }
 
+  /* ---------- a company picker that searches, for the team site ---------- */
+  function OrgPicker({value, name, onPick}) {
+    const [q, setQ] = useState('');
+    const [open, setOpen] = useState(false);
+    const res = useQuery('orgs', {q, limit: 8}, open && q.trim().length > 0);
+    return html`<div class="field bs-orgpick">
+      <label>company</label>
+      ${value ? html`<div class="row nowrap" style=${{gap: '8px'}}><span class="pill ink" id="contact-org-picked">${name || value}</span><button type="button" class="linky small" onClick=${() => { onPick('', ''); setOpen(true); }}>Change</button></div>`
+        : html`<input id="contact-org" class="input" placeholder="Type a company name" value=${q} onInput=${e => { setQ(e.target.value); setOpen(true); }} onFocus=${() => setOpen(true)} aria-label="Company"/>`}
+      ${open && !value && q.trim() ? html`<div class="bs-orgpick-list" id="contact-org-list">
+        ${res.loading ? html`<div class="small ink62" style=${{padding: '6px 8px'}}>Looking</div>`
+          : res.rows.length ? res.rows.map(o => html`<button type="button" key=${o.id} class="rowbtn listrow" onClick=${() => { onPick(o.id, o.name); setOpen(false); setQ(''); }}><span class="grow">${o.name}</span><span class="tiny ink62">${[o.domain, o.city].filter(Boolean).join(' · ')}</span></button>`)
+          : html`<div class="small ink62" style=${{padding: '6px 8px'}}>No company by that name. Type it below and make a new one.</div>`}
+      </div>` : null}
+    </div>`;
+  }
+
   /* ---------- the contact drawer ---------- */
   function ContactDrawer({id, onClose, defaults}) {
     const ctx = M.useCtx();
-    const ix = index(ctx);
-    const existing = id ? ix.cById[id] : null;
+    const got = useRow('contacts', id || null);
+    const existing = got.row;
     const isNew = !id;
     const [busy, setBusy] = useState(false);
     const [f, setF] = useState(() => {
       const b = {...blankContact(), ...(defaults || {}), ...(existing || {})};
       return {...b, tags: (b.tags || []).join(', ')};
     });
+    /* the row arrives after the drawer opens on the team site */
+    const filled = useRef(!!existing || isNew);
+    useEffect(() => { if (existing && !filled.current) { filled.current = true; setF({...blankContact(), ...existing, tags: (existing.tags || []).join(', ')}); } }, [existing]);
     const set = k => v => setF(x => ({...x, [k]: v}));
     const owners = useOwnerOpts(ctx);
-    const orgOpts = useMemo(() => [{v: '', label: f.orgName && !f.org ? 'Typed: ' + f.orgName : 'No company'}]
-      .concat(ix.orgs.filter(o => !o.archived || o.id === f.org).map(o => ({v: o.id, label: o.name || o.domain || o.id}))), [ix.orgs, f.orgName, f.org]);
-    const o = f.org ? ix.oById[f.org] : null;
+    const isRemote = remote();
+    const ix = isRemote ? null : index(ctx);
+    const orgOpts = useMemo(() => isRemote ? [] : [{v: '', label: f.orgName && !f.org ? 'Typed: ' + f.orgName : 'No company'}]
+      .concat(ix.orgs.filter(o => !o.archived || o.id === f.org).map(o => ({v: o.id, label: o.name || o.domain || o.id}))), [isRemote, ix, f.orgName, f.org]);
+    const o = useOrgForClient(null, f.org || null).org;
     const client = o && o.client ? ctx.coll.clients.map[o.client] : null;
     const projects = client ? Object.keys(ctx.coll.projects.map).map(k => ({id: k, ...ctx.coll.projects.map[k]})).filter(p => p.client === o.client && !p.archived) : [];
     const pn = norm.name(o ? o.name : f.orgName), cn = client ? norm.name(client.name) : '';
     const pitches = Object.keys(ctx.coll.pitches.map).map(k => ({id: k, ...ctx.coll.pitches.map[k]})).filter(p => { if (o && p.org === o.id) return true; const b = norm.name(p.brand); return b && (b === pn || (cn && b === cn)); });
 
-    const pickOrg = v => setF(x => ({...x, org: v, orgName: v && ix.oById[v] ? ix.oById[v].name : x.orgName}));
+    const pickOrg = (v, name) => setF(x => ({...x, org: v, orgName: v ? (name || (ix && ix.oById[v] ? ix.oById[v].name : x.orgName)) : x.orgName}));
     const newOrg = async () => {
       const nm = norm.text(f.orgName);
       if (!nm) return;
@@ -704,7 +875,7 @@
       if (!isNew && !Object.keys(patch).length) { onClose(); return; }
       setBusy(true);
       try {
-        await upsertContact(ctx, isNew ? {...patch, source: 'manual'} : {...patch, id});
+        await upsertContact(ctx, isNew ? {...patch, source: 'manual', orgName: f.orgName} : {...patch, id, ...(patch.org ? {orgName: f.orgName} : {})});
         M.toast(isNew ? 'Added' : 'Saved');
         onClose();
       } catch (e) { setBusy(false); }
@@ -713,7 +884,7 @@
       try { await archive(ctx, 'contacts', id, !existing.archived); M.toast(existing.archived ? 'Restored' : 'Archived'); onClose(); } catch (e) { /* toasted */ }
     };
     if (!isNew && !existing) {
-      return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Person"><${UI.Empty} text="This person is gone."/><//>`;
+      return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Person">${got.loading ? html`<${M.Thinking} label="Opening"/>` : html`<${UI.Empty} text="This person is gone."/>`}<//>`;
     }
     const canSave = isNew ? !!(norm.text(f.first + ' ' + f.last + ' ' + f.name) || norm.text(f['email'])) : true;
     const footer = html`<div class="row between grow">
@@ -734,7 +905,7 @@
           <${UI.Input} id="contact-last" label="last name" value=${f.last} onChange=${set('last')}/>
         </div>
         <${UI.Input} id="contact-title" label="title" value=${f.title} onChange=${set('title')}/>
-        <${UI.Select} id="contact-org" label="company" value=${f.org} onChange=${pickOrg} options=${orgOpts}/>
+        ${isRemote ? html`<${OrgPicker} value=${f.org} name=${f.orgName} onPick=${pickOrg}/>` : html`<${UI.Select} id="contact-org" label="company" value=${f.org} onChange=${pickOrg} options=${orgOpts}/>`}
         ${!f.org ? html`<div class="row" style=${{alignItems: 'flex-end'}}>
           <div class="grow"><${UI.Input} id="contact-orgname" label="company name, as typed" value=${f.orgName} onChange=${set('orgName')}/></div>
           <${UI.Btn} kind="sec" sm disabled=${busy || !norm.text(f.orgName)} onClick=${newOrg}>New company from this name<//>
@@ -781,17 +952,19 @@
   /* ---------- the company drawer ---------- */
   function OrgDrawer({id, onClose, defaults}) {
     const ctx = M.useCtx();
-    const ix = index(ctx);
-    const existing = id ? ix.oById[id] : null;
+    const got = useRow('orgs', id || null);
+    const existing = got.row;
     const isNew = !id;
     const [busy, setBusy] = useState(false);
     const [f, setF] = useState(() => {
       const b = {...blankOrg(), ...(defaults || {}), ...(existing || {})};
       return {...b, tags: (b.tags || []).join(', '), keywords: (b.keywords || []).join(', ')};
     });
+    const filled = useRef(!!existing || isNew);
+    useEffect(() => { if (existing && !filled.current) { filled.current = true; setF({...blankOrg(), ...existing, tags: (existing.tags || []).join(', '), keywords: (existing.keywords || []).join(', ')}); } }, [existing]);
     const [pick, setPick] = useState('');
     const set = k => v => setF(x => ({...x, [k]: v}));
-    const people = id ? peopleAt(ctx, id) : [];
+    const people = usePeopleAt(id || null).rows;
     const cm = ctx.coll.clients.map;
     const client = existing && existing.client ? cm[existing.client] : null;
     const clientOpts = [{v: '', label: 'Choose a client'}].concat(Object.keys(cm).map(k => ({v: k, label: cm[k].name || k})).sort((a, b) => a.label.localeCompare(b.label)));
@@ -839,7 +1012,7 @@
       try { await archive(ctx, 'orgs', id, !existing.archived); M.toast(existing.archived ? 'Restored' : 'Archived'); onClose(); } catch (e) { /* toasted */ }
     };
     if (!isNew && !existing) {
-      return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Company"><${UI.Empty} text="This company is gone."/><//>`;
+      return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Company">${got.loading ? html`<${M.Thinking} label="Opening"/>` : html`<${UI.Empty} text="This company is gone."/>`}<//>`;
     }
     const footer = html`<div class="row between grow">
       <div>${!isNew ? html`<${UI.ConfirmBtn} onConfirm=${doArchive}>${existing.archived ? 'Restore' : 'Archive'}<//>` : null}</div>
@@ -927,28 +1100,19 @@
     const [fl, setFl] = useState({stage: '', mine: false, country: '', source: '', tag: '', archived: false});
     const [limit, setLimit] = useState(60);
     const [drawer, setDrawer] = useState(null);
-    useEffect(() => { const t = setTimeout(() => setDq(q.trim()), 120); return () => clearTimeout(t); }, [q]);
+    useEffect(() => { const t = setTimeout(() => setDq(q.trim()), 160); return () => clearTimeout(t); }, [q]);
     useEffect(() => { if (id) setDrawer(id); }, [id]);
     useEffect(() => { setLimit(60); }, [dq, fl]);
     M.useIntent('person', () => setDrawer('new'));
-    const ix = index(ctx);
-    const res = useMemo(() => find(ctx, dq, {archived: fl.archived}), [ix, dq, fl.archived]);
-    const rows = useMemo(() => res.contacts.filter(c => {
-      if (fl.archived ? !c.archived : c.archived) return false;
-      if (fl.stage && c.stage !== fl.stage) return false;
-      if (fl.mine && c.owner !== ctx.uid) return false;
-      if (fl.country && c.country !== fl.country) return false;
-      if (fl.source && c.source !== fl.source) return false;
-      if (fl.tag && (c.tags || []).indexOf(fl.tag) < 0) return false;
-      return true;
-    }), [res, fl, ctx.uid]);
-    const countries = useMemo(() => distinct(ix.contacts, 'country'), [ix]);
-    const tags = useMemo(() => uniq(ix.contacts.reduce((a, c) => a.concat(c.tags || []), [])).sort(), [ix]);
+    const res = useQuery('contacts', {q: dq, stage: fl.stage, owner: fl.mine ? ctx.uid : '', country: fl.country, source: fl.source, tag: fl.tag, archived: fl.archived, limit});
+    const rows = res.rows;
+    const countries = res.facets.countries || [];
+    const tags = res.facets.tags || [];
     const setF = k => v => setFl(x => ({...x, [k]: v}));
     const close = () => { setDrawer(null); if (id) M.nav('#base'); };
     const openOrg = oid => M.nav('#companies/' + oid);
-    const shown = rows.slice(0, limit);
-    if (!ctx.coll.contacts.ready) return html`<${UI.Card}><${UI.Empty} text="One moment."/><//>`;
+    const busy = res.loading && !rows.length;
+    const empty = !res.loading && !res.total && !dq && !fl.stage && !fl.mine && !fl.country && !fl.source && !fl.tag && !fl.archived;
     return html`<div class="stack" style=${{gap: '14px'}} id="base-people">
       <div class="row nowrap bs-searchrow">
         <div class="grow bs-search">
@@ -967,17 +1131,18 @@
       </div>
       ${dq && res.orgs.length ? html`<div class="row bs-orgstrip" id="base-orgs">
         <span class="tiny ink62">companies</span>
-        ${res.orgs.slice(0, 6).map(o => html`<button type="button" key=${o.id} class="chip" onClick=${() => openOrg(o.id)}>${o.name}<span class="num"> ${peopleAt(ctx, o.id).length}</span></button>`)}
+        ${res.orgs.map(o => html`<button type="button" key=${o.id} class="chip" onClick=${() => openOrg(o.id)}>${o.name}<span class="num"> ${o.people}</span></button>`)}
       </div>` : null}
       <${UI.Card} className="bs-list">
         <div class="row between" style=${{marginBottom: '6px'}}>
-          <span class="small ink62 num" id="base-count">${rows.length} ${rows.length === 1 ? 'person' : 'people'}${dq ? ' for "' + dq + '"' : ''}</span>
-          ${ctx.downloads && rows.length ? html`<button type="button" class="linky small" id="base-export" onClick=${() => exportCsv(ctx, 'contacts', rows)}>Export CSV</button>` : null}
+          <span class="small ink62 num" id="base-count">${res.loading && !rows.length ? 'Looking' : res.total + ' ' + (res.total === 1 ? 'person' : 'people') + (dq ? ' for "' + dq + '"' : '')}</span>
+          ${ctx.downloads && res.total ? html`<button type="button" class="linky small" id="base-export" onClick=${() => exportCsv(ctx, 'contacts', rows, {q: dq, stage: fl.stage, owner: fl.mine ? ctx.uid : '', country: fl.country, source: fl.source, tag: fl.tag, archived: fl.archived})}>Export CSV</button>` : null}
         </div>
-        ${shown.length ? shown.map(c => html`<${PersonRow} key=${c.id} c=${c} onOpen=${setDrawer} onOrg=${openOrg}/>`)
-          : html`<${UI.Empty} text=${ix.contacts.length ? 'Nobody matches that.' : 'Nobody in the database yet. Add a person, or import a CSV from Apollo.'}/>`}
-        ${rows.length > shown.length ? html`<div style=${{marginTop: '12px'}}><${UI.Btn} kind="sec" sm id="base-more" onClick=${() => setLimit(limit + 60)}>Show more<//>
-          <span class="small ink62 num" style=${{marginLeft: '10px'}}>${shown.length} of ${rows.length}</span></div>` : null}
+        ${busy ? html`<${M.Thinking} label="Looking through the database"/>`
+          : rows.length ? rows.map(c => html`<${PersonRow} key=${c.id} c=${c} onOpen=${setDrawer} onOrg=${openOrg}/>`)
+          : html`<${UI.Empty} text=${res.err ? res.err : empty ? 'Nobody in the database yet. Add a person, or import a CSV from Apollo.' : 'Nobody matches that.'}/>`}
+        ${res.total > rows.length ? html`<div style=${{marginTop: '12px'}}><${UI.Btn} kind="sec" sm id="base-more" onClick=${() => setLimit(limit + 60)}>Show more<//>
+          <span class="small ink62 num" style=${{marginLeft: '10px'}}>${rows.length} of ${res.total}</span></div>` : null}
       <//>
       ${M.parts.BaseNudges ? html`<${M.parts.BaseNudges}/>` : null}
       ${M.parts.AskBase ? html`<${M.parts.AskBase}/>` : null}
@@ -993,28 +1158,18 @@
     const [fl, setFl] = useState({industry: '', country: '', map: '', archived: false});
     const [limit, setLimit] = useState(60);
     const [drawer, setDrawer] = useState(null);
-    useEffect(() => { const t = setTimeout(() => setDq(q.trim()), 120); return () => clearTimeout(t); }, [q]);
+    useEffect(() => { const t = setTimeout(() => setDq(q.trim()), 160); return () => clearTimeout(t); }, [q]);
     useEffect(() => { if (id) setDrawer(id); }, [id]);
     useEffect(() => { setLimit(60); }, [dq, fl]);
-    const ix = index(ctx);
     const cm = ctx.coll.clients.map;
-    const res = useMemo(() => find(ctx, dq, {archived: fl.archived, contacts: false}), [ix, dq, fl.archived]);
-    const counts = useMemo(() => { const c = {}; ix.contacts.forEach(x => { if (x.org && !x.archived) c[x.org] = (c[x.org] || 0) + 1; }); return c; }, [ix]);
-    const rows = useMemo(() => res.orgs.filter(o => {
-      if (fl.archived ? !o.archived : o.archived) return false;
-      if (fl.industry && o.industry !== fl.industry) return false;
-      if (fl.country && o.country !== fl.country) return false;
-      const mapped = !!(o.client && cm[o.client]);
-      if (fl.map === 'yes' && !mapped) return false;
-      if (fl.map === 'no' && mapped) return false;
-      return true;
-    }), [res, fl, cm]);
-    const industries = useMemo(() => distinct(ix.orgs, 'industry'), [ix]);
-    const countries = useMemo(() => distinct(ix.orgs, 'country'), [ix]);
+    const res = useQuery('orgs', {q: dq, industry: fl.industry, country: fl.country, map: fl.map, archived: fl.archived, limit});
+    const rows = res.rows;
+    const industries = res.facets.industries || [];
+    const countries = res.facets.countries || [];
     const setF = k => v => setFl(x => ({...x, [k]: v}));
     const close = () => { setDrawer(null); if (id) M.nav('#companies'); };
-    const shown = rows.slice(0, limit);
-    if (!ctx.coll.orgs.ready) return html`<${UI.Card}><${UI.Empty} text="One moment."/><//>`;
+    const busy = res.loading && !rows.length;
+    const empty = !res.loading && !res.total && !dq && !fl.industry && !fl.country && !fl.map && !fl.archived;
     return html`<div class="stack" style=${{gap: '14px'}} id="base-companies">
       <div class="row nowrap bs-searchrow">
         <div class="grow bs-search">
@@ -1031,13 +1186,14 @@
         <${Chip} on=${fl.archived} onClick=${() => setF('archived')(!fl.archived)}>Archived<//>
       </div>
       <div class="row between">
-        <span class="small ink62 num" id="companies-count">${rows.length} ${rows.length === 1 ? 'company' : 'companies'}${dq ? ' for "' + dq + '"' : ''}</span>
-        ${ctx.downloads && rows.length ? html`<button type="button" class="linky small" id="companies-export" onClick=${() => exportCsv(ctx, 'orgs', rows)}>Export CSV</button>` : null}
+        <span class="small ink62 num" id="companies-count">${res.loading && !rows.length ? 'Looking' : res.total + ' ' + (res.total === 1 ? 'company' : 'companies') + (dq ? ' for "' + dq + '"' : '')}</span>
+        ${ctx.downloads && res.total ? html`<button type="button" class="linky small" id="companies-export" onClick=${() => exportCsv(ctx, 'orgs', rows, {q: dq, industry: fl.industry, country: fl.country, map: fl.map, archived: fl.archived})}>Export CSV</button>` : null}
       </div>
-      ${shown.length ? html`<div class="grid2 bs-cards">
-        ${shown.map(o => {
+      ${busy ? html`<${UI.Card}><${M.Thinking} label="Looking through the database"/><//>`
+      : rows.length ? html`<div class="grid2 bs-cards">
+        ${rows.map(o => {
           const cl = o.client && cm[o.client] ? cm[o.client] : null;
-          const n = counts[o.id] || 0;
+          const n = o.people || 0;
           return html`<button type="button" key=${o.id} class="card rowbtn bs-card" data-org=${o.id} onClick=${() => setDrawer(o.id)}>
             <div class="row between nowrap" style=${{alignItems: 'flex-start'}}>
               <span class="bs-name" style=${{fontSize: '17px'}}>${o.name}</span>
@@ -1051,9 +1207,9 @@
             </div>
           </button>`;
         })}
-      </div>` : html`<${UI.Card}><${UI.Empty} text=${ix.orgs.length ? 'No company matches that.' : 'No companies yet. They arrive with people, or add one.'}/><//>`}
-      ${rows.length > shown.length ? html`<div><${UI.Btn} kind="sec" sm id="companies-more" onClick=${() => setLimit(limit + 60)}>Show more<//>
-        <span class="small ink62 num" style=${{marginLeft: '10px'}}>${shown.length} of ${rows.length}</span></div>` : null}
+      </div>` : html`<${UI.Card}><${UI.Empty} text=${res.err ? res.err : empty ? 'No companies yet. They arrive with people, or add one.' : 'No company matches that.'}/><//>`}
+      ${res.total > rows.length ? html`<div><${UI.Btn} kind="sec" sm id="companies-more" onClick=${() => setLimit(limit + 60)}>Show more<//>
+        <span class="small ink62 num" style=${{marginLeft: '10px'}}>${rows.length} of ${res.total}</span></div>` : null}
       ${drawer ? html`<${OrgDrawer} key=${drawer} id=${drawer === 'new' ? null : drawer} onClose=${close}/>` : null}
     </div>`;
   }
@@ -1061,6 +1217,7 @@
   /* ---------- Import ---------- */
   function Import() {
     const ctx = M.useCtx();
+    M.useBase();
     const [parsed, setParsed] = useState(null);
     const [mapping, setMapping] = useState([]);
     const [paste, setPaste] = useState('');
@@ -1069,6 +1226,7 @@
     const [prog, setProg] = useState('');
     const [summary, setSummary] = useState(null);
     const [owners, setOwners] = useState({});
+    const [reading, setReading] = useState('');
     const ix = index(ctx);
     const last = (ctx.settings.base || {}).lastImport;
     /* Apollo owner columns carry an address; it resolves to a teammate id when the profile carries one, else nothing */
@@ -1085,17 +1243,22 @@
        when every page written would otherwise re-plan the whole file */
     const ixRef = useRef(ix);
     if (!busy) ixRef.current = ix;
-    const plan = useMemo(() => parsed ? planImport(ctx, parsed, mapping, ownerOf) : null, [parsed, mapping, ixRef.current, owners]);
+    const baseReady = ctx.coll.contacts.ready && ctx.coll.orgs.ready;
+    const plan = useMemo(() => parsed && baseReady ? planImport(ctx, parsed, mapping, ownerOf) : null, [parsed, mapping, ixRef.current, owners, baseReady]);
 
     if (!ctx.isFounder) {
       return html`<${UI.Card} title="Import"><div class="small">Imports are done by Kaavish. Search People for anyone already in the database.</div><//>`;
+    }
+    /* an import dedupes against everything, so the whole base must be in the page first */
+    if (!baseReady) {
+      const have = Object.keys(ctx.coll.contacts.map || {}).length + Object.keys(ctx.coll.orgs.map || {}).length;
+      return html`<${UI.Card} title="Import from Apollo" id="import-opening"><${M.Thinking} label=${'Opening the whole database for a clean import' + (have ? ', ' + have + ' pages so far' : '')}/><p class="small ink62" style=${{marginTop: '10px'}}>A big base takes half a minute the first time.</p><//>`;
     }
     const load = (text, name) => {
       const p = parseCsv(text);
       if (!p.headers.length) { M.toast('That file has no columns', true); return; }
       setParsed(p); setMapping(mapApollo(p.headers)); setSummary(null); setFileName(name || 'pasted text');
     };
-    const [reading, setReading] = useState('');
     const readFile = async (file, keep, keepMapping) => {
       setReading('Reading ' + file.name);
       try {
@@ -1222,18 +1385,14 @@
   function Base({tab, id}) {
     const ctx = M.useCtx();
     const t = tab || 'people';
-    const {contacts, orgs} = all(ctx);
+    const st = useStats();
     useAutoMap(ctx);
-    const cm = ctx.coll.clients.map;
-    const live = contacts.filter(c => !c.archived).length;
-    const liveOrgs = orgs.filter(o => !o.archived);
-    const mapped = liveOrgs.filter(o => o.client && cm[o.client]).length;
     return html`<div class="stack" style=${{gap: '20px'}}>
       <${M.SectionHero} micro="the database" title="Base" sub="Everyone we know, who we know them through, and what we do with them.">
         <div class="row" style=${{gap: '8px'}}>
-          <${Mini} v=${live} l="people"/>
-          <${Mini} v=${liveOrgs.length} l="companies"/>
-          <${Mini} v=${mapped} l="mapped to clients"/>
+          <${Mini} v=${st.people} l="people"/>
+          <${Mini} v=${st.companies} l="companies"/>
+          <${Mini} v=${st.mapped} l="mapped to clients"/>
         </div>
       <//>
       <${M.SectionTabs} section="base" active=${t}/>
@@ -1243,9 +1402,8 @@
 
   /* ---------- for the client page: the people at this client's company ---------- */
   function PeopleAtClient({clientId, id}) {
-    const ctx = M.useCtx();
-    const o = orgForClient(ctx, clientId || id);
-    const people = o ? peopleAt(ctx, o.id) : [];
+    const o = useOrgForClient(clientId || id, null).org;
+    const people = usePeopleAt(o ? o.id : null, 50).rows;
     if (!o) return null;
     return html`<${UI.Card} title="People at this client" id="client-people" action=${html`<button type="button" class="linky small" onClick=${() => M.nav('#companies/' + o.id)}>Open in Base</button>`}>
       ${people.length ? people.slice(0, 6).map(c => html`<button type="button" key=${c.id} class="rowbtn listrow bs-person" onClick=${() => M.nav('#base/' + c.id)}>
@@ -1262,5 +1420,6 @@
   M.parts.ContactDrawer = ContactDrawer;
   M.parts.OrgDrawer = OrgDrawer;
   M.base = {all, contact, org, peopleAt, orgForClient, find, upsertContact, upsertOrg, pageFor, linkOrgToClient, unlinkOrg,
+    remote, query, getRow, orgForClientAsync, peopleAtAsync, statsAsync, useQuery, useRow, useOrgForClient, usePeopleAt, useStats, touch,
     makeClientFromOrg, STAGES, norm, parseCsv, readCsvFile, mapApollo, planImport, runImport, PAGE_MAX};
 })();
