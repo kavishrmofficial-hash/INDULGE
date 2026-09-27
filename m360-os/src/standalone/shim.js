@@ -5,8 +5,9 @@
   window.M360_STANDALONE = true;
   let meInfo = null;         /* the me answer, once it is in */
 
-  /* anonymous EdgeOne previews carry an access token in the query; every call must keep it */
-  const QS = location.search || '';
+  /* anonymous EdgeOne previews carry an access token in the query; every call must keep it. A return from a
+     sign in elsewhere (Spotify's code and state) is not part of it. */
+  const QS = (() => { try { const p = new URLSearchParams(location.search || ''); p.delete('code'); p.delete('state'); p.delete('error'); const s = p.toString(); return s ? '?' + s : ''; } catch (e) { return location.search || ''; } })();
   const API = '/api/m360' + QS;
   /* actions the sign-in screen calls before anyone is signed in: a 401 from these is an answer, never a lost session */
   const OPEN = new Set(['me', 'setup', 'signup', 'login', 'accept', 'invited', 'magic', 'pw', 'reset', 'resetpw']);

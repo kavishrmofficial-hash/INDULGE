@@ -943,6 +943,9 @@ body.web-focus .music-dock{display:none}
 .sp-play:hover{background:var(--ink)}
 .sp-vol{width:80px; accent-color:var(--flame)}
 @media (max-width:860px){ .sp-vol{display:none} }
+.sp-mini{padding:14px 16px 12px}
+.sp-mini .sp-pane .row{padding-left:0; padding-right:0}
+.sp-mini .sp-bar{margin:0}
 
 /* the browser: reading mode's note bar, the desktop line */
 .web-note{padding:8px 12px; gap:8px; border-bottom:1px solid var(--line); flex:none; flex-wrap:wrap}
@@ -1387,7 +1390,7 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
   .cl-news .t{flex-basis:100%}
 }
 </style>
-<script>window.M360_BUILD = "5d7a9f1+.260927-2338";</script><script>
+<script>window.M360_BUILD = "530416c+.260927-2346";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -1395,8 +1398,9 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
   window.M360_STANDALONE = true;
   let meInfo = null;         /* the me answer, once it is in */
 
-  /* anonymous EdgeOne previews carry an access token in the query; every call must keep it */
-  const QS = location.search || '';
+  /* anonymous EdgeOne previews carry an access token in the query; every call must keep it. A return from a
+     sign in elsewhere (Spotify's code and state) is not part of it. */
+  const QS = (() => { try { const p = new URLSearchParams(location.search || ''); p.delete('code'); p.delete('state'); p.delete('error'); const s = p.toString(); return s ? '?' + s : ''; } catch (e) { return location.search || ''; } })();
   const API = '/api/m360' + QS;
   /* actions the sign-in screen calls before anyone is signed in: a 401 from these is an answer, never a lost session */
   const OPEN = new Set(['me', 'setup', 'signup', 'login', 'accept', 'invited', 'magic', 'pw', 'reset', 'resetpw']);
@@ -10428,6 +10432,21 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     setState({active: true, paused: false, error: ''});
     M.music.play({id: 'sdk:' + uri, title: label || 'Spotify', kind: 'sdk', embed: '', url: linkOf(uri)});
   }
+  /* what this person's Spotify is playing right now, on any device: {device, track, playing} or null */
+  async function nowPlaying(clientId) {
+    const j = await call(clientId, '/me/player');
+    if (!j || !j.item) return null;
+    const it = j.item;
+    return {device: (j.device && j.device.name) || '', deviceId: (j.device && j.device.id) || '', playing: !!j.is_playing,
+      track: {uri: it.uri, name: it.name, by: (it.artists || []).map(a => a.name).join(', '), art: art(it.album), album: (it.album && it.album.name) || ''}};
+  }
+  /* pull what is playing elsewhere into this tab */
+  async function moveHere(ctx, label) {
+    await ensurePlayer(ctx);
+    await call(clientIdOf(ctx), '/me/player', {method: 'PUT', body: JSON.stringify({device_ids: [deviceId], play: true}), headers: {'content-type': 'application/json'}});
+    setState({active: true, paused: false, error: ''});
+    M.music.play({id: 'sdk:here', title: label || 'Spotify', kind: 'sdk', embed: '', url: ''});
+  }
   const uriOf = url => { const m = /^https?:\/\/open\.spotify\.com\/(?:intl-[a-z]+\/)?(track|album|playlist|episode|show|artist)\/([A-Za-z0-9]+)/.exec(String(url || '')); return m ? 'spotify:' + m[1] + ':' + m[2] : ''; };
   const linkOf = uri => { const m = /^spotify:(track|album|playlist|episode|show|artist):([A-Za-z0-9]+)$/.exec(String(uri || '')); return m ? 'https://open.spotify.com/' + m[1] + '/' + m[2] : ''; };
   const canPlayHere = ctx => standalone() && !!clientIdOf(ctx) && !!tok.get() && st.premium !== false;
@@ -10442,7 +10461,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 
   M.spotify = {
     state: () => st, on: f => { subs.add(f); return () => subs.delete(f); },
-    connected: () => !!tok.get(), canPlayHere, connect, disconnect, returned, search, playUri, uriOf, linkOf, whoAmI, ctl,
+    connected: () => !!tok.get(), canPlayHere, connect, disconnect, returned, search, playUri, uriOf, linkOf, whoAmI, nowPlaying, moveHere, ctl,
     /* a team list card: play it in the page when this person can, else let the embed handle it */
     tryPlay(ctx, item) {
       if (!item || item.kind !== 'spotify' || !canPlayHere(ctx)) return false;
@@ -10460,12 +10479,12 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   const PAUSE = html`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>`;
   const PREV = html`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M6 5h2v14H6zM18 5v14l-9-7z"/></svg>`;
   const NEXT = html`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M16 5h2v14h-2zM6 5v14l9-7z"/></svg>`;
-  function Pane() {
+  function Pane({id}) {
     const [s, setS] = useState(st);
     useEffect(() => M.spotify.on(setS), []);
     const t = s.track;
     const pct = s.duration ? Math.min(100, 100 * s.position / s.duration) : 0;
-    return html`<div class="sp-pane" id="spotify-pane">
+    return html`<div class="sp-pane" id=${id || 'spotify-pane'}>
       ${s.error ? html`<div class="tiny flame-t" style=${{padding: '0 10px 6px'}}>${s.error}</div>` : null}
       <div class="row nowrap" style=${{gap: '10px', padding: '2px 10px 8px'}}>
         ${t && t.art ? html`<img class="sp-art" src=${t.art} alt="" width="52" height="52"/>` : html`<span class="sp-art"/>`}
@@ -10517,7 +10536,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       : !s.connected ? html`<div class="stack tight">
           <p class="small" style=${{margin: 0}}>Connect your own Spotify once and the dock plays full tracks inside m360, with search, next and previous. Spotify Premium is needed for that; without it, links keep playing as embeds.</p>
           <div class="row" style=${{gap: '8px'}}><${UI.Btn} id="spotify-connect" onClick=${() => connect(clientId)}>Connect Spotify<//></div>
-          ${s.error ? html`<div class="small flame-t">${s.error}</div>` : null}
+          ${s.error ? html`<div class="small flame-t" id="spotify-error">${s.error}${/client|redirect|credential/i.test(s.error) ? ' The founder can run Check with Spotify in Admin to see which of the client ID or the redirect URI Spotify rejects.' : ''}</div>` : null}
         </div>`
       : html`<div class="stack" style=${{gap: '10px'}}>
           ${s.premium === false ? html`<div class="small flame-t">This Spotify account is not Premium, so the in page player cannot play. Links still play as embeds.</div>` : null}
@@ -10542,14 +10561,92 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   }
   M.parts.SpotifyCard = SpotifyCard;
 
+  /* ---------- the mini player on Home: there from the first screen after sign in ---------- */
+  function SpotifyMini() {
+    const ctx = M.useCtx();
+    const [s, setS] = useState(st);
+    const [q, setQ] = useState('');
+    const [rows, setRows] = useState([]);
+    const [busy, setBusy] = useState('');
+    const [now, setNow] = useState(null);
+    const clientId = clientIdOf(ctx);
+    const on = standalone() && !!clientId;
+    useEffect(() => M.spotify.on(setS), []);
+    /* what is playing elsewhere, refreshed while this card is on screen and nothing plays here */
+    useEffect(() => {
+      if (!on || !s.connected || s.active) return;
+      let gone = false;
+      const look = () => nowPlaying(clientId).then(x => { if (!gone) setNow(x); }).catch(() => {});
+      look();
+      const t = setInterval(look, 30000);
+      return () => { gone = true; clearInterval(t); };
+    }, [on, s.connected, s.active, clientId]);
+    if (!on) return null;
+    const go = async () => {
+      if (!q.trim()) return;
+      setBusy('search');
+      try { setRows((await search(clientId, q.trim())).slice(0, 5)); } catch (e) { M.toast((e && e.message) || 'Search failed', true); }
+      setBusy('');
+    };
+    const play = async r => {
+      setBusy(r.uri);
+      try { await playUri(ctx, r.uri, r.name + (r.by ? ', ' + r.by : '')); setRows([]); setQ(''); } catch (e) { M.toast((e && e.message) || 'Spotify did not play', true); }
+      setBusy('');
+    };
+    const pull = async () => {
+      setBusy('move');
+      try { await moveHere(ctx, now && now.track ? now.track.name + (now.track.by ? ', ' + now.track.by : '') : 'Spotify'); } catch (e) { M.toast((e && e.message) || 'Could not move it here', true); }
+      setBusy('');
+    };
+    return html`<section class="card sp-mini" id="spotify-mini">
+      <div class="row between" style=${{marginBottom: s.connected ? '8px' : '0'}}>
+        <div class="row nowrap" style=${{gap: '8px'}}><span class="music-eq" aria-hidden="true"><i/><i/><i/></span><span class="card-title" style=${{fontSize: '15px'}}>Spotify</span>
+          ${s.connected && s.ready ? html`<span class="tiny sub">playing here as m360 OS</span>` : null}</div>
+        ${s.connected ? html`<button type="button" class="linky small" onClick=${() => M.nav('#music')}>Music</button>` : html`<${UI.Btn} sm=${true} id="spotify-mini-connect" onClick=${() => connect(clientId)}>Connect Spotify<//>`}
+      </div>
+      ${!s.connected ? null : s.active && s.track ? html`<${Pane} id="spotify-mini-pane"/>` : html`<div class="stack tight">
+        ${now && now.track ? html`<div class="row nowrap" style=${{gap: '10px'}} id="spotify-mini-elsewhere">
+          ${now.track.art ? html`<img class="sp-art sm" src=${now.track.art} alt="" width="36" height="36"/>` : html`<span class="sp-art sm"/>`}
+          <span class="grow" style=${{minWidth: 0}}><span class="music-title">${now.track.name}</span><span class="tiny ink62" style=${{display: 'block'}}>${now.track.by}${now.device ? ', ' + (now.playing ? 'playing on ' : 'paused on ') + now.device : ''}</span></span>
+          <${UI.Btn} sm=${true} kind="sec" disabled=${!!busy} onClick=${pull} id="spotify-mini-move">${busy === 'move' ? 'Moving' : 'Play here'}<//>
+        </div>` : html`<div class="tiny ink62">${s.premium === false ? 'This Spotify account is not Premium, so the player cannot play here.' : 'Nothing playing yet. Search and press Play, or start something on your phone and pull it here.'}</div>`}
+        <div class="row nowrap" style=${{gap: '8px'}}>
+          <div class="grow"><${UI.Input} id="spotify-mini-q" value=${q} onChange=${setQ} onEnter=${go} placeholder="Search Spotify"/></div>
+          <${UI.Btn} kind="sec" sm=${true} disabled=${busy === 'search' || !q.trim()} onClick=${go} id="spotify-mini-search">Search<//>
+        </div>
+        ${rows.length ? html`<div class="stack tight" id="spotify-mini-results">${rows.map(r => html`<div class="listrow" key=${r.uri}>
+          ${r.art ? html`<img class="sp-art sm" src=${r.art} alt="" width="36" height="36"/>` : html`<span class="sp-art sm"/>`}
+          <span class="grow" style=${{minWidth: 0}}><span class="music-title">${r.name}</span><span class="tiny ink62" style=${{display: 'block'}}>${r.kind}${r.by ? ' · ' + r.by : ''}</span></span>
+          <${UI.Btn} sm=${true} disabled=${!!busy} onClick=${() => play(r)}>${busy === r.uri ? 'Starting' : 'Play'}<//>
+        </div>`)}</div>` : null}
+      </div>`}
+    </section>`;
+  }
+  M.parts.SpotifyMini = SpotifyMini;
+
   /* ---------- Admin: the Spotify app's client ID ---------- */
   function SpotifySettings() {
     const ctx = M.useCtx();
     const cur = clientIdOf(ctx);
     const [id, setId] = useState(cur);
+    const [verdict, setVerdict] = useState(null);
+    const [busy, setBusy] = useState(false);
     useEffect(() => { setId(cur); }, [cur]);
     if (!ctx.isFounder) return null;
-    const save = () => ctx.W.merge('settings/app', {spotify: {clientId: id.trim()}, updated: Date.now()}).then(() => M.toast(id.trim() ? 'Spotify is on. Everyone connects from Vibe, Music' : 'Spotify player switched off')).catch(() => {});
+    /* the server asks Spotify whether it knows this client ID and this site's redirect URI */
+    const check = async value => {
+      if (!standalone() || !value) { setVerdict(null); return; }
+      setBusy(true);
+      try { setVerdict(await window.M360_API('spotifycheck', {clientId: value})); }
+      catch (e) { setVerdict({ok: null, why: (e && e.message) || 'The check did not run.'}); }
+      setBusy(false);
+    };
+    const save = async () => {
+      const value = id.trim();
+      try { await ctx.W.merge('settings/app', {spotify: {clientId: value}, updated: Date.now()}); } catch (e) { return; }
+      M.toast(value ? 'Saved. Checking it with Spotify' : 'Spotify player switched off');
+      await check(value);
+    };
     const copy = () => { try { navigator.clipboard.writeText(redirectUri()); M.toast('Copied'); } catch (e) { /* by hand */ } };
     return html`<${UI.Card} id="spotify-settings" title="Spotify" action=${html`<${UI.Pill} kind=${cur ? 'ink' : 'outline'}>${cur ? 'on' : 'off'}<//>`}>
       <ol class="small" style=${{paddingLeft: '18px', margin: '0 0 10px'}}>
@@ -10560,9 +10657,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         <li>A new Spotify app runs in development mode: add each teammate's Spotify email under User Management, up to 25 people. Full playback in the page needs Spotify Premium on their account.</li>
       </ol>
       <div class="row" style=${{gap: '8px', alignItems: 'end'}}>
-        <div class="grow" style=${{maxWidth: '520px'}}><${UI.Input} id="spotify-client-id" label="client id" value=${id} onChange=${setId} placeholder="32 characters from the dashboard"/></div>
-        <${UI.Btn} id="spotify-save" disabled=${id.trim() === cur} onClick=${save}>${cur ? 'Save' : 'Switch Spotify on'}<//>
+        <div class="grow" style=${{maxWidth: '520px'}}><${UI.Input} id="spotify-client-id" label="client id (the 32 character Client ID at the top of the app page, above the other key)" value=${id} onChange=${v => { setId(v); setVerdict(null); }} placeholder="32 letters and digits"/></div>
+        <${UI.Btn} id="spotify-save" disabled=${id.trim() === cur || busy} onClick=${save}>${cur ? 'Save' : 'Switch Spotify on'}<//>
+        ${standalone() && cur ? html`<${UI.Btn} kind="sec" id="spotify-check" disabled=${busy} onClick=${() => check(cur)}>${busy ? 'Checking' : 'Check with Spotify'}<//>` : null}
       </div>
+      ${verdict ? html`<div class=${'small' + (verdict.ok === false ? ' flame-t' : verdict.ok ? '' : ' ink62')} id="spotify-verdict" style=${{marginTop: '8px'}}>${verdict.why}</div>` : null}
     <//>`;
   }
   SpotifySettings.foldTitle = 'Spotify';
@@ -12605,6 +12704,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       <${Announcement}/>
       ${Celebrate ? html`<${Celebrate}/>` : null}
       <${Quick} onTask=${() => setTask('new')}/>
+      ${M.parts.SpotifyMini ? html`<${M.parts.SpotifyMini}/>` : null}
       <${InstallHint}/>
       <div class="split">
         <div class="stack" style=${{gap: '18px'}}>
@@ -20237,7 +20337,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     if (!verifier || !state || qs.get('state') !== state) return null;
     try { sessionStorage.removeItem(SS_V); sessionStorage.removeItem(SS_S); sessionStorage.removeItem(SS_C); } catch (e) { /* fine */ }
     try { history.replaceState(null, '', location.pathname); } catch (e) { /* fine */ }
-    if (qs.has('error')) return {ok: false, error: 'Spotify said ' + qs.get('error')};
+    if (qs.has('error')) return {ok: false, error: 'Spotify said ' + qs.get('error') + (qs.get('error') === 'access_denied' ? ': the sign in was cancelled, or this Spotify account is not on the app\'s user list in the developer dashboard (development mode admits only the people added there).' : '')};
     try {
       await exchange({grant_type: 'authorization_code', code: qs.get('code'), redirect_uri: redirectUri(), client_id: clientId, code_verifier: verifier});
       return {ok: true, error: ''};

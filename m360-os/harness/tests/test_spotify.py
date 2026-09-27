@@ -66,7 +66,7 @@ def edge():
             break
         except Exception:
             time.sleep(0.1)
-    fails, errors, seen = [], [], {'auth': None, 'token': [], 'play': [], 'search': 0}
+    fails, errors, seen = [], [], {'auth': None, 'token': [], 'play': [], 'search': 0, 'transfer': None}
 
     def check(cond, msg):
         if not cond:
@@ -100,7 +100,13 @@ def edge():
 
             def on_api(route):
                 u = route.request.url
-                if '/v1/me/player/play' in u:
+                if u.endswith('/v1/me/player') and route.request.method == 'PUT':
+                    seen['transfer'] = {'body': route.request.post_data, 'auth': route.request.headers.get('authorization')}
+                    route.fulfill(status=204, body='')
+                elif u.endswith('/v1/me/player'):
+                    route.fulfill(status=200, content_type='application/json', body=json.dumps({'is_playing': True, 'device': {'id': 'phone1', 'name': 'iPhone'},
+                        'item': {'uri': 'spotify:track:t9', 'name': 'Chaleya', 'artists': [{'name': 'Arijit Singh'}], 'album': {'name': 'Jawan', 'images': []}}}))
+                elif '/v1/me/player/play' in u:
                     seen['play'].append({'url': u, 'body': route.request.post_data, 'auth': route.request.headers.get('authorization')})
                     route.fulfill(status=204, body='')
                 elif '/v1/search' in u:
@@ -136,11 +142,23 @@ def edge():
             f.goto(base + '#admin')
             f.wait_for_selector('#spotify-settings')
             check(f.inner_text('#spotify-redirect') == base, 'redirect uri shown %r' % f.inner_text('#spotify-redirect'))
+            f.fill('#spotify-client-id', 'ffffffffffffffffffffffffffffffff')
+            f.locator('#spotify-save').click()
+            f.wait_for_selector('#spotify-verdict:has-text("does not recognise")')
+            f.fill('#spotify-client-id', 'notanid')
+            f.locator('#spotify-save').click()
+            f.wait_for_selector('#spotify-verdict:has-text("32 letters and digits")')
             f.fill('#spotify-client-id', CLIENT_ID)
             f.locator('#spotify-save').click()
-            f.wait_for_selector('.toast:has-text("Spotify is on")')
+            f.wait_for_selector('#spotify-verdict:has-text("accepts this client ID")')
             f.wait_for_function('() => fetch("/__store").then(r => r.json()).then(s => (JSON.parse(s["d/settings~app"]).spotify || {}).clientId === "%s")' % CLIENT_ID)
             check(store_doc('d/settings~app').get('start') == '10:30', 'settings merge kept the rest')
+            checks = json.loads(urllib.request.urlopen(base + '__spotify').read())
+            check(len(checks) == 2 and checks[-1]['client_id'] == CLIENT_ID and checks[-1]['redirect_uri'] == base, 'server side checks %r' % checks)
+
+            # ---- Home carries the mini player from the first screen: a Connect button before, the player after ----
+            f.goto(base + '#home')
+            f.wait_for_selector('#spotify-mini #spotify-mini-connect')
 
             # ---- connect: PKCE to accounts.spotify.com and back with a code ----
             f.goto(base + '#music')
@@ -158,6 +176,20 @@ def edge():
             check('ref_1' not in json.dumps(json.loads(urllib.request.urlopen(base + '__store').read())), 'a token reached the store')
             check('premium' not in f.inner_text('#spotify-card').lower() or 'not Premium' not in f.inner_text('#spotify-card'), 'premium account flagged as not premium')
 
+            # ---- the mini player on Home sees the phone playing and pulls it here ----
+            f.goto(base + '#home')
+            f.wait_for_selector('#spotify-mini-elsewhere:has-text("Chaleya")')
+            check('playing on iPhone' in f.inner_text('#spotify-mini-elsewhere'), 'elsewhere line %r' % f.inner_text('#spotify-mini-elsewhere'))
+            f.locator('#spotify-mini-move').click()
+            f.wait_for_selector('#music-dock #spotify-pane', timeout=20000)
+            check(seen['transfer'] and json.loads(seen['transfer']['body']) == {'device_ids': ['dev_m360_1'], 'play': True}, 'transfer call %r' % seen['transfer'])
+            f.evaluate('() => { window.__sdk.paused = false; window.__sdk.emit(); }')
+            f.wait_for_selector('#spotify-mini-pane:has-text("Kesariya")')
+            f.locator('#music-dock').get_by_role('button', name='Stop').click()
+            f.wait_for_function('() => !document.querySelector("#music-dock")')
+            f.goto(base + '#music')
+            f.wait_for_selector('#spotify-q')
+
             # ---- search and play through the SDK stub ----
             f.fill('#spotify-q', 'kesariya')
             f.locator('#spotify-search').click()
@@ -168,8 +200,8 @@ def edge():
             check(len(seen['play']) == 1 and 'device_id=dev_m360_1' in seen['play'][0]['url'] and json.loads(seen['play'][0]['body']) == {'uris': ['spotify:track:t1']}
                   and seen['play'][0]['auth'] == 'Bearer acc_1', 'play call %r' % seen['play'])
             check(f.evaluate('() => window.__sdkToken') == 'acc_1', 'sdk got the access token')
-            f.evaluate('() => window.__sdk.emit()')
-            f.wait_for_selector('#spotify-pane:has-text("Kesariya")')
+            f.evaluate('() => { window.__sdk.paused = false; window.__sdk.emit(); }')
+            f.wait_for_selector('#music-dock #spotify-pane:has-text("Kesariya")')
             check('Pritam' in f.inner_text('#spotify-pane') and '3:20' in f.inner_text('#spotify-pane'), 'pane shows the track %r' % f.inner_text('#spotify-pane'))
             f.locator('#spotify-pane').get_by_role('button', name='Next').click()
             check(f.evaluate('() => window.__next') == 1, 'next reached the sdk')
@@ -238,6 +270,9 @@ def mock(h):
     h.go(p, 'founder', hash='#music', width=1280)
     p.wait_for_selector('#spotify-card')
     check('runs on the team' in p.inner_text('#spotify-card'), 'claude build copy: ' + p.inner_text('#spotify-card')[:80])
+    h.go(p, 'founder', hash='#home', width=1280)
+    p.wait_for_selector('#quick-add')
+    check(p.locator('#spotify-mini').count() == 0, 'mini player shown on the claude build')
     h.go(p, 'founder', hash='#admin', width=1280)
     p.wait_for_selector('#spotify-settings')
     check('trailing slash' in p.inner_text('#spotify-settings'), 'admin copy without a site address')

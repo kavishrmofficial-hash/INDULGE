@@ -666,6 +666,7 @@
       <${Announcement}/>
       ${Celebrate ? html`<${Celebrate}/>` : null}
       <${Quick} onTask=${() => setTask('new')}/>
+      ${M.parts.SpotifyMini ? html`<${M.parts.SpotifyMini}/>` : null}
       <${InstallHint}/>
       <div class="split">
         <div class="stack" style=${{gap: '18px'}}>

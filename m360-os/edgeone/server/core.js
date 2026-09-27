@@ -27,6 +27,7 @@ import {peekActions} from './peek.js';
 import {voiceActions} from './voice.js';
 import {googleActions} from './google.js';
 import {huntActions} from './hunt.js';
+import {spotifyActions} from './spotify.js';
 import {webActions, browseHandler} from './web.js';
 import {fileActions} from './files.js';
 import {baseActions} from './base.js';
@@ -1038,6 +1039,7 @@ export function createApp({store, env = {}}) {
   Object.assign(actions, google.actions);
   const hunt = huntActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError, log});
   Object.assign(actions, hunt.actions);
+  Object.assign(actions, spotifyActions({env, levelOf, LEVEL, HttpError}).actions);
   Object.assign(actions, webActions({env, getJ, putJ, levelOf, LEVEL, HttpError}));
   const files = fileActions({store, getJ, putJ, levelOf, LEVEL, HttpError, log, rand, listAll});
   Object.assign(actions, files.actions);

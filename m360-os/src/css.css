@@ -939,6 +939,9 @@ body.web-focus .music-dock{display:none}
 .sp-play:hover{background:var(--ink)}
 .sp-vol{width:80px; accent-color:var(--flame)}
 @media (max-width:860px){ .sp-vol{display:none} }
+.sp-mini{padding:14px 16px 12px}
+.sp-mini .sp-pane .row{padding-left:0; padding-right:0}
+.sp-mini .sp-bar{margin:0}
 
 /* the browser: reading mode's note bar, the desktop line */
 .web-note{padding:8px 12px; gap:8px; border-bottom:1px solid var(--line); flex:none; flex-wrap:wrap}

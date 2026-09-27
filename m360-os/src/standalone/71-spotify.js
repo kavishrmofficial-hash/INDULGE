@@ -60,7 +60,7 @@
     if (!verifier || !state || qs.get('state') !== state) return null;
     try { sessionStorage.removeItem(SS_V); sessionStorage.removeItem(SS_S); sessionStorage.removeItem(SS_C); } catch (e) { /* fine */ }
     try { history.replaceState(null, '', location.pathname); } catch (e) { /* fine */ }
-    if (qs.has('error')) return {ok: false, error: 'Spotify said ' + qs.get('error')};
+    if (qs.has('error')) return {ok: false, error: 'Spotify said ' + qs.get('error') + (qs.get('error') === 'access_denied' ? ': the sign in was cancelled, or this Spotify account is not on the app\'s user list in the developer dashboard (development mode admits only the people added there).' : '')};
     try {
       await exchange({grant_type: 'authorization_code', code: qs.get('code'), redirect_uri: redirectUri(), client_id: clientId, code_verifier: verifier});
       return {ok: true, error: ''};
