@@ -302,7 +302,7 @@
         <div class="row nowrap" style=${{gap: '8px', alignItems: 'flex-end'}}>
           <input ref=${fileRef} type="file" id="chat-file" multiple style=${{display: 'none'}} onChange=${e => { pick(e.target.files); e.target.value = ''; }} aria-label="Attach files"/>
           <button type="button" class="iconbtn" id="chat-attach-btn" aria-label="Attach a file" title="Attach any file, up to 25 MB" disabled=${!!busy || !!editing} onClick=${() => fileRef.current && fileRef.current.click()}><${icons.plus}/></button>
-          <textarea ref=${boxRef} id="chat-input" class="input grow" rows=${1} placeholder=${'Message ' + title + '. @ a name, or @everyone. Drop or paste files here'} value=${text}
+          <textarea ref=${boxRef} id="chat-input" class="input grow" rows=${1} placeholder=${phone ? 'Message ' + title : 'Message ' + title + '. @ a name, or @everyone. Drop or paste files here'} value=${text}
             onInput=${e => setText(e.target.value)} onKeyDown=${onKey} onPaste=${onPaste} aria-label="Message"/>
           <${UI.Btn} id="chat-send" disabled=${(!text.trim() && !pending.length) || !!busy} onClick=${go}>${editing ? 'Save' : 'Send'}<//>
         </div>

@@ -8,6 +8,7 @@ import crypto from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {createApp} from '../server/core.js';
 import {fakeRadar} from './fake-radar.mjs';
+import {fakeApollo} from './fake-apollo.mjs';
 import {fakePeek} from './fake-peek.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -106,6 +107,8 @@ globalThis.__mails = [];
 async function fakeFetch(url, init) {
   const fr = await fakeRadar(String(url), init || {});
   if (fr) return fr;
+  const fa = await fakeApollo(String(url), init || {});
+  if (fa) return fa;
   const fp = await fakePeek(String(url), init || {});
   if (fp) return fp;
   if (String(url).includes('api.elevenlabs.io')) {
@@ -171,6 +174,18 @@ http.createServer(async (req, res) => {
     res.end(Buffer.from(await out.arrayBuffer()));
     return;
   }
+  if (url.pathname === '/api/apollo') {
+    const chunks = [];
+    for await (const c of req) chunks.push(c);
+    const request = new Request(url, {method: req.method, headers: req.headers, body: req.method === 'POST' ? Buffer.concat(chunks) : undefined});
+    const out = await app.apollo(request);
+    const headers = {};
+    out.headers.forEach((v, k) => { headers[k] = v; });
+    res.writeHead(out.status, headers);
+    res.end(Buffer.from(await out.arrayBuffer()));
+    return;
+  }
+  if (url.pathname === '/__apollo') { res.writeHead(200, {'content-type': 'application/json'}); res.end(JSON.stringify(globalThis.__apollo || {})); return; }
   if (url.pathname === '/api/google') {
     const request = new Request(url, {method: req.method, headers: req.headers});
     const out = await app.google(request);

@@ -89,7 +89,8 @@
     const seen = seenAt(ctx);
     const [was] = useState(seen);
     useEffect(() => {
-      if (list.some(i => i.at > seen)) ctx.W.merge('me/' + ctx.uid, {inboxSeen: Date.now()}).catch(() => {});
+      /* seen up to now, or up to the newest item when a teammate's clock runs ahead of this device */
+      if (list.some(i => i.at > seen)) ctx.W.merge('me/' + ctx.uid, {inboxSeen: Math.max(Date.now(), ...list.map(i => Number(i.at) || 0))}).catch(() => {});
     }, []);
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Inbox">
       ${list.length ? html`<div class="stack" style=${{gap: 0}}>

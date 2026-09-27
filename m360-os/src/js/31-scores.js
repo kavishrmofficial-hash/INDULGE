@@ -15,6 +15,17 @@
   const ORDER = ['outcomeHit', 'outcomeMiss', 'taskOnTime', 'taskLate', 'revision', 'shown20', 'qualityMult',
     'kudos', 'rockDone', 'overdueOpen', 'checkinOnTime', 'eod', 'planOnTime', 'planLate'];
 
+  /* a zero that explains itself: what the range covered and what was found in it */
+  function WhyZero({p, range}) {
+    const i = p.info || {};
+    const cut = i.start ? i.start + (i.grace ? ' plus ' + i.grace + ' min grace' : '') : 'the start time';
+    const seen = i.days ? (i.checkins + ' check-in' + (i.checkins === 1 ? '' : 's') + ' and ' + i.eods + ' EOD line' + (i.eods === 1 ? '' : 's') + ' across ' + i.days + ' working day' + (i.days === 1 ? '' : 's') + ' from ' + U.fmtDate(range.from) + ' to ' + U.fmtDate(range.to)) : 'no working day in this range yet';
+    return html`<div class="stack tight" id="why-zero">
+      <div class="small">No points in this range: ${seen}.</div>
+      <div class="small ink62">Points come from a check-in on Home before ${cut}, an EOD line before 10:00 the next morning, Monday outcomes set and hit, tasks done by their due date, kudos and rocks. A check-in after the cut or an EOD filed late counts for attendance and not for points.</div>
+    </div>`;
+  }
+
   function Breakdown({uid, range, title}) {
     const ctx = M.useCtx();
     const p = (M.points && M.points.pointsFor) ? M.points.pointsFor(ctx, uid, range.from, range.to) : null;
@@ -33,7 +44,7 @@
           <tr><td>discipline</td><td/><td class="num" style=${{textAlign: 'right', fontWeight: 500}}>${p.discipline}</td></tr>
           <tr class="dark"><td>total</td><td/><td class="num" style=${{textAlign: 'right', fontWeight: 500}}>${p.total}</td></tr>
         </tbody>
-      </table></div>` : html`<${UI.Empty} text="No points yet."/>`}
+      </table></div>` : html`<${WhyZero} p=${p} range=${range}/>`}
       ${(p.badges || []).length ? html`<div class="row" style=${{marginTop: '12px'}}>
         ${p.badges.map(b => html`<${UI.Pill} key=${b}>${b}<//>`)}</div>` : null}
     <//>`;
@@ -42,7 +53,10 @@
   function Scores() {
     const ctx = M.useCtx();
     const [period, setPeriod] = useState('week');
-    const range = useMemo(() => U.periodRange(period, new Date(ctx.now)), [period, ctx.now]);
+    /* the same range the board scores: on Monday that is the week that just closed */
+    const range = useMemo(() => (M.points && M.points.boardRange)
+      ? M.points.boardRange(ctx, period, new Date(ctx.now)) : {...U.periodRange(period, new Date(ctx.now)), label: ''}, [ctx, period]);
+    const lastWeek = range.label === 'last week';
     const board = useMemo(() => (M.points && M.points.leaderboard)
       ? M.points.leaderboard(ctx, period, new Date(ctx.now)) : [], [ctx, period]);
     /* one profiles call for the whole page: hooks never run inside a loop */
@@ -73,7 +87,8 @@
         </div>
       <//>` : null}
 
-      <${UI.Card} title="Leaderboard">
+      <${UI.Card} title="Leaderboard" action=${lastWeek ? html`<span class="pill ink">last week</span>` : null}>
+        ${lastWeek ? html`<div class="small ink62" style=${{marginBottom: '10px'}}>The first working day of the week is still open. The board shows last week until it is done.</div>` : null}
         ${board.length ? html`<div class="stack tight">
           ${board.map((r, i) => html`<div class="listrow" key=${r.uid}>
             <span class="num ink62" style=${{width: '20px'}}>${i + 1}</span>

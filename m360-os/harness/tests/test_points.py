@@ -171,7 +171,14 @@ def test(h):
     # ---- rocks count over the whole quarter only, and an empty or reversed range yields zero ----
     pq = h.ctx(page, 'M.points.pointsFor(ctx, "u_m1", "%s", "%s")' % (ymd(q_start), ymd(q_end)))
     check(pq['counts']['rockDone'] == 1 and pq['parts']['rockDone'] == 20, 'quarter rockDone %r' % pq['counts'])
-    q_kudos = 5 + (1 if ymd(last_mon) >= ymd(q_start) else 0)
+    # every kudos to m1 whose day sits inside the quarter and not after the fixed Thursday, capped at 5 per ISO week
+    # (a week that straddles a quarter boundary keeps only its days inside the quarter)
+    kudos_days = [mon + timedelta(days=i % 4) for i in range(4)] + [last_mon] + [thu] * 3
+    per_week = {}
+    for d in kudos_days:
+        if q_start <= d <= min(q_end, thu):
+            per_week[week_id(d)] = per_week.get(week_id(d), 0) + 1
+    q_kudos = sum(min(5, n) for n in per_week.values())
     check(pq['counts']['kudos'] == q_kudos, 'quarter kudos %r, expected %d' % (pq['counts']['kudos'], q_kudos))
     p0 = h.ctx(page, 'M.points.pointsFor(ctx, "u_m1", "%s", "%s")' % (week_to, week_from))
     check(p0['total'] == 0 and p0['badges'] == [], 'reversed range should score zero')

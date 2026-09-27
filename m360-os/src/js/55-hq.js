@@ -23,7 +23,8 @@
       const inNow = att.filter(a => a.status === 'office' || a.status === 'wfh');
       const late = inNow.filter(a => a.late).length;
       const map = ctx.coll.tasks.map;
-      const overdue = Object.keys(map).filter(id => map[id].status !== 'done' && map[id].due && map[id].due < td).length;
+      const openIds = Object.keys(map).filter(id => map[id] && map[id].status !== 'done');
+      const overdue = openIds.filter(id => map[id].due && map[id].due < td).length;
       const pm = (M.pitches && M.pitches.metrics) ? M.pitches.metrics(ctx) : {weighted: 0};
       const sh = (M.clients && M.clients.shares) ? M.clients.shares(ctx) : [];
       const mrr = sh.reduce((n, r) => n + (r.monthly || 0), 0);
@@ -31,7 +32,7 @@
       const lastEn = en.slice().reverse().find(e => e && e.avg != null);
       const moods = people.map(m => ((((ctx.coll.checkin.map[m.uid] || {}).days || {})[td]) || {}).mood).filter(Boolean);
       const moodAvg = moods.length ? moods.reduce((a, b) => a + b, 0) / moods.length : null;
-      return {people, inNow: inNow.length, late, overdue, pm, mrr, lastEn, moodAvg, high: ctx.flags.filter(f => f.severity === 'high').length};
+      return {people, inNow: inNow.length, late, overdue, open: openIds.length, pm, mrr, lastEn, moodAvg, high: ctx.flags.filter(f => f.severity === 'high').length};
     }, [ctx]);
   }
 
@@ -117,6 +118,10 @@
         week: open.filter(t => t.due && t.due >= td && t.due <= wkEnd).length, a: M.att.dayStatus(ctx, m.uid, td)};
     }).sort((a, b) => (b.open + b.over * 2) - (a.open + a.over * 2));
     const max = Math.max(4, ...rows.map(x => x.open));
+    /* open tasks nobody on the roster owns: they count here too, or the board and this card disagree */
+    const onRoster = {};
+    ctx.activeMembers.forEach(m => { onRoster[m.uid] = true; });
+    const loose = Object.keys(map).map(id => ({id, ...map[id]})).filter(t => t.status !== 'done' && !onRoster[t.owner]);
 
     async function rebalance() {
       const slice = await M.ai.teamSlice(ctx);
@@ -151,6 +156,11 @@
           <span class="grow" style=${{minWidth: '120px'}}><span class="bar"><i class=${x.over ? 'hot' : ''} style=${{width: Math.min(100, 100 * x.open / max) + '%'}}/></span></span>
           <span class="small num" style=${{minWidth: '150px', textAlign: 'right'}}>${x.open} open · ${x.week} this wk${x.over ? html` · <b class="flame-t">${x.over} late</b>` : ''}</span>
         </div>`)}
+        ${loose.length ? html`<div class="listrow">
+          <span style=${{minWidth: '120px', fontWeight: 600}}>No owner</span>
+          <span class="grow small ink62" style=${{minWidth: '120px'}}>${loose.length === 1 ? 'one open task waits for a name' : loose.length + ' open tasks wait for a name'}</span>
+          <button type="button" class="linky small" onClick=${() => M.nav('#tasks/' + loose[0].id)}>Assign</button>
+        </div>` : null}
       </div>
       ${r.state === 'error' ? html`<div class="small flame-t" style=${{marginTop: '10px'}}>${M.ai.errCopy(r.err)}</div>` : null}
       ${moves ? html`<div style=${{marginTop: '14px'}}>
@@ -206,7 +216,7 @@
           <${Tile} v=${n.inNow + '/' + n.people.length} l="in today" to="#command"/>
           <${Tile} v=${Object.keys(ctx.online).length} l="online now"/>
           <${Tile} v=${n.late} l="late today" to="#command" hot=${n.late > 0}/>
-          <${Tile} v=${n.overdue} l="tasks overdue" to="#tasks" hot=${n.overdue > 0}/>
+          <${Tile} v=${n.overdue + '/' + n.open} l="tasks overdue" to="#tasks" hot=${n.overdue > 0}/>
           <${Tile} v=${U.inr(n.pm.weighted)} l="weighted pipeline" to="#pitches"/>
           <${Tile} v=${U.inr(n.mrr)} l="monthly revenue" to="#clients"/>
           <${Tile} v=${n.lastEn ? n.lastEn.avg.toFixed(1) + '/5' : 'n/a'} l="team energy" to="#voice" hot=${!!(n.lastEn && n.lastEn.avg < 3)}/>
@@ -221,7 +231,7 @@
         ${M.parts.BaseNudges ? html`<${M.parts.BaseNudges}/>` : null}
         <div class="split">
           <div class="stack" style=${{gap: '20px'}}>
-            <${UI.Fold} title="Workload" summary=${ctx.activeMembers.length + ' people, open tasks and late marks'} id="fold-workload"><${Workload}/><//>
+            <${UI.Fold} title="Workload" summary=${n.open + ' open across ' + ctx.activeMembers.length + ' people'} hot=${n.overdue > 0} id="fold-workload"><${Workload}/><//>
             ${M.parts.MoodHeat ? html`<${UI.Fold} title="Mood, three weeks" summary="every check-in mood, one box a day" id="fold-mood"><${M.parts.MoodHeat}/><//>` : null}
             ${Panel && M.ai.on(ctx) ? html`<${UI.Fold} title="Ask HQ anything" summary="anyone, any client, any number" id="fold-askhq"><section class="card"><div class="card-head"><h2 class="card-title">Ask HQ anything</h2></div><${Panel} inline=${true}/></section><//>` : null}
           </div>

@@ -97,12 +97,14 @@
     const badges = [];
     const from = String(fromYmd || '');
     const to = String(toYmd || '');
+    /* what was looked at, so a zero can explain itself: working days, check-ins made, EOD lines filed, the cuts */
+    const info = {days: 0, checkins: 0, eods: 0, start: '', grace: 0};
     const finish = () => {
       KEYS.forEach(k => { parts[k] = (Number(w[k]) || 0) * counts[k]; });
       const sum = keys => keys.reduce((n, k) => n + parts[k], 0);
       const output = sum(OUTPUT_KEYS);
       const discipline = sum(DISCIPLINE_KEYS);
-      return {total: output + discipline, output, discipline, parts, counts, badges};
+      return {total: output + discipline, output, discipline, parts, counts, badges, info};
     };
     if (!ctx || !uid || !from || !to || from > to) return finish();
 
@@ -117,12 +119,14 @@
     const checkDays = docOf(ctx, 'checkin', uid).days || {};
     const eodDays = docOf(ctx, 'eod', uid).days || {};
     let eodExists = 0;
+    info.days = days.length; info.start = start; info.grace = grace;
     for (const d of days) {
       const c = checkDays[d];
+      if (c && isNum(c.in)) info.checkins++;
       if (c && isNum(c.in) && c.in <= cutMs(d, start) + grace * 60000) counts.checkinOnTime++;
       const e = eodDays[d];
       if (e) {
-        eodExists++;
+        eodExists++; info.eods++;
         if (isNum(e.at) && e.at < cutMs(U.ymd(U.addDays(U.parseYmd(d), 1)), EOD_NEXT_DAY_CUT)) counts.eod++;
       }
     }
@@ -247,12 +251,28 @@
     return {misses, level};
   }
 
+  /* ---------- boardRange ---------- */
+  /* The range a board covers, {from, to, label}. A week runs Monday to Saturday, so on Monday nothing
+     has scored yet: the week board keeps the week that just closed until one working day of the new
+     week is behind us. label is 'this week' or 'last week' for the week period and '' otherwise. */
+  function boardRange(ctx, period, now) {
+    const d = nowDate(ctx, now);
+    const p = period || 'week';
+    const range = U.periodRange(p, d);
+    if (p !== 'week') return {from: range.from, to: range.to, label: ''};
+    const today = U.ymd(d);
+    const behind = workingDays(ctx, null, range.from, today).filter(x => x < today);
+    if (behind.length) return {from: range.from, to: range.to, label: 'this week'};
+    const prev = U.periodRange('week', U.addDays(U.parseYmd(range.from), -7));
+    return {from: prev.from, to: prev.to, label: 'last week'};
+  }
+
   /* ---------- leaderboard ---------- */
   /* [{uid, total, output, discipline, badges, parts, counts}] ranked by total, then output.
-     The founder is left out unless settings.leaderboardIncludesFounder. */
+     The founder is left out unless settings.leaderboardIncludesFounder. The range comes from boardRange. */
   function leaderboard(ctx, period, now) {
     if (!ctx) return [];
-    const range = U.periodRange(period || 'week', nowDate(ctx, now));
+    const range = boardRange(ctx, period || 'week', now);
     const withFounder = !!settingOf(ctx, 'leaderboardIncludesFounder');
     const members = Array.isArray(ctx.activeMembers) ? ctx.activeMembers : [];
     const rows = [];
@@ -269,5 +289,5 @@
     return rows;
   }
 
-  M.points = {pointsFor, scoreFor, ladder, leaderboard, KEYS, OUTPUT_KEYS, DISCIPLINE_KEYS};
+  M.points = {pointsFor, scoreFor, ladder, leaderboard, boardRange, KEYS, OUTPUT_KEYS, DISCIPLINE_KEYS};
 })();

@@ -52,21 +52,33 @@
         const marks = (rev && rev.marks) || {};
         hit += Object.keys(marks).filter(x => marks[x] === 'hit').length;
       });
+      /* every task the workspace holds, so the dashboard counts what exists and only then what is late */
       const tasks = ctx.coll.tasks.map;
-      const overdue = Object.keys(tasks).filter(id => tasks[id].status !== 'done' && tasks[id].due && tasks[id].due < today).length;
+      const wk = U.periodRange('week', new Date(ctx.now));
+      const onRoster = {};
+      members.forEach(m => { onRoster[m.uid] = true; });
+      const taskList = Object.keys(tasks).filter(id => tasks[id]).map(id => ({id, ...tasks[id]}));
+      const openTasks = taskList.filter(t => t.status !== 'done');
+      const overdue = openTasks.filter(t => t.due && t.due < today).length;
+      const dueWeek = openTasks.filter(t => t.due && t.due >= today && t.due <= wk.to).length;
+      const noDue = openTasks.filter(t => !t.due).length;
+      const shippedWeek = taskList.filter(t => t.status === 'done' && t.doneAt && U.ymd(new Date(t.doneAt)) >= wk.from).length;
+      const unowned = openTasks.filter(t => !t.owner || !onRoster[t.owner]).sort((a, b) => (b.created || 0) - (a.created || 0));
       const high = (ctx.flags || []).filter(f => f.severity === 'high').length;
       const pm = (M.pitches && M.pitches.metrics) ? M.pitches.metrics(ctx) : {weighted: 0, byStage: {}, winRate90: null, overdue: []};
       const sh = (M.clients && M.clients.shares) ? M.clients.shares(ctx) : [];
       const topShare = sh.reduce((n, r) => Math.max(n, r.share || 0), 0);
       const energy = (M.voice && M.voice.energyByWeek) ? M.voice.energyByWeek(ctx, 8) : [];
       const lastEnergy = energy.slice().reverse().find(e => e && e.avg != null);
-      return {rows, inToday, late, office, verified, eodY, eodDue, hit, planned, overdue, high, pm, sh, topShare, energy, lastEnergy, yday};
+      return {rows, inToday, late, office, verified, eodY, eodDue, hit, planned, overdue, open: openTasks.length, dueWeek, noDue, shippedWeek, unowned,
+        high, pm, sh, topShare, energy, lastEnergy, yday};
     }, [ctx, members]);
 
     const names = (M.rules && M.rules.NAMES) || {};
     const flags = (ctx.flags || []).filter(f => !rule || f.rule === rule);
     const groups = [['high', 'High'], ['medium', 'Medium'], ['low', 'Low']];
     const board = (M.points && M.points.leaderboard) ? M.points.leaderboard(ctx, 'week', new Date(ctx.now)).slice(0, 5) : [];
+    const boardLabel = (M.points && M.points.boardRange) ? (M.points.boardRange(ctx, 'week', new Date(ctx.now)).label || 'this week') : 'this week';
     const projects = ctx.coll.projects.map;
     const projList = Object.keys(projects).map(id => ({id, ...projects[id]})).filter(p => !p.archived && p.status !== 'done');
     const health = {on: 0, risk: 0, off: 0};
@@ -91,7 +103,7 @@
         <${Tile} label="outcomes hit this week" value=${k.hit + ' of ' + k.planned} to="#week"/>
       </div>
       <div class="kpi-rail">
-        <${Tile} label="tasks overdue" value=${k.overdue} flame=${k.overdue > 0} to="#tasks"/>
+        <${Tile} label="tasks overdue" value=${k.overdue + ' of ' + k.open} flame=${k.overdue > 0} to="#tasks"/>
         <${Tile} label="high flags" value=${k.high} flame=${k.high > 0}/>
         <${Tile} label="weighted pipeline" value=${U.inr(k.pm.weighted)} to="#pitches"/>
         <${Tile} label="largest client share" value=${k.topShare + '%'} to="#clients"/>
@@ -100,7 +112,7 @@
       </div>
 
       <div class="grid2">
-        <div style=${full}><${UI.Fold} title="Attendance today" summary=${(Array.isArray(k.inToday) ? k.inToday.length : k.inToday) + " of " + members.length + " in" + (k.late ? ", " + k.late + " late" : "")} hot=${k.late > 0}><${UI.Card} title="Attendance today" id="attendance">
+        <div style=${full}><${UI.Fold} title="Attendance today" summary=${k.inToday.length + " of " + members.length + " in" + (k.late.length ? ", " + k.late.length + " late" : "")} hot=${k.late.length > 0}><${UI.Card} title="Attendance today" id="attendance">
           <div class="tbl-wrap"><table class="tbl">
             <thead><tr><th>id</th><th>person</th><th>status</th><th>in</th><th>place</th><th>out</th><th>hours</th><th>map</th></tr></thead>
             <tbody>
@@ -145,7 +157,7 @@
           }) : html`<${UI.Empty} text="All clear."/>`}
         <//><//></div>
 
-        <${UI.Fold} title="Leaderboard" summary=${"top " + board.length + " this week"}>
+        <${UI.Fold} title="Leaderboard" summary=${"top " + board.length + " " + boardLabel}>
         <${UI.Card} title="Leaderboard" action=${html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => M.nav('#scores')}>Scores<//>`}>
           ${board.length ? html`<div class="stack tight">
             ${board.map((r, i) => html`<div class="listrow" key=${r.uid}>
@@ -188,6 +200,28 @@
               <${UI.Pill} kind=${(PROJ_PILL[p.status] || {}).k}>${(PROJ_PILL[p.status] || {}).t || p.status}<//>
             </div>`)}
           </div>` : null}
+        <//>
+        <//>
+
+        <${UI.Fold} title="Tasks" summary=${k.open + " open, " + k.overdue + " overdue"} hot=${k.overdue > 0}>
+        <${UI.Card} title="Tasks" action=${html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => M.nav('#tasks')}>Tasks<//>`}>
+          <div class="grid3">
+            <div class="kpi"><span class="v num">${k.open}</span><span class="l">open</span></div>
+            <div class="kpi"><span class="v num">${k.dueWeek}</span><span class="l">due this week</span></div>
+            <div class="kpi"><span class=${'v num' + (k.overdue ? ' flame-t' : '')}>${k.overdue}</span><span class="l">overdue</span></div>
+          </div>
+          <div class="small ink62" style=${{marginTop: '10px'}}>
+            ${k.shippedWeek + ' shipped this week' + (k.noDue ? ', ' + k.noDue + ' open with no due date' : '')}</div>
+          ${k.unowned.length ? html`<div style=${{marginTop: '12px'}}>
+            <${UI.Micro}>waiting for an owner<//>
+            <div class="stack tight" style=${{marginTop: '8px'}}>
+              ${k.unowned.slice(0, 5).map(t => html`<button type="button" class="listrow rowbtn" key=${t.id} onClick=${() => M.nav('#tasks/' + t.id)}>
+                <span class="grow">${t.title || 'Untitled'}</span>
+                <${UI.Pill} kind="flame-o">no owner<//>
+              </button>`)}
+            </div>
+          </div>` : null}
+          ${k.open ? null : html`<${UI.Empty} text="No open tasks yet."/>`}
         <//>
         <//>
 

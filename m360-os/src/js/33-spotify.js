@@ -1,0 +1,246 @@
+/* module: spotify. A real Spotify player inside m360, on the EdgeOne build: each person connects their own
+   Spotify once (PKCE in the browser, nothing shared), the Web Playback SDK turns this tab into a Spotify
+   device, and the dock plays full tracks with search, play, pause, next and previous. Tokens stay in this
+   browser's local storage and never touch the database. What is playing is shared as me/<uid>.listening so
+   the team can see it. Premium is needed for the in page player; without it the links play as embeds. */
+'use strict';
+(function () {
+  const {html, React, U, UI, icons} = M;
+  const {useState, useEffect, useRef} = React;
+
+  const SHARE_MS = 10 * 60000;
+  /* the network side lives in the EdgeOne build only (src/standalone/71-spotify.js); without it there is no player here */
+  const net = () => window.M360_SPOTIFY || null;
+  const standalone = () => !!net();
+  const clientIdOf = ctx => String(((ctx && ctx.settings || {}).spotify || {}).clientId || '').trim();
+  const redirectUri = () => (net() ? net().redirectUri() : location.origin + '/');
+  const tok = {get: () => (net() ? net().tok.get() : null), clear: () => { if (net()) net().tok.clear(); }};
+  const access = clientId => (net() ? net().access(clientId) : Promise.resolve(''));
+  async function connect(clientId) {
+    if (!clientId) { M.toast('The founder switches Spotify on in Admin first', true); return; }
+    if (!net()) { M.toast('The Spotify player runs on the team site', true); return; }
+    try { await net().connect(clientId); } catch (e) { M.toast((e && e.message) || 'Spotify did not open', true); }
+  }
+  /* the outcome of a return from Spotify, reported by the network side when the page loads */
+  function returned(r) {
+    if (r.ok) { setState({connected: true, error: ''}); M.toast('Spotify connected'); }
+    else { setState({error: r.error || 'Spotify did not connect'}); M.toast('Spotify did not connect', true); }
+    location.hash = '#music';
+  }
+  function disconnect() {
+    tok.clear();
+    if (player) { try { player.disconnect(); } catch (e) { /* gone */ } player = null; deviceId = ''; }
+    setState({connected: false, ready: false, track: null, paused: true, position: 0, duration: 0, active: false, premium: null, error: ''});
+  }
+
+  /* ---------- the Web API, through the network side ---------- */
+  async function call(clientId, path, opts) {
+    if (!net()) throw new Error('The Spotify player runs on the team site');
+    try { return await net().call(clientId, path, opts); }
+    catch (e) { if (e && e.premium === false) setState({premium: false}); throw e; }
+  }
+  async function search(clientId, q) {
+    const j = await call(clientId, '/search?q=' + encodeURIComponent(q) + '&type=track,album,playlist&limit=8&market=from_token');
+    const tracks = (((j.tracks || {}).items) || []).filter(Boolean).map(t => ({kind: 'track', uri: t.uri, name: t.name, by: (t.artists || []).map(a => a.name).join(', '), art: art(t.album), ms: t.duration_ms}));
+    const albums = (((j.albums || {}).items) || []).filter(Boolean).map(a => ({kind: 'album', uri: a.uri, name: a.name, by: (a.artists || []).map(x => x.name).join(', '), art: art(a)}));
+    const lists = (((j.playlists || {}).items) || []).filter(Boolean).map(p => ({kind: 'playlist', uri: p.uri, name: p.name, by: (p.owner && p.owner.display_name) || '', art: art(p)}));
+    return tracks.concat(albums, lists);
+  }
+  const art = o => { const im = (o && o.images) || []; const s = im[im.length - 1] || im[0]; return s ? s.url : ''; };
+  async function whoAmI(clientId) {
+    const j = await call(clientId, '/me');
+    setState({premium: j.product === 'premium', who: j.display_name || ''});
+    return j;
+  }
+
+  /* ---------- the player in this tab ---------- */
+  let player = null, deviceId = '', ticker = null, shared = '';
+  let st = {connected: false, ready: false, track: null, paused: true, position: 0, duration: 0, active: false, volume: 0.6, premium: null, who: '', error: ''};
+  const subs = new Set();
+  function setState(patch) { st = {...st, ...patch}; subs.forEach(f => { try { f(st); } catch (e) { /* page handler */ } }); }
+  const loadSdk = () => (net() ? net().loadSdk() : Promise.reject(new Error('The Spotify player runs on the team site')));
+  function tick() {
+    if (ticker) clearInterval(ticker);
+    ticker = setInterval(() => { if (st.active && !st.paused && st.duration) setState({position: Math.min(st.duration, st.position + 1000)}); }, 1000);
+  }
+  async function ensurePlayer(ctx) {
+    const clientId = clientIdOf(ctx);
+    if (player && deviceId) return;
+    if (!tok.get()) throw new Error('Connect Spotify first');
+    await loadSdk();
+    if (!player) {
+      player = new window.Spotify.Player({name: 'm360 OS', volume: st.volume, getOAuthToken: cb => access(clientId).then(a => cb(a || ''))});
+      player.addListener('ready', ({device_id}) => { deviceId = device_id; setState({ready: true, error: ''}); });
+      player.addListener('not_ready', () => { deviceId = ''; setState({ready: false}); });
+      player.addListener('initialization_error', ({message}) => setState({error: 'This browser cannot run the player: ' + message}));
+      player.addListener('authentication_error', () => { tok.clear(); setState({connected: false, ready: false, error: 'Spotify signed you out. Connect again.'}); });
+      player.addListener('autoplay_failed', () => setState({error: 'The browser blocked autoplay. Press play once.'}));
+      player.addListener('account_error', () => setState({premium: false, error: 'Spotify Premium is needed for the in page player'}));
+      player.addListener('player_state_changed', s => {
+        if (!s) { setState({active: false, paused: true}); return; }
+        const t = (s.track_window && s.track_window.current_track) || null;
+        const track = t ? {uri: t.uri, name: t.name, by: (t.artists || []).map(a => a.name).join(', '), art: art(t.album), album: (t.album && t.album.name) || ''} : null;
+        setState({active: !!track, track, paused: !!s.paused, position: s.position || 0, duration: s.duration || 0});
+        if (track && !s.paused && shared !== track.uri) { shared = track.uri; share(ctx, track); }
+      });
+      tick();
+      const ok = await player.connect();
+      if (!ok) { player = null; throw new Error('The player could not connect'); }
+    }
+    const until = Date.now() + 8000;
+    while (!deviceId && Date.now() < until) await new Promise(r => setTimeout(r, 200));
+    if (!deviceId) throw new Error('The player is not ready yet. Try again in a second.');
+  }
+  /* what is playing, shared with the team as me/<uid>.listening */
+  function share(ctx, track) {
+    if (!ctx || !ctx.W) return;
+    ctx.W.merge('me/' + ctx.uid, {listening: {title: String(track.name).slice(0, 120), by: String(track.by).slice(0, 120), uri: track.uri, at: Date.now()}}).catch(() => {});
+  }
+  async function playUri(ctx, uri, label) {
+    await ensurePlayer(ctx);
+    const body = /^spotify:track:/.test(uri) ? {uris: [uri]} : {context_uri: uri};
+    await call(clientIdOf(ctx), '/me/player/play?device_id=' + encodeURIComponent(deviceId), {method: 'PUT', body: JSON.stringify(body), headers: {'content-type': 'application/json'}});
+    setState({active: true, paused: false, error: ''});
+    M.music.play({id: 'sdk:' + uri, title: label || 'Spotify', kind: 'sdk', embed: '', url: linkOf(uri)});
+  }
+  const uriOf = url => { const m = /^https?:\/\/open\.spotify\.com\/(?:intl-[a-z]+\/)?(track|album|playlist|episode|show|artist)\/([A-Za-z0-9]+)/.exec(String(url || '')); return m ? 'spotify:' + m[1] + ':' + m[2] : ''; };
+  const linkOf = uri => { const m = /^spotify:(track|album|playlist|episode|show|artist):([A-Za-z0-9]+)$/.exec(String(uri || '')); return m ? 'https://open.spotify.com/' + m[1] + '/' + m[2] : ''; };
+  const canPlayHere = ctx => standalone() && !!clientIdOf(ctx) && !!tok.get() && st.premium !== false;
+  const ctl = {
+    toggle: () => player && player.togglePlay().catch(() => {}),
+    next: () => player && player.nextTrack().catch(() => {}),
+    prev: () => player && player.previousTrack().catch(() => {}),
+    seek: ms => player && player.seek(ms).catch(() => {}),
+    volume: v => { setState({volume: v}); if (player) player.setVolume(v).catch(() => {}); },
+    stop: () => { if (player) player.pause().catch(() => {}); setState({active: false, paused: true}); }
+  };
+
+  M.spotify = {
+    state: () => st, on: f => { subs.add(f); return () => subs.delete(f); },
+    connected: () => !!tok.get(), canPlayHere, connect, disconnect, returned, search, playUri, uriOf, linkOf, whoAmI, ctl,
+    /* a team list card: play it in the page when this person can, else let the embed handle it */
+    tryPlay(ctx, item) {
+      if (!item || item.kind !== 'spotify' || !canPlayHere(ctx)) return false;
+      const uri = uriOf(item.url);
+      if (!uri || /^spotify:(episode|show|artist):/.test(uri)) return false;
+      playUri(ctx, uri, item.title).catch(e => { M.toast((e && e.message) || 'Spotify did not play', true); M.music.play({...item}); });
+      return true;
+    }
+  };
+  /* the network side loads after this module: pick up the stored connection and hear a sign out */
+  setTimeout(() => { if (net()) { setState({connected: !!tok.get()}); net().onSignedOut(p => setState(p)); } }, 0);
+
+  /* ---------- the dock pane while the SDK plays ---------- */
+  const fmt = ms => { const s = Math.floor((ms || 0) / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  const PAUSE = html`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>`;
+  const PREV = html`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M6 5h2v14H6zM18 5v14l-9-7z"/></svg>`;
+  const NEXT = html`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M16 5h2v14h-2zM6 5v14l9-7z"/></svg>`;
+  function Pane() {
+    const [s, setS] = useState(st);
+    useEffect(() => M.spotify.on(setS), []);
+    const t = s.track;
+    const pct = s.duration ? Math.min(100, 100 * s.position / s.duration) : 0;
+    return html`<div class="sp-pane" id="spotify-pane">
+      ${s.error ? html`<div class="tiny flame-t" style=${{padding: '0 10px 6px'}}>${s.error}</div>` : null}
+      <div class="row nowrap" style=${{gap: '10px', padding: '2px 10px 8px'}}>
+        ${t && t.art ? html`<img class="sp-art" src=${t.art} alt="" width="52" height="52"/>` : html`<span class="sp-art"/>`}
+        <div class="grow" style=${{minWidth: 0}}>
+          <div class="music-title">${t ? t.name : (s.ready ? 'Ready' : 'Starting the player')}</div>
+          <div class="tiny ink62" style=${{overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>${t ? t.by : 'Spotify'}</div>
+        </div>
+      </div>
+      <div class="sp-bar" role="progressbar" aria-valuenow=${Math.round(pct)} aria-valuemin="0" aria-valuemax="100" onClick=${e => { const r = e.currentTarget.getBoundingClientRect(); if (s.duration) ctl.seek(Math.round(s.duration * (e.clientX - r.left) / r.width)); }}><i style=${{width: pct + '%'}}/></div>
+      <div class="row between nowrap" style=${{padding: '4px 8px 8px'}}>
+        <span class="tiny sub num">${fmt(s.position)} / ${fmt(s.duration)}</span>
+        <span class="row nowrap" style=${{gap: '2px'}}>
+          <button type="button" class="iconbtn" aria-label="Previous" onClick=${ctl.prev}>${PREV}</button>
+          <button type="button" class="iconbtn sp-play" aria-label=${s.paused ? 'Play' : 'Pause'} onClick=${ctl.toggle}>${s.paused ? html`<${icons.play}/>` : PAUSE}</button>
+          <button type="button" class="iconbtn" aria-label="Next" onClick=${ctl.next}>${NEXT}</button>
+        </span>
+        <input type="range" class="sp-vol" min="0" max="100" value=${Math.round(s.volume * 100)} aria-label="Volume" onInput=${e => ctl.volume(Number(e.target.value) / 100)}/>
+      </div>
+    </div>`;
+  }
+  M.parts.SpotifyDock = Pane;
+
+  /* ---------- the Music page card ---------- */
+  function SpotifyCard() {
+    const ctx = M.useCtx();
+    const [s, setS] = useState(st);
+    const [q, setQ] = useState('');
+    const [rows, setRows] = useState([]);
+    const [busy, setBusy] = useState('');
+    const clientId = clientIdOf(ctx);
+    useEffect(() => M.spotify.on(setS), []);
+    useEffect(() => { if (standalone() && clientId && tok.get() && s.premium === null) whoAmI(clientId).catch(() => {}); }, [clientId]);
+    const go = async () => {
+      if (!q.trim()) return;
+      setBusy('search');
+      try { setRows(await search(clientId, q.trim())); } catch (e) { M.toast((e && e.message) || 'Search failed', true); }
+      setBusy('');
+    };
+    const play = async r => {
+      setBusy(r.uri);
+      try { await playUri(ctx, r.uri, r.name + (r.by ? ', ' + r.by : '')); } catch (e) { M.toast((e && e.message) || 'Spotify did not play', true); }
+      setBusy('');
+    };
+    const listening = Object.keys(ctx.coll.me.map).map(u => ({u, l: ctx.coll.me.map[u].listening})).filter(x => x.l && x.l.uri && ctx.now - (x.l.at || 0) < SHARE_MS).sort((a, b) => b.l.at - a.l.at);
+    const on = standalone() && !!clientId;
+    return html`<${UI.Card} title="Spotify in m360" id="spotify-card" action=${on ? html`<${UI.Pill} kind=${s.connected ? 'ink' : 'outline'}>${s.connected ? (s.who ? s.who : 'connected') : 'not connected'}<//>` : null}>
+      ${!standalone() ? html`<p class="small ink62" style=${{margin: 0}}>The in page player runs on the team's EdgeOne address. Here, Spotify links play as embeds in the dock.</p>`
+      : !clientId ? html`<p class="small ink62" style=${{margin: 0}}>${ctx.isFounder ? 'Switch Spotify on in Admin: paste the client ID from your Spotify developer app and everyone connects their own account here.' : 'The founder has not switched the Spotify player on yet. Links still play as embeds in the dock.'}</p>`
+      : !s.connected ? html`<div class="stack tight">
+          <p class="small" style=${{margin: 0}}>Connect your own Spotify once and the dock plays full tracks inside m360, with search, next and previous. Spotify Premium is needed for that; without it, links keep playing as embeds.</p>
+          <div class="row" style=${{gap: '8px'}}><${UI.Btn} id="spotify-connect" onClick=${() => connect(clientId)}>Connect Spotify<//></div>
+          ${s.error ? html`<div class="small flame-t">${s.error}</div>` : null}
+        </div>`
+      : html`<div class="stack" style=${{gap: '10px'}}>
+          ${s.premium === false ? html`<div class="small flame-t">This Spotify account is not Premium, so the in page player cannot play. Links still play as embeds.</div>` : null}
+          <div class="row nowrap" style=${{gap: '8px'}}>
+            <div class="grow"><${UI.Input} id="spotify-q" value=${q} onChange=${setQ} onEnter=${go} placeholder="Search a track, an album or a playlist"/></div>
+            <${UI.Btn} kind="sec" disabled=${busy === 'search' || !q.trim()} onClick=${go} id="spotify-search">Search<//>
+          </div>
+          ${rows.length ? html`<div class="stack tight" id="spotify-results">${rows.map(r => html`<div class="listrow" key=${r.uri}>
+            ${r.art ? html`<img class="sp-art sm" src=${r.art} alt="" width="36" height="36"/>` : html`<span class="sp-art sm"/>`}
+            <span class="grow" style=${{minWidth: 0}}><span class="music-title">${r.name}</span><span class="tiny ink62" style=${{display: 'block'}}>${r.kind}${r.by ? ' · ' + r.by : ''}</span></span>
+            <${UI.Btn} sm=${true} disabled=${!!busy} onClick=${() => play(r)}>${busy === r.uri ? 'Starting' : 'Play'}<//>
+          </div>`)}</div>` : null}
+          <div class="row between">
+            <span class="tiny ink62">${s.ready ? 'This tab is a Spotify device called m360 OS.' : 'The player starts with the first Play.'}</span>
+            <button type="button" class="linky small" onClick=${disconnect} id="spotify-disconnect">Disconnect</button>
+          </div>
+        </div>`}
+      ${listening.length ? html`<div class="row" style=${{gap: '6px', marginTop: '10px'}} id="spotify-listening">
+        ${listening.map(x => html`<span key=${x.u} class="chipline rd-watch"><${UI.Avatar} id=${x.u} size=${18}/><${UI.Name} id=${x.u}/> is listening to <b>${x.l.title}</b>${x.l.by ? ', ' + x.l.by : ''}</span>`)}
+      </div>` : null}
+    <//>`;
+  }
+  M.parts.SpotifyCard = SpotifyCard;
+
+  /* ---------- Admin: the Spotify app's client ID ---------- */
+  function SpotifySettings() {
+    const ctx = M.useCtx();
+    const cur = clientIdOf(ctx);
+    const [id, setId] = useState(cur);
+    useEffect(() => { setId(cur); }, [cur]);
+    if (!ctx.isFounder) return null;
+    const save = () => ctx.W.merge('settings/app', {spotify: {clientId: id.trim()}, updated: Date.now()}).then(() => M.toast(id.trim() ? 'Spotify is on. Everyone connects from Vibe, Music' : 'Spotify player switched off')).catch(() => {});
+    const copy = () => { try { navigator.clipboard.writeText(redirectUri()); M.toast('Copied'); } catch (e) { /* by hand */ } };
+    return html`<${UI.Card} id="spotify-settings" title="Spotify" action=${html`<${UI.Pill} kind=${cur ? 'ink' : 'outline'}>${cur ? 'on' : 'off'}<//>`}>
+      <ol class="small" style=${{paddingLeft: '18px', margin: '0 0 10px'}}>
+        <li>Open developer.spotify.com/dashboard with the Mask360 Spotify account and create an app called m360 OS. Tick Web Playback SDK and Web API.</li>
+        <li>Under Redirect URIs paste exactly:
+          <div class="row nowrap" style=${{gap: '6px', marginTop: '4px'}}><code class="grow" style=${{overflow: 'auto'}} id="spotify-redirect">${standalone() ? redirectUri() : 'the team site address, with a trailing slash'}</code>${standalone() ? html`<${UI.Btn} kind="sec" sm=${true} onClick=${copy}>Copy<//>` : null}</div></li>
+        <li>Paste the client ID below. There is no client key to paste; each person signs in to their own Spotify.</li>
+        <li>A new Spotify app runs in development mode: add each teammate's Spotify email under User Management, up to 25 people. Full playback in the page needs Spotify Premium on their account.</li>
+      </ol>
+      <div class="row" style=${{gap: '8px', alignItems: 'end'}}>
+        <div class="grow" style=${{maxWidth: '520px'}}><${UI.Input} id="spotify-client-id" label="client id" value=${id} onChange=${setId} placeholder="32 characters from the dashboard"/></div>
+        <${UI.Btn} id="spotify-save" disabled=${id.trim() === cur} onClick=${save}>${cur ? 'Save' : 'Switch Spotify on'}<//>
+      </div>
+    <//>`;
+  }
+  SpotifySettings.foldTitle = 'Spotify';
+  SpotifySettings.foldSummary = 'the player inside m360';
+  M.adminCards.push(SpotifySettings);
+})();

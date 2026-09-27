@@ -87,6 +87,6 @@ export async function fakeRadar(url, init) {
       '<body><script>var ytInitialData = {"metadata":{"channelMetadataRenderer":{"channelId":"' + channelIdFor(handle) + '"}}};</script></body></html>');
   }
   /* any other feed a source list may point at: a valid, empty feed */
-  if (/\.(xml|rss)(\?|$)|\/feeds?\/|\/rss\/?/.test(u) && !u.includes('api.anthropic.com') && !u.includes('api.resend.com')) return xml(EMPTY_RSS);
+  if (/\.(xml|rss)(\?|$)|\/feeds?(\/|\?|$)|\/rss(\/|\?|$)/.test(u) && !u.includes('api.anthropic.com') && !u.includes('api.resend.com')) return xml(EMPTY_RSS);
   return null;
 }

@@ -36,3 +36,8 @@ No secret is written in this file or anywhere in the repository. Each line says 
 2. The team site needs nothing either: it is tied to GitHub and Tencent, not to claude.ai.
 3. The artifact cannot be transferred between claude.ai accounts. The new account publishes a new artifact from `dist/index.html` (a new link), and its database starts empty; the team site is unaffected.
 4. Keep the EdgeOne console login, the GitHub login, and the four key accounts above with whoever owns the company. Download a site backup from Admin before any change of hands.
+
+## Keys added in v15
+
+- **Apollo API key**: pasted by the founder in Admin under Hunt on the team site; stored in the EdgeOne blob store as `x/apollo` and never sent to a browser. To move it, paste it again on the new site; to revoke it, press Remove there or rotate the key in Apollo (Settings, Integrations, API). Set `APOLLO_API_KEY` in the EdgeOne project's environment variables to make it come from the server instead. Phone reveals need the public https address of the site, because Apollo posts the number back to `<site>/api/apollo`.
+- **Spotify client ID**: from a Spotify developer app (developer.spotify.com/dashboard, made with the Mask360 Spotify account); pasted in Admin under Spotify and kept in `settings/app.spotify.clientId`. Its redirect URI is the site address with a trailing slash, so a new address means adding a new redirect URI in that dashboard. There is no client key to keep; each person's tokens live only in their own browser.

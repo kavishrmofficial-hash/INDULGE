@@ -49,9 +49,12 @@
     const total = rows.reduce((n, r) => n + r.monthly, 0);
     return rows.map(r => ({...r, share: total > 0 ? Math.round(100 * r.monthly / total) : 0}));
   }
+  /* open tasks for a client: linked to it directly, or through one of its live projects (the same link the client page uses) */
   function openTaskCount(ctx, id) {
     const list = (M.tasks && M.tasks.open) ? M.tasks.open(ctx) : [];
-    return list.filter(t => t && t.client === id).length;
+    const pmap = (ctx.coll && ctx.coll.projects && ctx.coll.projects.map) || {};
+    const viaProject = t => !!(t.project && pmap[t.project] && !pmap[t.project].archived && pmap[t.project].client === id);
+    return list.filter(t => t && (t.client === id || viaProject(t))).length;
   }
 
   /* the domain in a website or an address: "https://www.swisse.ae/shop" gives "swisse.ae" */

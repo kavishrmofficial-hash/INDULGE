@@ -118,9 +118,9 @@ def main():
             f.fill('#mail-q', 'invoice'); f.wait_for_timeout(600)
             f.wait_for_function('() => document.querySelectorAll("#mail-list .mail-row").length === 1')
             # calendar: today's meeting with a Meet link, a new meeting with a link, rsvp
-            f.goto(base + '#gcal'); f.wait_for_selector('#cal-card .cal-ev')
+            f.goto(base + '#gcal'); f.wait_for_selector('#cal-card .gcal-ev')
             check('Join Meet' in f.inner_text('#cal-card') and 'Swisse creative review' in f.inner_text('#cal-card'), 'calendar shows the meeting with Meet')
-            f.locator('#cal-card .cal-ev .chip:has-text("Yes")').first.click()
+            f.locator('#cal-card .gcal-ev .chip:has-text("Yes")').first.click()
             f.wait_for_timeout(400)
             f.locator('#cal-new').click(); f.wait_for_selector('#cal-title')
             f.fill('#cal-title', 'Marina kickoff'); f.fill('#cal-who', 'ops@marina.example')

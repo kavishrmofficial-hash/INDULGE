@@ -1,0 +1,11 @@
+/* hunt: copy blocks to paste, the person rows, the playbook lists */
+.hunt-copy{white-space:pre-wrap; overflow-wrap:anywhere; background:var(--warm); border-radius:12px; padding:12px 14px; font-size:14px; line-height:1.5; user-select:all}
+.hunt-block{min-width:0}
+.hunt-obj{padding:8px 0; border-bottom:1px solid var(--line)}
+.hunt-obj:last-child{border-bottom:0}
+.hunt-obj b{font-weight:500}
+.hunt-person .av{flex:none}
+.hunt-list{padding-left:18px; line-height:1.5}
+.hunt-list li{margin:4px 0}
+.hunt-row .pill{flex:none}
+@media (max-width:600px){ .hunt-row{flex-wrap:wrap} .hunt-copy{font-size:13px} }

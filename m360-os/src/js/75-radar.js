@@ -1,6 +1,7 @@
-/* module: radar. The outside world: a news stream for agency business, awards season, and the channels
-   worth a weekly look. Feeds are fetched by the EdgeOne function (edgeone/server/radar.js) and cached
-   there; on claude.ai the page cannot reach the web, so it shows the directories and the awards table. */
+/* module: radar. The outside world, India first: who won which account, who joined where, what launched,
+   what campaign broke, and awards season, the way exchange4media or afaqs would list it. Feeds are fetched
+   by the EdgeOne function (edgeone/server/radar.js), sorted into lanes there and cached; on claude.ai the
+   page cannot reach the web, so it shows the directories and the awards table. */
 'use strict';
 (function () {
   const {html, React, U, UI, icons} = M;
@@ -18,32 +19,57 @@
 
   /* ---------- the directory: mirrors the server defaults, so the claude.ai copy can list them ---------- */
   const GN = q => 'https://news.google.com/rss/search?q=' + encodeURIComponent(q) + '&hl=en-IN&gl=IN&ceid=IN:en';
+  const SITE = d => GN('site:' + d);
   const SOURCES = [
-    {id: 'gn-agency-india', name: 'Google News: advertising agency India', url: GN('advertising agency India'), tags: ['india', 'business']},
+    {id: 'gn-agency-india', name: 'Google News: advertising agency India', url: GN('advertising agency India'), tags: ['india', 'accounts']},
+    {id: 'gn-wins-india', name: 'Google News: agency wins mandate India', url: GN('agency wins mandate India'), tags: ['india', 'accounts']},
+    {id: 'gn-mandate-india', name: 'Google News: creative and media mandates', url: GN('"creative mandate" OR "media mandate" OR "digital mandate" OR "social media mandate" India'), tags: ['india', 'accounts']},
+    {id: 'gn-appoints-agency', name: 'Google News: brand appoints agency', url: GN('appoints agency India brand'), tags: ['india', 'accounts']},
+    {id: 'gn-cmo-india', name: 'Google News: CMO appointed India', url: GN('"appointed" OR "joins as" OR "named" "chief marketing officer" India'), tags: ['india', 'people']},
+    {id: 'gn-marketing-head-india', name: 'Google News: head of marketing moves', url: GN('"head of marketing" OR "marketing head" OR "vice president marketing" joins OR appointed India'), tags: ['india', 'people']},
+    {id: 'gn-creative-chief-india', name: 'Google News: creative chiefs', url: GN('"chief creative officer" OR "executive creative director" OR "national creative director" appointed OR joins OR elevated India'), tags: ['india', 'people']},
+    {id: 'gn-agency-ceo-india', name: 'Google News: agency leadership', url: GN('agency "managing director" OR CEO OR "chief business officer" appointed OR joins advertising OR media India'), tags: ['india', 'people']},
+    {id: 'gn-brand-launch-india', name: 'Google News: brand launches India', url: GN('launches new brand India'), tags: ['india', 'launches']},
     {id: 'gn-campaign-india', name: 'Google News: brand campaign India', url: GN('brand campaign India'), tags: ['india', 'campaigns']},
+    {id: 'gn-ad-film-india', name: 'Google News: new ad film India', url: GN('"ad film" OR TVC OR "brand film" India'), tags: ['india', 'campaigns']},
+    {id: 'gn-festive-india', name: 'Google News: festive campaign India', url: GN('festive campaign India brand'), tags: ['india', 'campaigns']},
+    {id: 'gn-ipl', name: 'Google News: IPL sponsorship', url: GN('IPL sponsorship'), tags: ['india', 'business']},
+    {id: 'gn-influencer-india', name: 'Google News: influencer marketing India', url: GN('influencer marketing India'), tags: ['india', 'creators']},
+    {id: 'gn-d2c-india', name: 'Google News: D2C brands India', url: GN('D2C brand India marketing'), tags: ['india', 'business']},
     {id: 'gn-cannes', name: 'Google News: Cannes Lions', url: GN('Cannes Lions'), tags: ['awards']},
-    {id: 'gn-dandad', name: 'Google News: D&AD awards', url: GN('D&AD awards'), tags: ['awards']},
     {id: 'gn-effie-india', name: 'Google News: Effie India', url: GN('Effie India'), tags: ['awards', 'india']},
     {id: 'gn-goafest', name: 'Google News: Goafest Abby awards', url: GN('Goafest Abby awards'), tags: ['awards', 'india']},
     {id: 'gn-kyoorius', name: 'Google News: Kyoorius awards', url: GN('Kyoorius awards'), tags: ['awards', 'india']},
-    {id: 'gn-oneshow', name: 'Google News: One Show awards', url: GN('One Show awards'), tags: ['awards']},
-    {id: 'gn-cmo-india', name: 'Google News: marketing India CMO', url: GN('marketing India CMO'), tags: ['india', 'business']},
-    {id: 'gn-influencer-india', name: 'Google News: influencer marketing India', url: GN('influencer marketing India'), tags: ['india', 'creators']},
-    {id: 'gn-ott-india', name: 'Google News: OTT advertising India', url: GN('OTT advertising India'), tags: ['india', 'platforms']},
-    {id: 'gn-ipl', name: 'Google News: IPL sponsorship', url: GN('IPL sponsorship'), tags: ['india', 'business']},
-    {id: 'gn-meta-ads', name: 'Google News: Meta ads', url: GN('Meta ads'), tags: ['platforms']},
-    {id: 'gn-yt-creators', name: 'Google News: YouTube creators India', url: GN('YouTube creators India'), tags: ['india', 'creators', 'platforms']},
-    {id: 'gn-acquisition', name: 'Google News: agency acquisition', url: GN('agency acquisition'), tags: ['business']},
-    {id: 'gn-wins', name: 'Google News: creative agency wins account', url: GN('creative agency wins account'), tags: ['business']},
-    {id: 'marketingweek', name: 'Marketing Week', url: 'https://www.marketingweek.com/feed/', tags: ['business', 'campaigns']},
-    {id: 'creativereview', name: 'Creative Review', url: 'https://www.creativereview.co.uk/feed/', tags: ['campaigns']},
-    {id: 'digiday', name: 'Digiday', url: 'https://digiday.com/feed/', tags: ['business', 'platforms']},
-    {id: 'marketingdive', name: 'Marketing Dive', url: 'https://www.marketingdive.com/feeds/news/', tags: ['business', 'campaigns']},
-    {id: 'adweek', name: 'Adweek', url: 'https://www.adweek.com/feed/', tags: ['campaigns', 'business']},
-    {id: 'socialsamosa', name: 'Social Samosa', url: 'https://www.socialsamosa.com/feed/', tags: ['india', 'platforms', 'creators']},
-    {id: 'campaignindia', name: 'Campaign India', url: 'https://www.campaignindia.in/rss/', tags: ['india', 'campaigns']},
+    {id: 'gn-emvies', name: 'Google News: Emvies', url: GN('Emvies awards'), tags: ['awards', 'india']},
+    {id: 'gn-spikes', name: 'Google News: Spikes Asia', url: GN('"Spikes Asia" India'), tags: ['awards', 'india']},
+    {id: 'gn-e4m', name: 'exchange4media', url: SITE('exchange4media.com'), tags: ['india', 'business']},
+    {id: 'gn-bmi', name: 'BestMediaInfo', url: SITE('bestmediainfo.com'), tags: ['india', 'business']},
+    {id: 'gn-campaignindia', name: 'Campaign India', url: SITE('campaignindia.in'), tags: ['india', 'campaigns']},
+    {id: 'gn-adgully', name: 'Adgully', url: SITE('adgully.com'), tags: ['india', 'business']},
+    {id: 'gn-storyboard18', name: 'Storyboard18', url: SITE('storyboard18.com'), tags: ['india', 'business']},
+    {id: 'gn-marketingmind', name: 'Marketing Mind', url: SITE('marketingmind.in'), tags: ['india', 'campaigns']},
     {id: 'afaqs', name: 'afaqs', url: 'https://www.afaqs.com/rss/news', tags: ['india', 'campaigns', 'business']},
-    {id: 'thedrum', name: 'The Drum', url: 'https://www.thedrum.com/rss.xml', tags: ['campaigns', 'business']}
+    {id: 'be-top', name: 'ET Brand Equity', url: 'https://brandequity.economictimes.indiatimes.com/rss/topstories', tags: ['india', 'business']},
+    {id: 'be-marketing', name: 'ET Brand Equity: marketing', url: 'https://brandequity.economictimes.indiatimes.com/rss/marketing', tags: ['india', 'campaigns']},
+    {id: 'be-advertising', name: 'ET Brand Equity: advertising', url: 'https://brandequity.economictimes.indiatimes.com/rss/advertising', tags: ['india', 'campaigns']},
+    {id: 'be-brands', name: 'ET Brand Equity: business of brands', url: 'https://brandequity.economictimes.indiatimes.com/rss/business-of-brands', tags: ['india', 'business', 'launches']},
+    {id: 'be-people', name: 'ET Brand Equity: the people report', url: 'https://brandequity.economictimes.indiatimes.com/rss/the-people-report', tags: ['india', 'people']},
+    {id: 'be-digital', name: 'ET Brand Equity: digital', url: 'https://brandequity.economictimes.indiatimes.com/rss/digital', tags: ['india', 'platforms']},
+    {id: 'mn4u', name: 'MediaNews4U', url: 'https://www.medianews4u.com/feed/', tags: ['india', 'business']},
+    {id: 'mn4u-people', name: 'MediaNews4U: people', url: 'https://www.medianews4u.com/category/people/feed/', tags: ['india', 'people']},
+    {id: 'mn4u-advertising', name: 'MediaNews4U: advertising', url: 'https://www.medianews4u.com/category/advertising/feed/', tags: ['india', 'campaigns']},
+    {id: 'agencyreporter', name: 'Agency Reporter', url: 'https://www.agencyreporter.com/feed/', tags: ['india', 'business']},
+    {id: 'mediasamosa', name: 'Media Samosa', url: 'https://mediasamosa.com/feed/', tags: ['india', 'campaigns']},
+    {id: 'socialsamosa', name: 'Social Samosa', url: 'https://www.socialsamosa.com/rss', tags: ['india', 'platforms', 'creators']},
+    {id: 'mediabrief', name: 'MediaBrief', url: 'https://mediabrief.com/feed/', tags: ['india', 'campaigns']},
+    {id: 'indiantelevision', name: 'Indian Television', url: 'https://www.indiantelevision.com/feed', tags: ['india', 'platforms']},
+    {id: 'marketingweek', name: 'Marketing Week', url: 'https://www.marketingweek.com/feed/', tags: ['world', 'business', 'campaigns']},
+    {id: 'creativereview', name: 'Creative Review', url: 'https://www.creativereview.co.uk/feed/', tags: ['world', 'campaigns']},
+    {id: 'digiday', name: 'Digiday', url: 'https://digiday.com/feed/', tags: ['world', 'business', 'platforms']},
+    {id: 'marketingdive', name: 'Marketing Dive', url: 'https://www.marketingdive.com/feeds/news/', tags: ['world', 'business', 'campaigns']},
+    {id: 'adweek', name: 'Adweek', url: 'https://www.adweek.com/feed/', tags: ['world', 'campaigns', 'business']},
+    {id: 'gn-dandad', name: 'Google News: D&AD awards', url: GN('D&AD awards'), tags: ['awards', 'world']},
+    {id: 'gn-oneshow', name: 'Google News: One Show awards', url: GN('One Show awards'), tags: ['awards', 'world']}
   ];
   const CHANNELS = [
     {handle: 'CannesLions', name: 'Cannes Lions'}, {handle: 'dandad', name: 'D&AD'}, {handle: 'TheOneClub', name: 'The One Club'},
@@ -52,9 +78,46 @@
     {handle: 'ContagiousCommunications', name: 'Contagious'}, {handle: 'LBBOnline', name: 'Little Black Book'},
     {handle: 'campaignindia', name: 'Campaign India'}, {handle: 'afaqs', name: 'afaqs'}
   ];
-  const TAGS = [{v: 'india', label: 'India'}, {v: 'awards', label: 'Awards'}, {v: 'campaigns', label: 'Campaigns'},
+  const TAGS = [{v: 'india', label: 'India'}, {v: 'world', label: 'World'}, {v: 'people', label: 'People moves'}, {v: 'accounts', label: 'Account moves'},
+    {v: 'launches', label: 'Launches'}, {v: 'campaigns', label: 'Campaigns'}, {v: 'awards', label: 'Awards'},
     {v: 'business', label: 'Business'}, {v: 'platforms', label: 'Platforms'}, {v: 'creators', label: 'Creators'}];
-  const CHIPS = [{v: 'all', label: 'All'}].concat(TAGS, [{v: 'hot', label: 'Watchlist hits'}, {v: 'saved', label: 'Saved'}]);
+  /* the lanes a story is sorted into, the same rules as the server (edgeone/server/radar.js), applied here
+     again for a stream cached before the lanes existed */
+  const LANES = [{v: 'people', label: 'People moves', empty: 'No marketing person moved this week, as far as the feeds know.'},
+    {v: 'accounts', label: 'Account moves', empty: 'No agency won or lost a mandate in the stream right now.'},
+    {v: 'launches', label: 'Launches', empty: 'No brand launch in the stream right now.'},
+    {v: 'campaigns', label: 'Campaigns', empty: 'No campaign broke in the stream right now.'},
+    {v: 'awards', label: 'Awards', empty: 'No awards story in the stream right now.'}];
+  const LANE_LABEL = {}; LANES.forEach(l => { LANE_LABEL[l.v] = l.label; });
+  const CHIPS = [{v: 'all', label: 'All'}].concat(LANES.map(l => ({v: l.v, label: l.label})), [{v: 'hot', label: 'Watchlist hits'}, {v: 'saved', label: 'Saved'}, {v: 'world', label: 'World'}]);
+  /* a people move needs a role word: a brand that joins hands with another is not a person moving */
+  const ROLE = '(?:cmo|chief marketing officer|marketing (?:head|director|lead|chief|manager)|head of (?:marketing|brand|digital|social|growth|content|e-?commerce|d2c)|vp|vice president|brand (?:head|director|manager)|chief (?:brand|digital|growth|creative|executive|business|content|revenue) officer|ceo|cco|managing director|executive creative director|national creative director|creative (?:head|director)|director,? marketing|general manager,? marketing)';
+  const LANE_RULES = [
+    ['people', new RegExp('\\b(?:appoint(?:ed|s)?|names?|named|elevat(?:es|ed)|promot(?:es|ed)|hires?|ropes? in|onboards?|brings? in|welcomes?)\\b[^.]{0,60}\\b(?:as |to |its |their |the |new )?' + ROLE + '\\b' +
+      '|\\b(?:joins?|moves? to|quits|exits|steps? down|steps? up|takes? (?:charge|over)|takes? on|returns? to|leaves|departs?|resigns?|retires?)\\b[^.]{0,60}\\b(?:as |from |the |its )?' + ROLE + '\\b' +
+      '|\\b(?:new|former|outgoing|incoming) ' + ROLE + '\\b' +
+      '|\\b' + ROLE + '\\b[^.]{0,40}\\b(?:steps? down|quits|exits|resigns?|retires?|leaves|departs?|moves? to|joins?)\\b', 'i')],
+    ['awards', /\b(award|awards|cannes|lions?|d&ad|pencil|effie|abby|goafest|kyoorius|one show|clio|spikes|adfest|shortlist|grand prix|gold|silver|bronze)\b/i],
+    ['accounts', /\b(wins?|bags?|retains?|awarded|picks|selects|appoints|onboards|hands|assigns)\b[^.]{0,60}\b(account|mandate|business|duties|agency|aor|agency of record)\b|\b(creative|media|digital|social media|influencer|pr) (?:mandate|duties|account|aor)\b|\bagency of record\b|\bpitch(?:es)? (?:worth|for)\b/i],
+    ['campaigns', /\b(campaign|ad film|tvc|brand film|anthem|ropes? in|brand ambassador|face of|festive|diwali|ipl|world cup|celebrates|out of home|ooh|billboard|jingle|spot)\b/i],
+    ['launches', /\b(launch(?:es|ed)?|unveils?|introduces?|debuts?|rolls? out|enters?|forays?|opens? (?:its )?(?:first|new)|rebrands?|new brand|new range|new collection|new store|new product)\b/i]
+  ];
+  function laneOf(title, summary) {
+    const hay = String(title || '') + '. ' + String(summary || '');
+    for (const [lane, re] of LANE_RULES) if (re.test(hay)) return lane;
+    return 'other';
+  }
+  const INDIA_RE = /\b(india|indian|bharat|mumbai|delhi|bengaluru|bangalore|gurugram|gurgaon|hyderabad|chennai|kolkata|pune|noida|ahmedabad|jaipur|kochi|goa|rs\.?|rupee|crore|lakh|ipl|bollywood|diwali|dussehra|holi|navratri|tata|reliance|jio|hul|godrej|mahindra|marico|dabur|amul|zomato|swiggy|flipkart|myntra|nykaa|paytm|phonepe|ola|bajaj|hero motocorp|maruti|titan|aditya birla|itc|britannia|parle|emami|boat|mamaearth|lenskart|meesho|cred|dream11|byju|upgrad|physicswallah|zerodha|groww|razorpay|jsw|adani|vedanta|infosys|wipro|tcs|hdfc|icici|sbi|axis bank|kotak|airtel|vi\b|bsnl|starbucks india|ajio|tanishq|caratlane|voltas|blue star|havells|bajaj electricals|hindustan)\b/i;
+  function isIndia(it) {
+    const tags = it.tags || [];
+    const text = String(it.title || '') + ' ' + String(it.summary || '');
+    if (tags.includes('world')) return INDIA_RE.test(text);
+    if (tags.includes('india')) return true;
+    if (/\.in$/i.test(hostOf(it.link))) return true;
+    return INDIA_RE.test(text + ' ' + String(it.source || ''));
+  }
+  /* a stream item with its lane and its India flag, whichever build of the server wrote it */
+  const enrich = it => ({...it, lane: it.lane || laneOf(it.title, it.summary), india: typeof it.india === 'boolean' ? it.india : isIndia(it)});
 
   /* awards season: typical timing only; the site has this year's dates */
   const AWARDS = [
@@ -249,6 +312,8 @@
     return html`<article class=${'card rd-item' + (it.hot ? ' hot' : '')} data-id=${it.id} data-hot=${it.hot ? '1' : '0'}>
       <div class="row" style=${{gap: '8px'}}>
         <${UI.Pill}>${src}<//>
+        ${it.lane && LANE_LABEL[it.lane] ? html`<${UI.Pill} kind="ink">${LANE_LABEL[it.lane]}<//>` : null}
+        ${it.india === false ? html`<${UI.Pill}>world<//>` : null}
         <span class="tiny sub num">${U.timeAgo(it.at)}</span>
         ${(it.hits || []).map(k => html`<${UI.Pill} key=${k} kind="flame-o">${k}<//>`)}
         ${it.saved ? html`<${UI.Pill} kind="warm">saved ${U.timeAgo(it.savedAt)}<//>` : null}
@@ -261,6 +326,7 @@
         <button type="button" class="btn ghost sm" disabled=${busy === 'share'} onClick=${() => act('share', async () => { await postLink(ctx, it.title, it.link); M.toast('Shared to the feed'); })}>
           <${icons.feed}/> Share to Vibe</button>
         ${M.ai.on(ctx) ? html`<${WhyItMatters} it=${it}/>` : null}
+        ${M.hunt && (it.lane === 'people' || it.lane === 'accounts' || it.lane === 'launches') ? html`<button type="button" class="btn ghost sm" onClick=${() => M.hunt.pursueFromNews(it)}>Pursue</button>` : null}
       </div>
     </article>`;
   }
@@ -306,20 +372,24 @@
     const keywords = keywordsOf(ctx);
     const saved = savedOf(ctx);
     const raw = (news.data && Array.isArray(news.data.items)) ? news.data.items : [];
-    const items = useMemo(() => withHits(raw, keywords), [raw, keywords.join('|')]);
+    const items = useMemo(() => withHits(raw, keywords).map(enrich), [raw, keywords.join('|')]);
+    const india = useMemo(() => items.filter(it => it.india), [items]);
     const savedItems = useMemo(() => Object.keys(saved).map(id => ({id, title: saved[id].title, link: saved[id].link, at: saved[id].at, savedAt: saved[id].at, source: hostOf(saved[id].link), tags: [], summary: '', saved: true, hits: []}))
       .sort((a, b) => (b.at || 0) - (a.at || 0)), [saved]);
     const needle = q.trim().toLowerCase();
     const match = it => !needle || (String(it.title) + ' ' + String(it.summary || '') + ' ' + String(it.source || '')).toLowerCase().includes(needle);
-    const pool = chip === 'saved' ? savedItems : items.filter(it => chip === 'all' || (chip === 'hot' ? it.hot : (it.tags || []).includes(chip)));
+    const pool = chip === 'saved' ? savedItems : chip === 'hot' ? items.filter(it => it.hot) : chip === 'world' ? items.filter(it => !it.india)
+      : chip === 'all' ? india : india.filter(it => it.lane === chip);
     const shown = pool.filter(match);
     const errors = (news.data && news.data.errors) || [];
     const busy = news.state === 'loading' || news.state === 'refreshing';
-    const counts = {hot: items.filter(i => i.hot).length, saved: savedItems.length};
+    const counts = {hot: items.filter(i => i.hot).length, saved: savedItems.length, world: items.length - india.length};
+    LANES.forEach(l => { counts[l.v] = india.filter(it => it.lane === l.v).length; });
+    const laneEmpty = (LANES.find(l => l.v === chip) || {}).empty;
     const dir = sources.filter(s => s.on && (chip === 'all' || chip === 'hot' || chip === 'saved' || s.tags.includes(chip)) && (!needle || s.name.toLowerCase().includes(needle)));
 
     return html`<div class="stack" style=${{gap: '14px'}}>
-      ${isLive ? html`<${Brief} items=${items}/>` : html`<${OffCard} what="live stream"/>`}
+      ${isLive ? html`<${Brief} items=${india.length ? india : items}/>` : html`<${OffCard} what="live stream"/>`}
       <div class="rd-chips" role="group" aria-label="Filter">
         ${CHIPS.map(c => html`<button key=${c.v} type="button" class=${'chip' + (chip === c.v ? ' on' : '')} aria-pressed=${chip === c.v} onClick=${() => setChip(c.v)}>
           ${c.label}${counts[c.v] ? html`<span class="num">${counts[c.v]}</span>` : null}</button>`)}
@@ -335,7 +405,7 @@
       ${news.state === 'error' ? html`<div class="small flame-t">The stream did not load: ${news.err}. Tap Refresh to try again.</div>` : null}
       ${isLive || chip === 'saved' ? html`<div class="stack" id="radar-stream">
         ${shown.length ? shown.map(it => html`<${NewsItem} key=${it.id} it=${it} saved=${!!saved[it.id]} names=${names}/>`)
-          : html`<${UI.Empty} text=${busy ? 'Fetching the stream.' : chip === 'saved' ? 'Nothing saved yet. Save a story from the stream.' : chip === 'hot' ? (keywords.length ? 'No story matches your watch keywords right now.' : 'Add watch keywords in Admin to light up stories here.') : needle ? 'Nothing matches that search.' : 'Nothing in the stream yet.'}/>`}
+          : html`<${UI.Empty} text=${busy ? 'Fetching the stream.' : needle ? 'Nothing matches that search.' : chip === 'saved' ? 'Nothing saved yet. Save a story from the stream.' : chip === 'hot' ? (keywords.length ? 'No story matches your watch keywords right now.' : 'Add watch keywords in Admin to light up stories here.') : laneEmpty || (chip === 'world' ? 'Nothing from outside India right now.' : 'Nothing in the stream yet.')}/>`}
       </div>` : html`<${UI.Card} title="Sources" id="radar-sources">
         <div class="stack tight">${dir.map(s => html`<div class="listrow" key=${s.id}>
           <span class="grow"><${NewTab} className="linky" href=${s.url}>${s.name}<//></span>
@@ -352,7 +422,7 @@
     const keywords = keywordsOf(ctx);
     const saved = savedOf(ctx);
     const raw = (news.data && Array.isArray(news.data.items)) ? news.data.items : [];
-    const items = useMemo(() => withHits(raw.filter(it => (it.tags || []).includes('awards')), keywords), [raw, keywords.join('|')]);
+    const items = useMemo(() => withHits(raw, keywords).map(enrich).filter(it => it.lane === 'awards' || (it.tags || []).includes('awards')), [raw, keywords.join('|')]);
     const sources = sourcesOf(ctx);
     const names = useMemo(() => { const m = {}; sources.forEach(s => { m[s.id] = s.name; }); return m; }, [sources]);
     return html`<div class="stack" style=${{gap: '14px'}}>
@@ -468,13 +538,16 @@
     const t = tab || 'news';
     const news = useRemote('news', t !== 'watch');
     const channels = useRemote('channels', t === 'watch');
-    const items = (news.data && Array.isArray(news.data.items)) ? withHits(news.data.items, keywordsOf(ctx)) : [];
+    const items = (news.data && Array.isArray(news.data.items)) ? withHits(news.data.items, keywordsOf(ctx)).map(enrich) : [];
+    const india = items.filter(i => i.india);
     const hot = items.filter(i => i.hot).length;
+    const moves = india.filter(i => i.lane === 'people' || i.lane === 'accounts').length;
     const savedN = Object.keys(savedOf(ctx)).length;
     return html`<div class="stack" style=${{gap: '20px'}}>
-      <${M.SectionHero} micro="the outside world" title="Radar" sub="News for the business, awards season, and the channels worth a weekly look.">
+      <${M.SectionHero} micro="the outside world, India first" title="Radar" sub="Who won which account, who joined where, what launched, what campaign broke, and awards season.">
         <div class="row" style=${{gap: '8px'}}>
-          ${live() ? html`<${Chip} v=${items.length} l="stories"/>` : null}
+          ${live() ? html`<${Chip} v=${india.length} l="India stories"/>` : null}
+          ${live() ? html`<${Chip} v=${moves} l="moves"/>` : null}
           ${live() ? html`<${Chip} v=${hot} l="watchlist hits" hot=${hot > 0}/>` : null}
           <${Chip} v=${savedN} l="saved"/>
           <${Chip} v=${channelsOf(ctx).length} l="channels"/>
@@ -570,5 +643,5 @@
 
   M.pages.Radar = Radar;
   M.adminCards.push(RadarSettings);
-  M.radar = {SOURCES, CHANNELS, AWARDS, sourcesOf, channelsOf, handleFrom, withHits, postLink};
+  M.radar = {SOURCES, CHANNELS, AWARDS, LANES, sourcesOf, channelsOf, handleFrom, withHits, postLink, laneOf, isIndia, enrich};
 })();

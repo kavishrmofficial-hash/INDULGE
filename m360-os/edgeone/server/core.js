@@ -26,6 +26,7 @@ import {safetyActions} from './safety.js';
 import {peekActions} from './peek.js';
 import {voiceActions} from './voice.js';
 import {googleActions} from './google.js';
+import {huntActions} from './hunt.js';
 import {webActions, browseHandler} from './web.js';
 import {fileActions} from './files.js';
 import {baseActions} from './base.js';
@@ -1035,6 +1036,8 @@ export function createApp({store, env = {}}) {
   Object.assign(actions, radarActions({store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, isObj, stampKey}));
   const google = googleActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError, log, rand, docKey});
   Object.assign(actions, google.actions);
+  const hunt = huntActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError, log});
+  Object.assign(actions, hunt.actions);
   Object.assign(actions, webActions({env, getJ, putJ, levelOf, LEVEL, HttpError}));
   const files = fileActions({store, getJ, putJ, levelOf, LEVEL, HttpError, log, rand, listAll});
   Object.assign(actions, files.actions);
@@ -1082,6 +1085,7 @@ export function createApp({store, env = {}}) {
   };
   /* GET /api/google: Google's sign-in comes back here; /api/file serves attachments; /api/browse renders a page inside */
   handle.google = request => google.googleCallback(request);
+  handle.apollo = request => hunt.apolloWebhook(request);
   handle.file = request => files.fileGet(request, viewer);
   handle.browse = request => browse(request, viewer);
   return handle;

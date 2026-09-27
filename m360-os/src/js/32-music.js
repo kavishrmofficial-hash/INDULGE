@@ -1,8 +1,8 @@
 /* module: music. The team's playlist and a player that keeps playing while you move around m360.
    Paste a Spotify, Apple Music or YouTube link: it becomes a card in the shared list (music/team), and
-   Play puts it in the dock at the bottom, which stays mounted across every section. Full songs on
-   Spotify and Apple need you signed in to that service in this browser; otherwise you get previews.
-   YouTube plays in full. */
+   Play puts it in the dock at the bottom, which stays mounted across every section. With Spotify
+   connected (33-spotify.js) a Spotify card plays in the page itself; otherwise it is an embed, which
+   needs you signed in to that service in this browser for full songs. YouTube plays in full. */
 'use strict';
 (function () {
   const {html, React, U, UI, icons} = M;
@@ -38,8 +38,8 @@
 
   M.music = {
     embedOf,
-    play(item) { now = item; open = true; emit(); },
-    stop() { now = null; emit(); },
+    play(item) { if (now && now.kind === 'sdk' && item && item.kind !== 'sdk' && M.spotify) M.spotify.ctl.stop(); now = item; open = true; emit(); },
+    stop() { if (now && now.kind === 'sdk' && M.spotify) M.spotify.ctl.stop(); now = null; emit(); },
     toggle() { open = !open; emit(); },
     state: () => ({now, open}),
     on: f => { subs.add(f); return () => subs.delete(f); }
@@ -67,6 +67,7 @@
     const remove = async it => { await ctx.W.merge(DOC, {items: items.filter(x => x.id !== it.id), updated: Date.now()}).catch(() => {}); };
     const kindPill = k => html`<${UI.Pill} kind=${k === 'spotify' ? 'ink' : 'warm'}>${k}<//>`;
     return html`<div class="stack" style=${{gap: '14px'}}>
+      ${M.parts.SpotifyCard ? html`<${M.parts.SpotifyCard}/>` : null}
       <${UI.Card} title="Add to the team list" id="music-add">
         <div class="row" style=${{gap: '8px', flexWrap: 'wrap'}}>
           <input id="music-link" class="input" style=${{flex: '2 1 260px'}} placeholder="Paste a Spotify, Apple Music, YouTube or SoundCloud link" value=${link} onInput=${e => setLink(e.target.value)} aria-label="Music link"/>
@@ -81,7 +82,7 @@
             <div class="row between nowrap" style=${{gap: '8px'}}>
               <div style=${{minWidth: 0}}><div class="music-title">${it.title}</div><div class="tiny ink62">${kindPill(it.kind)} <${UI.Name} id=${it.by}/> · ${U.timeAgo(it.at)}</div></div>
               <span class="row nowrap" style=${{gap: '4px'}}>
-                <${UI.Btn} sm=${true} onClick=${() => M.music.play(it)}>${st.now && st.now.id === it.id ? 'Playing' : 'Play'}<//>
+                <${UI.Btn} sm=${true} onClick=${() => { if (!(M.spotify && M.spotify.tryPlay(ctx, it))) M.music.play(it); }}>${st.now && (st.now.id === it.id || (st.now.kind === 'sdk' && M.spotify && st.now.id === 'sdk:' + M.spotify.uriOf(it.url))) ? 'Playing' : 'Play'}<//>
                 ${it.by === ctx.uid || ctx.isFounder ? html`<button type="button" class="iconbtn" aria-label="Remove" onClick=${() => remove(it)}><${icons.x}/></button>` : null}
               </span>
             </div>
@@ -108,8 +109,9 @@
           <button type="button" class="iconbtn" aria-label="Stop" title="Stop" onClick=${() => M.music.stop()}><${icons.x}/></button>
         </span>
       </div>
-      <iframe class="music-frame" style=${{height: tall + 'px'}} src=${n.embed} title=${n.title} allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"
-        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms" referrerPolicy="strict-origin-when-cross-origin"/>
+      ${n.kind === 'sdk' && M.parts.SpotifyDock ? (st.open ? html`<${M.parts.SpotifyDock}/>` : null)
+        : html`<iframe class="music-frame" style=${{height: tall + 'px'}} src=${n.embed} title=${n.title} allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"
+        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms" referrerPolicy="strict-origin-when-cross-origin"/>`}
     </div>`;
   }
 

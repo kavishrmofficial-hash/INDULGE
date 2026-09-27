@@ -185,10 +185,10 @@
         ${err ? html`<div class="small flame-t">${err}</div>` : null}
         ${events === null ? html`<${M.Thinking} label="Fetching the calendar"/>`
           : !days.length ? html`<${UI.Empty} text="Nothing on the calendar in this span."/>`
-          : days.map(d => html`<div key=${d} class="cal-day">
+          : days.map(d => html`<div key=${d} class="gcal-day">
             <div class="micro" style=${{marginTop: '6px'}}>${d === U.todayStr() ? 'today' : fmtDate(d)}</div>
-            ${byDay[d].map(e => html`<div key=${e.id} class=${'cal-ev' + (soon(e) ? ' soon' : '') + (new Date(e.end).getTime() < now ? ' past' : '')} id=${'ev-' + e.id}>
-              <div class="cal-time num">${e.allDay ? 'all day' : fmtTime(e.start) + (e.end ? ' to ' + fmtTime(e.end) : '')}</div>
+            ${byDay[d].map(e => html`<div key=${e.id} class=${'gcal-ev' + (soon(e) ? ' soon' : '') + (new Date(e.end).getTime() < now ? ' past' : '')} id=${'ev-' + e.id}>
+              <div class="gcal-time num">${e.allDay ? 'all day' : fmtTime(e.start) + (e.end ? ' to ' + fmtTime(e.end) : '')}</div>
               <div class="grow" style=${{minWidth: 0}}>
                 <div style=${{fontWeight: 500}}>${e.title}</div>
                 <div class="tiny ink62">${[e.organizer && !e.mine ? 'by ' + e.organizer : '', e.attendees.length ? e.attendees.length + ' people' : '', e.location].filter(Boolean).join(' · ')}</div>

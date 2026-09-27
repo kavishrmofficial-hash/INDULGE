@@ -77,36 +77,47 @@ def edge():
             f.wait_for_selector('.sidebar')
             fuid = f.evaluate('() => window.M360_API("me").then(x => x.uid)')
 
-            # ---- news: the canned items, newest first, the failing source named ----
+            # ---- news: India first. Ten canned stories, four of them India, newest first, the failing source named ----
             f.goto(base + '#radar')
             f.wait_for_selector('#radar-stream .rd-item')
             f.wait_for_selector('#radar-updated:has-text("updated")')
             titles = f.evaluate('() => [...document.querySelectorAll("#radar-stream .rd-title")].map(a => a.textContent)')
-            check(len(titles) == 10, 'expected 10 canned stories, got %d' % len(titles))
+            check(len(titles) == 4, 'expected the 4 India stories on All, got %d: %r' % (len(titles), titles))
             check(titles[0].startswith('Independent agency wins the Tata Neu'), 'newest first: %r' % titles[:2])
             check(any('Swisse' in t for t in titles), 'Swisse story missing')
+            check(all('Unilever' not in t and 'packaging' not in t for t in titles), 'a world story on the India stream: %r' % titles)
             first = f.locator('#radar-stream .rd-item').first
             check(first.locator('a.rd-title').get_attribute('target') == '_blank' and 'noopener' in (first.locator('a.rd-title').get_attribute('rel') or ''), 'title link attrs')
-            check('Campaign India' in first.inner_text(), 'Google News source pill missing: ' + first.inner_text()[:80])
+            check('Campaign India' in first.inner_text() and 'Account moves' in first.inner_text(), 'source and lane pills missing: ' + first.inner_text()[:80])
             errline = f.inner_text('#radar-errors')
             check('Digiday' in errline and '1 source' in errline, 'errors line: ' + errline)
             check(f.locator('#radar-stream .rd-item.hot').count() == 0, 'hot before any keyword')
             blob = store_doc('n/news')
             check(blob and len(blob['items']) == 10 and blob['errors'] == [{'id': 'digiday', 'why': 'http 500'}], 'n/news blob %r' % (blob and blob.get('errors')))
+            lanes = {it['title'][:20]: (it.get('lane'), it.get('india')) for it in (blob or {}).get('items', [])}
+            check(lanes.get('Independent agency w') == ('accounts', True) and lanes.get('Mumbai agency picks ') == ('awards', True)
+                  and lanes.get('IPL 2027 sponsorship') == ('campaigns', True) and lanes.get('Swisse launches a we') == ('campaigns', True)
+                  and lanes.get('Cannes Lions opens e') == ('awards', False) and lanes.get('Unilever reviews its') == ('other', False), 'server lanes %r' % lanes)
             check(not [k for k in store_all() if k.startswith('d/n')], 'radar wrote under d/')
 
-            # ---- filter chips and search ----
-            f.locator('.rd-chips').get_by_role('button', name='Business').click()
-            f.wait_for_function('() => document.querySelectorAll("#radar-stream .rd-item").length === 6')
+            # ---- lane chips and search ----
+            f.locator('.rd-chips').get_by_role('button', name='Account moves').click()
+            f.wait_for_function('() => document.querySelectorAll("#radar-stream .rd-item").length === 1')
+            check('Tata Neu' in f.inner_text('#radar-stream'), 'Account moves lane')
             f.locator('.rd-chips').get_by_role('button', name='Campaigns').click()
-            f.wait_for_function('() => document.querySelectorAll("#radar-stream .rd-item").length === 6')
+            f.wait_for_function('() => document.querySelectorAll("#radar-stream .rd-item").length === 2')
             shown = f.evaluate('() => [...document.querySelectorAll("#radar-stream .rd-title")].map(a => a.textContent)')
-            check(all('Tata' not in t for t in shown), 'Campaigns chip shows a Google News item: %r' % shown)
+            check(all('Tata' not in t for t in shown) and any('Swisse' in t for t in shown) and any('IPL' in t for t in shown), 'Campaigns lane: %r' % shown)
+            f.locator('.rd-chips').get_by_role('button', name='People moves').click()
+            f.wait_for_selector('#radar-stream .sub:has-text("No marketing person moved")')
+            f.locator('.rd-chips').get_by_role('button', name='World').click()
+            f.wait_for_function('() => document.querySelectorAll("#radar-stream .rd-item").length === 6')
+            check('Unilever' in f.inner_text('#radar-stream'), 'World chip')
             f.locator('.rd-chips').get_by_role('button', name='All', exact=True).click()
             f.fill('#radar-search', 'swisse')
             f.wait_for_function('() => document.querySelectorAll("#radar-stream .rd-item").length === 1')
             f.fill('#radar-search', '')
-            f.wait_for_function('() => document.querySelectorAll("#radar-stream .rd-item").length === 10')
+            f.wait_for_function('() => document.querySelectorAll("#radar-stream .rd-item").length === 4')
 
             # ---- save toggles a bookmark in me/<uid> ----
             item = f.locator('#radar-stream .rd-item', has_text='Swisse')
@@ -170,7 +181,8 @@ def edge():
             check('Typical timing' in f.inner_text('#awards-card'), 'awards caption')
             f.wait_for_selector('#awards-stream .rd-item')
             aw = f.evaluate('() => [...document.querySelectorAll("#awards-stream .rd-title")].map(a => a.textContent)')
-            check(aw == ['Cannes Lions opens entries for 2027 with two new Lions'], 'awards stream %r' % aw)
+            check(aw == ['Cannes Lions 2026: the Grand Prix winners every strategist should study', 'Mumbai agency picks up two Effie India golds',
+                         'Cannes Lions opens entries for 2027 with two new Lions', "D&AD announces this year's jury presidents"], 'awards stream %r' % aw)
 
             # ---- watch: the canned channel, two videos, the drawer, watch together ----
             f.goto(base + '#watch')
@@ -246,8 +258,10 @@ def mock(h):
     h.go(p, 'founder', hash='#radar', width=1280)
     p.wait_for_selector('#radar-off')
     check('Live feeds run on your EdgeOne address' in p.inner_text('#radar-off'), 'fallback card copy')
-    check(p.locator('#radar-sources .listrow').count() == 25, 'source directory %d' % p.locator('#radar-sources .listrow').count())
+    check(p.locator('#radar-sources .listrow').count() == 49, 'source directory %d' % p.locator('#radar-sources .listrow').count())
     p.locator('.rd-chips').get_by_role('button', name='Awards').click()
+    p.wait_for_function('() => document.querySelectorAll("#radar-sources .listrow").length === 8')
+    p.locator('.rd-chips').get_by_role('button', name='People moves').click()
     p.wait_for_function('() => document.querySelectorAll("#radar-sources .listrow").length === 6')
     h.go(p, 'founder', hash='#awards', width=1280)
     p.wait_for_selector('#awards-table')

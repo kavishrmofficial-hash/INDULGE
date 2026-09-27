@@ -33,7 +33,7 @@
       {k: 'calendar', label: 'Calendar', route: 'calendar'}, {k: 'reviews', label: 'Reviews', route: 'reviews'},
       {k: 'week', label: 'The week', route: 'week'}]},
     accounts: {label: 'Accounts', icon: 'clients', page: 'Accounts', tabs: [
-      {k: 'clients', label: 'Clients', route: 'clients'}, {k: 'pipeline', label: 'Pipeline', route: 'pitches'}, {k: 'crm', label: 'CRM', route: 'crm'}]},
+      {k: 'clients', label: 'Clients', route: 'clients'}, {k: 'pipeline', label: 'Pipeline', route: 'pitches'}, {k: 'crm', label: 'CRM', route: 'crm'}, {k: 'hunt', label: 'Hunt', route: 'hunt'}]},
     vibe: {label: 'Vibe', icon: 'feed', page: 'Vibe', tabs: [
       {k: 'feed', label: 'Feed', route: 'feed'}, {k: 'crew', label: 'Crew', route: 'people'},
       {k: 'pulse', label: 'Pulse and ideas', route: 'voice'}, {k: 'scores', label: 'Leaderboard', route: 'scores'}, {k: 'music', label: 'Music', route: 'music'}]},
@@ -68,6 +68,7 @@
       case 'accounts': case 'clients': return {s: 'accounts', t: 'clients'};
       case 'pitches': case 'pipeline': return {s: 'accounts', t: 'pipeline'};
       case 'crm': return {s: 'accounts', t: 'crm'};
+      case 'hunt': case 'pursuits': return {s: 'accounts', t: 'hunt', id};
       case 'web': case 'browser': return {s: 'web'};
       case 'chat': case 'dm': return {s: 'chat', id};
       case 'mail': case 'gmail': case 'workspace': return {s: 'workspace', t: 'mail'};

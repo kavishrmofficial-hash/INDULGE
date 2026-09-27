@@ -457,9 +457,12 @@
     const map = ctx.coll.tasks.map;
     const mine = Object.keys(map).map(id => map[id]).filter(t => t.owner === ctx.uid);
     const doneWk = mine.filter(t => t.status === 'done' && t.doneAt && U.ymd(new Date(t.doneAt)) >= wk.from);
-    const pts = (M.points && M.points.pointsFor) ? M.points.pointsFor(ctx, ctx.uid, wk.from, wk.to) : {total: 0};
+    /* points and rank follow the board's week, which stays on last week until Monday is done */
+    const br = (M.points && M.points.boardRange) ? M.points.boardRange(ctx, 'week', new Date(ctx.now)) : {from: wk.from, to: wk.to, label: 'this week'};
+    const pts = (M.points && M.points.pointsFor) ? M.points.pointsFor(ctx, ctx.uid, br.from, br.to) : {total: 0};
     const board = (M.points && M.points.leaderboard) ? M.points.leaderboard(ctx, 'week', new Date(ctx.now)) : [];
     const rank = board.findIndex(r => r.uid === ctx.uid) + 1;
+    const ptsLabel = rank ? (br.label === 'last week' ? 'last week, rank ' + rank : 'points, rank ' + rank) : 'points ' + (br.label || 'this week');
     const wkId = U.isoWeek(new Date(ctx.now));
     const plan = (((ctx.coll.plan.map[ctx.uid] || {}).weeks || {})[wkId] || {}).items || [];
     const marks = ((((ctx.coll.review.map[ctx.uid] || {}).weeks || {})[wkId]) || {}).marks || {};
@@ -470,7 +473,7 @@
     return html`<div class="grid4 two">
       ${tile(doneWk.length, 'shipped this week', '#tasks')}
       ${tile(overdue, 'overdue on you', '#tasks', overdue > 0)}
-      ${tile(pts.total, rank ? 'points, rank ' + rank : 'points this week', '#scores')}
+      ${tile(pts.total, ptsLabel, '#scores')}
       ${tile(hit + '/' + plan.length, 'outcomes hit', '#week')}
     </div>`;
   }
@@ -603,6 +606,7 @@
     const ctx = M.useCtx();
     const items = (M.feed && M.feed.stream) ? M.feed.stream(ctx).filter(i => !i.pinned).slice(0, 3) : [];
     const board = (M.points && M.points.leaderboard) ? M.points.leaderboard(ctx, 'week', new Date(ctx.now)).slice(0, 3) : [];
+    const boardLabel = (M.points && M.points.boardRange) ? (M.points.boardRange(ctx, 'week', new Date(ctx.now)).label || 'this week') : 'this week';
     return html`<section class="card" id="buzz">
       <div class="card-head"><h2 class="card-title">Around the studio</h2>
         <button type="button" class="linky small" onClick=${() => M.nav('#feed')}>Open feed</button></div>
@@ -618,7 +622,7 @@
         </button>`)}
       </div>` : html`<div class="small ink62">Quiet so far. <button type="button" class="linky small" onClick=${() => M.intend('#feed', 'post')}>Post the first update</button></div>`}
       ${board.length ? html`<div class="topthree">
-        <div class="micro plain" style=${{marginBottom: '8px'}}>top this week</div>
+        <div class="micro plain" style=${{marginBottom: '8px'}}>${'top ' + boardLabel}</div>
         ${board.map((r, i) => html`<button type="button" class="top-row rowbtn" key=${r.uid} onClick=${() => M.nav('#scores')}>
           <span class=${'rank num' + (i === 0 ? ' first' : '')}>${i + 1}</span>
           <${UI.Avatar} id=${r.uid} size=${24}/><span class="grow small"><${UI.Name} id=${r.uid}/></span>
