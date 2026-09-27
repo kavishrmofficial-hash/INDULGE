@@ -1,0 +1,24 @@
+name: feed-check
+# Fetches candidate news feeds and reports which ones answer with RSS or Atom, with their latest titles.
+on:
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: Feed URLs, space separated
+        default: ''
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Try every feed
+        env:
+          URLS: ${{ github.event.inputs.urls }}
+        run: |
+          DEFAULT="https://www.exchange4media.com/rss https://www.exchange4media.com/feed https://www.exchange4media.com/rss/marketing-news https://www.afaqs.com/rss/news https://www.afaqs.com/rss https://www.campaignindia.in/rss/ https://www.bestmediainfo.com/rss https://www.bestmediainfo.com/feed https://www.bestmediainfo.com/rss.xml https://www.adgully.com/rss https://www.adgully.com/rss.xml https://www.adgully.com/feed https://www.medianews4u.com/feed/ https://www.socialsamosa.com/feed/ https://brandequity.economictimes.indiatimes.com/rss/topstories https://brandequity.economictimes.indiatimes.com/rss/marketing https://brandequity.economictimes.indiatimes.com/rss/advertising https://brandequity.economictimes.indiatimes.com/rss/business-of-brands https://brandequity.economictimes.indiatimes.com/rss/the-people-report https://www.marketingmind.in/feed/ https://www.storyboard18.com/rss https://www.storyboard18.com/feed https://www.indiantelevision.com/rss.xml https://www.agencyreporter.com/feed/ https://mediasamosa.com/feed/ https://www.campaignindia.in/rss https://www.thedrum.com/rss.xml https://news.google.com/rss/search?q=%22appointed%22+CMO+India&hl=en-IN&gl=IN&ceid=IN:en"
+          for u in ${URLS:-$DEFAULT}; do
+            code=$(curl -sSL -m 25 -A 'Mozilla/5.0 (compatible; m360-radar/1.0)' -H 'accept: application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.5' -o body.txt -w '%{http_code} %{content_type}' "$u" 2>/dev/null || echo "000 error")
+            kind=other
+            if grep -qi '<rss' body.txt; then kind=rss; elif grep -qi '<feed' body.txt; then kind=atom; elif grep -qi '<html' body.txt; then kind=html; fi
+            titles=$(grep -o '<title>[^<]*</title>\|<title><!\[CDATA\[[^]]*\]\]></title>' body.txt | sed 's/<[^>]*>//g; s/<!\[CDATA\[//; s/\]\]>//' | sed -n '2,4p' | tr '\n' '|' | cut -c1-220)
+            echo "$kind | $code | $u | $titles"
+          done
