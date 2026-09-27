@@ -942,6 +942,7 @@ body.web-focus .music-dock{display:none}
 .sp-play{background:var(--ink); color:var(--on-ink)}
 .sp-play:hover{background:var(--ink)}
 .sp-vol{width:80px; accent-color:var(--flame)}
+@media (max-width:860px){ .sp-vol{display:none} }
 
 /* the browser: reading mode's note bar, the desktop line */
 .web-note{padding:8px 12px; gap:8px; border-bottom:1px solid var(--line); flex:none; flex-wrap:wrap}
@@ -1386,7 +1387,7 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
   .cl-news .t{flex-basis:100%}
 }
 </style>
-<script>window.M360_BUILD = "5863de2.260927-2329";</script><script>
+<script>window.M360_BUILD = "5d7a9f1+.260927-2338";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -10418,7 +10419,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     ctx.W.merge('me/' + ctx.uid, {listening: {title: String(track.name).slice(0, 120), by: String(track.by).slice(0, 120), uri: track.uri, at: Date.now()}}).catch(() => {});
   }
   async function playUri(ctx, uri, label) {
+    /* phones only start audio from a tap: tell the SDK about this one before anything is awaited */
+    if (player && player.activateElement) { try { player.activateElement().catch(() => {}); } catch (e) { /* older sdk */ } }
     await ensurePlayer(ctx);
+    if (player && player.activateElement) { try { player.activateElement().catch(() => {}); } catch (e) { /* older sdk */ } }
     const body = /^spotify:track:/.test(uri) ? {uris: [uri]} : {context_uri: uri};
     await call(clientIdOf(ctx), '/me/player/play?device_id=' + encodeURIComponent(deviceId), {method: 'PUT', body: JSON.stringify(body), headers: {'content-type': 'application/json'}});
     setState({active: true, paused: false, error: ''});

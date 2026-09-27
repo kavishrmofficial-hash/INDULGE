@@ -97,7 +97,10 @@
     ctx.W.merge('me/' + ctx.uid, {listening: {title: String(track.name).slice(0, 120), by: String(track.by).slice(0, 120), uri: track.uri, at: Date.now()}}).catch(() => {});
   }
   async function playUri(ctx, uri, label) {
+    /* phones only start audio from a tap: tell the SDK about this one before anything is awaited */
+    if (player && player.activateElement) { try { player.activateElement().catch(() => {}); } catch (e) { /* older sdk */ } }
     await ensurePlayer(ctx);
+    if (player && player.activateElement) { try { player.activateElement().catch(() => {}); } catch (e) { /* older sdk */ } }
     const body = /^spotify:track:/.test(uri) ? {uris: [uri]} : {context_uri: uri};
     await call(clientIdOf(ctx), '/me/player/play?device_id=' + encodeURIComponent(deviceId), {method: 'PUT', body: JSON.stringify(body), headers: {'content-type': 'application/json'}});
     setState({active: true, paused: false, error: ''});
