@@ -443,6 +443,49 @@ export function createApp({store, env = {}}) {
     return out;
   }
 
+  /* The page sends the tag of every document it holds ({coll: {id: tag}}); back come only the documents
+     whose tag moved or that it does not have, the ids that are gone, and the tags it now holds. Answers
+     stay under SYNC_BUDGET bytes: a big collection (26,000 contacts in 130 pages) arrives over a few
+     rounds, more: true asking for the next one, and an import that touches one page costs one page. */
+  const SYNC_BUDGET = 2500000;
+  async function deltaFor(uid, level, mine) {
+    const inv = await inventory();
+    const out = {};
+    const names = Array.from(new Set(Object.keys(inv).concat(Object.keys(mine || {})))).sort();
+    let bytes = 0, more = false;
+    for (const coll of names) {
+      if (hidden(coll, uid)) continue;
+      const tags = inv[coll] || {};
+      const have = isObj(mine && mine[coll]) ? mine[coll] : {};
+      const changed = Object.keys(tags).filter(id => have[id] !== tags[id]).sort();
+      const gone = Object.keys(have).filter(id => !(id in tags));
+      if (!changed.length && !gone.length) continue;
+      if (more) break;
+      /* a page with nothing yet reads the whole collection through its cache; otherwise the few that moved */
+      let source = {};
+      if (changed.length) {
+        if (!Object.keys(have).length && changed.length > 8) source = await readColl(coll, tags);
+        else {
+          const got = await Promise.all(changed.map(async id => [id, await getJ(docKey(coll + '/' + id)).catch(() => null)]));
+          got.forEach(([id, d]) => { if (d != null) source[id] = d; });
+        }
+      }
+      const docs = {}, sent = {};
+      for (const id of changed) {
+        let d = source[id];
+        if (d == null) continue;
+        if (!access(coll + '/' + id, uid, level).read) { sent[id] = tags[id]; continue; }
+        if (level < LEVEL.interact && coll === 'roster' && id === 'team' && isObj(d)) d = {members: {}, nextEmp: d.nextEmp, updated: d.updated, redacted: true};
+        const size = JSON.stringify(d).length;
+        if (bytes && bytes + size > SYNC_BUDGET) { more = true; break; }
+        docs[id] = d; sent[id] = tags[id]; bytes += size;
+      }
+      out[coll] = {v: versionOf(tags), docs, tags: sent, gone, delta: true, partial: more};
+      if (more) break;
+    }
+    return {colls: out, more};
+  }
+
   /* log days older than this many days go, by hand from Admin or by themselves once a day */
   async function pruneOldLogs(days) {
     const cutoff = ymdIST(Date.now() - days * 86400000);
@@ -599,18 +642,20 @@ export function createApp({store, env = {}}) {
       return {hits: all.filter(p => p.name && (!q || p.name.toLowerCase().includes(q))).slice(0, 8)};
     },
 
-    /* every collection this viewer may read, with its version */
-    async snapshot(v) {
+    /* every collection this viewer may read, with its version; a page that sends tags gets deltas instead */
+    async snapshot(v, body) {
       if (!v) throw new HttpError(401, 'noid');
       const level = await levelOf(v.uid);
+      if (body && isObj(body.tags)) { const r = await deltaFor(v.uid, level, body.tags); return {colls: r.colls, more: r.more, level}; }
       return {colls: await collsFor(v.uid, level, null), level};
     },
 
-    /* only the collections whose version moved since the page's copy */
+    /* only what moved since the page's copy: by document when the page sends tags, by collection version otherwise */
     async sync(v, body) {
       if (!v) throw new HttpError(401, 'noid');
-      const have = isObj(body.have) ? body.have : {};
       const level = await levelOf(v.uid);
+      if (isObj(body.tags)) { const r = await deltaFor(v.uid, level, body.tags); return {colls: r.colls, more: r.more, level}; }
+      const have = isObj(body.have) ? body.have : {};
       return {colls: await collsFor(v.uid, level, have), level};
     },
 

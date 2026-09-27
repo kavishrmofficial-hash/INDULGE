@@ -158,6 +158,13 @@ Closed in the same release: a second person with Full access reads shared founde
 - **Integrity, more honest** (`safety.js`): a read cache that merely lags behind a write or a restore is not "stale" (every entry is checked by tag before it is served, and refreshed on the next read); the check now reports it as lagging and rebuilds it, and calls stale only a cache that would serve the wrong document or cannot be read. Chat remembers the last room per person, so a shared browser profile never opens someone else's direct message.
 - **m360 Desktop release**: `desktop.yml` now publishes `m360-mac.dmg` and `m360-win.exe` to the `desktop` release, so the team finds them at the repo's releases page (a GitHub sign-in with access to the repo is needed to download). The frame helper lives on under Admin > The browser for laptops that stay in Chrome.
 
+## What is in v13.1: a Base of 26,000 people
+
+- **Sync by document** (`deltaFor` in `core.js`, `shim.js`): a page sends the tag of every document it holds and gets back only what moved, the ids that are gone, and its new tags. Answers stay under 2.5 MB; a big collection arrives over a few rounds (`more: true`), and a write to one page of contacts costs one page on the wire. Before this, every one of the 175 page writes an Apollo import makes re-sent the whole 13 MB collection to every open page, which parsed, cloned and froze it each time: that was the hang.
+- **The mirror keeps its objects**: an unchanged document keeps its object and its frozen copy, so nothing re-renders for it.
+- **Import plans once**: the plan is worked out when the file, the mapping or the database changes, never while its writes are running.
+- `harness/tests/test_bigbase.py` imports 26,000 people (17 MB, 175 pages) against the stand-in: the page never blocks for more than a fraction of a second, a fresh browser gets the base in rounds under the budget, and one edit costs one page.
+
 ## Launch day
 
 1. Admin > Team: invite each person by email. They get a link, type their email and pick a password. Without an email key the invite shows a link to copy instead.
@@ -189,7 +196,7 @@ edgeone/server/core.js               the actions, the access rules from capabili
 edgeone/dev/server.mjs               a local stand-in with a file-backed store, for tests
 ```
 
-- Storage is the project's EdgeOne Pages Blob store, one blob per document, so writes to different documents never collide. Pages poll every 3 seconds for changed collections.
+- Storage is the project's EdgeOne Pages Blob store, one blob per document, so writes to different documents never collide. Pages poll every 3 seconds and get back only the documents that moved.
 - The first person to open a fresh deployment types their name and email and becomes the founder; the workspace is seeded from `seed/seed.json`. A session is an HttpOnly cookie; a new device signs in by email (a one-time link lands in the inbox) or with a one-time link from Me (or from the founder, on the team list).
 - Members join by invite. In Admin the founder types an email, an optional name, title and role, and gets a personal link (one use, 7 days). Opening it asks the person to confirm that email, then signs them in and puts them on the team with an employee id, no approval step. With email switched on the invite is sent for them; without it the founder sends the link by hand (WhatsApp works). Anyone without an invite can still tap Ask to join and wait for the founder, unless joining is switched to invite only in Admin > Super.
 - Sessions are per device. Me lists your devices and signs the others out; the founder can sign anyone out everywhere from the team list, and deactivating someone ends their sessions at once. Email sign-in links last 20 minutes, founder-made links 24 hours.

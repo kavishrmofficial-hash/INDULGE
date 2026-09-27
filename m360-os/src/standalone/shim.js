@@ -58,7 +58,8 @@
   const meReady = signedIn.then(() => call('me')).then(m => { meInfo = m; if (inviteCode) clearHash(); return m; }).catch(() => { meInfo = {uid: null, down: true}; return meInfo; });
 
   /* ---------- db: a local mirror of every readable collection, kept fresh by polling ---------- */
-  const colls = {};          /* path -> {v, docs} */
+  const colls = {};          /* path -> {v, docs, tags} */
+  const frozen = new WeakMap(); /* a doc object -> its frozen copy, so an unchanged doc is never cloned twice */
   const docSubs = new Map(); /* doc path -> Set(fn) */
   const collSubs = new Map();/* coll path -> Set(fn) */
   let loaded = false;
@@ -69,7 +70,11 @@
     const s = segs(path);
     const c = colls[s.slice(0, -1).join('/')];
     const d = c && c.docs[s[s.length - 1]];
-    const data = d === undefined ? undefined : freeze(clone(d));
+    let data;
+    if (d !== undefined) {
+      if (d && typeof d === 'object') { data = frozen.get(d); if (!data) { data = freeze(clone(d)); frozen.set(d, data); } }
+      else data = d;
+    }
     return {id: s[s.length - 1], exists: data !== undefined, data: () => data, metadata: meta};
   }
   function snapColl(path) {
@@ -86,16 +91,32 @@
     }
   }
   const inflight = {};       /* coll -> writes not yet confirmed; a sync never overwrites them */
+  /* the server answers with deltas (the docs that moved, the ids gone, the tags now held) or, from an
+     older server, whole collections; either way an unchanged doc keeps its object, so nothing re-renders for it */
   function applyColls(next) {
     for (const coll of Object.keys(next || {})) {
       if (inflight[coll]) continue;
-      colls[coll] = {v: next[coll].v, docs: next[coll].docs || {}};
+      const n = next[coll];
+      if (n.delta) {
+        const c = colls[coll] || (colls[coll] = {v: '', docs: {}, tags: {}});
+        for (const id of n.gone || []) { delete c.docs[id]; delete c.tags[id]; }
+        for (const id of Object.keys(n.docs || {})) c.docs[id] = n.docs[id];
+        for (const id of Object.keys(n.tags || {})) c.tags[id] = n.tags[id];
+        if (!n.partial) c.v = n.v;
+        if ((n.gone || []).length || Object.keys(n.docs || {}).length) notifyColl(coll);
+        continue;
+      }
+      colls[coll] = {v: n.v, docs: n.docs || {}, tags: {}};
       notifyColl(coll);
     }
   }
+  const tagsHeld = () => { const t = {}; Object.keys(colls).forEach(k => { t[k] = colls[k].tags || {}; }); return t; };
   async function loadAll() {
-    const r = await call('snapshot');
-    applyColls(r.colls);
+    for (let round = 0; round < 60; round++) {
+      const r = await call('snapshot', {tags: tagsHeld()});
+      applyColls(r.colls);
+      if (!r.more) break;
+    }
     loaded = true;
     waiters.splice(0).forEach(fn => fn());
   }
@@ -105,11 +126,13 @@
     if (syncing || !loaded) return;
     syncing = true;
     try {
-      const have = {};
-      Object.keys(colls).forEach(k => { have[k] = colls[k].v; });
-      const r = await call('sync', {have});
-      applyColls(r.colls);
-      if (r.level != null && meInfo && r.level !== meInfo.level) { meInfo.level = r.level; }
+      for (let round = 0; round < 60; round++) {
+        const r = await call('sync', {tags: tagsHeld()});
+        applyColls(r.colls);
+        /* a level change means other documents may be readable now: hold no tags, so everything is asked for again */
+        if (r.level != null && meInfo && r.level !== meInfo.level) { meInfo.level = r.level; Object.keys(colls).forEach(k => { colls[k].tags = {}; }); }
+        if (!r.more) break;
+      }
     } catch (e) { if (e && e.status === 401) kick(); /* else next tick */ }
     syncing = false;
   }
@@ -124,7 +147,7 @@
     if (!s.length || s.length % 2) throw {code: 'invalid_argument', message: 'document path needs an even number of segments'};
     await whenLoaded();
     const coll = s.slice(0, -1).join('/'), id = s[s.length - 1];
-    const c = colls[coll] || (colls[coll] = {v: '', docs: {}});
+    const c = colls[coll] || (colls[coll] = {v: '', docs: {}, tags: {}});
     const before = c.docs[id];
     if (op === 'update' && before === undefined) throw {code: 'invalid_argument', message: 'update on missing document'};
     /* optimistic: the page sees its own write at once */
@@ -136,7 +159,8 @@
       const r = await call('write', {op, path, data: op === 'delete' ? undefined : data});
       inflight[coll]--;
       if (op !== 'delete' && r.doc) c.docs[id] = r.doc;
-      c.v = '';
+      /* the tag of this doc is unknown until the next sync brings it, so only this doc is asked for again */
+      c.v = ''; if (op === 'delete') delete c.tags[id]; else c.tags[id] = '';
       setTimeout(sync, 400);
     } catch (e) {
       inflight[coll]--;

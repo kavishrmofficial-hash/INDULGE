@@ -993,7 +993,9 @@
       return () => { live = false; };
     }, [ctx.isFounder, ctx.activeMembers.length]);
     const ownerOf = s => owners[String(s || '').trim().toLowerCase()] || '';
-    const plan = useMemo(() => parsed ? planImport(ctx, parsed, mapping, ownerOf) : null, [parsed, mapping, ix, owners]);
+    /* the plan is worked out again when the file, the mapping or the database changes; never while its writes are running,
+       when every page written would otherwise re-plan the whole file */
+    const plan = useMemo(() => parsed ? planImport(ctx, parsed, mapping, ownerOf) : null, [parsed, mapping, busy ? null : ix, owners]);
 
     if (!ctx.isFounder) {
       return html`<${UI.Card} title="Import"><div class="small">Imports are done by Kaavish. Search People for anyone already in the database.</div><//>`;
