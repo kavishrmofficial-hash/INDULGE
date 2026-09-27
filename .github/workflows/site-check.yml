@@ -1,0 +1,25 @@
+name: site-check
+# Reads what the team site serves right now: the build stamp, the cache headers, and whether the page carries the latest code.
+on:
+  workflow_dispatch:
+    inputs:
+      site:
+        description: The site to check
+        default: https://m360os-wx9u1bqs.edgeone.dev
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: What the site serves
+        env:
+          SITE: ${{ github.event.inputs.site || 'https://m360os-wx9u1bqs.edgeone.dev' }}
+        run: |
+          echo "== version.json"; curl -sS -m 30 "$SITE/version.json?t=$(date +%s)" || echo "(no version.json)"; echo
+          echo "== headers of /"; curl -sSI -m 30 "$SITE/" | tr -d '\r' | grep -iE '^(HTTP|cache-control|etag|last-modified|age|x-cache|content-length|eo-)' || true
+          echo "== headers of /sw.js"; curl -sSI -m 30 "$SITE/sw.js" | tr -d '\r' | grep -iE '^(HTTP|cache-control|etag|last-modified|age|x-cache)' || true
+          echo "== markers in the page"
+          curl -sS -m 60 "$SITE/?t=$(date +%s)" -o page.html
+          echo "bytes: $(wc -c < page.html)"
+          for m in M360_BUILD music-dock readCsvFile notes-new 'chat-attach-btn' 'web-helper' 'What is in v'; do printf '%-16s %s\n' "$m" "$(grep -c "$m" page.html)"; done
+          echo "== the build the page names"; grep -o "M360_BUILD = \"[^\"]*\"" page.html || echo "(no stamp in the page: a build before v13.3)"
+          echo "== the API"; curl -sS -m 30 -X POST "$SITE/api/m360" -H 'content-type: application/json' -d '{"a":"me"}'; echo
