@@ -9,7 +9,7 @@
   const TOKEN = 'https://accounts.spotify.com/api/token';
   const API = 'https://api.spotify.com/v1';
   const SDK = 'https://sdk.scdn.co/spotify-player.js';
-  const SCOPES = 'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state';
+  const SCOPES = 'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-library-read user-library-modify playlist-read-private playlist-read-collaborative user-read-recently-played user-top-read user-follow-read';
   const PREF = 'spotify.tok';
   const SS_V = 'm360.spv', SS_S = 'm360.sps', SS_C = 'm360.spc';
   const redirectUri = () => location.origin + '/';
@@ -31,7 +31,7 @@
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.access_token) throw new Error(j.error_description || j.error || 'Spotify refused the sign in');
     const cur = tok.get() || {};
-    const t = {access: j.access_token, refresh: j.refresh_token || cur.refresh || '', exp: Date.now() + (Number(j.expires_in) || 3600) * 1000, at: Date.now()};
+    const t = {access: j.access_token, refresh: j.refresh_token || cur.refresh || '', exp: Date.now() + (Number(j.expires_in) || 3600) * 1000, at: Date.now(), scope: String(j.scope || cur.scope || '')};
     tok.set(t);
     return t;
   }
@@ -97,7 +97,7 @@
     return sdkP;
   }
 
-  window.M360_SPOTIFY = {tok, access, connect, finishReturn, call, loadSdk, redirectUri, onSignedOut: f => { listeners.add(f); return () => listeners.delete(f); }};
+  window.M360_SPOTIFY = {tok, access, connect, finishReturn, call, loadSdk, redirectUri, SCOPES, onSignedOut: f => { listeners.add(f); return () => listeners.delete(f); }};
   /* a return from Spotify is handled as soon as the page loads; the page module hears the outcome */
   finishReturn().then(r => { if (r && M.spotify && M.spotify.returned) M.spotify.returned(r); }).catch(() => {});
 })();

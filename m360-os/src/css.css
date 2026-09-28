@@ -940,6 +940,17 @@ body.web-focus .music-dock{display:none}
 .sp-vol{width:80px; accent-color:var(--flame)}
 @media (max-width:860px){ .sp-vol{display:none} }
 .sp-mini{padding:14px 16px 12px}
+.sp-tog{opacity:.55}
+.sp-tog.on{opacity:1; color:var(--flame)}
+.sp-tog:disabled{opacity:.3}
+.sp-browser{display:flex; flex-direction:column; gap:10px}
+.sp-browser .seg{flex-wrap:wrap}
+.sp-art.round{border-radius:999px}
+.sp-row .sp-open{border:0; background:transparent; text-align:left; padding:0; font:inherit; color:inherit; cursor:pointer}
+.sp-row .sp-open:hover .music-title{text-decoration:underline; text-underline-offset:3px}
+.sp-idx{width:20px; flex:none; text-align:right}
+.sp-head{padding-bottom:6px; border-bottom:1px solid var(--line)}
+@media (max-width:600px){ .sp-row .music-title{font-size:14px} .sp-idx{display:none} }
 .sp-mini .sp-pane .row{padding-left:0; padding-right:0}
 .sp-mini .sp-bar{margin:0}
 

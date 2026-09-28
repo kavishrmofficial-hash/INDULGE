@@ -55,7 +55,7 @@
 
   /* ---------- the player in this tab ---------- */
   let player = null, deviceId = '', ticker = null, shared = '';
-  let st = {connected: false, ready: false, track: null, paused: true, position: 0, duration: 0, active: false, volume: 0.6, premium: null, who: '', error: ''};
+  let st = {connected: false, ready: false, track: null, paused: true, position: 0, duration: 0, active: false, volume: 0.6, premium: null, who: '', error: '', shuffle: false, repeat: 0, liked: null};
   const subs = new Set();
   function setState(patch) { st = {...st, ...patch}; subs.forEach(f => { try { f(st); } catch (e) { /* page handler */ } }); }
   const loadSdk = () => (net() ? net().loadSdk() : Promise.reject(new Error('The Spotify player runs on the team site')));
@@ -80,7 +80,9 @@
         if (!s) { setState({active: false, paused: true}); return; }
         const t = (s.track_window && s.track_window.current_track) || null;
         const track = t ? {uri: t.uri, name: t.name, by: (t.artists || []).map(a => a.name).join(', '), art: art(t.album), album: (t.album && t.album.name) || ''} : null;
-        setState({active: !!track, track, paused: !!s.paused, position: s.position || 0, duration: s.duration || 0});
+        const changed = !st.track || !track || st.track.uri !== track.uri;
+        setState({active: !!track, track, paused: !!s.paused, position: s.position || 0, duration: s.duration || 0, shuffle: !!s.shuffle, repeat: Number(s.repeat_mode) || 0, liked: changed ? null : st.liked});
+        if (track && changed) likedOf(ctx, track.uri);
         if (track && !s.paused && shared !== track.uri) { shared = track.uri; share(ctx, track); }
       });
       tick();
@@ -97,14 +99,38 @@
     ctx.W.merge('me/' + ctx.uid, {listening: {title: String(track.name).slice(0, 120), by: String(track.by).slice(0, 120), uri: track.uri, at: Date.now()}}).catch(() => {});
   }
   async function playUri(ctx, uri, label) {
-    /* phones only start audio from a tap: tell the SDK about this one before anything is awaited */
+    return play(ctx, /^spotify:track:/.test(uri) ? {uris: [uri]} : {context_uri: uri}, label, uri);
+  }
+  /* is the current track in Liked Songs; a like or unlike from the pane */
+  async function likedOf(ctx, uri) {
+    const id = String(uri || '').split(':')[2];
+    if (!id || !hasScope('user-library-read')) return;
+    try { const r = await call(clientIdOf(ctx), '/me/tracks/contains?ids=' + encodeURIComponent(id)); if (st.track && st.track.uri === uri) setState({liked: !!(Array.isArray(r) && r[0])}); } catch (e) { /* stays unknown */ }
+  }
+  async function setLiked(ctx, uri, on) {
+    const id = String(uri || '').split(':')[2];
+    if (!id) return;
+    await call(clientIdOf(ctx), '/me/tracks?ids=' + encodeURIComponent(id), {method: on ? 'PUT' : 'DELETE'});
+    if (st.track && st.track.uri === uri) setState({liked: on});
+    M.toast(on ? 'Added to Liked Songs' : 'Removed from Liked Songs');
+  }
+  /* the permissions this connection was granted; the library needs more than the first version asked for */
+  const hasScope = name => { const t = tok.get(); return !!(t && String(t.scope || '').split(' ').includes(name)); };
+  const NEED = ['user-library-read', 'playlist-read-private', 'user-read-recently-played', 'user-top-read', 'user-follow-read'];
+  const fullScope = () => NEED.every(hasScope);
+  /* play a body Spotify understands: {uris: [...]} or {context_uri, offset} */
+  async function play(ctx, body, label, id) {
     if (player && player.activateElement) { try { player.activateElement().catch(() => {}); } catch (e) { /* older sdk */ } }
     await ensurePlayer(ctx);
     if (player && player.activateElement) { try { player.activateElement().catch(() => {}); } catch (e) { /* older sdk */ } }
-    const body = /^spotify:track:/.test(uri) ? {uris: [uri]} : {context_uri: uri};
     await call(clientIdOf(ctx), '/me/player/play?device_id=' + encodeURIComponent(deviceId), {method: 'PUT', body: JSON.stringify(body), headers: {'content-type': 'application/json'}});
     setState({active: true, paused: false, error: ''});
-    M.music.play({id: 'sdk:' + uri, title: label || 'Spotify', kind: 'sdk', embed: '', url: linkOf(uri)});
+    M.music.play({id: 'sdk:' + (id || 'play'), title: label || 'Spotify', kind: 'sdk', embed: '', url: linkOf(id || '')});
+  }
+  async function queueAdd(ctx, uri) {
+    await ensurePlayer(ctx);
+    await call(clientIdOf(ctx), '/me/player/queue?uri=' + encodeURIComponent(uri) + '&device_id=' + encodeURIComponent(deviceId), {method: 'POST'});
+    M.toast('Added to the queue');
   }
   /* what this person's Spotify is playing right now, on any device: {device, track, playing} or null */
   async function nowPlaying(clientId) {
@@ -130,12 +156,14 @@
     prev: () => player && player.previousTrack().catch(() => {}),
     seek: ms => player && player.seek(ms).catch(() => {}),
     volume: v => { setState({volume: v}); if (player) player.setVolume(v).catch(() => {}); },
-    stop: () => { if (player) player.pause().catch(() => {}); setState({active: false, paused: true}); }
+    stop: () => { if (player) player.pause().catch(() => {}); setState({active: false, paused: true}); },
+    shuffle: (ctx, on) => call(clientIdOf(ctx), '/me/player/shuffle?state=' + (on ? 'true' : 'false') + '&device_id=' + encodeURIComponent(deviceId), {method: 'PUT'}).then(() => setState({shuffle: on})).catch(e => M.toast((e && e.message) || 'Spotify did not change shuffle', true)),
+    repeat: (ctx, mode) => call(clientIdOf(ctx), '/me/player/repeat?state=' + ['off', 'context', 'track'][mode] + '&device_id=' + encodeURIComponent(deviceId), {method: 'PUT'}).then(() => setState({repeat: mode})).catch(e => M.toast((e && e.message) || 'Spotify did not change repeat', true))
   };
 
   M.spotify = {
     state: () => st, on: f => { subs.add(f); return () => subs.delete(f); },
-    connected: () => !!tok.get(), canPlayHere, connect, disconnect, returned, search, playUri, uriOf, linkOf, whoAmI, nowPlaying, moveHere, ctl,
+    connected: () => !!tok.get(), canPlayHere, connect, disconnect, returned, search, playUri, play, queueAdd, setLiked, hasScope, fullScope, call, clientIdOf, art, uriOf, linkOf, whoAmI, nowPlaying, moveHere, ctl,
     /* a team list card: play it in the page when this person can, else let the embed handle it */
     tryPlay(ctx, item) {
       if (!item || item.kind !== 'spotify' || !canPlayHere(ctx)) return false;
@@ -153,7 +181,12 @@
   const PAUSE = html`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>`;
   const PREV = html`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M6 5h2v14H6zM18 5v14l-9-7z"/></svg>`;
   const NEXT = html`<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M16 5h2v14h-2zM6 5v14l9-7z"/></svg>`;
+  const SHUF = html`<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>`;
+  const REP = html`<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 1 4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="m7 23-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>`;
+  const REP1 = html`<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 1 4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="m7 23-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/><path d="M11 10h1v4"/></svg>`;
+  const HEART = html`<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M12 21s-7-4.6-9.3-8.6C.6 8.7 2.6 4.5 6.6 4.5c2 0 3.5 1 4.4 2.4a5.2 5.2 0 0 1 4.4-2.4c4 0 6 4.2 3.9 7.9C19 16.4 12 21 12 21Z"/></svg>`;
   function Pane({id}) {
+    const ctx = M.useCtx();
     const [s, setS] = useState(st);
     useEffect(() => M.spotify.on(setS), []);
     const t = s.track;
@@ -171,9 +204,12 @@
       <div class="row between nowrap" style=${{padding: '4px 8px 8px'}}>
         <span class="tiny sub num">${fmt(s.position)} / ${fmt(s.duration)}</span>
         <span class="row nowrap" style=${{gap: '2px'}}>
+          <button type="button" class=${'iconbtn sp-tog' + (s.shuffle ? ' on' : '')} aria-label=${s.shuffle ? 'Shuffle on' : 'Shuffle off'} aria-pressed=${s.shuffle} onClick=${() => ctl.shuffle(ctx, !s.shuffle)}>${SHUF}</button>
           <button type="button" class="iconbtn" aria-label="Previous" onClick=${ctl.prev}>${PREV}</button>
           <button type="button" class="iconbtn sp-play" aria-label=${s.paused ? 'Play' : 'Pause'} onClick=${ctl.toggle}>${s.paused ? html`<${icons.play}/>` : PAUSE}</button>
           <button type="button" class="iconbtn" aria-label="Next" onClick=${ctl.next}>${NEXT}</button>
+          <button type="button" class=${'iconbtn sp-tog' + (s.repeat ? ' on' : '')} aria-label=${['Repeat off', 'Repeat all', 'Repeat one'][s.repeat] || 'Repeat'} onClick=${() => ctl.repeat(ctx, (s.repeat + 1) % 3)}>${s.repeat === 2 ? REP1 : REP}</button>
+          ${t ? html`<button type="button" class=${'iconbtn sp-tog' + (s.liked ? ' on' : '')} aria-label=${s.liked ? 'Remove from Liked Songs' : 'Add to Liked Songs'} disabled=${s.liked === null} onClick=${() => setLiked(ctx, t.uri, !s.liked).catch(e => M.toast((e && e.message) || 'That did not save', true))}>${HEART}</button>` : null}
         </span>
         <input type="range" class="sp-vol" min="0" max="100" value=${Math.round(s.volume * 100)} aria-label="Volume" onInput=${e => ctl.volume(Number(e.target.value) / 100)}/>
       </div>
@@ -214,10 +250,11 @@
         </div>`
       : html`<div class="stack" style=${{gap: '10px'}}>
           ${s.premium === false ? html`<div class="small flame-t">This Spotify account is not Premium, so the in page player cannot play. Links still play as embeds.</div>` : null}
-          <div class="row nowrap" style=${{gap: '8px'}}>
+          ${!fullScope() ? html`<div class="row between" id="spotify-rescope"><span class="small">Your library, playlists and history need a permission this connection did not ask for yet.</span><${UI.Btn} sm=${true} onClick=${() => connect(clientId)}>Reconnect for the full library<//></div>` : null}
+          ${M.parts.SpotifyBrowser ? html`<${M.parts.SpotifyBrowser}/>` : html`<div class="row nowrap" style=${{gap: '8px'}}>
             <div class="grow"><${UI.Input} id="spotify-q" value=${q} onChange=${setQ} onEnter=${go} placeholder="Search a track, an album or a playlist"/></div>
             <${UI.Btn} kind="sec" disabled=${busy === 'search' || !q.trim()} onClick=${go} id="spotify-search">Search<//>
-          </div>
+          </div>`}
           ${rows.length ? html`<div class="stack tight" id="spotify-results">${rows.map(r => html`<div class="listrow" key=${r.uri}>
             ${r.art ? html`<img class="sp-art sm" src=${r.art} alt="" width="36" height="36"/>` : html`<span class="sp-art sm"/>`}
             <span class="grow" style=${{minWidth: 0}}><span class="music-title">${r.name}</span><span class="tiny ink62" style=${{display: 'block'}}>${r.kind}${r.by ? ' · ' + r.by : ''}</span></span>
