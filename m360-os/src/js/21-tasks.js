@@ -453,7 +453,7 @@
       <${UI.PageHead} micro=${micro} title="My tasks">
         <${UI.Btn} onClick=${() => setDrawer({id: null})}><${icons.plus}/>New task<//>
       <//>
-      <div class="row between">
+      <div class="row between task-filters">
         <${UI.Seg} options=${WHO} value=${who} onChange=${setWho} ariaLabel="Whose tasks"/>
         <div class="row grow" style=${{justifyContent: 'flex-end'}}>
           <div style=${SEL_STYLE}><${UI.Select} id="task-filter-project" value=${proj} onChange=${setProj} options=${projOpts}/></div>

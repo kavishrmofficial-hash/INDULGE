@@ -99,9 +99,11 @@
     return html`<div class="stack" style=${{gap: '14px'}}>
       <${UI.PageHead} micro="everything with a date" title=${title}>
         <${UI.Seg} options=${[{v: 'mine', label: 'Mine'}, {v: 'all', label: 'Everyone'}]} value=${mine ? 'mine' : 'all'} onChange=${v => setMine(v === 'mine')} ariaLabel="Whose calendar"/>
-        <${UI.Btn} kind="sec" sm=${true} onClick=${() => setM(new Date(m.getFullYear(), m.getMonth() - 1, 1))} ariaLabel="Previous month"><${icons.chevL}/><//>
-        <${UI.Btn} kind="sec" sm=${true} onClick=${() => { const d = new Date(ctx.now); setM(new Date(d.getFullYear(), d.getMonth(), 1)); }}>Today<//>
-        <${UI.Btn} kind="sec" sm=${true} onClick=${() => setM(new Date(m.getFullYear(), m.getMonth() + 1, 1))} ariaLabel="Next month"><${icons.chevR}/><//>
+        <div class="row nowrap">
+          <${UI.Btn} kind="sec" sm=${true} onClick=${() => setM(new Date(m.getFullYear(), m.getMonth() - 1, 1))} ariaLabel="Previous month"><${icons.chevL}/><//>
+          <${UI.Btn} kind="sec" sm=${true} onClick=${() => { const d = new Date(ctx.now); setM(new Date(d.getFullYear(), d.getMonth(), 1)); }}>Today<//>
+          <${UI.Btn} kind="sec" sm=${true} onClick=${() => setM(new Date(m.getFullYear(), m.getMonth() + 1, 1))} ariaLabel="Next month"><${icons.chevR}/><//>
+        </div>
       <//>
       <${UI.Card}>
         <div class="cal" id="calendar">

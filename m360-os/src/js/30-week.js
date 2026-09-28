@@ -142,7 +142,7 @@
       <//>
 
       <${UI.Card}>
-        <div class="tbl-wrap"><table class="tbl">
+        <div class="tbl-wrap"><table class="tbl wk-table">
           <thead><tr><th>person</th>${days.map(d => html`<th key=${d}>${U.fmtDay(d).toLowerCase()}</th>`)}</tr></thead>
           <tbody>
             ${ctx.activeMembers.map(m => html`<tr key=${m.uid}>

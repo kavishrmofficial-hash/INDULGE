@@ -211,9 +211,6 @@
     const setupSum = setupSteps.length ? setupSteps.filter(x => x.done).length + ' of ' + setupSteps.length + ' done' : 'your first-run checklist';
     return html`<div class="stack" style=${{gap: '20px'}}>
       <header class="hero ink">
-        <span class="ring" style=${{width: '380px', height: '380px', right: '-140px', top: '-190px'}}/>
-        <span class="ring" style=${{width: '240px', height: '240px', right: '-70px', top: '-120px'}}/>
-        <span class="dot" style=${{right: '110px', top: '48px'}}/>
         <div style=${{position: 'relative'}}>
           <${UI.Micro}>${U.dateLabel(new Date(ctx.now))}<//>
           <h1 class="hi">HQ</h1>

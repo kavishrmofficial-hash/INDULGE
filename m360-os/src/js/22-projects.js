@@ -218,13 +218,15 @@
       ctx.W.update('tasks/' + t.id, checked ? {status: 'done', doneAt: now, updated: now} : {status: 'todo', doneAt: null, updated: now})
         .then(() => M.toast(checked ? 'Task done' : 'Task reopened'), () => setShown(null));
     };
-    return html`<div class="listrow">
+    return html`<div class="listrow trow">
       <label class="checkline"><input type="checkbox" data-task=${t.id} checked=${shown} aria-label=${'Done: ' + t.title}
         onChange=${e => toggle(e.target.checked)}/></label>
       <button type="button" class=${'rowbtn grow' + (done ? ' sub' : '')} onClick=${() => onOpen(t)}>${t.title}</button>
-      <${UI.Avatar} id=${t.owner} size=${22}/>
-      ${t.due ? html`<span class=${'tiny num' + (od ? ' flame-t' : ' sub')}>${U.fmtDay(t.due)}</span>` : null}
-      <${TaskPill} status=${t.status}/>
+      <span class="trow-meta row nowrap">
+        <${UI.Avatar} id=${t.owner} size=${22}/>
+        ${t.due ? html`<span class=${'tiny num' + (od ? ' flame-t' : ' sub')}>${U.fmtDay(t.due)}</span>` : null}
+        <${TaskPill} status=${t.status}/>
+      </span>
     </div>`;
   }
 

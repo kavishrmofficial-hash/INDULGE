@@ -244,7 +244,7 @@
     };
 
     return html`<section class=${'card' + (it.pinned ? ' flame' : '')} data-key=${it.key} data-kind=${it.kind}>
-      <div class="row between">
+      <div class="row between post-head">
         <div class="row nowrap grow">
           <${UI.Avatar} id=${it.author} size=${32}/>
           <div class="grow">

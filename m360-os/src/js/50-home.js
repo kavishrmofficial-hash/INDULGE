@@ -129,11 +129,11 @@
     return html`<span class="hero-clock"><span aria-hidden="true">\u00b7</span><span class="clock num">${U.hhmm(t)}</span></span>`;
   }
 
-  /* ---------- the sky: where the sun or the moon sits at a given moment ----------
-     Day runs 6:00 to 19:30. The sun travels an arc from low left to high centre to low right,
-     growing towards midday; at night a paper ring moon hangs high right. Positions are percent
-     of the sky box, size in px (the stylesheet caps it on phones). M.hero.at pins the moment
-     for previews and tests. */
+  /* ---------- the sky: the moment of day the hero speaks to ----------
+     Day runs 6:00 to 19:30. The hero carries one small mark in its date line: a flame dot by
+     day, a paper ring moon at night. The arc numbers (x, y, size) still describe where the sun
+     would stand, for previews and tests; the stylesheet no longer draws it at that size.
+     M.hero.at pins the moment for previews and tests. */
   const DAY_FROM = 6 * 60, DAY_TO = 19 * 60 + 30;
   M.hero = {
     at: null,
@@ -172,13 +172,9 @@
       : a.status === 'holiday' ? 'Today is a holiday.' : a.status === 'sunday' ? 'Sunday. The OS rests too.' : '';
     return html`<header class=${'hero home-hero ' + (night ? 'ink night' : 'day')} id="home-hero" data-mode=${sky.mode}
       style=${{'--sx': sky.x + '%', '--sy': sky.y + '%', '--px': sky.px + '%', '--py': sky.py + '%', '--sun': sky.size + 'px'}}>
-      <div class="sky" aria-hidden="true">
-        <span class="halo"/>
-        ${night ? html`<span class="moon"/>` : html`<span class="sun"/>`}
-      </div>
       <div class="hero-in">
         <div class="hero-greet">
-          <${UI.Micro}>${U.dateLabel(now)} <${Clock}/><//>
+          <${UI.Micro} plain><span class="sky" aria-hidden="true">${night ? html`<span class="moon"/>` : html`<span class="sun"/>`}</span>${U.dateLabel(now)} <${Clock}/><//>
           <h1 class="hi">${sky.greeting},<br/>${first}.</h1>
           <div class="hero-chips">
             <span class=${chip}><b class="flame-t num">${inStreak}</b> day streak</span>

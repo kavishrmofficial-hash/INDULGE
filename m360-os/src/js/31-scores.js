@@ -80,7 +80,7 @@
             const h = isFirst ? 92 : (r === three[1] ? 70 : 54);
             return html`<div class=${'po' + (isFirst ? ' first' : '')} key=${r.uid}>
               <${UI.Avatar} id=${r.uid} size=${isFirst ? 44 : 36}/>
-              <div class="small" style=${{fontWeight: 500, textAlign: 'center'}}><${UI.Name} id=${r.uid}/></div>
+              <div class="small po-name" style=${{fontWeight: 500, textAlign: 'center', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}><${UI.Name} id=${r.uid}/></div>
               <div class="plinth num" style=${{height: h + 'px'}}>${r.total}</div>
             </div>`;
           })}
@@ -90,12 +90,12 @@
       <${UI.Card} title="Leaderboard" action=${lastWeek ? html`<span class="pill ink">last week</span>` : null}>
         ${lastWeek ? html`<div class="small ink62" style=${{marginBottom: '10px'}}>Nothing has scored in the new week yet. The board shows last week until someone does.</div>` : null}
         ${board.length ? html`<div class="stack tight">
-          ${board.map((r, i) => html`<div class="listrow" key=${r.uid}>
-            <span class="num ink62" style=${{width: '20px'}}>${i + 1}</span>
+          ${board.map((r, i) => html`<div class="listrow nowrap lb-row" key=${r.uid}>
+            <span class="num ink62" style=${{width: '20px', flex: 'none'}}>${i + 1}</span>
             <${UI.Avatar} id=${r.uid} size=${28}/>
-            <span style=${{minWidth: '120px'}}><${UI.Name} id=${r.uid}/></span>
+            <span class="lb-name" style=${{flex: '1 1 120px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}><${UI.Name} id=${r.uid}/></span>
             <${UI.Bar} a=${Math.max(0, r.output)} b=${Math.max(0, r.discipline)} max=${top}/>
-            <span class="num" style=${{fontWeight: 500, width: '46px', textAlign: 'right'}}>${r.total}</span>
+            <span class="num" style=${{fontWeight: 500, width: '46px', textAlign: 'right', flex: 'none'}}>${r.total}</span>
           </div>`)}
         </div>` : html`<${UI.Empty} text="No points yet."/>`}
       <//>

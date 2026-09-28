@@ -306,30 +306,21 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .hero.ink{--tex:rgba(255,255,255,.07); background:var(--dark); border-color:var(--dark); color:#fff}
 .hero.ink .micro{color:rgba(255,255,255,.64)}
 .hero.ink .sub{color:rgba(255,255,255,.7)}
-.hero .ring{position:absolute; border-radius:999px; border:1px solid rgba(245,57,1,.5); pointer-events:none}
-.hero .dot{position:absolute; width:10px; height:10px; border-radius:999px; background:var(--flame); pointer-events:none}
 /* every ink hero carries a faint paper dot grid; the content sits above it */
 .hero.ink::before{content:""; position:absolute; inset:0; background-image:radial-gradient(var(--tex) 1px, transparent 1.5px); background-size:24px 24px; pointer-events:none}
 .hero.ink > div:not(.sky){position:relative}
 
-/* the home hero: a sky that follows the clock. The sun (a flame disc) rises low left in the
-   morning, stands high at midday and sets low right in the evening; at night a paper ring moon
-   hangs over ink. Fine concentric rings in ink ripple out from the sun; a dot grid gives the
-   paper tooth. --sx, --sy and --sun come from the page. */
-.home-hero{--sx:70%; --sy:30%; --sun:200px}
-.home-hero.day::before{content:""; position:absolute; inset:0; background-image:radial-gradient(var(--tex) 1px, transparent 1.5px); background-size:24px 24px; opacity:.55; pointer-events:none}
-.home-hero .sky{position:absolute; inset:0; pointer-events:none; overflow:hidden}
-.home-hero .halo{position:absolute; inset:0;
-  background:repeating-radial-gradient(circle at var(--sx) var(--sy), transparent 0, transparent 46px, var(--tex) 46px, var(--tex) 47px);
-  -webkit-mask-image:radial-gradient(circle at var(--sx) var(--sy), #000 0, rgba(0,0,0,.55) 30%, transparent 64%);
-  mask-image:radial-gradient(circle at var(--sx) var(--sy), #000 0, rgba(0,0,0,.55) 30%, transparent 64%)}
-.home-hero .sun,.home-hero .moon{position:absolute; left:var(--sx); top:var(--sy); width:var(--sun); height:var(--sun); border-radius:999px; transform:translate(-50%,-50%)}
+/* the home hero: a plain paper head (ink at night) with one small mark of the hour in its date
+   line: a flame dot by day, a paper ring moon at night. --sx, --sy and --sun still arrive from
+   the page (they describe the sun's arc for previews and tests) and draw nothing here. */
+.home-hero .sky{display:inline-flex; align-items:center; justify-content:center; width:12px; height:12px; flex:none; pointer-events:none}
+.home-hero .sun,.home-hero .moon{display:block; width:8px; height:8px; border-radius:999px}
 .home-hero .sun{background:var(--flame)}
-.home-hero .moon{border:1.5px solid rgba(255,255,255,.82); box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
-.home-hero .moon::after{content:""; position:absolute; width:8px; height:8px; border-radius:999px; background:var(--flame); left:-22%; top:18%}
+.home-hero .moon{width:9px; height:9px; border:1.5px solid rgba(255,255,255,.85); box-sizing:border-box}
 .home-hero.day .micro{color:var(--ink); opacity:.88}
 .home-hero .hero-in{position:relative; display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:24px; align-items:end}
-.home-hero .hero-greet{min-height:250px; display:flex; flex-direction:column; justify-content:flex-end; min-width:0}
+.home-hero .hero-greet{display:flex; flex-direction:column; justify-content:space-between; align-self:stretch; min-width:0; padding-top:6px}
+.home-hero .hero-greet .hi{margin-top:auto; padding-top:28px}
 .home-hero .hero-chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:20px}
 .home-hero .hero-panel{background:var(--dark); color:#fff; border-radius:18px; padding:20px 20px 18px; border:1px solid rgba(255,255,255,.08); min-width:0}
 .home-hero.night .hero-panel{background:rgba(255,255,255,.06); background:color-mix(in srgb, var(--dark) 93%, #fff); border-color:rgba(255,255,255,.12)}
@@ -342,10 +333,7 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 :root[data-theme="dark"] .hero{--tex:rgba(242,241,236,.11)}
 :root[data-theme="dark"] .hero.ink{--tex:rgba(255,255,255,.07)}
 :root[data-theme="dark"] .home-hero.day .chipline{background:rgba(18,18,18,.7)}
-@media (prefers-reduced-motion:no-preference){
-  .home-hero .sun,.home-hero .moon{animation:drift 18s ease-in-out infinite alternate}
-}
-@keyframes drift{from{transform:translate(-50%,-50%)} to{transform:translate(-50%,calc(-50% - 10px))}}
+:root[data-theme="dark"] .home-hero .hero-panel{background:color-mix(in srgb, var(--dark) 93%, #fff); border-color:rgba(255,255,255,.12)}
 
 /* mood scale */
 .moods{display:flex; gap:6px; flex-wrap:wrap}
@@ -519,10 +507,6 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 :root[data-theme="dark"] .checkline input{accent-color:var(--flame)}
 :root[data-theme="dark"] .av-row .av{border-color:var(--paper)}
 @media (max-width:1100px){ .quick{grid-template-columns:repeat(3,minmax(0,1fr))} }
-@media (max-width:860px){
-  .quick{grid-template-columns:none; grid-auto-flow:column; grid-auto-columns:128px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none}
-  .quick::-webkit-scrollbar{display:none}
-}
 
 /* ---------- team: join screen, invites ---------- */
 .join-box{max-width:360px; margin:0 auto; text-align:left}
@@ -552,7 +536,6 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
   .quick-btn:hover svg,.side-item:hover svg{transform:translateY(-1px)}
   .quick-btn svg,.side-item svg{transition:transform .14s ease, color .14s ease}
   .badge{animation:pop .3s cubic-bezier(.2,.9,.3,1.4) both}
-  .hero .dot{animation:pulse 2.6s ease-in-out infinite}
   .wk-day.is-today .wk-dot{animation:pulse 2.2s ease-in-out infinite}
 }
 @keyframes rise{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:none}}
@@ -1133,7 +1116,7 @@ a.pill.prof-link svg{width:13px; height:13px; flex:none}
 .bs-prev .grow{display:flex; flex-direction:column; gap:1px}
 .bs-sum{gap:14px}
 @media (max-width:860px){
-  .bs-searchrow{flex-wrap:wrap}
+  .row.bs-searchrow{flex-wrap:wrap}
   .bs-searchrow .btn{flex:1 1 100%}
   .bs-search{flex:1 1 100%}
   .bs-row .bs-main{flex-basis:100%}
@@ -1147,8 +1130,8 @@ a.pill.prof-link svg{width:13px; height:13px; flex:none}
 }
 
 /* ==== 77-phone.css ==== */
-/* phones: bottom sheets, 40px targets, scrollers with an edge fade, the board as snap panes,
-   the compact home hero, and room for the keyboard. Everything here sits under 860px, the
+/* phones: bottom sheets, 40px targets, rows that wrap so nothing is cut at an edge, the board as
+   snap panes, the compact home hero, and room for the keyboard. Everything here sits under 860px, the
    width where the sidebar gives way to the topbar and tabbar. */
 @media (max-width:860px){
   /* ---------- chrome ---------- */
@@ -1165,8 +1148,9 @@ a.pill.prof-link svg{width:13px; height:13px; flex:none}
   .main button{min-height:40px}
   .main .iconbtn{width:40px; height:40px}
   .btn.sm{min-height:40px; padding:0 14px}
-  .chip,.chipline,.emoji-btn,.lens button,.theme-seg button,.seg-btn,.seg.sm .seg-btn{min-height:40px}
-  .chipline{height:40px; padding:0 14px}
+  .chip,.emoji-btn,.lens button,.theme-seg button,.seg-btn,.seg.sm .seg-btn{min-height:40px}
+  .chipline{height:36px; padding:0 12px}
+  button.chipline{min-height:40px; height:40px}
   .mood{min-height:42px}
   .theme-seg,.seg{border-radius:14px}
   .theme-seg button{border-radius:12px}
@@ -1182,21 +1166,33 @@ a.pill.prof-link svg{width:13px; height:13px; flex:none}
   /* inputs keep 16px so iOS does not zoom the page on focus */
   .input,select.input,textarea.input,.pal-in input,.ask-in input,.buddy-bubble .input{font-size:16px}
 
-  /* ---------- scrollers with an edge fade ---------- */
+  /* ---------- rows wrap: a phone never cuts a chip, a tab or a segment at the edge ---------- */
   .tbl-wrap,.heat{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent); mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent); padding-right:32px}
-  .seg{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 20px),transparent); mask-image:linear-gradient(90deg,#000 calc(100% - 20px),transparent); padding-right:16px}
-  .tabs.section-tabs{flex-wrap:nowrap; overflow-x:auto; gap:0 18px; margin:0 -16px; padding:0 16px; scrollbar-width:none; -webkit-overflow-scrolling:touch;
-    -webkit-mask-image:linear-gradient(90deg,transparent,#000 12px,#000 calc(100% - 36px),transparent); mask-image:linear-gradient(90deg,transparent,#000 12px,#000 calc(100% - 36px),transparent)}
-  .tabs.section-tabs::-webkit-scrollbar{display:none}
-  .tabs.section-tabs .tab{flex:none; min-height:46px}
-  .tabs.section-tabs::after{content:""; flex:none; width:24px; height:1px}
-  .quick{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 40px),transparent); mask-image:linear-gradient(90deg,#000 calc(100% - 40px),transparent); margin-right:-16px; padding-right:40px}
-  /* section hero stats: one row that scrolls */
-  .hero > div > .row:not(.between):not(.nowrap),.home-hero .hero-chips{flex-wrap:nowrap; overflow-x:auto; margin-left:-20px; margin-right:-20px; padding:2px 20px; scrollbar-width:none;
-    -webkit-mask-image:linear-gradient(90deg,transparent,#000 14px,#000 calc(100% - 28px),transparent); mask-image:linear-gradient(90deg,transparent,#000 14px,#000 calc(100% - 28px),transparent)}
-  .hero > div > .row:not(.between):not(.nowrap)::-webkit-scrollbar,.home-hero .hero-chips::-webkit-scrollbar{display:none}
-  .hero > div > .row:not(.between):not(.nowrap)::after,.home-hero .hero-chips::after{content:""; flex:none; width:12px}
+  .seg{flex-wrap:wrap; overflow:visible; max-width:100%}
+  .tabs.section-tabs{flex-wrap:wrap; gap:0 16px}
+  .tabs.section-tabs .tab{min-height:44px}
+  .hero > div > .row:not(.between):not(.nowrap),.home-hero .hero-chips{flex-wrap:wrap; gap:8px}
   .hero .stat{padding:14px 14px 12px}
+  /* quick actions: two rows of three */
+  .quick{grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px}
+  .quick-btn{padding:12px 10px 11px; font-size:13px; gap:8px; border-radius:14px}
+  /* the task filters stack: whose tasks, then the two selects side by side */
+  .task-filters{flex-direction:column; align-items:stretch}
+  .task-filters > .seg{width:100%}
+  .task-filters > .seg .seg-btn{flex:1 1 0}
+  .task-filters > .row.grow{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+  .task-filters > .row.grow > div{max-width:none}
+  /* a feed post: who and when on the first line, pin and delete on their own line */
+  .post-head{flex-wrap:wrap}
+  .post-head > .row.nowrap:not(.grow){width:100%; justify-content:flex-end; margin-top:2px}
+  /* the leaderboard row stays on one line: the name gives way, the bar keeps 60px */
+  .lb-row{flex-wrap:nowrap}
+  .lb-row .bar{flex:0 1 80px}
+  /* the podium shares the width three ways */
+  .podium{gap:8px}
+  .podium .po{width:auto; flex:1 1 0; min-width:0}
+  /* the page head: the title line, then its controls spread across one row */
+  .head-row > .row{justify-content:space-between}
   .hero .stat .v{font-size:22px; letter-spacing:-.03em}
 
   /* ---------- the board: one column per pane, snap to each, a dot shows where you are ---------- */
@@ -1223,13 +1219,8 @@ a.pill.prof-link svg{width:13px; height:13px; flex:none}
 
   /* ---------- home: a compact hero, then one column ---------- */
   .home-hero{padding:20px 20px 18px}
-  /* the sky is a band above the greeting; the sun keeps its arc inside it, at half size */
-  .home-hero .sky{inset:0 0 auto 0; height:124px}
-  .home-hero .sun,.home-hero .moon{left:var(--px,var(--sx)); top:var(--py,var(--sy)); width:calc(var(--sun) * .55); height:calc(var(--sun) * .55)}
-  .home-hero .halo{background:repeating-radial-gradient(circle at var(--px,var(--sx)) var(--py,var(--sy)), transparent 0, transparent 30px, var(--tex) 30px, var(--tex) 31px);
-    -webkit-mask-image:radial-gradient(circle at var(--px,var(--sx)) var(--py,var(--sy)), #000 0, rgba(0,0,0,.55) 30%, transparent 64%); mask-image:radial-gradient(circle at var(--px,var(--sx)) var(--py,var(--sy)), #000 0, rgba(0,0,0,.55) 30%, transparent 64%)}
   .home-hero .hero-in{grid-template-columns:1fr; gap:16px}
-  .home-hero .hero-greet{min-height:0; padding-top:56px}
+  .home-hero .hero-greet{padding-top:2px}
   .home-hero .micro{white-space:nowrap; flex-wrap:wrap; letter-spacing:.1em; row-gap:2px}
   .home-hero .hi{font-size:clamp(32px,9.6vw,40px)}
   .home-hero .hero-chips{margin-top:16px}
@@ -1251,9 +1242,20 @@ a.pill.prof-link svg{width:13px; height:13px; flex:none}
   .sheet-handle,.install-hint{display:none}
 }
 @media (max-width:400px){
-  .home-hero .hero-chips{margin-left:-20px}
   .tab-item{font-size:11px}
-  .quick{grid-auto-columns:120px}
+}
+/* the folded tables below 600px: the week as day boxes, the CRM row with its long cells full width,
+   a project task with its meta under the title */
+@media (max-width:600px){
+  .tbl.wk-table tr{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding:12px 0}
+  .tbl.wk-table td.lead{grid-column:1 / -1}
+  .tbl.wk-table td.wk-cell{display:flex; flex-direction:column; align-items:stretch; gap:2px; padding:8px 8px 6px; border-radius:12px; background:var(--warm); min-width:0}
+  .tbl.wk-table td.wk-cell::before{margin:0 0 2px}
+  .tbl.wk-table td.wk-cell .rowbtn{min-width:0; width:100%; padding:0}
+  .tbl.crm-table td[data-label="account"],.tbl.crm-table td[data-label="next step"]{flex-basis:100%}
+  .trow{flex-wrap:wrap}
+  .trow .rowbtn.grow{flex:1 1 60%; min-width:0}
+  .trow-meta{flex-basis:100%; padding-left:34px; gap:8px}
 }
 @keyframes boardpos{from{background-position:0% 50%, 0 50%} to{background-position:100% 50%, 0 50%}}
 
@@ -1401,7 +1403,7 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
   .cl-news .t{flex-basis:100%}
 }
 </style>
-<script>window.M360_BUILD = "7743b2e+.260928-0042";</script><script>
+<script>window.M360_BUILD = "8b2a15f+.260928-0114";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -5182,7 +5184,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     };
 
     return html`<section class=${'card' + (it.pinned ? ' flame' : '')} data-key=${it.key} data-kind=${it.kind}>
-      <div class="row between">
+      <div class="row between post-head">
         <div class="row nowrap grow">
           <${UI.Avatar} id=${it.author} size=${32}/>
           <div class="grow">
@@ -5735,7 +5737,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       <${UI.PageHead} micro=${micro} title="My tasks">
         <${UI.Btn} onClick=${() => setDrawer({id: null})}><${icons.plus}/>New task<//>
       <//>
-      <div class="row between">
+      <div class="row between task-filters">
         <${UI.Seg} options=${WHO} value=${who} onChange=${setWho} ariaLabel="Whose tasks"/>
         <div class="row grow" style=${{justifyContent: 'flex-end'}}>
           <div style=${SEL_STYLE}><${UI.Select} id="task-filter-project" value=${proj} onChange=${setProj} options=${projOpts}/></div>
@@ -5983,13 +5985,15 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       ctx.W.update('tasks/' + t.id, checked ? {status: 'done', doneAt: now, updated: now} : {status: 'todo', doneAt: null, updated: now})
         .then(() => M.toast(checked ? 'Task done' : 'Task reopened'), () => setShown(null));
     };
-    return html`<div class="listrow">
+    return html`<div class="listrow trow">
       <label class="checkline"><input type="checkbox" data-task=${t.id} checked=${shown} aria-label=${'Done: ' + t.title}
         onChange=${e => toggle(e.target.checked)}/></label>
       <button type="button" class=${'rowbtn grow' + (done ? ' sub' : '')} onClick=${() => onOpen(t)}>${t.title}</button>
-      <${UI.Avatar} id=${t.owner} size=${22}/>
-      ${t.due ? html`<span class=${'tiny num' + (od ? ' flame-t' : ' sub')}>${U.fmtDay(t.due)}</span>` : null}
-      <${TaskPill} status=${t.status}/>
+      <span class="trow-meta row nowrap">
+        <${UI.Avatar} id=${t.owner} size=${22}/>
+        ${t.due ? html`<span class=${'tiny num' + (od ? ' flame-t' : ' sub')}>${U.fmtDay(t.due)}</span>` : null}
+        <${TaskPill} status=${t.status}/>
+      </span>
     </div>`;
   }
 
@@ -8883,7 +8887,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       <//>
 
       <${UI.Card}>
-        <div class="tbl-wrap"><table class="tbl">
+        <div class="tbl-wrap"><table class="tbl wk-table">
           <thead><tr><th>person</th>${days.map(d => html`<th key=${d}>${U.fmtDay(d).toLowerCase()}</th>`)}</tr></thead>
           <tbody>
             ${ctx.activeMembers.map(m => html`<tr key=${m.uid}>
@@ -9096,7 +9100,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
             const h = isFirst ? 92 : (r === three[1] ? 70 : 54);
             return html`<div class=${'po' + (isFirst ? ' first' : '')} key=${r.uid}>
               <${UI.Avatar} id=${r.uid} size=${isFirst ? 44 : 36}/>
-              <div class="small" style=${{fontWeight: 500, textAlign: 'center'}}><${UI.Name} id=${r.uid}/></div>
+              <div class="small po-name" style=${{fontWeight: 500, textAlign: 'center', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}><${UI.Name} id=${r.uid}/></div>
               <div class="plinth num" style=${{height: h + 'px'}}>${r.total}</div>
             </div>`;
           })}
@@ -9106,12 +9110,12 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       <${UI.Card} title="Leaderboard" action=${lastWeek ? html`<span class="pill ink">last week</span>` : null}>
         ${lastWeek ? html`<div class="small ink62" style=${{marginBottom: '10px'}}>Nothing has scored in the new week yet. The board shows last week until someone does.</div>` : null}
         ${board.length ? html`<div class="stack tight">
-          ${board.map((r, i) => html`<div class="listrow" key=${r.uid}>
-            <span class="num ink62" style=${{width: '20px'}}>${i + 1}</span>
+          ${board.map((r, i) => html`<div class="listrow nowrap lb-row" key=${r.uid}>
+            <span class="num ink62" style=${{width: '20px', flex: 'none'}}>${i + 1}</span>
             <${UI.Avatar} id=${r.uid} size=${28}/>
-            <span style=${{minWidth: '120px'}}><${UI.Name} id=${r.uid}/></span>
+            <span class="lb-name" style=${{flex: '1 1 120px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}><${UI.Name} id=${r.uid}/></span>
             <${UI.Bar} a=${Math.max(0, r.output)} b=${Math.max(0, r.discipline)} max=${top}/>
-            <span class="num" style=${{fontWeight: 500, width: '46px', textAlign: 'right'}}>${r.total}</span>
+            <span class="num" style=${{fontWeight: 500, width: '46px', textAlign: 'right', flex: 'none'}}>${r.total}</span>
           </div>`)}
         </div>` : html`<${UI.Empty} text="No points yet."/>`}
       <//>
@@ -12416,11 +12420,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     return html`<span class="hero-clock"><span aria-hidden="true">\u00b7</span><span class="clock num">${U.hhmm(t)}</span></span>`;
   }
 
-  /* ---------- the sky: where the sun or the moon sits at a given moment ----------
-     Day runs 6:00 to 19:30. The sun travels an arc from low left to high centre to low right,
-     growing towards midday; at night a paper ring moon hangs high right. Positions are percent
-     of the sky box, size in px (the stylesheet caps it on phones). M.hero.at pins the moment
-     for previews and tests. */
+  /* ---------- the sky: the moment of day the hero speaks to ----------
+     Day runs 6:00 to 19:30. The hero carries one small mark in its date line: a flame dot by
+     day, a paper ring moon at night. The arc numbers (x, y, size) still describe where the sun
+     would stand, for previews and tests; the stylesheet no longer draws it at that size.
+     M.hero.at pins the moment for previews and tests. */
   const DAY_FROM = 6 * 60, DAY_TO = 19 * 60 + 30;
   M.hero = {
     at: null,
@@ -12459,13 +12463,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       : a.status === 'holiday' ? 'Today is a holiday.' : a.status === 'sunday' ? 'Sunday. The OS rests too.' : '';
     return html`<header class=${'hero home-hero ' + (night ? 'ink night' : 'day')} id="home-hero" data-mode=${sky.mode}
       style=${{'--sx': sky.x + '%', '--sy': sky.y + '%', '--px': sky.px + '%', '--py': sky.py + '%', '--sun': sky.size + 'px'}}>
-      <div class="sky" aria-hidden="true">
-        <span class="halo"/>
-        ${night ? html`<span class="moon"/>` : html`<span class="sun"/>`}
-      </div>
       <div class="hero-in">
         <div class="hero-greet">
-          <${UI.Micro}>${U.dateLabel(now)} <${Clock}/><//>
+          <${UI.Micro} plain><span class="sky" aria-hidden="true">${night ? html`<span class="moon"/>` : html`<span class="sun"/>`}</span>${U.dateLabel(now)} <${Clock}/><//>
           <h1 class="hi">${sky.greeting},<br/>${first}.</h1>
           <div class="hero-chips">
             <span class=${chip}><b class="flame-t num">${inStreak}</b> day streak</span>
@@ -13522,9 +13522,6 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const setupSum = setupSteps.length ? setupSteps.filter(x => x.done).length + ' of ' + setupSteps.length + ' done' : 'your first-run checklist';
     return html`<div class="stack" style=${{gap: '20px'}}>
       <header class="hero ink">
-        <span class="ring" style=${{width: '380px', height: '380px', right: '-140px', top: '-190px'}}/>
-        <span class="ring" style=${{width: '240px', height: '240px', right: '-70px', top: '-120px'}}/>
-        <span class="dot" style=${{right: '110px', top: '48px'}}/>
         <div style=${{position: 'relative'}}>
           <${UI.Micro}>${U.dateLabel(new Date(ctx.now))}<//>
           <h1 class="hi">HQ</h1>
@@ -15429,9 +15426,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     return html`<div class="stack" style=${{gap: '14px'}}>
       <${UI.PageHead} micro="everything with a date" title=${title}>
         <${UI.Seg} options=${[{v: 'mine', label: 'Mine'}, {v: 'all', label: 'Everyone'}]} value=${mine ? 'mine' : 'all'} onChange=${v => setMine(v === 'mine')} ariaLabel="Whose calendar"/>
-        <${UI.Btn} kind="sec" sm=${true} onClick=${() => setM(new Date(m.getFullYear(), m.getMonth() - 1, 1))} ariaLabel="Previous month"><${icons.chevL}/><//>
-        <${UI.Btn} kind="sec" sm=${true} onClick=${() => { const d = new Date(ctx.now); setM(new Date(d.getFullYear(), d.getMonth(), 1)); }}>Today<//>
-        <${UI.Btn} kind="sec" sm=${true} onClick=${() => setM(new Date(m.getFullYear(), m.getMonth() + 1, 1))} ariaLabel="Next month"><${icons.chevR}/><//>
+        <div class="row nowrap">
+          <${UI.Btn} kind="sec" sm=${true} onClick=${() => setM(new Date(m.getFullYear(), m.getMonth() - 1, 1))} ariaLabel="Previous month"><${icons.chevL}/><//>
+          <${UI.Btn} kind="sec" sm=${true} onClick=${() => { const d = new Date(ctx.now); setM(new Date(d.getFullYear(), d.getMonth(), 1)); }}>Today<//>
+          <${UI.Btn} kind="sec" sm=${true} onClick=${() => setM(new Date(m.getFullYear(), m.getMonth() + 1, 1))} ariaLabel="Next month"><${icons.chevR}/><//>
+        </div>
       <//>
       <${UI.Card}>
         <div class="cal" id="calendar">

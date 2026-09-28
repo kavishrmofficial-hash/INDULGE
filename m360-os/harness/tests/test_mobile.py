@@ -79,11 +79,11 @@ def t(h):
         check(not p.evaluate(SMALL_BUTTONS), '%s has buttons under 36px at 360' % hsh)
     h.shot(p, 'mobile-work-360')
 
-    # ---- the home hero on a phone: chips in one scrolling row, panel full width ----
+    # ---- the home hero on a phone: chips wrap, nothing cut at the edge, panel full width ----
     h.go(p, 'm1', hash='#home', width=390, seed=True, online='u_m2')
     p.wait_for_selector('#home-hero .hero-chips')
     chips = p.evaluate('() => { const n = document.querySelector("#home-hero .hero-chips"); const cs = getComputedStyle(n); return [cs.flexWrap, cs.overflowX]; }')
-    check(chips == ['nowrap', 'auto'], 'hero chips do not scroll on a phone: %r' % chips)
+    check(chips == ['wrap', 'visible'], 'hero chips do not wrap on a phone: %r' % chips)
     panel = p.locator('#home-hero .hero-panel').bounding_box()
     check(panel and panel['width'] > 300, 'check-in panel is not full width on a phone: %r' % panel)
     check(p.locator('#install-hint').count() == 1, 'home screen hint missing on a phone browser')

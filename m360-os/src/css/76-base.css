@@ -37,7 +37,7 @@
 .bs-prev .grow{display:flex; flex-direction:column; gap:1px}
 .bs-sum{gap:14px}
 @media (max-width:860px){
-  .bs-searchrow{flex-wrap:wrap}
+  .row.bs-searchrow{flex-wrap:wrap}
   .bs-searchrow .btn{flex:1 1 100%}
   .bs-search{flex:1 1 100%}
   .bs-row .bs-main{flex-basis:100%}

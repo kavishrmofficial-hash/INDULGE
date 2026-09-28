@@ -1,5 +1,5 @@
-/* phones: bottom sheets, 40px targets, scrollers with an edge fade, the board as snap panes,
-   the compact home hero, and room for the keyboard. Everything here sits under 860px, the
+/* phones: bottom sheets, 40px targets, rows that wrap so nothing is cut at an edge, the board as
+   snap panes, the compact home hero, and room for the keyboard. Everything here sits under 860px, the
    width where the sidebar gives way to the topbar and tabbar. */
 @media (max-width:860px){
   /* ---------- chrome ---------- */
@@ -16,8 +16,9 @@
   .main button{min-height:40px}
   .main .iconbtn{width:40px; height:40px}
   .btn.sm{min-height:40px; padding:0 14px}
-  .chip,.chipline,.emoji-btn,.lens button,.theme-seg button,.seg-btn,.seg.sm .seg-btn{min-height:40px}
-  .chipline{height:40px; padding:0 14px}
+  .chip,.emoji-btn,.lens button,.theme-seg button,.seg-btn,.seg.sm .seg-btn{min-height:40px}
+  .chipline{height:36px; padding:0 12px}
+  button.chipline{min-height:40px; height:40px}
   .mood{min-height:42px}
   .theme-seg,.seg{border-radius:14px}
   .theme-seg button{border-radius:12px}
@@ -33,21 +34,33 @@
   /* inputs keep 16px so iOS does not zoom the page on focus */
   .input,select.input,textarea.input,.pal-in input,.ask-in input,.buddy-bubble .input{font-size:16px}
 
-  /* ---------- scrollers with an edge fade ---------- */
+  /* ---------- rows wrap: a phone never cuts a chip, a tab or a segment at the edge ---------- */
   .tbl-wrap,.heat{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent); mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent); padding-right:32px}
-  .seg{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 20px),transparent); mask-image:linear-gradient(90deg,#000 calc(100% - 20px),transparent); padding-right:16px}
-  .tabs.section-tabs{flex-wrap:nowrap; overflow-x:auto; gap:0 18px; margin:0 -16px; padding:0 16px; scrollbar-width:none; -webkit-overflow-scrolling:touch;
-    -webkit-mask-image:linear-gradient(90deg,transparent,#000 12px,#000 calc(100% - 36px),transparent); mask-image:linear-gradient(90deg,transparent,#000 12px,#000 calc(100% - 36px),transparent)}
-  .tabs.section-tabs::-webkit-scrollbar{display:none}
-  .tabs.section-tabs .tab{flex:none; min-height:46px}
-  .tabs.section-tabs::after{content:""; flex:none; width:24px; height:1px}
-  .quick{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 40px),transparent); mask-image:linear-gradient(90deg,#000 calc(100% - 40px),transparent); margin-right:-16px; padding-right:40px}
-  /* section hero stats: one row that scrolls */
-  .hero > div > .row:not(.between):not(.nowrap),.home-hero .hero-chips{flex-wrap:nowrap; overflow-x:auto; margin-left:-20px; margin-right:-20px; padding:2px 20px; scrollbar-width:none;
-    -webkit-mask-image:linear-gradient(90deg,transparent,#000 14px,#000 calc(100% - 28px),transparent); mask-image:linear-gradient(90deg,transparent,#000 14px,#000 calc(100% - 28px),transparent)}
-  .hero > div > .row:not(.between):not(.nowrap)::-webkit-scrollbar,.home-hero .hero-chips::-webkit-scrollbar{display:none}
-  .hero > div > .row:not(.between):not(.nowrap)::after,.home-hero .hero-chips::after{content:""; flex:none; width:12px}
+  .seg{flex-wrap:wrap; overflow:visible; max-width:100%}
+  .tabs.section-tabs{flex-wrap:wrap; gap:0 16px}
+  .tabs.section-tabs .tab{min-height:44px}
+  .hero > div > .row:not(.between):not(.nowrap),.home-hero .hero-chips{flex-wrap:wrap; gap:8px}
   .hero .stat{padding:14px 14px 12px}
+  /* quick actions: two rows of three */
+  .quick{grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px}
+  .quick-btn{padding:12px 10px 11px; font-size:13px; gap:8px; border-radius:14px}
+  /* the task filters stack: whose tasks, then the two selects side by side */
+  .task-filters{flex-direction:column; align-items:stretch}
+  .task-filters > .seg{width:100%}
+  .task-filters > .seg .seg-btn{flex:1 1 0}
+  .task-filters > .row.grow{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+  .task-filters > .row.grow > div{max-width:none}
+  /* a feed post: who and when on the first line, pin and delete on their own line */
+  .post-head{flex-wrap:wrap}
+  .post-head > .row.nowrap:not(.grow){width:100%; justify-content:flex-end; margin-top:2px}
+  /* the leaderboard row stays on one line: the name gives way, the bar keeps 60px */
+  .lb-row{flex-wrap:nowrap}
+  .lb-row .bar{flex:0 1 80px}
+  /* the podium shares the width three ways */
+  .podium{gap:8px}
+  .podium .po{width:auto; flex:1 1 0; min-width:0}
+  /* the page head: the title line, then its controls spread across one row */
+  .head-row > .row{justify-content:space-between}
   .hero .stat .v{font-size:22px; letter-spacing:-.03em}
 
   /* ---------- the board: one column per pane, snap to each, a dot shows where you are ---------- */
@@ -74,13 +87,8 @@
 
   /* ---------- home: a compact hero, then one column ---------- */
   .home-hero{padding:20px 20px 18px}
-  /* the sky is a band above the greeting; the sun keeps its arc inside it, at half size */
-  .home-hero .sky{inset:0 0 auto 0; height:124px}
-  .home-hero .sun,.home-hero .moon{left:var(--px,var(--sx)); top:var(--py,var(--sy)); width:calc(var(--sun) * .55); height:calc(var(--sun) * .55)}
-  .home-hero .halo{background:repeating-radial-gradient(circle at var(--px,var(--sx)) var(--py,var(--sy)), transparent 0, transparent 30px, var(--tex) 30px, var(--tex) 31px);
-    -webkit-mask-image:radial-gradient(circle at var(--px,var(--sx)) var(--py,var(--sy)), #000 0, rgba(0,0,0,.55) 30%, transparent 64%); mask-image:radial-gradient(circle at var(--px,var(--sx)) var(--py,var(--sy)), #000 0, rgba(0,0,0,.55) 30%, transparent 64%)}
   .home-hero .hero-in{grid-template-columns:1fr; gap:16px}
-  .home-hero .hero-greet{min-height:0; padding-top:56px}
+  .home-hero .hero-greet{padding-top:2px}
   .home-hero .micro{white-space:nowrap; flex-wrap:wrap; letter-spacing:.1em; row-gap:2px}
   .home-hero .hi{font-size:clamp(32px,9.6vw,40px)}
   .home-hero .hero-chips{margin-top:16px}
@@ -102,8 +110,19 @@
   .sheet-handle,.install-hint{display:none}
 }
 @media (max-width:400px){
-  .home-hero .hero-chips{margin-left:-20px}
   .tab-item{font-size:11px}
-  .quick{grid-auto-columns:120px}
+}
+/* the folded tables below 600px: the week as day boxes, the CRM row with its long cells full width,
+   a project task with its meta under the title */
+@media (max-width:600px){
+  .tbl.wk-table tr{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding:12px 0}
+  .tbl.wk-table td.lead{grid-column:1 / -1}
+  .tbl.wk-table td.wk-cell{display:flex; flex-direction:column; align-items:stretch; gap:2px; padding:8px 8px 6px; border-radius:12px; background:var(--warm); min-width:0}
+  .tbl.wk-table td.wk-cell::before{margin:0 0 2px}
+  .tbl.wk-table td.wk-cell .rowbtn{min-width:0; width:100%; padding:0}
+  .tbl.crm-table td[data-label="account"],.tbl.crm-table td[data-label="next step"]{flex-basis:100%}
+  .trow{flex-wrap:wrap}
+  .trow .rowbtn.grow{flex:1 1 60%; min-width:0}
+  .trow-meta{flex-basis:100%; padding-left:34px; gap:8px}
 }
 @keyframes boardpos{from{background-position:0% 50%, 0 50%} to{background-position:100% 50%, 0 50%}}
