@@ -121,7 +121,9 @@
     /* open tasks nobody on the roster owns: they count here too, or the board and this card disagree */
     const onRoster = {};
     ctx.activeMembers.forEach(m => { onRoster[m.uid] = true; });
-    const loose = Object.keys(map).map(id => ({id, ...map[id]})).filter(t => t.status !== 'done' && !onRoster[t.owner]);
+    const openAll = Object.keys(map).filter(id => map[id]).map(id => ({id, ...map[id]})).filter(t => t.status !== 'done');
+    const loose = openAll.filter(t => !t.owner);
+    const left = openAll.filter(t => t.owner && !onRoster[t.owner]);
 
     async function rebalance() {
       const slice = await M.ai.teamSlice(ctx);
@@ -160,6 +162,11 @@
           <span style=${{minWidth: '120px', fontWeight: 600}}>No owner</span>
           <span class="grow small ink62" style=${{minWidth: '120px'}}>${loose.length === 1 ? 'one open task waits for a name' : loose.length + ' open tasks wait for a name'}</span>
           <button type="button" class="linky small" onClick=${() => M.nav('#tasks/' + loose[0].id)}>Assign</button>
+        </div>` : null}
+        ${left.length ? html`<div class="listrow">
+          <span style=${{minWidth: '120px', fontWeight: 600}}>Owner left</span>
+          <span class="grow small ink62" style=${{minWidth: '120px'}}>${left.length === 1 ? 'one open task sits with someone off the roster' : left.length + ' open tasks sit with people off the roster'}</span>
+          <button type="button" class="linky small" onClick=${() => M.nav('#tasks/' + left[0].id)}>Reassign</button>
         </div>` : null}
       </div>
       ${r.state === 'error' ? html`<div class="small flame-t" style=${{marginTop: '10px'}}>${M.ai.errCopy(r.err)}</div>` : null}
@@ -216,7 +223,7 @@
           <${Tile} v=${n.inNow + '/' + n.people.length} l="in today" to="#command"/>
           <${Tile} v=${Object.keys(ctx.online).length} l="online now"/>
           <${Tile} v=${n.late} l="late today" to="#command" hot=${n.late > 0}/>
-          <${Tile} v=${n.overdue + '/' + n.open} l="tasks overdue" to="#tasks" hot=${n.overdue > 0}/>
+          <${Tile} v=${n.overdue + ' of ' + n.open} l="tasks overdue" to="#tasks" hot=${n.overdue > 0}/>
           <${Tile} v=${U.inr(n.pm.weighted)} l="weighted pipeline" to="#pitches"/>
           <${Tile} v=${U.inr(n.mrr)} l="monthly revenue" to="#clients"/>
           <${Tile} v=${n.lastEn ? n.lastEn.avg.toFixed(1) + '/5' : 'n/a'} l="team energy" to="#voice" hot=${!!(n.lastEn && n.lastEn.avg < 3)}/>

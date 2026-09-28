@@ -62,15 +62,18 @@
       const overdue = openTasks.filter(t => t.due && t.due < today).length;
       const dueWeek = openTasks.filter(t => t.due && t.due >= today && t.due <= wk.to).length;
       const noDue = openTasks.filter(t => !t.due).length;
-      const shippedWeek = taskList.filter(t => t.status === 'done' && t.doneAt && U.ymd(new Date(t.doneAt)) >= wk.from).length;
-      const unowned = openTasks.filter(t => !t.owner || !onRoster[t.owner]).sort((a, b) => (b.created || 0) - (a.created || 0));
+      const shippedWeek = taskList.filter(t => t.status === 'done' && isFinite(Number(t.doneAt)) && Number(t.doneAt) > 0 && U.ymd(new Date(Number(t.doneAt))) >= wk.from && U.ymd(new Date(Number(t.doneAt))) <= wk.to).length;
+      const byNewest = (a, b) => (b.created || 0) - (a.created || 0);
+      const unowned = openTasks.filter(t => !t.owner).sort(byNewest);
+      /* owned by someone who is no longer on the roster: still someone's, and worth a new name */
+      const departed = openTasks.filter(t => t.owner && !onRoster[t.owner]).sort(byNewest);
       const high = (ctx.flags || []).filter(f => f.severity === 'high').length;
       const pm = (M.pitches && M.pitches.metrics) ? M.pitches.metrics(ctx) : {weighted: 0, byStage: {}, winRate90: null, overdue: []};
       const sh = (M.clients && M.clients.shares) ? M.clients.shares(ctx) : [];
       const topShare = sh.reduce((n, r) => Math.max(n, r.share || 0), 0);
       const energy = (M.voice && M.voice.energyByWeek) ? M.voice.energyByWeek(ctx, 8) : [];
       const lastEnergy = energy.slice().reverse().find(e => e && e.avg != null);
-      return {rows, inToday, late, office, verified, eodY, eodDue, hit, planned, overdue, open: openTasks.length, dueWeek, noDue, shippedWeek, unowned,
+      return {rows, inToday, late, office, verified, eodY, eodDue, hit, planned, overdue, open: openTasks.length, dueWeek, noDue, shippedWeek, unowned, departed,
         high, pm, sh, topShare, energy, lastEnergy, yday};
     }, [ctx, members]);
 
@@ -212,13 +215,18 @@
           </div>
           <div class="small ink62" style=${{marginTop: '10px'}}>
             ${k.shippedWeek + ' shipped this week' + (k.noDue ? ', ' + k.noDue + ' open with no due date' : '')}</div>
-          ${k.unowned.length ? html`<div style=${{marginTop: '12px'}}>
+          ${k.unowned.length || k.departed.length ? html`<div style=${{marginTop: '12px'}}>
             <${UI.Micro}>waiting for an owner<//>
             <div class="stack tight" style=${{marginTop: '8px'}}>
               ${k.unowned.slice(0, 5).map(t => html`<button type="button" class="listrow rowbtn" key=${t.id} onClick=${() => M.nav('#tasks/' + t.id)}>
                 <span class="grow">${t.title || 'Untitled'}</span>
                 <${UI.Pill} kind="flame-o">no owner<//>
               </button>`)}
+              ${k.departed.slice(0, 5).map(t => html`<button type="button" class="listrow rowbtn" key=${t.id} onClick=${() => M.nav('#tasks/' + t.id)}>
+                <span class="grow">${t.title || 'Untitled'}</span>
+                <${UI.Pill}>owner left<//>
+              </button>`)}
+              ${k.unowned.length + k.departed.length > 10 ? html`<button type="button" class="linky small" onClick=${() => M.nav('#tasks')}>${'and ' + (k.unowned.length + k.departed.length - 10) + ' more on the board'}</button>` : null}
             </div>
           </div>` : null}
           ${k.open ? null : html`<${UI.Empty} text="No open tasks yet."/>`}

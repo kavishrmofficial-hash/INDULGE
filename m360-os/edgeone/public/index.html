@@ -1390,7 +1390,7 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
   .cl-news .t{flex-basis:100%}
 }
 </style>
-<script>window.M360_BUILD = "fe47f47+.260928-0002";</script><script>
+<script>window.M360_BUILD = "ad26b1e+.260928-0010";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -3429,7 +3429,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const marks = ((((ctx.coll.review.map[m.uid] || {}).weeks || {})[wk]) || {}).marks || {};
       const eods = (ctx.coll.eod.map[m.uid] || {}).days || {};
       const recentBlock = Object.keys(eods).sort().slice(-3).map(d => eods[d].blocked).filter(Boolean);
-      const pts = (M.points && M.points.pointsFor) ? M.points.pointsFor(ctx, m.uid, U.periodRange('week').from, U.periodRange('week').to) : null;
+      const br = (M.points && M.points.boardRange) ? M.points.boardRange(ctx, 'week') : {...U.periodRange('week'), label: 'this week'};
+      const pts = (M.points && M.points.pointsFor) ? M.points.pointsFor(ctx, m.uid, br.from, br.to) : null;
       const lad = (M.points && M.points.ladder) ? M.points.ladder(ctx, m.uid, new Date()).level : 'clear';
       const flags = ctx.flags.filter(f => f.uid === m.uid).map(f => (M.rules && M.rules.NAMES[f.rule]) || f.rule);
       /* lateness, location, points, ladder and flags are private to the person and the founder */
@@ -3440,7 +3441,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         ctx.online && ctx.online[m.uid] ? 'online now' : 'offline',
         open.length + ' open tasks, ' + over.length + ' overdue' + (over.length ? ' (' + over.slice(0, 3).map(t => t.title).join('; ') + ')' : ''),
         'outcomes this week ' + plan.length + ' planned' + (see ? ', ' + Object.values(marks).filter(x => x === 'hit').length + ' hit, ' + Object.values(marks).filter(x => x === 'miss').length + ' missed' : ''),
-        see && pts ? 'points this week ' + pts.total : '',
+        see && pts ? 'points ' + (br.label || 'this week') + ' ' + pts.total : '',
         see ? 'ladder ' + lad : '',
         recentBlock.length ? 'recent blockers: ' + recentBlock.join(' | ') : '',
         see && flags.length ? 'flags: ' + flags.join(', ') : ''
@@ -4260,9 +4261,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   }
 
   /* ---------- boardRange ---------- */
-  /* The range a board covers, {from, to, label}. A week runs Monday to Saturday, so on Monday nothing
-     has scored yet: the week board keeps the week that just closed until one working day of the new
-     week is behind us. label is 'this week' or 'last week' for the week period and '' otherwise. */
+  /* The range a board covers, {from, to, label}. A week runs Monday to Saturday, so early on Monday nothing
+     has scored yet: the week board keeps the week that just closed until a working day of the new week is
+     behind us or someone scores in it, whichever comes first, and only while the closed week has something
+     to show. label is 'this week' or 'last week' for the week period and '' otherwise. */
   function boardRange(ctx, period, now) {
     const d = nowDate(ctx, now);
     const p = period || 'week';
@@ -4270,8 +4272,13 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     if (p !== 'week') return {from: range.from, to: range.to, label: ''};
     const today = U.ymd(d);
     const behind = workingDays(ctx, null, range.from, today).filter(x => x < today);
-    if (behind.length) return {from: range.from, to: range.to, label: 'this week'};
+    /* something happened in the range: a check-in, an EOD line, a plan, a mark, a task, kudos; an open task
+       going overdue is a penalty that accrues by itself and never counts as the week starting */
+    const QUIET = {overdueOpen: 1, outcomeMiss: 1, revision: 1};
+    const scored = (from, to) => ((ctx && ctx.activeMembers) || []).some(m => { const c = pointsFor(ctx, m.uid, from, to).counts || {}; return Object.keys(c).some(k => !QUIET[k] && c[k] > 0); });
+    if (behind.length || scored(range.from, range.to)) return {from: range.from, to: range.to, label: 'this week'};
     const prev = U.periodRange('week', U.addDays(U.parseYmd(range.from), -7));
+    if (!scored(prev.from, prev.to)) return {from: range.from, to: range.to, label: 'this week'};
     return {from: prev.from, to: prev.to, label: 'last week'};
   }
 
@@ -6610,7 +6617,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const list = (M.tasks && M.tasks.open) ? M.tasks.open(ctx) : [];
     const pmap = (ctx.coll && ctx.coll.projects && ctx.coll.projects.map) || {};
     const viaProject = t => !!(t.project && pmap[t.project] && !pmap[t.project].archived && pmap[t.project].client === id);
-    return list.filter(t => t && (t.client === id || viaProject(t))).length;
+    return list.filter(t => t && (t.client === id || (!t.client && viaProject(t)))).length;
   }
 
   /* the domain in a website or an address: "https://www.swisse.ae/shop" gives "swisse.ae" */
@@ -9086,7 +9093,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       <//>` : null}
 
       <${UI.Card} title="Leaderboard" action=${lastWeek ? html`<span class="pill ink">last week</span>` : null}>
-        ${lastWeek ? html`<div class="small ink62" style=${{marginBottom: '10px'}}>The first working day of the week is still open. The board shows last week until it is done.</div>` : null}
+        ${lastWeek ? html`<div class="small ink62" style=${{marginBottom: '10px'}}>Nothing has scored in the new week yet. The board shows last week until someone does.</div>` : null}
         ${board.length ? html`<div class="stack tight">
           ${board.map((r, i) => html`<div class="listrow" key=${r.uid}>
             <span class="num ink62" style=${{width: '20px'}}>${i + 1}</span>
@@ -11417,15 +11424,18 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const overdue = openTasks.filter(t => t.due && t.due < today).length;
       const dueWeek = openTasks.filter(t => t.due && t.due >= today && t.due <= wk.to).length;
       const noDue = openTasks.filter(t => !t.due).length;
-      const shippedWeek = taskList.filter(t => t.status === 'done' && t.doneAt && U.ymd(new Date(t.doneAt)) >= wk.from).length;
-      const unowned = openTasks.filter(t => !t.owner || !onRoster[t.owner]).sort((a, b) => (b.created || 0) - (a.created || 0));
+      const shippedWeek = taskList.filter(t => t.status === 'done' && isFinite(Number(t.doneAt)) && Number(t.doneAt) > 0 && U.ymd(new Date(Number(t.doneAt))) >= wk.from && U.ymd(new Date(Number(t.doneAt))) <= wk.to).length;
+      const byNewest = (a, b) => (b.created || 0) - (a.created || 0);
+      const unowned = openTasks.filter(t => !t.owner).sort(byNewest);
+      /* owned by someone who is no longer on the roster: still someone's, and worth a new name */
+      const departed = openTasks.filter(t => t.owner && !onRoster[t.owner]).sort(byNewest);
       const high = (ctx.flags || []).filter(f => f.severity === 'high').length;
       const pm = (M.pitches && M.pitches.metrics) ? M.pitches.metrics(ctx) : {weighted: 0, byStage: {}, winRate90: null, overdue: []};
       const sh = (M.clients && M.clients.shares) ? M.clients.shares(ctx) : [];
       const topShare = sh.reduce((n, r) => Math.max(n, r.share || 0), 0);
       const energy = (M.voice && M.voice.energyByWeek) ? M.voice.energyByWeek(ctx, 8) : [];
       const lastEnergy = energy.slice().reverse().find(e => e && e.avg != null);
-      return {rows, inToday, late, office, verified, eodY, eodDue, hit, planned, overdue, open: openTasks.length, dueWeek, noDue, shippedWeek, unowned,
+      return {rows, inToday, late, office, verified, eodY, eodDue, hit, planned, overdue, open: openTasks.length, dueWeek, noDue, shippedWeek, unowned, departed,
         high, pm, sh, topShare, energy, lastEnergy, yday};
     }, [ctx, members]);
 
@@ -11567,13 +11577,18 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           </div>
           <div class="small ink62" style=${{marginTop: '10px'}}>
             ${k.shippedWeek + ' shipped this week' + (k.noDue ? ', ' + k.noDue + ' open with no due date' : '')}</div>
-          ${k.unowned.length ? html`<div style=${{marginTop: '12px'}}>
+          ${k.unowned.length || k.departed.length ? html`<div style=${{marginTop: '12px'}}>
             <${UI.Micro}>waiting for an owner<//>
             <div class="stack tight" style=${{marginTop: '8px'}}>
               ${k.unowned.slice(0, 5).map(t => html`<button type="button" class="listrow rowbtn" key=${t.id} onClick=${() => M.nav('#tasks/' + t.id)}>
                 <span class="grow">${t.title || 'Untitled'}</span>
                 <${UI.Pill} kind="flame-o">no owner<//>
               </button>`)}
+              ${k.departed.slice(0, 5).map(t => html`<button type="button" class="listrow rowbtn" key=${t.id} onClick=${() => M.nav('#tasks/' + t.id)}>
+                <span class="grow">${t.title || 'Untitled'}</span>
+                <${UI.Pill}>owner left<//>
+              </button>`)}
+              ${k.unowned.length + k.departed.length > 10 ? html`<button type="button" class="linky small" onClick=${() => M.nav('#tasks')}>${'and ' + (k.unowned.length + k.departed.length - 10) + ' more on the board'}</button>` : null}
             </div>
           </div>` : null}
           ${k.open ? null : html`<${UI.Empty} text="No open tasks yet."/>`}
@@ -12695,7 +12710,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const flagN = (ctx.myFlags || []).length;
     const inN = ctx.activeMembers.filter(m => { const s = M.att.dayStatus(ctx, m.uid, td).status; return s === 'office' || s === 'wfh'; }).length;
     const wk = U.periodRange('week', new Date(ctx.now));
-    const ptsWk = (M.points && M.points.pointsFor) ? M.points.pointsFor(ctx, ctx.uid, wk.from, wk.to).total : 0;
+    const brWk = (M.points && M.points.boardRange) ? M.points.boardRange(ctx, 'week', new Date(ctx.now)) : {from: wk.from, to: wk.to, label: 'this week'};
+    const ptsWk = (M.points && M.points.pointsFor) ? M.points.pointsFor(ctx, ctx.uid, brWk.from, brWk.to).total : 0;
     const n = (k, one, many) => k + ' ' + (k === 1 ? one : many);
 
     return html`<div class="stack" style=${{gap: '18px'}}>
@@ -12718,7 +12734,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           <${F} title="My projects" summary=${n(projN, 'active project', 'active projects')} id="fold-projects"><${MyProjects}/><//>
         </div>
         <div class="stack" style=${{gap: '18px'}}>
-          <${F} title="My numbers" summary=${ptsWk + ' points this week'} id="fold-numbers"><${Numbers}/><//>
+          <${F} title="My numbers" summary=${ptsWk + ' points ' + (brWk.label || 'this week')} id="fold-numbers"><${Numbers}/><//>
           <${F} title="My week" summary="check-ins and EOD lines, Monday to Saturday" id="fold-week"><${MyWeek}/><//>
           <${F} title="Rule box" summary=${flagN ? n(flagN, 'flag on you', 'flags on you') : 'all clear'} hot=${flagN > 0} open=${flagN > 0} id="fold-rules"><${HeadsUp}/><//>
           <${Nudges}/>
@@ -13182,7 +13198,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     /* open tasks nobody on the roster owns: they count here too, or the board and this card disagree */
     const onRoster = {};
     ctx.activeMembers.forEach(m => { onRoster[m.uid] = true; });
-    const loose = Object.keys(map).map(id => ({id, ...map[id]})).filter(t => t.status !== 'done' && !onRoster[t.owner]);
+    const openAll = Object.keys(map).filter(id => map[id]).map(id => ({id, ...map[id]})).filter(t => t.status !== 'done');
+    const loose = openAll.filter(t => !t.owner);
+    const left = openAll.filter(t => t.owner && !onRoster[t.owner]);
 
     async function rebalance() {
       const slice = await M.ai.teamSlice(ctx);
@@ -13221,6 +13239,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           <span style=${{minWidth: '120px', fontWeight: 600}}>No owner</span>
           <span class="grow small ink62" style=${{minWidth: '120px'}}>${loose.length === 1 ? 'one open task waits for a name' : loose.length + ' open tasks wait for a name'}</span>
           <button type="button" class="linky small" onClick=${() => M.nav('#tasks/' + loose[0].id)}>Assign</button>
+        </div>` : null}
+        ${left.length ? html`<div class="listrow">
+          <span style=${{minWidth: '120px', fontWeight: 600}}>Owner left</span>
+          <span class="grow small ink62" style=${{minWidth: '120px'}}>${left.length === 1 ? 'one open task sits with someone off the roster' : left.length + ' open tasks sit with people off the roster'}</span>
+          <button type="button" class="linky small" onClick=${() => M.nav('#tasks/' + left[0].id)}>Reassign</button>
         </div>` : null}
       </div>
       ${r.state === 'error' ? html`<div class="small flame-t" style=${{marginTop: '10px'}}>${M.ai.errCopy(r.err)}</div>` : null}
@@ -13277,7 +13300,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           <${Tile} v=${n.inNow + '/' + n.people.length} l="in today" to="#command"/>
           <${Tile} v=${Object.keys(ctx.online).length} l="online now"/>
           <${Tile} v=${n.late} l="late today" to="#command" hot=${n.late > 0}/>
-          <${Tile} v=${n.overdue + '/' + n.open} l="tasks overdue" to="#tasks" hot=${n.overdue > 0}/>
+          <${Tile} v=${n.overdue + ' of ' + n.open} l="tasks overdue" to="#tasks" hot=${n.overdue > 0}/>
           <${Tile} v=${U.inr(n.pm.weighted)} l="weighted pipeline" to="#pitches"/>
           <${Tile} v=${U.inr(n.mrr)} l="monthly revenue" to="#clients"/>
           <${Tile} v=${n.lastEn ? n.lastEn.avg.toFixed(1) + '/5' : 'n/a'} l="team energy" to="#voice" hot=${!!(n.lastEn && n.lastEn.avg < 3)}/>

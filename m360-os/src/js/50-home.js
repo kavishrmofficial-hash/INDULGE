@@ -657,7 +657,8 @@
     const flagN = (ctx.myFlags || []).length;
     const inN = ctx.activeMembers.filter(m => { const s = M.att.dayStatus(ctx, m.uid, td).status; return s === 'office' || s === 'wfh'; }).length;
     const wk = U.periodRange('week', new Date(ctx.now));
-    const ptsWk = (M.points && M.points.pointsFor) ? M.points.pointsFor(ctx, ctx.uid, wk.from, wk.to).total : 0;
+    const brWk = (M.points && M.points.boardRange) ? M.points.boardRange(ctx, 'week', new Date(ctx.now)) : {from: wk.from, to: wk.to, label: 'this week'};
+    const ptsWk = (M.points && M.points.pointsFor) ? M.points.pointsFor(ctx, ctx.uid, brWk.from, brWk.to).total : 0;
     const n = (k, one, many) => k + ' ' + (k === 1 ? one : many);
 
     return html`<div class="stack" style=${{gap: '18px'}}>
@@ -680,7 +681,7 @@
           <${F} title="My projects" summary=${n(projN, 'active project', 'active projects')} id="fold-projects"><${MyProjects}/><//>
         </div>
         <div class="stack" style=${{gap: '18px'}}>
-          <${F} title="My numbers" summary=${ptsWk + ' points this week'} id="fold-numbers"><${Numbers}/><//>
+          <${F} title="My numbers" summary=${ptsWk + ' points ' + (brWk.label || 'this week')} id="fold-numbers"><${Numbers}/><//>
           <${F} title="My week" summary="check-ins and EOD lines, Monday to Saturday" id="fold-week"><${MyWeek}/><//>
           <${F} title="Rule box" summary=${flagN ? n(flagN, 'flag on you', 'flags on you') : 'all clear'} hot=${flagN > 0} open=${flagN > 0} id="fold-rules"><${HeadsUp}/><//>
           <${Nudges}/>

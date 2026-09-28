@@ -203,6 +203,18 @@ def test(h):
     check(l2 == {'misses': 2, 'level': 'warning'}, 'm2 ladder %r, expected warning from 2 misses' % l2)
     check(lf == {'misses': 0, 'level': 'clear'}, 'founder ladder %r' % lf)
 
+    # ---- the week a board covers: this week once anyone has scored in it, else last week while it has something ----
+    br = h.ctx(page, 'M.points.boardRange(ctx, "week", new Date())')
+    check(br['from'] == week_from and br['label'] == 'this week', 'board range on Thursday %r' % br)
+    d0 = mon + timedelta(days=7)
+    br = h.ctx(page, 'M.points.boardRange(ctx, "week", new Date(%d, %d, %d, 9, 0))' % (d0.year, d0.month - 1, d0.day))
+    check(br['from'] == week_from and br['label'] == 'last week', 'next Monday at 9 holds this week %r' % br)
+    d1 = mon + timedelta(days=14)
+    br = h.ctx(page, 'M.points.boardRange(ctx, "week", new Date(%d, %d, %d, 9, 0))' % (d1.year, d1.month - 1, d1.day))
+    check(br['from'] == ymd(d1) and br['label'] == 'this week', 'an empty week after an empty week shows itself %r' % br)
+    br = h.ctx(page, 'M.points.boardRange(ctx, "week", new Date(%d, %d, %d, 9, 0))' % (mon.year, mon.month - 1, mon.day))
+    check(br['from'] == week_from and br['label'] == 'this week', 'a Monday with points already scored shows this week %r' % br)
+
     # ---- leaderboard ----
     lb = h.ctx(page, 'M.points.leaderboard(ctx, "week", new Date())')
     check([r['uid'] for r in lb] == [M1, M2], 'leaderboard order %r, expected m1 then m2 without the founder' % [r['uid'] for r in lb])

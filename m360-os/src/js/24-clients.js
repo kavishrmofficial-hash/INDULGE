@@ -54,7 +54,7 @@
     const list = (M.tasks && M.tasks.open) ? M.tasks.open(ctx) : [];
     const pmap = (ctx.coll && ctx.coll.projects && ctx.coll.projects.map) || {};
     const viaProject = t => !!(t.project && pmap[t.project] && !pmap[t.project].archived && pmap[t.project].client === id);
-    return list.filter(t => t && (t.client === id || viaProject(t))).length;
+    return list.filter(t => t && (t.client === id || (!t.client && viaProject(t)))).length;
   }
 
   /* the domain in a website or an address: "https://www.swisse.ae/shop" gives "swisse.ae" */

@@ -88,7 +88,7 @@
       <//>` : null}
 
       <${UI.Card} title="Leaderboard" action=${lastWeek ? html`<span class="pill ink">last week</span>` : null}>
-        ${lastWeek ? html`<div class="small ink62" style=${{marginBottom: '10px'}}>The first working day of the week is still open. The board shows last week until it is done.</div>` : null}
+        ${lastWeek ? html`<div class="small ink62" style=${{marginBottom: '10px'}}>Nothing has scored in the new week yet. The board shows last week until someone does.</div>` : null}
         ${board.length ? html`<div class="stack tight">
           ${board.map((r, i) => html`<div class="listrow" key=${r.uid}>
             <span class="num ink62" style=${{width: '20px'}}>${i + 1}</span>

@@ -252,9 +252,10 @@
   }
 
   /* ---------- boardRange ---------- */
-  /* The range a board covers, {from, to, label}. A week runs Monday to Saturday, so on Monday nothing
-     has scored yet: the week board keeps the week that just closed until one working day of the new
-     week is behind us. label is 'this week' or 'last week' for the week period and '' otherwise. */
+  /* The range a board covers, {from, to, label}. A week runs Monday to Saturday, so early on Monday nothing
+     has scored yet: the week board keeps the week that just closed until a working day of the new week is
+     behind us or someone scores in it, whichever comes first, and only while the closed week has something
+     to show. label is 'this week' or 'last week' for the week period and '' otherwise. */
   function boardRange(ctx, period, now) {
     const d = nowDate(ctx, now);
     const p = period || 'week';
@@ -262,8 +263,13 @@
     if (p !== 'week') return {from: range.from, to: range.to, label: ''};
     const today = U.ymd(d);
     const behind = workingDays(ctx, null, range.from, today).filter(x => x < today);
-    if (behind.length) return {from: range.from, to: range.to, label: 'this week'};
+    /* something happened in the range: a check-in, an EOD line, a plan, a mark, a task, kudos; an open task
+       going overdue is a penalty that accrues by itself and never counts as the week starting */
+    const QUIET = {overdueOpen: 1, outcomeMiss: 1, revision: 1};
+    const scored = (from, to) => ((ctx && ctx.activeMembers) || []).some(m => { const c = pointsFor(ctx, m.uid, from, to).counts || {}; return Object.keys(c).some(k => !QUIET[k] && c[k] > 0); });
+    if (behind.length || scored(range.from, range.to)) return {from: range.from, to: range.to, label: 'this week'};
     const prev = U.periodRange('week', U.addDays(U.parseYmd(range.from), -7));
+    if (!scored(prev.from, prev.to)) return {from: range.from, to: range.to, label: 'this week'};
     return {from: prev.from, to: prev.to, label: 'last week'};
   }
 

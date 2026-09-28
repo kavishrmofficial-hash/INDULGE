@@ -170,7 +170,8 @@
       const marks = ((((ctx.coll.review.map[m.uid] || {}).weeks || {})[wk]) || {}).marks || {};
       const eods = (ctx.coll.eod.map[m.uid] || {}).days || {};
       const recentBlock = Object.keys(eods).sort().slice(-3).map(d => eods[d].blocked).filter(Boolean);
-      const pts = (M.points && M.points.pointsFor) ? M.points.pointsFor(ctx, m.uid, U.periodRange('week').from, U.periodRange('week').to) : null;
+      const br = (M.points && M.points.boardRange) ? M.points.boardRange(ctx, 'week') : {...U.periodRange('week'), label: 'this week'};
+      const pts = (M.points && M.points.pointsFor) ? M.points.pointsFor(ctx, m.uid, br.from, br.to) : null;
       const lad = (M.points && M.points.ladder) ? M.points.ladder(ctx, m.uid, new Date()).level : 'clear';
       const flags = ctx.flags.filter(f => f.uid === m.uid).map(f => (M.rules && M.rules.NAMES[f.rule]) || f.rule);
       /* lateness, location, points, ladder and flags are private to the person and the founder */
@@ -181,7 +182,7 @@
         ctx.online && ctx.online[m.uid] ? 'online now' : 'offline',
         open.length + ' open tasks, ' + over.length + ' overdue' + (over.length ? ' (' + over.slice(0, 3).map(t => t.title).join('; ') + ')' : ''),
         'outcomes this week ' + plan.length + ' planned' + (see ? ', ' + Object.values(marks).filter(x => x === 'hit').length + ' hit, ' + Object.values(marks).filter(x => x === 'miss').length + ' missed' : ''),
-        see && pts ? 'points this week ' + pts.total : '',
+        see && pts ? 'points ' + (br.label || 'this week') + ' ' + pts.total : '',
         see ? 'ladder ' + lad : '',
         recentBlock.length ? 'recent blockers: ' + recentBlock.join(' | ') : '',
         see && flags.length ? 'flags: ' + flags.join(', ') : ''
