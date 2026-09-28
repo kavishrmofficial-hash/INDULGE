@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>m360 OS, the 90 second keynote</title>
+<style>
+@font-face{font-family:'Space Grotesk';font-weight:300 700;src:url(sg-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Space Grotesk';font-weight:300 700;src:url(sg-latin-ext.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:'Space Grotesk';font-weight:300 700;src:url(sg-rupee.woff2) format('woff2');unicode-range:U+20B9}
+:root{--ink:#0E0E0E;--flame:#F53901;--paper:#fff;--warm:#F7F6F2}
+*{box-sizing:border-box;margin:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:#000}
+body{font-family:'Space Grotesk','Noto Color Emoji',sans-serif;font-weight:300;color:#fff;-webkit-font-smoothing:antialiased}
+b{font-weight:600}
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;overflow:hidden;background:#0A0A0A}
+.scene{position:absolute;inset:0;opacity:0;overflow:hidden;background:radial-gradient(120% 90% at 50% 40%,#1c1b19 0%,#0A0A0A 70%)}
+.scene.paper{background:var(--warm);color:var(--ink)}
+.a{position:absolute;opacity:0;will-change:transform,opacity}
+.cx{left:0;right:0;text-align:center}
+.h0{font-weight:600;font-size:200px;letter-spacing:-.05em;line-height:.95}
+.h1{font-weight:600;font-size:132px;letter-spacing:-.045em;line-height:.98}
+.h2{font-weight:600;font-size:80px;letter-spacing:-.04em;line-height:1.02}
+.h3{font-weight:500;font-size:48px;letter-spacing:-.03em;line-height:1.1}
+.sub{font-weight:300;font-size:36px;color:rgba(255,255,255,.62)}
+.flame{color:var(--flame)}
+.micro{font-size:20px;font-weight:400;letter-spacing:.16em;text-transform:lowercase;color:rgba(255,255,255,.55);display:flex;align-items:center;gap:12px}
+.micro::before{content:"";width:9px;height:9px;border-radius:9px;background:var(--flame);flex:none}
+/* a real screen, 1440x900 css px, framed like a floating window */
+.win{position:absolute;left:0;top:0;width:1440px;height:900px;border-radius:26px;overflow:hidden;background:#F7F6F2;box-shadow:0 60px 140px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.08);transform-origin:0 0;will-change:transform,opacity}
+.camv{position:absolute;left:0;top:0;width:1440px;height:900px;transform-origin:0 0;will-change:transform}
+.camv img{position:absolute;left:0;top:0;width:1440px;height:900px;display:block}
+.cursor{position:absolute;left:0;top:0;width:34px;height:34px;z-index:50;opacity:0;pointer-events:none}
+.cursor svg{width:34px;height:34px;filter:drop-shadow(0 3px 6px rgba(0,0,0,.35))}
+.ripple{position:absolute;width:70px;height:70px;border-radius:99px;border:3px solid var(--flame);opacity:0;z-index:49}
+.ring{position:absolute;border:3px solid var(--flame);border-radius:14px;box-shadow:0 0 0 6px rgba(245,57,1,.16),0 0 40px rgba(245,57,1,.25);opacity:0;z-index:48}
+.dim{position:absolute;inset:0;background:#0A0A0A;opacity:0;pointer-events:none}
+/* captions: the black keynote pill */
+.cap{position:absolute;left:96px;bottom:60px;background:#0A0A0A;color:#fff;border-radius:22px;padding:22px 38px;font-size:46px;font-weight:600;letter-spacing:-.03em;white-space:nowrap;box-shadow:0 30px 70px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.08);z-index:60}
+.cap.fl{background:var(--flame)}
+.cap.white{background:#fff;color:var(--ink)}
+.cap .k{color:rgba(255,255,255,.5);font-weight:400;margin-right:10px}
+.words{position:absolute;left:96px;bottom:60px;display:flex;gap:16px;z-index:60}
+.words .w{position:relative;opacity:0;background:#0A0A0A;color:#fff;border-radius:22px;padding:22px 34px;font-size:46px;font-weight:600;letter-spacing:-.03em;white-space:nowrap;box-shadow:0 30px 70px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.08)}
+.words .w.fl{background:var(--flame)}
+/* phone for the hook */
+.phone{left:1190px;top:80px;width:470px;height:920px;border-radius:62px;background:#141414;border:10px solid #2a2a2a;overflow:hidden;box-shadow:0 60px 140px rgba(0,0,0,.7)}
+.notif{position:absolute;left:18px;right:18px;height:96px;border-radius:22px;background:rgba(255,255,255,.1);padding:14px 18px;color:#fff}
+.notif .ap{font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.55);display:flex;gap:8px;align-items:center}
+.notif .ap i{width:18px;height:18px;border-radius:5px;background:rgba(255,255,255,.35);display:inline-block}
+.notif.hot{background:rgba(245,57,1,.92)} .notif.hot .ap{color:rgba(255,255,255,.85)} .notif.hot .ap i{background:#fff}
+.notif .tt{font-weight:600;font-size:20px;margin-top:4px}
+.notif .tx{font-size:19px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.grid-l{position:absolute;color:#fff;font-size:26px;font-weight:500;letter-spacing:-.01em;opacity:0;text-align:center}
+.num{font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script src="mark.js"></script>
+<script src="boxes.js"></script>
+<script>
+'use strict';
+/* ---------- timing: one entry per line group of m360-keynote-90s.md ----------
+   dur is seconds for the group, words the word count of each line, so the beats land on the lines.
+   With the real ElevenLabs clip, put each group's measured length into dur. */
+const SCENES_T = [
+  {dur: 11.5, words: [4, 9, 10, 9]},          /* hook */
+  {dur: 4.6, words: [4, 7]},                  /* reveal */
+  {dur: 9.4, words: [3, 3, 6, 8, 3]},         /* the day */
+  {dur: 7.2, words: [3, 5, 4, 5]},            /* the week */
+  {dur: 10.2, words: [4, 3, 9, 3, 6]},        /* the game */
+  {dur: 7.8, words: [4, 4, 11]},              /* the vibe */
+  {dur: 12.2, words: [11, 6, 8, 6]},          /* clients and new business */
+  {dur: 4.6, words: [11]},                    /* the buddy */
+  {dur: 6.2, words: [10, 2]},                 /* everything else */
+  {dur: 4.4, words: [7]},                     /* the founder */
+  {dur: 5.6, words: [1, 9]}                   /* close */
+];
+const LEAD = 0.3, TAIL = 0.5, XF = 0.28;
+
+/* ---------- motion helpers ---------- */
+const E = {
+  out: t => 1 - Math.pow(1 - t, 3),
+  inout: t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
+  back: t => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); },
+  snap: t => 1 - Math.pow(1 - t, 5)
+};
+const cl = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const P = (lt, a, d = .5, e = E.out) => e(cl((lt - a) / d));
+function st(el, o, x = 0, y = 0, s = 1, r = 0) { el.style.opacity = o; el.style.transform = `translate(${x}px,${y}px) scale(${s}) rotate(${r}deg)`; }
+function vis(lt, a, b = Infinity, din = .4, dout = .3) { return P(lt, a, din) * (1 - P(lt, b, dout, E.inout)); }
+function rise(el, lt, a, b = Infinity, dy = 36, d = .5) { const pi = P(lt, a, d), po = P(lt, b, .3, E.inout); st(el, pi * (1 - po), 0, (1 - pi) * dy - po * 16); }
+function pop(el, lt, a, b = Infinity, s0 = .6, d = .45) { const pi = P(lt, a, d, E.back), po = P(lt, b, .28, E.inout); st(el, cl(P(lt, a, .18)) * (1 - po), 0, 0, (s0 + (1 - s0) * pi) * (1 - po * .1)); }
+function count(el, lt, a, d, v0, v1, fmt = x => Math.round(x).toLocaleString('en-IN')) { el.textContent = fmt(v0 + (v1 - v0) * P(lt, a, d, E.inout)); }
+function track(lt, keys, e = E.inout) {
+  if (lt <= keys[0][0]) return keys[0].slice(1);
+  for (let i = 1; i < keys.length; i++) if (lt <= keys[i][0]) {
+    const A = keys[i - 1], B = keys[i], p = e((lt - A[0]) / (B[0] - A[0]));
+    return A.slice(1).map((v, k) => v + (B[k + 1] - v) * p);
+  }
+  return keys[keys.length - 1].slice(1);
+}
+/* the window: place a 1440x900 screen on the 1920x1080 stage */
+const FULL = {x: 96, y: 0, s: 1.2};                 /* fills the height, 96px either side */
+function place(win, o, x = FULL.x, y = FULL.y, s = FULL.s, dy = 0) { win.style.opacity = o; win.style.transform = `translate(${x}px,${y + dy}px) scale(${s})`; }
+/* the camera inside a window: centre a box (css px of the 1440x900 page) at a zoom */
+/* boxes the capture could not measure, drawn by hand from the screens (css px of the 1440x900 page) */
+const MANUAL = {'day-before': {card: [912, 84, 412, 214]}, 'day-mood': {card: [912, 84, 412, 214]}, 'day-eod': {eod: [300, 330, 642, 400], blocked: [320, 612, 602, 48]}, pulse: {energy: [298, 60, 1080, 430]}};
+const BOX = (shot, key) => { const b = ((MANUAL[shot] || {})[key]) || ((BOXES[shot] || {})[key]) || [0, 0, 1440, 900]; return [b[0], b[1], b[2], Math.min(b[3], 900)]; };
+function camOf(shot, key, pad = 40, maxZ = 1.85, minZ = 1) {
+  const b = BOX(shot, key);
+  const z = Math.max(1, minZ, Math.min(maxZ, 1440 / (b[2] + 2 * pad), 900 / (b[3] + 2 * pad)));
+  return [b[0] + b[2] / 2, b[1] + b[3] / 2, z];
+}
+const HOME = [720, 450, 1];
+function cam(v, cx, cy, z) {
+  let tx = 720 - z * cx, ty = 450 - z * cy;
+  tx = cl(tx, 1440 - 1440 * z, 0); ty = cl(ty, 900 - 900 * z, 0);
+  v.style.transform = `translate(${tx}px,${ty}px) scale(${z})`;
+}
+function camTrack(v, lt, keys) { const [cx, cy, z] = track(lt, keys); cam(v, cx, cy, z); }
+/* keys: [[t, shot, key, pad?, maxZ?] ...] where key 'home' is the whole screen */
+const MOVE = .5;
+function camKeys(spec) {
+  const out = []; let prev = null;
+  for (const k of spec) {
+    const c = k[2] === 'home' ? HOME : camOf(k[1], k[2], k[3], k[4], k[5]);
+    const same = prev && Math.abs(prev[0] - c[0]) < .5 && Math.abs(prev[1] - c[1]) < .5 && Math.abs(prev[2] - c[2]) < .001;
+    const d = k[6] != null ? k[6] : MOVE;
+    if (!prev || same) out.push([k[0], c[0], c[1], c[2]]);
+    else { out.push([k[0], prev[0], prev[1], prev[2]]); out.push([k[0] + Math.max(.001, d), c[0], c[1], c[2]]); }
+    prev = c;
+  }
+  return out;
+}
+/* a window that cuts in hard, with a small settle, over one or more [in, out] ranges */
+function cutIn(win, lt, ...ranges) {
+  let o = 0, pp = 1;
+  for (const [a, b] of ranges) { o += vis(lt, a, b, .01, .2); if (lt >= a - .01 && lt < b) pp = .965 + .035 * P(lt, a, .4); }
+  const s = FULL.s * pp;
+  place(win, cl(o), 960 - 720 * s, 540 - 450 * s, s);
+}
+/* highlight ring on a box */
+function ring(el, lt, a, b, shot, key, pad = 10) {
+  const bx = BOX(shot, key);
+  el.style.left = (bx[0] - pad) + 'px'; el.style.top = (bx[1] - pad) + 'px'; el.style.width = (bx[2] + 2 * pad) + 'px'; el.style.height = (bx[3] + 2 * pad) + 'px';
+  const p = P(lt, a, .35, E.back), pulse = 1 + .015 * Math.sin((lt - a) * 9);
+  el.style.opacity = vis(lt, a, b, .2, .25);
+  el.style.transform = `scale(${(0.8 + .2 * p) * pulse})`;
+}
+function cursor(r, lt, keys, clicks, show = [0, Infinity]) {
+  const [x, y] = track(lt, keys);
+  let s = 1, ro = 0, rs = .3;
+  for (const c of clicks) { const k = lt - c; if (k > 0 && k < .25) s = 1 - .25 * Math.sin(k / .25 * Math.PI); if (k > 0 && k < .5) { ro = 1 - k / .5; rs = .3 + k / .5 * 1.1; } }
+  st(r.cur, vis(lt, show[0], show[1], .25, .25), x, y, s);
+  st(r.rip, ro, x - 35 + 4, y - 35 + 3, rs);
+}
+const CURSOR = `<div class="cursor" data-k="cur"><svg viewBox="0 0 24 24"><path d="M4 2l16 9-7 2-3 7z" fill="#0A0A0A" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg></div><div class="ripple" data-k="rip"></div>`;
+const bc = (shot, key) => { const b = BOX(shot, key); return [b[0] + b[2] / 2, b[1] + b[3] / 2]; };
+/* a window with one or more screenshots stacked; the first is visible */
+function W(name, shots, extra = '') {
+  return `<div class="win a" data-k="w_${name}"><div class="camv" data-k="v_${name}">${shots.map((s, i) => `<img data-k="i_${name}_${i}" src="capture/shots/${s}.png" style="opacity:${i ? 0 : 1}">`).join('')}${extra}</div></div>`;
+}
+function show(r, name, n, idx) { for (let i = 0; i < n; i++) r[`i_${name}_${i}`].style.opacity = i === idx ? 1 : 0; }
+const CAP = (k, txt, cls = '') => `<div class="cap a ${cls}" data-k="${k}">${txt}</div>`;
+const WORDS = (k, words) => `<div class="words" data-k="${k}">${words.map((w, i) => `<span class="w${/!$/.test(w) ? ' fl' : ''}" data-k="${k}${i}">${w.replace(/!$/, '')}</span>`).join('')}</div>`;
+function words(r, k, n, lt, a, gap = .3, b = Infinity) { for (let i = 0; i < n; i++) pop(r[k + i], lt, a + i * gap, b, .5, .38); }
+function cap(r, k, lt, a, b = Infinity) { const p = P(lt, a, .42, E.back), o = cl(P(lt, a, .15)) * (1 - P(lt, b, .25, E.inout)); r[k].style.opacity = o; r[k].style.transform = `translateY(${(1 - p) * 30}px) scale(${.85 + .15 * p})`; }
+
+/* ---------- scenes ---------- */
+const SC = [];
+
+/* 1. the hook */
+SC.push({html: () => {
+  const N = [['WhatsApp', 'Client: Tara Foods', 'Hey, where are we on the reels?', 1], ['WhatsApp', 'Reels team', 'who has the latest cut?'],
+    ['Gmail', 'Re: Fwd: Re: reels status', 'Looping in the team here...'], ['WhatsApp', 'Design x Strategy', 'which version did we send them'],
+    ['Sheets', 'Tracker_v7_FINAL', '3 people edited this sheet'], ['WhatsApp', 'Shoot day 2', 'did the call time move?'],
+    ['Gmail', 'Re: approvals', 'Did they approve v2 or v3?'], ['WhatsApp', 'Edits', 'final_final_v4.mp4'],
+    ['WhatsApp', 'Accounts', 'any update for the client?'], ['Gmail', 'Fwd: brief', 'see below, see below'],
+    ['WhatsApp', 'Reels team', '@all where are we on this'], ['WhatsApp', 'Client: Tara Foods', 'Hello?', 1]];
+  return `<div class="a" data-k="t0" style="left:120px;top:380px"><div class="micro">friday</div><div class="h0 num" style="margin-top:20px">7:40<span style="font-size:110px;letter-spacing:-.03em;font-weight:300"> pm</span></div></div>
+  <div class="a" data-k="t1" style="left:120px;top:330px;width:960px"><div class="micro">the client</div><div class="h1" style="margin-top:24px;font-size:112px">“Where are we<br>on the reels?”</div></div>
+  <div class="a" data-k="t2" style="left:120px;top:230px;width:1000px">
+    <div class="h1 num"><span data-k="c1">0</span> <span class="sub" style="font-size:64px">WhatsApp groups</span></div>
+    <div class="h1 num" style="margin-top:26px"><span data-k="c2">0</span> <span class="sub" style="font-size:64px">email threads</span></div>
+    <div class="h1 num" style="margin-top:26px"><span data-k="c3">0</span> <span class="sub" style="font-size:64px">very sad spreadsheet</span></div></div>
+  <div class="a h1" data-k="t3" style="left:120px;top:340px;width:1000px;font-size:104px">The work is<br>happening.</div>
+  <div class="a h1 flame" data-k="t4" style="left:120px;top:640px;width:1000px;font-size:104px">You just can't see it.</div>
+  <div class="a phone" data-k="phone">
+    <div style="position:absolute;left:0;right:0;top:80px;text-align:center;color:#fff"><div style="font-size:21px;opacity:.7">Friday</div><div style="font-size:116px;font-weight:300;letter-spacing:-.04em;line-height:1.1">19:40</div></div>
+    <div style="position:absolute;left:0;right:0;top:290px;bottom:0;overflow:hidden">${N.map((n, i) => `<div class="notif a${n[3] ? ' hot' : ''}" data-k="n${i}"><div class="ap"><i></i>${n[0]}<span style="margin-left:auto">now</span></div><div class="tt">${n[1]}</div><div class="tx">${n[2]}</div></div>`).join('')}</div>
+    <div class="dim" data-k="dim"></div></div>`;
+}, update(lt, r, B, dur) {
+  rise(r.t0, lt, B[0], B[1]); rise(r.t1, lt, B[1], B[2]); rise(r.t2, lt, B[2], B[3]);
+  count(r.c1, lt, B[2] + .1, .7, 0, 6); count(r.c2, lt, B[2] + .9, .6, 0, 3); count(r.c3, lt, B[2] + 1.7, .4, 0, 1);
+  rise(r.t3, lt, B[3] + .3); rise(r.t4, lt, B[3] + 1.5);
+  const ph = P(lt, .1, .9, E.back);
+  const shake = lt > B[3] ? Math.sin(lt * 45) * 3 * cl((lt - B[3]) / .8) * (1 - P(lt, dur - 1, .8)) : 0;
+  st(r.phone, cl(P(lt, .1, .3)), shake, (1 - ph) * 120, .9 + .1 * ph, shake * .15);
+  const times = [B[1] + .15]; const span = (B[3] + 1.2) - (B[2] + .1);
+  for (let i = 1; i < 11; i++) times.push(B[2] + .1 + span * Math.pow(i / 11, .85));
+  times.push(B[3] + .3);
+  for (let i = 0; i < 12; i++) {
+    const el = r['n' + i]; let slot = 0; for (let j = i + 1; j < 12; j++) slot += P(lt, times[j], .28);
+    const pi = P(lt, times[i], .38, E.back);
+    el.style.opacity = cl(P(lt, times[i], .15) * (1 - cl((slot - 5) / 1)));
+    el.style.transform = `translateY(${16 + slot * 108 - (1 - pi) * 40}px) scale(${.9 + .1 * pi})`;
+  }
+  r.dim.style.opacity = .55 * P(lt, B[3] + 1.2, 1);
+}});
+
+/* 2. the reveal */
+SC.push({html: () => `
+  <div class="a" data-k="mark" style="left:410px;top:300px;width:1100px;color:#fff">${MARK}</div>
+  <div class="a h2 cx" data-k="l1" style="top:700px;font-size:64px;color:rgba(255,255,255,.8);font-weight:400">One operating system for the whole agency.</div>
+  ${W('home', ['day-before'])}`,
+update(lt, r, B, dur) {
+  const rev = P(lt, B[0], .9, E.inout);
+  r.mark.style.clipPath = `inset(0 ${100 - rev * 100}% 0 0)`;
+  const up = P(lt, B[1], .7, E.inout);
+  st(r.mark, 1 - P(lt, B[1] + 1.2, .35), 0, -up * 180, 1 - up * .5);
+  rise(r.l1, lt, B[1] + .1, B[1] + 1.4);
+  const w = P(lt, B[1] + 1.2, dur - B[1] - 1.2, E.out);
+  place(r.w_home, cl(P(lt, B[1] + 1.2, .3)), FULL.x, FULL.y, FULL.s, (1 - w) * 1100);
+  cam(r.v_home, 720, 450, 1);
+}});
+
+/* 3. the day: mood, check in, EOD line, the blocker flags itself */
+SC.push({html: () => `
+  ${W('a', ['day-before', 'day-mood', 'day-after'], CURSOR + '<div class="ring" data-k="rg1"></div>')}
+  ${W('b', ['day-eod'], '<div class="ring" data-k="rg2"></div>')}
+  ${W('c', ['day-rules', 'command-flags'], '<div class="ring" data-k="rg3"></div><div class="ring" data-k="rg4"></div>')}
+  ${CAP('c1', 'on fire', 'fl')}${CAP('c2', '<span class="k">✓</span>Verified. Mumbai office.')}
+  ${WORDS('eod', ['shipped', 'next', 'blocked!'])}
+  ${CAP('c3', 'It flags itself.', 'fl')}
+  <div class="dim a" data-k="dim"></div>
+  <div class="a h1 cx" data-k="big" style="top:440px">Nobody chases anybody.</div>`,
+update(lt, r, B, dur) {
+  const moodAt = B[0] + .55, inAt = B[1] + .45;
+  cutIn(r.w_a, lt, [0, B[2]]);
+  show(r, 'a', 3, lt < moodAt ? 0 : lt < inAt ? 1 : 2);
+  camTrack(r.v_a, lt, camKeys([[0, 'day-before', 'home'], [B[0] + .45, 'day-before', 'card', 60, 1.6], [B[1] + .2, 'day-before', 'card', 60, 1.6], [B[1] + .7, 'day-after', 'in', 120, 1.85]]));
+  const m = bc('day-before', 'mood'), ci = bc('day-before', 'checkin');
+  cursor(r, lt, [[0, 1300, 800], [B[0] + .1, 1300, 800], [moodAt - .05, m[0], m[1]], [B[1] + .05, m[0], m[1]], [inAt - .05, ci[0], ci[1]], [inAt + .4, ci[0] + 60, ci[1] + 40]], [moodAt, inAt], [B[0], inAt + .5]);
+  ring(r.rg1, lt, inAt + .5, B[2], 'day-after', 'in', 14);
+  cap(r, 'c1', lt, moodAt + .1, B[1] + .3); cap(r, 'c2', lt, inAt + .5, B[2]);
+  /* EOD line */
+  cutIn(r.w_b, lt, [B[2], B[3]]);
+  camTrack(r.v_b, lt, camKeys([[B[2], 'day-eod', 'eod', 30, 1.5], [B[2] + 1.9, 'day-eod', 'blocked', 140, 1.8]]));
+  ring(r.rg2, lt, B[2] + 2.0, B[3], 'day-eod', 'blocked', 8);
+  words(r, 'eod', 3, lt, B[2] + .5, .45, B[3]);
+  /* it flags itself */
+  cutIn(r.w_c, lt, [B[3], dur + 1]);
+  const cut = B[3] + 1.5;
+  show(r, 'c', 2, lt < cut ? 0 : 1);
+  camTrack(r.v_c, lt, camKeys([[B[3], 'day-rules', 'rules', 30, 1.6], [cut - .01, 'day-rules', 'rules', 30, 1.6], [cut, 'command-flags', 'riya', 260, 1.6, 1, 0]]));
+  ring(r.rg3, lt, B[3] + .35, cut, 'day-rules', 'esc', 12);
+  ring(r.rg4, lt, cut + .2, B[4], 'command-flags', 'riya', 12);
+  cap(r, 'c3', lt, cut + .2, B[4]);
+  r.dim.style.opacity = .88 * P(lt, B[4], .35);
+  pop(r.big, lt, B[4] + .1, Infinity, .7);
+}});
+
+/* 4. the week */
+SC.push({html: () => `
+  ${W('a', ['week-outcomes'], '<div class="ring" data-k="rg1"></div>')}
+  ${W('b', ['board'], '<div class="ring" data-k="rg2"></div>')}
+  ${W('c', ['reviews'], '<div class="ring" data-k="rg3"></div>')}
+  ${CAP('c1', '<span class="k">mon</span>three outcomes')}${CAP('c2', '<span class="k">wed</span>the 20% check')}
+  ${CAP('c3', '<span class="k">fri</span>hit or miss')}${CAP('c4', '<span class="k">+1</span>every revision counted', 'fl')}
+  <div class="a h1 flame cx" data-k="rev" style="top:380px;font-size:180px">2 rev</div>`,
+update(lt, r, B, dur) {
+  cutIn(r.w_a, lt, [0, B[1]], [B[2], B[3]]);
+  camTrack(r.v_a, lt, camKeys([[0, 'week-outcomes', 'outcomes', 30, 1.5], [B[2], 'week-outcomes', 'outcomes', 30, 1.5], [B[2] + .5, 'week-outcomes', 'miss', 200, 1.8]]));
+  ring(r.rg1, lt, B[2] + .6, B[3], 'week-outcomes', 'miss', 10);
+  cap(r, 'c1', lt, B[0] + .2, B[1]); cap(r, 'c3', lt, B[2] + .2, B[3]);
+  cutIn(r.w_b, lt, [B[1], B[2]]);
+  camTrack(r.v_b, lt, camKeys([[B[1], 'board', 'card', 160, 1.6], [B[1] + 1.2, 'board', 'shown', 140, 1.85]]));
+  ring(r.rg2, lt, B[1] + .9, B[2], 'board', 'shown', 8);
+  cap(r, 'c2', lt, B[1] + .2, B[2]);
+  cutIn(r.w_c, lt, [B[3], dur + 1]);
+  camTrack(r.v_c, lt, camKeys([[B[3], 'reviews', 'row', 120, 1.7], [B[3] + 1, 'reviews', 'rev', 110, 1.85]]));
+  ring(r.rg3, lt, B[3] + .5, Infinity, 'reviews', 'rev', 8);
+  cap(r, 'c4', lt, B[3] + .3);
+}});
+
+/* 5. the game */
+SC.push({html: () => `
+  <div class="a h0 cx" data-k="g" style="top:400px">It's a <span class="flame">game.</span></div>
+  ${Array.from({length: 22}, (_, i) => `<div class="a" data-k="sp${i}" style="left:955px;top:500px;width:${8 + i % 3 * 6}px;height:${8 + i % 3 * 6}px;border-radius:99px;background:${i % 4 ? 'var(--flame)' : '#fff'}"></div>`).join('')}
+  ${W('t', ['trophies'], '<div class="ring" data-k="rg1"></div>')}
+  ${W('s', ['scores'], '<div class="ring" data-k="rg2"></div><div class="ring" data-k="rg3"></div>')}
+  ${CAP('c1', 'points for everything')}
+  <div class="dim a" data-k="dim"></div>
+  <div class="a" data-k="three" style="left:0;right:0;top:300px;text-align:center"><div class="h0 flame" style="font-size:300px">3×</div><div class="h3" style="margin-top:-10px">shipping beats showing up</div></div>
+  ${WORDS('slt', ['Streaks', 'Levels', 'Trophies!'])}
+  ${CAP('c2', 'a podium, every single week', 'fl')}`,
+update(lt, r, B, dur) {
+  pop(r.g, lt, B[0] + .05, B[1], .5);
+  for (let i = 0; i < 22; i++) {
+    const a = i / 22 * Math.PI * 2 + .4, p = P(lt, B[0] + .35, .9), dist = 260 + (i % 3) * 130;
+    st(r['sp' + i], (lt > B[0] + .35 ? 1 : 0) * (1 - P(lt, B[0] + 1, .4)), Math.cos(a) * dist * p, Math.sin(a) * dist * p * .7, 1 - p * .6);
+  }
+  /* trophies page: the chips, then the case */
+  cutIn(r.w_t, lt, [B[1], B[2]], [B[3], B[4]]);
+  camTrack(r.v_t, lt, camKeys([[B[1], 'trophies', 'chips', 60, 1.85], [B[3], 'trophies', 'chips', 60, 1.85], [B[3] + .9, 'trophies', 'case', 30, 1.4]]));
+  ring(r.rg1, lt, B[1] + .3, B[2], 'trophies', 'chips', 12);
+  cap(r, 'c1', lt, B[1] + .2, B[2]);
+  words(r, 'slt', 3, lt, B[3] + .1, .42, B[4]);
+  /* scores: the line, 3x, then the podium */
+  cutIn(r.w_s, lt, [B[2], B[3]], [B[4], dur + 1]);
+  camTrack(r.v_s, lt, camKeys([[B[2], 'scores', 'line', 40, 1.7, 1.4], [B[4], 'scores', 'line', 40, 1.7, 1.4], [B[4] + .5, 'scores', 'podium', 50, 1.5]]));
+  r.dim.style.opacity = .7 * vis(lt, B[2] + 1.5, B[3], .3, .25);
+  ring(r.rg2, lt, B[2] + .3, B[2] + 1.6, 'scores', 'line', 12);
+  const th = P(lt, B[2] + 1.5, .5, E.back);
+  st(r.three, cl(P(lt, B[2] + 1.5, .15)) * (1 - P(lt, B[3], .25)), 0, 0, .6 + .4 * th);
+  cap(r, 'c2', lt, B[4] + .5);
+}});
+
+/* 6. the vibe */
+SC.push({html: () => `
+  ${W('f', ['feed-kudos', 'home-riya'], '<div class="ring" data-k="rg1"></div>')}
+  ${W('c', ['chat', 'music'])}
+  ${W('p', ['pulse'], '<div class="ring" data-k="rg2"></div>')}
+  ${WORDS('v', ['Kudos', 'Wins', 'Polls', 'Birthdays!'])}
+  ${WORDS('t', ['Team chat', 'Shared music'])}
+  ${CAP('c3', 'an anonymous pulse', 'fl')}`,
+update(lt, r, B, dur) {
+  const step = (B[1] - B[0]) / 4;
+  cutIn(r.w_f, lt, [0, B[1]]);
+  show(r, 'f', 2, lt < B[0] + 3 * step ? 0 : 1);
+  camTrack(r.v_f, lt, camKeys([[0, 'feed-kudos', 'kudos', 40, 1.7, 1.5], [B[0] + step, 'feed-kudos', 'kudos', 40, 1.7, 1.5], [B[0] + step + .3, 'feed-kudos', 'win', 40, 1.7, 1.5],
+    [B[0] + 2 * step, 'feed-kudos', 'win', 40, 1.7, 1.5], [B[0] + 2 * step + .3, 'feed-kudos', 'poll', 40, 1.7, 1.5], [B[0] + 3 * step - .01, 'feed-kudos', 'poll', 40, 1.7, 1.5], [B[0] + 3 * step, 'home-riya', 'bday', 40, 1.7, 1.5, 0]]));
+  words(r, 'v', 4, lt, B[0] + .05, step, B[1]);
+  cutIn(r.w_c, lt, [B[1], B[2]]);
+  const half = B[1] + (B[2] - B[1]) / 2;
+  show(r, 'c', 2, lt < half ? 0 : 1);
+  camTrack(r.v_c, lt, camKeys([[B[1], 'chat', 'msgs', 260, 1.5], [half - .01, 'chat', 'msgs', 260, 1.5], [half, 'music', 'list', 40, 1.6, 1.45, 0]]));
+  words(r, 't', 2, lt, B[1] + .05, half - B[1], B[2]);
+  cutIn(r.w_p, lt, [B[2], dur + 1]);
+  camTrack(r.v_p, lt, camKeys([[B[2], 'pulse', 'energy', 60, 1.5, 1.3], [B[2] + 2.2, 'pulse', 'energy', 30, 1.65, 1.45]]));
+  ring(r.rg2, lt, B[2] + .5, Infinity, 'pulse', 'energy', 12);
+  cap(r, 'c3', lt, B[2] + .3);
+}});
+
+/* 7. clients and new business */
+SC.push({html: () => `
+  ${W('b', ['client-brain'], '<div class="ring" data-k="rg1"></div>')}
+  ${W('r', ['radar', 'pursue'], CURSOR + '<div class="ring" data-k="rg2"></div><div class="ring" data-k="rg3"></div>')}
+  ${W('p', ['palette'], '<div class="ring" data-k="rg4"></div>')}
+  ${CAP('c1', 'the lines we never cross', 'fl')}${CAP('c2', '<span class="k">radar</span>the industry, every morning')}
+  ${WORDS('pu', ['New CMO?', 'Pursue!', 'the pitch writes itself'])}
+  <div class="a" data-k="big" style="left:0;right:0;top:120px;text-align:center"><div class="h0 num" style="font-size:230px"><span data-k="bn">0</span></div><div class="h3" style="color:rgba(255,255,255,.7)">contacts in the Base</div></div>
+  ${CAP('c4', 'Just ask.', 'white')}`,
+update(lt, r, B, dur) {
+  cutIn(r.w_b, lt, [0, B[1]]);
+  camTrack(r.v_b, lt, camKeys([[0, 'client-brain', 'drawer', 20, 1.3], [B[0] + 1.3, 'client-brain', 'drawer', 20, 1.3], [B[0] + 1.9, 'client-brain', 'never', 120, 1.85]]));
+  ring(r.rg1, lt, B[0] + 2.0, B[1], 'client-brain', 'never', 10);
+  cap(r, 'c1', lt, B[0] + 2.1, B[1]);
+  /* radar, then pursue */
+  const clickAt = B[2] + .75, cut = clickAt + .3;
+  cutIn(r.w_r, lt, [B[1], B[3]]);
+  show(r, 'r', 2, lt < cut ? 0 : 1);
+  const st0 = BOX('radar', 'stream');
+  camTrack(r.v_r, lt, camKeys([[B[1], 'radar', 'chips', 300, 1.35], [B[2] - .3, 'radar', 'first', 140, 1.55], [cut - .01, 'radar', 'first', 140, 1.55], [cut, 'pursue', 'drawer', 20, 1.3, 1, 0], [cut + 1.6, 'pursue', 'write', 260, 1.7]]));
+  const pu = bc('radar', 'pursue');
+  cursor(r, lt, [[B[1], 1350, 850], [B[2] - .2, 1350, 850], [clickAt - .05, pu[0], pu[1]], [cut, pu[0], pu[1]]], [clickAt], [B[2] - .3, cut]);
+  ring(r.rg2, lt, cut + .3, cut + 1.5, 'pursue', 'trigger', 10);
+  ring(r.rg3, lt, cut + 1.7, B[3], 'pursue', 'write', 10);
+  cap(r, 'c2', lt, B[1] + .2, B[2]);
+  words(r, 'pu', 3, lt, B[2] + .05, .75, B[3]);
+  /* the base: the number, then the palette */
+  const th = P(lt, B[3], .45, E.back);
+  st(r.big, cl(P(lt, B[3], .15)) * (1 - P(lt, B[3] + 1.6, .3)), 0, 0, .6 + .4 * th);
+  count(r.bn, lt, B[3], 1.2, 0, 25413);
+  cutIn(r.w_p, lt, [B[3] + 1.5, dur + 1]);
+  camTrack(r.v_p, lt, camKeys([[B[3] + 1.5, 'palette', 'pal', 30, 1.5], [B[3] + 2.6, 'palette', 'nikhil', 200, 1.85]]));
+  ring(r.rg4, lt, B[3] + 2.6, Infinity, 'palette', 'nikhil', 10);
+  cap(r, 'c4', lt, B[3] + 1.8);
+}});
+
+/* 8. the buddy */
+SC.push({html: () => `
+  ${W('b', ['buddy-0', 'buddy-1', 'buddy-3'])}
+  ${CAP('c1', '<span class="k">buddy</span>shows every new joiner around')}${CAP('c2', 'out loud', 'fl')}`,
+update(lt, r, B, dur) {
+  place(r.w_b, 1);
+  const i = lt < B[0] + 1.6 ? 0 : lt < B[0] + 2.9 ? 1 : 2;
+  show(r, 'b', 3, i);
+  const sh = ['buddy-0', 'buddy-1', 'buddy-3'];
+  camTrack(r.v_b, lt, camKeys([[0, 'buddy-0', 'bubble', 150, 1.7], [B[0] + 1.59, 'buddy-0', 'bubble', 150, 1.7], [B[0] + 1.6, 'buddy-1', 'bubble', 150, 1.7, 1, 0],
+    [B[0] + 2.89, 'buddy-1', 'bubble', 150, 1.7], [B[0] + 2.9, 'buddy-3', 'bubble', 150, 1.7, 1, 0]]));
+  r.w_b.style.transform += ` scale(${1 + .006 * Math.sin(lt * 3)})`;
+  cap(r, 'c1', lt, B[0] + .2, B[0] + 2.95); cap(r, 'c2', lt, B[0] + 3.25);
+}});
+
+/* 9. everything else: the wall */
+SC.push({html: () => {
+  const items = [['mail', 'Mail'], ['gcal', 'Calendar'], ['drive', 'Drive'], ['web', 'A browser'], ['notes', 'Notes'], ['leave', 'Leave'], ['hiring', 'Hiring'], ['focus', 'A focus timer']];
+  return items.map(([s, l], i) => W('g' + i, [s]) + `<div class="grid-l" data-k="l${i}">${l}</div>`).join('') +
+    `<div class="a h0 cx" data-k="all" style="top:400px">All <span class="flame">inside.</span></div>`;
+}, update(lt, r, B, dur) {
+  const gap = (B[1] - B[0] - .3) / 8, sc = .29, cw = 1440 * sc, ch = 900 * sc;
+  const x0 = (1920 - (4 * cw + 3 * 36)) / 2, y0 = 110;
+  for (let i = 0; i < 8; i++) {
+    const a = B[0] + i * gap, p = P(lt, a, .5, E.back);
+    const x = x0 + (i % 4) * (cw + 36), y = y0 + Math.floor(i / 4) * (ch + 90);
+    const out = P(lt, B[1], .4, E.inout);
+    place(r['w_g' + i], cl(P(lt, a, .12)) * (1 - out), x + cw / 2 * (1 - (.6 + .4 * p)), y + (1 - p) * 40, sc * (.6 + .4 * p) * (1 - out * .2));
+    cam(r['v_g' + i], 720, 450, 1);
+    const l = r['l' + i]; l.style.left = x + 'px'; l.style.top = (y + ch + 18) + 'px'; l.style.width = cw + 'px';
+    st(l, cl(P(lt, a + .15, .2)) * (1 - out), 0, (1 - P(lt, a + .15, .4)) * 12);
+  }
+  pop(r.all, lt, B[1] + .1, Infinity, .5);
+}});
+
+/* 10. the founder */
+SC.push({html: () => `
+  ${W('h', ['hq', 'command-att', 'command-flags'], '<div class="ring" data-k="rg1"></div>')}
+  ${WORDS('f', ['One dashboard.', 'Everything.', 'Live!'])}`,
+update(lt, r, B, dur) {
+  place(r.w_h, 1);
+  const c1 = B[0] + 1.7, c2 = B[0] + 2.9;
+  show(r, 'h', 3, lt < c1 ? 0 : lt < c2 ? 1 : 2);
+  camTrack(r.v_h, lt, camKeys([[0, 'hq', 'rail', 30, 1.4], [c1 - .01, 'hq', 'rail', 30, 1.4], [c1, 'command-att', 'att', 30, 1.4, 1.25, 0], [c2 - .01, 'command-att', 'att', 30, 1.4, 1.25], [c2, 'command-flags', 'flags', 30, 1.5, 1.3, 0]]));
+  ring(r.rg1, lt, B[0] + .3, B[0] + 1.6, 'hq', 'rail', 10);
+  words(r, 'f', 3, lt, B[0] + .5, .9);
+}});
+
+/* 11. close */
+SC.push({html: () => `
+  <div class="a" data-k="mark" style="left:610px;top:250px;width:700px;color:#fff">${MARK}</div>
+  <div class="a h1 cx" data-k="l1" style="top:560px"><span class="flame">Results</span> and <span class="flame">culture.</span></div>
+  <div class="a h2 cx" data-k="l2" style="top:730px;font-weight:300;color:rgba(255,255,255,.62);font-size:60px">The only two things that count.</div>`,
+update(lt, r, B, dur) {
+  const rev = P(lt, B[0], .8, E.inout);
+  r.mark.style.clipPath = `inset(0 ${100 - rev * 100}% 0 0)`;
+  st(r.mark, 1, 0, 0, 1 + .03 * (lt / dur));
+  rise(r.l1, lt, B[1]); rise(r.l2, lt, B[1] + 1.3);
+}});
+
+/* ---------- assembly ---------- */
+const stage = document.getElementById('stage');
+let T0 = 0;
+const scenes = SC.map((s, i) => {
+  const T = SCENES_T[i];
+  const el = document.createElement('div');
+  el.className = 'scene' + (s.cls ? ' ' + s.cls : '');
+  el.innerHTML = s.html();
+  stage.appendChild(el);
+  const r = {root: el};
+  el.querySelectorAll('[data-k]').forEach(n => { r[n.dataset.k] = n; });
+  const total = T.words.reduce((a, b) => a + b, 0);
+  let acc = 0;
+  const B = T.words.map(w => { const b = LEAD + acc / total * (T.dur - LEAD - TAIL); acc += w; return b; });
+  const sc = {el, r, B, dur: T.dur, start: T0, update: s.update};
+  T0 += T.dur;
+  return sc;
+});
+const TOTAL = T0 + 1.0;
+window.TOTAL = TOTAL;
+window.seek = function (t) {
+  for (let i = 0; i < scenes.length; i++) {
+    const s = scenes[i], lt = t - s.start;
+    const on = lt > -0.01 && lt < s.dur + XF + .05;
+    if (!on) { s.el.style.opacity = 0; s.el.style.display = 'none'; continue; }
+    s.el.style.display = '';
+    const fin = i === 0 ? 1 : P(lt, 0, XF, E.inout);
+    const fout = i === scenes.length - 1 ? 1 - P(lt, s.dur, 1, E.inout) : 1;
+    s.el.style.opacity = fin * fout;
+    s.el.style.zIndex = i;
+    s.update(lt, s.r, s.B, s.dur);
+  }
+};
+window.READY = false;
+Promise.all(Array.from(document.images).map(im => im.decode().catch(() => null))).then(() => { window.READY = true; });
+const q = new URLSearchParams(location.search);
+if (!q.has('render')) {
+  const scale = () => { const k = Math.min(innerWidth / 1920, innerHeight / 1080); document.body.style.transform = `scale(${k})`; document.body.style.transformOrigin = '0 0'; };
+  addEventListener('resize', scale); scale();
+  const start = performance.now() - (+q.get('t') || 0) * 1000;
+  const loop = () => { const t = (performance.now() - start) / 1000; seek(t % TOTAL); requestAnimationFrame(loop); };
+  if (q.has('t') && q.has('still')) seek(+q.get('t')); else loop();
+}
+</script>
+</body>
+</html>
