@@ -336,6 +336,12 @@
         ${standalone() && cur ? html`<${UI.Btn} kind="sec" id="spotify-check" disabled=${busy} onClick=${() => check(cur)}>${busy ? 'Checking' : 'Check the ID'}<//>` : null}
       </div>
       ${verdict ? html`<div class=${'small' + (verdict.ok === false ? ' flame-t' : verdict.ok ? '' : ' ink62')} id="spotify-verdict" style=${{marginTop: '8px'}}>${verdict.why}</div>` : null}
+      ${standalone() && cur ? html`<div style=${{marginTop: '12px'}}>
+        <${UI.Micro} plain>what m360 sends to Spotify when someone presses Connect<//>
+        <div class="row nowrap" style=${{gap: '6px', marginTop: '4px'}}><code class="grow" style=${{overflow: 'auto', fontSize: '12px'}} id="spotify-signin-link">${'https://accounts.spotify.com/authorize?client_id=' + cur + '&response_type=code&redirect_uri=' + encodeURIComponent(redirectUri()) + '&scope=streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state'}</code>
+          <${UI.Btn} kind="sec" sm=${true} onClick=${() => { try { navigator.clipboard.writeText('client_id=' + cur + ' redirect_uri=' + redirectUri()); M.toast('Copied'); } catch (e) { /* by hand */ } }}>Copy<//></div>
+        <div class="tiny ink62" style=${{marginTop: '4px'}}>The client ID and the redirect URI in this link must match the app page in the Spotify dashboard character for character.</div>
+      </div>` : null}
     <//>`;
   }
   SpotifySettings.foldTitle = 'Spotify';

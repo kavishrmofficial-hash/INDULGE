@@ -57,7 +57,10 @@
     if ((!qs.has('code') && !qs.has('error')) || !qs.has('state')) return null;
     let verifier = '', state = '', clientId = '';
     try { verifier = sessionStorage.getItem(SS_V) || ''; state = sessionStorage.getItem(SS_S) || ''; clientId = sessionStorage.getItem(SS_C) || ''; } catch (e) { /* no session storage */ }
-    if (!verifier || !state || qs.get('state') !== state) return null;
+    /* a return this tab did not start (another tab, the installed app or a different browser began the sign in)
+       cannot be finished here: say so instead of staying silent */
+    if (!verifier || !state) { try { history.replaceState(null, '', location.pathname); } catch (e) { /* fine */ } return {ok: false, error: 'Spotify sent a sign in back, but this tab has no record of starting it. Press Connect Spotify again from this same tab and browser, and finish the sign in there.'}; }
+    if (qs.get('state') !== state) { try { history.replaceState(null, '', location.pathname); } catch (e) { /* fine */ } return {ok: false, error: 'Spotify sent back a sign in that does not match the one this tab started. Press Connect Spotify again.'}; }
     try { sessionStorage.removeItem(SS_V); sessionStorage.removeItem(SS_S); sessionStorage.removeItem(SS_C); } catch (e) { /* fine */ }
     try { history.replaceState(null, '', location.pathname); } catch (e) { /* fine */ }
     if (qs.has('error')) return {ok: false, error: 'Spotify said ' + qs.get('error') + (qs.get('error') === 'access_denied' ? ': the sign in was cancelled, or this Spotify account is not on the app\'s user list in the developer dashboard (development mode admits only the people added there).' : '')};

@@ -1390,7 +1390,7 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
   .cl-news .t{flex-basis:100%}
 }
 </style>
-<script>window.M360_BUILD = "ad26b1e+.260928-0010";</script><script>
+<script>window.M360_BUILD = "46d0240+.260928-0016";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -10669,6 +10669,12 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         ${standalone() && cur ? html`<${UI.Btn} kind="sec" id="spotify-check" disabled=${busy} onClick=${() => check(cur)}>${busy ? 'Checking' : 'Check the ID'}<//>` : null}
       </div>
       ${verdict ? html`<div class=${'small' + (verdict.ok === false ? ' flame-t' : verdict.ok ? '' : ' ink62')} id="spotify-verdict" style=${{marginTop: '8px'}}>${verdict.why}</div>` : null}
+      ${standalone() && cur ? html`<div style=${{marginTop: '12px'}}>
+        <${UI.Micro} plain>what m360 sends to Spotify when someone presses Connect<//>
+        <div class="row nowrap" style=${{gap: '6px', marginTop: '4px'}}><code class="grow" style=${{overflow: 'auto', fontSize: '12px'}} id="spotify-signin-link">${'https://accounts.spotify.com/authorize?client_id=' + cur + '&response_type=code&redirect_uri=' + encodeURIComponent(redirectUri()) + '&scope=streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state'}</code>
+          <${UI.Btn} kind="sec" sm=${true} onClick=${() => { try { navigator.clipboard.writeText('client_id=' + cur + ' redirect_uri=' + redirectUri()); M.toast('Copied'); } catch (e) { /* by hand */ } }}>Copy<//></div>
+        <div class="tiny ink62" style=${{marginTop: '4px'}}>The client ID and the redirect URI in this link must match the app page in the Spotify dashboard character for character.</div>
+      </div>` : null}
     <//>`;
   }
   SpotifySettings.foldTitle = 'Spotify';
@@ -20357,7 +20363,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     if ((!qs.has('code') && !qs.has('error')) || !qs.has('state')) return null;
     let verifier = '', state = '', clientId = '';
     try { verifier = sessionStorage.getItem(SS_V) || ''; state = sessionStorage.getItem(SS_S) || ''; clientId = sessionStorage.getItem(SS_C) || ''; } catch (e) { /* no session storage */ }
-    if (!verifier || !state || qs.get('state') !== state) return null;
+    /* a return this tab did not start (another tab, the installed app or a different browser began the sign in)
+       cannot be finished here: say so instead of staying silent */
+    if (!verifier || !state) { try { history.replaceState(null, '', location.pathname); } catch (e) { /* fine */ } return {ok: false, error: 'Spotify sent a sign in back, but this tab has no record of starting it. Press Connect Spotify again from this same tab and browser, and finish the sign in there.'}; }
+    if (qs.get('state') !== state) { try { history.replaceState(null, '', location.pathname); } catch (e) { /* fine */ } return {ok: false, error: 'Spotify sent back a sign in that does not match the one this tab started. Press Connect Spotify again.'}; }
     try { sessionStorage.removeItem(SS_V); sessionStorage.removeItem(SS_S); sessionStorage.removeItem(SS_C); } catch (e) { /* fine */ }
     try { history.replaceState(null, '', location.pathname); } catch (e) { /* fine */ }
     if (qs.has('error')) return {ok: false, error: 'Spotify said ' + qs.get('error') + (qs.get('error') === 'access_denied' ? ': the sign in was cancelled, or this Spotify account is not on the app\'s user list in the developer dashboard (development mode admits only the people added there).' : '')};
