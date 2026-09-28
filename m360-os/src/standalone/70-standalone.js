@@ -513,6 +513,8 @@
   M.parts.AiKeyCard = AiKeyCard;
 
   /* ---------- Admin: the buddy's voice through ElevenLabs ---------- */
+  /* "mp3_44100_128" reads as "mp3 at 44.1 kHz, 128 kbps" */
+  const formatLine = f => { const m = /^mp3_(\d+)_(\d+)$/.exec(String(f || '')); return m ? 'mp3 at ' + String(Number(m[1]) / 1000) + ' kHz, ' + m[2] + ' kbps' : ''; };
   function VoiceCard() {
     const ctx = M.useCtx();
     const [st, setSt] = useState(null);
@@ -520,7 +522,8 @@
     const [voices, setVoices] = useState([]);
     const [voice, setVoice] = useState('');
     const [busy, setBusy] = useState(false);
-    const load = () => api('voices').then(r => { setVoices(r.voices || []); setVoice(r.voice || ''); setSt({on: !!r.on, name: r.name || ''}); }, () => api('voicestatus').then(r => setSt({on: !!r.on, name: r.name || ''}), () => setSt({on: false, name: ''})));
+    const stOf = r => ({on: !!r.on, name: r.name || '', model: r.model || '', format: r.format || ''});
+    const load = () => api('voices').then(r => { setVoices(r.voices || []); setVoice(r.voice || ''); setSt(stOf(r)); }, () => api('voicestatus').then(r => setSt(stOf(r)), () => setSt(stOf({}))));
     useEffect(() => { load(); if (M.speech) M.speech.refresh(); }, []);
     if (!ctx.isFounder || st === null) return null;
     async function save(k, vid) {
@@ -529,7 +532,7 @@
         const r = await api('voicekey', {key: k, voice: vid || ''});
         setKey('');
         if (r.voices) setVoices(r.voices);
-        setVoice(r.voice || ''); setSt({on: !!r.on, name: r.name || ''});
+        setVoice(r.voice || ''); setSt(stOf(r));
         if (M.speech) M.speech.refresh();
         M.toast(k ? 'Voice on: ' + (r.name || 'set') : 'Voice removed');
       } catch (e) { M.toast((e && e.message) || 'That did not save.', true); }
@@ -540,7 +543,8 @@
       action=${st.on ? html`<span class="pill ink">on, ${st.name || 'set'}</span>` : html`<span class="pill flame-o">browser voice</span>`}>
       <p class="small ink62" style=${{marginTop: 0}}>${st.on
         ? 'The buddy speaks with a natural voice from ElevenLabs. Pick another voice below, or remove the key to fall back to the browser voice.'
-        : 'Right now the buddy uses the voice built into each browser. For a warm, human voice, make a free account at elevenlabs.com, copy an API key from your profile, and paste it here. The key stays on the server.'}</p>
+        : 'Right now the buddy uses the voice built into each browser. For a warm, human voice, make a free account at elevenlabs.com, copy an API key from your profile, and paste it here. The key stays on the server. George, a warm and clear voice, speaks first; pick another once the key is saved.'}</p>
+      ${st.on && st.model ? html`<p class="small ink62" style=${{marginTop: 0}}>Model ${st.model}${st.format ? ', ' + formatLine(st.format) : ''}. A line is kept for 30 days, so one heard before costs no credits.</p>` : null}
       <div class="row">
         <input class="input" type="password" autocomplete="off" style=${{maxWidth: '360px'}} placeholder="ElevenLabs API key"
           aria-label="ElevenLabs API key" value=${key} onInput=${e => setKey(e.target.value)}/>
@@ -548,7 +552,7 @@
         ${st.on ? html`<${UI.ConfirmBtn} kind="ghost" onConfirm=${() => save('', '')} label="Tap again to remove">Remove<//>` : null}
       </div>
       ${voices.length ? html`<div class="row" style=${{marginTop: '10px'}}>
-        <${UI.Select} id="voice-pick" label="voice" value=${voice} onChange=${async v => { setVoice(v); try { const r = await api('voicekey', {key: '', voice: v, keep: true}); if (r && r.name) setSt({on: true, name: r.name}); } catch (e) { /* needs the key again */ } }}
+        <${UI.Select} id="voice-pick" label="voice" value=${voice} onChange=${async v => { setVoice(v); try { const r = await api('voicekey', {key: '', voice: v, keep: true}); if (r && r.name) setSt(stOf(r)); } catch (e) { /* needs the key again */ } }}
           options=${voices.map(x => ({v: x.id, label: x.name}))}/>
         <${UI.Btn} kind="sec" sm=${true} id="voice-test" onClick=${test}>Say hello<//>
       </div>` : html`<div class="row" style=${{marginTop: '10px'}}><${UI.Btn} kind="sec" sm=${true} id="voice-test" onClick=${test}>Hear the browser voice<//></div>`}

@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.parse
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -253,22 +254,59 @@ def standalone_part():
             check(api('speak', {'text': 'hello'})['status'] == 404, 'speak without a voice should be 404')
             bad = api('voicekey', {'key': 'wrong_key_value_123456'})
             check(not bad['ok'] and bad['status'] in (401, 400), 'a refused key %r' % bad)
+            # a key alone picks George, the quickstart voice, and the answer names the model and the format
             r = api('voicekey', {'key': 'el_test_key_0000000000'})
-            check(r['ok'] and r['r']['on'] and r['r']['name'] == 'Rachel' and len(r['r']['voices']) == 2, 'voicekey %r' % r)
-            r2 = api('voicekey', {'key': '', 'voice': 'v_george_002', 'keep': True})
-            check(r2['ok'] and r2['r']['name'] == 'George', 'change voice keeps the key %r' % r2)
+            check(r['ok'] and r['r']['on'] and r['r']['name'] == 'George' and r['r']['voice'] == 'JBFqnCBsd6RMkjVDRZzb' and len(r['r']['voices']) == 2, 'voicekey %r' % r)
+            check(r['r'].get('model') == 'eleven_multilingual_v2' and r['r'].get('format') == 'mp3_44100_128', 'voicekey should name the model and the format %r' % r)
             sp = api('speak', {'text': 'Hey, I am the m360 buddy.'})
             check(sp['ok'] and sp['r']['audio'].startswith('SUQz') and sp['r']['mime'] == 'audio/mpeg', 'speak %r' % str(sp)[:120])
+            tts = lambda: json.loads(urllib.request.urlopen(base + '__tts').read())
+            t = tts()
+            check(t['calls'] == 1 and t['reqs'][-1]['url'].endswith('/v1/text-to-speech/JBFqnCBsd6RMkjVDRZzb?output_format=mp3_44100_128')
+                  and t['reqs'][-1]['model'] == 'eleven_multilingual_v2', 'the request should carry the quickstart voice, model and format %r' % t)
             sp2 = api('speak', {'text': 'Hey, I am the m360 buddy.'})
-            check(sp2['ok'] and sp2['r'].get('cached') is True, 'second call should come from the cache')
+            check(sp2['ok'] and sp2['r'].get('cached') is True and sp2['r']['audio'] == sp['r']['audio'], 'second call should come from the cache')
+            check(tts()['calls'] == 1, 'a line heard before must never reach ElevenLabs again')
+            # a 700 character line at 128 kbps is over 1 MiB of base64: it is kept in two parts and comes back whole
+            long = ('The first move is what sets everything in motion. ' * 14)[:700]
+            sp3 = api('speak', {'text': long})
+            check(sp3['ok'] and len(sp3['r']['audio']) > 1024 * 1024, 'a long line should be over one part: %r' % (sp3['ok'] and len(sp3['r']['audio'])))
+            sp4 = api('speak', {'text': long})
+            check(sp4['ok'] and sp4['r'].get('cached') is True and sp4['r']['audio'] == sp3['r']['audio'], 'a long line should come back whole from the cache')
             data = json.loads(urllib.request.urlopen(base + '__store').read())
-            check(any(k.startswith('n/tts/') for k in data), 'tts cache blob missing')
+            recs = {k: json.loads(v) for k, v in data.items() if k.startswith('n/tts/')}
+            check(len(recs) == 2 and all('audio' not in x and x.get('parts') for x in recs.values()), 'tts records should point at parts %r' % recs)
+            check(sorted(x['parts'] for x in recs.values()) == [1, 2] and sum(1 for k in data if k.startswith('n/tta/')) == 3,
+                  'tts parts missing %r' % sorted(k for k in data if k.startswith('n/tt')))
             check('el_test_key' not in json.dumps({k: v for k, v in data.items() if not k.startswith('x/')}), 'key leaked outside x/')
+            # the daily sweep: a line kept the old way and an expired line go, live lines stay
+            put = lambda k, s: urllib.request.urlopen(urllib.request.Request(base + '__put?key=' + urllib.parse.quote(k, safe=''), data=s.encode('utf-8'), method='POST')).read()
+            now_ms = time.time() * 1000
+            put('n/tts/old~1', json.dumps({'audio': 'SUQz', 'at': now_ms}))
+            put('n/tts/gone~2', json.dumps({'at': now_ms - 31 * 86400000, 'parts': 1, 'bytes': 4}))
+            put('n/tta/gone~2~0', 'SUQz')
+            put('n/ttsweep', json.dumps({'at': now_ms - 2 * 86400000}))
+            sp5 = api('speak', {'text': 'A new line after the sweep.'})
+            check(sp5['ok'] and not sp5['r'].get('cached'), 'a new line should be fetched %r' % str(sp5)[:120])
+            data = json.loads(urllib.request.urlopen(base + '__store').read())
+            left = sorted(k for k in data if k.startswith('n/tt'))
+            check('n/tts/old~1' not in data and 'n/tts/gone~2' not in data and 'n/tta/gone~2~0' not in data, 'the sweep left old lines %r' % left)
+            check(len([k for k in data if k.startswith('n/tts/')]) == 3 and len([k for k in data if k.startswith('n/tta/')]) == 4, 'the sweep took a live line %r' % left)
+            check(json.loads(data['n/ttsweep'])['at'] > now_ms - 60000, 'the sweep should mark when it ran')
+            # changing only the voice keeps the key, and the new voice speaks afresh
+            r2 = api('voicekey', {'key': '', 'voice': 'v_rachel_001', 'keep': True})
+            check(r2['ok'] and r2['r']['name'] == 'Rachel', 'change voice keeps the key %r' % r2)
+            sp6 = api('speak', {'text': 'Hey, I am the m360 buddy.'})
+            t = tts()
+            check(sp6['ok'] and not sp6['r'].get('cached') and '/v1/text-to-speech/v_rachel_001?output_format=mp3_44100_128' in t['reqs'][-1]['url'],
+                  'a new voice should be fetched afresh %r' % t['reqs'][-1])
             f.goto(base + '#admin'); f.wait_for_selector('#fold-voice .fold-head, #voice-card')
             if f.locator('#fold-voice .fold-head').count():
                 f.locator('#fold-voice .fold-head').click()
             f.wait_for_selector('#voice-card')
-            check('George' in f.inner_text('#voice-card'), 'voice card should show the chosen voice')
+            card = f.inner_text('#voice-card')
+            check('Rachel' in card, 'voice card should show the chosen voice')
+            check('eleven_multilingual_v2' in card and '44.1 kHz, 128 kbps' in card, 'voice card should say the model and the format: %r' % card)
             check(f.evaluate('() => M.speech.serverOn()') in (True, None), 'M.speech should know the server voice')
             # a member may speak but may not manage the voice
             f.evaluate('() => window.M360_API("logout")')

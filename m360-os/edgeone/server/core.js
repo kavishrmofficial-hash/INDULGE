@@ -1048,7 +1048,7 @@ export function createApp({store, env = {}}) {
   /* safety: trash, daily backups, restore. It may register hooks.beforeDelete and hooks.upkeep. */
   Object.assign(actions, safetyActions({store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, pathOfKey, isObj, hooks, log, stampKey, inventory}));
   Object.assign(actions, peekActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError}));
-  Object.assign(actions, voiceActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError, log}));
+  Object.assign(actions, voiceActions({store, env, getJ, putJ, listAll, levelOf, LEVEL, HttpError, log}));
 
   const json = (obj, status = 200, extra = {}) => new Response(JSON.stringify(obj), {
     status, headers: {'content-type': 'application/json', 'cache-control': 'no-store', ...extra}

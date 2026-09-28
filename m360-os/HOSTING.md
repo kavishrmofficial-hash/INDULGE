@@ -21,7 +21,7 @@ No secret is written in this file or anywhere in the repository. Each line says 
 - Keys kept on the server (pasted once by the founder in Admin, stored in the blob store, never sent to a page):
   - Anthropic API key (Admin > m360 AI). Belongs to the Anthropic console account it was made in.
   - Resend API key and sender address (Admin > Email sending). Belongs to the Resend account.
-  - ElevenLabs API key (Admin > The buddy's voice). Belongs to the ElevenLabs account.
+  - ElevenLabs API key (Admin > The buddy's voice). Belongs to the ElevenLabs account. `ELEVENLABS_API_KEY` in the EdgeOne project's environment variables works too; `ELEVENLABS_VOICE`, `ELEVENLABS_MODEL` and `ELEVENLABS_FORMAT` (an mp3 format) are optional there, with George, `eleven_multilingual_v2` and `mp3_44100_128` as the defaults.
   - Google OAuth client id and client key (Admin > Google Workspace). Belongs to the Google Cloud project it was made in; its authorised redirect is the site address plus `/api/google`.
 - The founder's password (chosen at setup, changeable in Me) is the super admin sign-in. It is kept only as a hash in the blob store, and it is not in the code, the repository or the tests. Admin > Super holds the super controls (lock, joining, alerts) behind that sign-in.
 

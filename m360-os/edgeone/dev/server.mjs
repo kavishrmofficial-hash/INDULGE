@@ -117,9 +117,16 @@ async function fakeFetch(url, init) {
   if (String(url).includes('api.elevenlabs.io')) {
     const key = (init.headers || {})['xi-api-key'] || '';
     if (!/^el_/.test(key)) return new Response(JSON.stringify({detail: 'bad key'}), {status: 401});
-    if (String(url).endsWith('/v1/voices')) return new Response(JSON.stringify({voices: [{voice_id: 'v_rachel_001', name: 'Rachel', labels: {gender: 'female'}}, {voice_id: 'v_george_002', name: 'George', labels: {gender: 'male'}}]}), {status: 200, headers: {'content-type': 'application/json'}});
+    if (String(url).endsWith('/v1/voices')) return new Response(JSON.stringify({voices: [{voice_id: 'v_rachel_001', name: 'Rachel', labels: {gender: 'female'}}, {voice_id: 'JBFqnCBsd6RMkjVDRZzb', name: 'George', labels: {gender: 'male'}}]}), {status: 200, headers: {'content-type': 'application/json'}});
     globalThis.__tts = (globalThis.__tts || 0) + 1;
-    return new Response(new Uint8Array([0x49, 0x44, 0x33, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xfb, 0x90, 0x64]), {status: 200, headers: {'content-type': 'audio/mpeg'}});
+    const said = JSON.parse(init.body || '{}');
+    (globalThis.__ttsReqs = globalThis.__ttsReqs || []).push({url: String(url), model: said.model_id, text: said.text});
+    /* an mp3 header, then about as many bytes as a 128 kbps line of that length carries: 16 KB a second at 12 characters a second */
+    const size = 14 + Math.ceil(String(said.text || '').length / 12) * 16384;
+    const bytes = new Uint8Array(size);
+    bytes.set([0x49, 0x44, 0x33, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xfb, 0x90, 0x64]);
+    for (let i = 14; i < size; i++) bytes[i] = i & 0xff;
+    return new Response(bytes, {status: 200, headers: {'content-type': 'audio/mpeg'}});
   }
   const g = await fakeGoogle(String(url), init || {});
   if (g) return g;
@@ -218,6 +225,10 @@ http.createServer(async (req, res) => {
   }
   if (url.pathname === '/__mails') { res.writeHead(200, {'content-type': 'application/json'}); res.end(JSON.stringify(globalThis.__mails)); return; }
   if (url.pathname === '/__store') { res.writeHead(200, {'content-type': 'application/json'}); res.end(JSON.stringify(data)); return; }
+  /* tests: what the canned ElevenLabs was asked for */
+  if (url.pathname === '/__tts') { res.writeHead(200, {'content-type': 'application/json'}); res.end(JSON.stringify({calls: globalThis.__tts || 0, reqs: globalThis.__ttsReqs || []})); return; }
+  /* tests only: write one blob as is, the way an older build would have left it */
+  if (url.pathname === '/__put') { const chunks = []; for await (const c of req) chunks.push(c); const k = url.searchParams.get('key') || ''; if (k) { data[k] = Buffer.concat(chunks).toString('utf8'); save(); } res.end(k ? 'ok' : 'key?'); return; }
   /* tests only: overwrite one blob with text that is not JSON, the way a half-written blob would look */
   if (url.pathname === '/__corrupt') { const k = url.searchParams.get('key') || ''; if (k) { data[k] = '{"broken": tru'; save(); } res.end(k ? 'ok' : 'key?'); return; }
   const rel = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
