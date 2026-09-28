@@ -1039,7 +1039,7 @@ export function createApp({store, env = {}}) {
   Object.assign(actions, google.actions);
   const hunt = huntActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError, log});
   Object.assign(actions, hunt.actions);
-  Object.assign(actions, spotifyActions({env, levelOf, LEVEL, HttpError}).actions);
+  Object.assign(actions, spotifyActions({levelOf, LEVEL, HttpError}).actions);
   Object.assign(actions, webActions({env, getJ, putJ, levelOf, LEVEL, HttpError}));
   const files = fileActions({store, getJ, putJ, levelOf, LEVEL, HttpError, log, rand, listAll});
   Object.assign(actions, files.actions);

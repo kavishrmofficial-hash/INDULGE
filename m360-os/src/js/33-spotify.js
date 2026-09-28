@@ -318,7 +318,7 @@
     const save = async () => {
       const value = id.trim();
       try { await ctx.W.merge('settings/app', {spotify: {clientId: value}, updated: Date.now()}); } catch (e) { return; }
-      M.toast(value ? 'Saved. Checking it with Spotify' : 'Spotify player switched off');
+      M.toast(value ? 'Saved' : 'Spotify player switched off');
       await check(value);
     };
     const copy = () => { try { navigator.clipboard.writeText(redirectUri()); M.toast('Copied'); } catch (e) { /* by hand */ } };
@@ -333,7 +333,7 @@
       <div class="row" style=${{gap: '8px', alignItems: 'end'}}>
         <div class="grow" style=${{maxWidth: '520px'}}><${UI.Input} id="spotify-client-id" label="client id (the 32 character Client ID at the top of the app page, above the other key)" value=${id} onChange=${v => { setId(v); setVerdict(null); }} placeholder="32 letters and digits"/></div>
         <${UI.Btn} id="spotify-save" disabled=${id.trim() === cur || busy} onClick=${save}>${cur ? 'Save' : 'Switch Spotify on'}<//>
-        ${standalone() && cur ? html`<${UI.Btn} kind="sec" id="spotify-check" disabled=${busy} onClick=${() => check(cur)}>${busy ? 'Checking' : 'Check with Spotify'}<//>` : null}
+        ${standalone() && cur ? html`<${UI.Btn} kind="sec" id="spotify-check" disabled=${busy} onClick=${() => check(cur)}>${busy ? 'Checking' : 'Check the ID'}<//>` : null}
       </div>
       ${verdict ? html`<div class=${'small' + (verdict.ok === false ? ' flame-t' : verdict.ok ? '' : ' ink62')} id="spotify-verdict" style=${{marginTop: '8px'}}>${verdict.why}</div>` : null}
     <//>`;
