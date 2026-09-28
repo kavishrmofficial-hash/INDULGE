@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>m360 OS demo film</title>
+<style>
+@font-face{font-family:'Space Grotesk';font-weight:300 700;src:url(sg-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Space Grotesk';font-weight:300 700;src:url(sg-latin-ext.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:'Space Grotesk';font-weight:300 700;src:url(sg-rupee.woff2) format('woff2');unicode-range:U+20B9}
+:root{
+  --paper:#FFFFFF; --warm:#F7F6F2; --col:#EFEDE7; --dark:#0A0A0A; --ink:#0E0E0E;
+  --ink62:rgba(14,14,14,.62); --micro:rgba(14,14,14,.64); --line:rgba(14,14,14,.10); --line2:rgba(14,14,14,.18);
+  --flame:#F53901;
+}
+*{box-sizing:border-box;margin:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:#000}
+body{font-family:'Space Grotesk','Noto Color Emoji',sans-serif;font-weight:300;color:var(--ink);-webkit-font-smoothing:antialiased}
+b{font-weight:500}
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;overflow:hidden;background:var(--warm)}
+.scene{position:absolute;inset:0;opacity:0;overflow:hidden}
+.cam{position:absolute;inset:0;transform-origin:50% 50%}
+.bg-warm{background:var(--warm)} .bg-paper{background:var(--paper)} .bg-dark{background:var(--dark);color:#fff}
+.a{position:absolute;opacity:0;will-change:transform,opacity}
+.cx{left:0;right:0;text-align:center}
+.h1{font-weight:600;font-size:120px;letter-spacing:-.045em;line-height:1}
+.h2{font-weight:600;font-size:72px;letter-spacing:-.038em;line-height:1.04}
+.h3{font-weight:600;font-size:44px;letter-spacing:-.03em;line-height:1.1}
+.body{font-size:26px;line-height:1.45;color:var(--ink62)}
+.micro{font-size:18px;font-weight:400;letter-spacing:.14em;text-transform:lowercase;color:var(--micro);display:flex;align-items:center;gap:10px}
+.micro::before{content:"";width:8px;height:8px;border-radius:9px;background:var(--flame);flex:none}
+.bg-dark .micro{color:rgba(255,255,255,.6)}
+.flame{color:var(--flame)}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:24px;padding:30px;box-shadow:0 24px 70px rgba(10,10,10,.08)}
+.btn{display:inline-flex;align-items:center;justify-content:center;background:var(--ink);color:#fff;border-radius:14px;height:64px;padding:0 28px;font-weight:500;font-size:22px}
+.btn.sec{background:var(--paper);color:var(--ink);border:1.5px solid var(--line2)}
+.pill{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:6px 14px;font-size:17px;font-weight:500;border:1.5px solid var(--line2)}
+.pill.ink{background:var(--ink);color:#fff;border-color:var(--ink)}
+.pill.fl{background:var(--flame);color:#fff;border-color:var(--flame)}
+.pill.flo{color:var(--flame);border-color:var(--flame)}
+.av{width:48px;height:48px;border-radius:99px;background:var(--ink);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:20px;flex:none}
+.av.w{background:var(--col);color:var(--ink)} .av.f{background:var(--flame)}
+.row{display:flex;align-items:center;gap:14px}
+.num{font-variant-numeric:tabular-nums}
+.caret::after{content:"";display:inline-block;width:3px;height:1em;background:var(--flame);margin-left:3px;vertical-align:-3px}
+.caption{left:50%;bottom:86px;transform:translateX(-50%);background:var(--dark);color:#fff;border-radius:22px;padding:26px 44px;font-size:48px;font-weight:600;letter-spacing:-.03em;white-space:nowrap;box-shadow:0 30px 80px rgba(0,0,0,.25)}
+/* app window */
+.win{position:absolute;left:160px;top:90px;width:1600px;height:900px;background:var(--warm);border-radius:28px;border:1px solid var(--line);box-shadow:0 40px 120px rgba(10,10,10,.14);overflow:hidden}
+.side{position:absolute;left:0;top:0;bottom:0;width:250px;background:var(--paper);border-right:1px solid var(--line);padding:120px 18px 0}
+.side .logo{position:absolute;left:30px;top:40px;width:118px;color:#000}
+.side .logo svg{width:100%;height:auto;display:block}
+.nav{height:52px;margin-bottom:4px;border-radius:12px;display:flex;align-items:center;gap:14px;padding:0 16px;font-size:21px;font-weight:400}
+.nav i{width:10px;height:10px;border-radius:3px;border:2px solid currentColor;opacity:.5}
+.nav.on{background:var(--ink);color:#fff}
+.side .me{position:absolute;left:18px;right:18px;bottom:24px;display:flex;gap:12px;align-items:center;font-size:17px}
+.side .me small{display:block;color:var(--micro);font-size:13px}
+.main{position:absolute;left:250px;top:0;right:0;bottom:0}
+.cursor{position:absolute;left:0;top:0;width:40px;height:40px;z-index:50;opacity:0}
+.cursor svg{width:40px;height:40px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.3))}
+.ripple{position:absolute;width:80px;height:80px;border-radius:99px;border:3px solid var(--flame);opacity:0;z-index:49}
+/* phone */
+.phone{left:1170px;top:70px;width:480px;height:940px;border-radius:64px;background:#141414;border:10px solid #262626;overflow:hidden;box-shadow:0 60px 140px rgba(0,0,0,.6)}
+.notif{position:absolute;left:18px;right:18px;height:98px;border-radius:22px;background:rgba(255,255,255,.1);backdrop-filter:blur(10px);padding:14px 18px;color:#fff}
+.notif .ap{font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.55);display:flex;gap:8px;align-items:center}
+.notif .ap i{width:18px;height:18px;border-radius:5px;background:rgba(255,255,255,.35);display:inline-block}
+.notif.hot{background:rgba(245,57,1,.9)} .notif.hot .ap{color:rgba(255,255,255,.85)} .notif.hot .ap i{background:#fff}
+.notif .tt{font-weight:600;font-size:20px;margin-top:4px}
+.notif .tx{font-size:19px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* generic bits */
+.field{border:1.5px solid var(--line2);border-radius:14px;padding:14px 18px;font-size:24px;min-height:62px;background:var(--paper)}
+.lbl{font-size:16px;letter-spacing:.12em;text-transform:lowercase;color:var(--micro);margin:14px 0 6px}
+.chip{display:inline-flex;align-items:center;justify-content:center;height:56px;border-radius:14px;border:1.5px solid var(--line2);font-size:20px;background:var(--paper)}
+.col{background:var(--col);border-radius:18px;padding:16px;height:100%}
+.tcard{background:var(--paper);border-radius:16px;padding:18px;border:1px solid var(--line);box-shadow:0 10px 30px rgba(10,10,10,.07)}
+.tile{background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:22px 26px}
+.tile .v{font-weight:600;font-size:54px;letter-spacing:-.035em;margin-top:12px}
+.trophy{background:var(--paper);border:1px solid var(--line);border-radius:22px;width:250px;height:230px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center}
+.trophy .ic{width:84px;height:84px;border-radius:99px;background:var(--ink);display:flex;align-items:center;justify-content:center}
+.trophy .ic svg{width:44px;height:44px}
+.trophy b{font-size:26px;font-weight:600;letter-spacing:-.02em}
+.trophy small{font-size:17px;color:var(--ink62);padding:0 18px}
+.bubble{background:var(--dark);color:#fff;border-radius:20px;padding:20px 24px;font-size:26px;line-height:1.35;box-shadow:0 20px 50px rgba(10,10,10,.3)}
+.msg{max-width:420px;padding:14px 20px;border-radius:20px;font-size:22px;line-height:1.35}
+.msg.them{background:var(--col)} .msg.me{background:var(--ink);color:#fff;margin-left:auto}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script src="mark.js"></script>
+<script>
+'use strict';
+/* ---------- timing: one entry per voiceover scene ----------
+   dur: seconds for the scene; words: word count of each line of the script, so the beats land on the lines.
+   To sync to the real ElevenLabs audio, set each dur to that clip's length. */
+const SCENES_T = [
+  {dur: 24.0, words: [7, 10, 23, 9, 9]},
+  {dur: 19.0, words: [4, 7, 15, 19]},
+  {dur: 34.0, words: [6, 23, 18, 10, 16, 10]},
+  {dur: 31.0, words: [6, 10, 29, 21, 10]},
+  {dur: 45.0, words: [7, 20, 18, 29, 8, 18, 12]},
+  {dur: 45.5, words: [9, 7, 24, 21, 8, 19, 25]},
+  {dur: 41.0, words: [5, 19, 10, 16, 30, 22]},
+  {dur: 22.0, words: [21, 17, 14]},
+  {dur: 23.0, words: [9, 15, 15, 17]},
+  {dur: 12.0, words: [2, 14, 9]}
+];
+const LEAD = 0.6, TAIL = 0.9, XF = 0.5;
+
+/* ---------- motion helpers ---------- */
+const E = {
+  out: t => 1 - Math.pow(1 - t, 3),
+  inout: t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
+  back: t => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); },
+  lin: t => t
+};
+const cl = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const P = (lt, a, d = .6, e = E.out) => e(cl((lt - a) / d));
+function st(el, o, x = 0, y = 0, s = 1, r = 0) {
+  el.style.opacity = o;
+  el.style.transform = `translate(${x}px,${y}px) scale(${s}) rotate(${r}deg)`;
+}
+/* in at a, out at b (b may be Infinity) */
+function vis(lt, a, b = Infinity, din = .6, dout = .45) { return P(lt, a, din) * (1 - P(lt, b, dout, E.inout)); }
+function rise(el, lt, a, b = Infinity, dy = 40, d = .7) {
+  const pi = P(lt, a, d), po = P(lt, b, .45, E.inout);
+  st(el, pi * (1 - po), 0, (1 - pi) * dy - po * 20);
+}
+function pop(el, lt, a, b = Infinity, s0 = .6) {
+  const pi = P(lt, a, .55, E.back), po = P(lt, b, .4, E.inout);
+  st(el, cl(P(lt, a, .25)) * (1 - po), 0, 0, (s0 + (1 - s0) * pi) * (1 - po * .08));
+}
+function typeIn(el, txt, lt, a, cps = 30) {
+  const n = Math.floor(cl((lt - a) * cps, 0, txt.length));
+  el.textContent = txt.slice(0, n);
+  el.classList.toggle('caret', lt > a - .3 && n < txt.length && lt < a + txt.length / cps + .1);
+}
+function count(el, lt, a, d, v0, v1, fmt = x => Math.round(x).toLocaleString('en-IN')) {
+  el.textContent = fmt(v0 + (v1 - v0) * P(lt, a, d, E.inout));
+}
+function track(lt, keys, e = E.inout) {
+  if (lt <= keys[0][0]) return keys[0].slice(1);
+  for (let i = 1; i < keys.length; i++) if (lt <= keys[i][0]) {
+    const A = keys[i - 1], B = keys[i], p = e((lt - A[0]) / (B[0] - A[0]));
+    return A.slice(1).map((v, k) => v + (B[k + 1] - v) * p);
+  }
+  return keys[keys.length - 1].slice(1);
+}
+/* a cursor that moves along keys [[t,x,y]] and clicks at times */
+function cursor(r, lt, keys, clicks, show = [0, Infinity]) {
+  const [x, y] = track(lt, keys);
+  let s = 1;
+  for (const c of clicks) { const k = lt - c; if (k > 0 && k < .3) s = 1 - .25 * Math.sin(k / .3 * Math.PI); }
+  st(r.cur, vis(lt, show[0], show[1], .3, .3), x, y, s);
+  let ro = 0, rs = .3;
+  for (const c of clicks) { const k = lt - c; if (k > 0 && k < .6) { ro = 1 - k / .6; rs = .3 + k / .6 * 1.1; } }
+  st(r.rip, ro, x - 40 + 6, y - 40 + 4, rs);
+}
+const CURSOR = `<div class="cursor" data-k="cur"><svg viewBox="0 0 24 24"><path d="M4 2l16 9-7 2-3 7z" fill="#0A0A0A" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg></div><div class="ripple" data-k="rip"></div>`;
+const FACE = `<svg viewBox="0 0 28 28" style="width:100%;height:100%;overflow:visible;filter:drop-shadow(0 6px 12px rgba(10,10,10,.3))"><path d="M5 3.6 23.2 11.5c1 .45.9 1.9-.15 2.25l-7.3 2.2-3 7.1c-.45 1.05-1.95 1-2.3-.1L3.9 5c-.3-.95.35-1.75 1.1-1.4Z" fill="#F53901" stroke="#fff" stroke-width="1.3" stroke-linejoin="round"/><circle cx="10.2" cy="9.4" r="2.1" fill="#fff"/><circle cx="15.2" cy="11.6" r="2.1" fill="#fff"/><circle data-k="p1" cx="10.4" cy="9.5" r="1" fill="#0A0A0A"/><circle data-k="p2" cx="15.4" cy="11.7" r="1" fill="#0A0A0A"/><path data-k="mouth" d="M11 15.2c1 .9 2.3 1 3.4.3" fill="none" stroke="#fff" stroke-width="1.2" stroke-linecap="round" style="transform-origin:12.7px 15.4px"/></svg>`;
+const NAV = ['Home', 'Work', 'Accounts', 'Vibe', 'Base', 'Chat', 'Radar', 'Me'];
+function win(active, inner, who = ['R', 'Riya Shah', 'Designer'], attrs = '') {
+  return `<div class="win" ${attrs}><div class="side"><div class="logo">${MARK}</div>${NAV.map(n => `<div class="nav${n === active ? ' on' : ''}" data-k="nav${n}"><i></i>${n}</div>`).join('')}
+    <div class="me"><span class="av">${who[0]}</span><div><b>${who[1]}</b><small>${who[2]}</small></div></div></div><div class="main">${inner}</div></div>`;
+}
+const ICON = {
+  flame: '<path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5 0 2 1 3 2 3 0-3-1-6 1-9.5z" fill="#fff"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>',
+  sun: '<circle cx="12" cy="12" r="4.5" fill="#fff"/><g stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></g>',
+  moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="#fff"/>',
+  star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" fill="#fff"/>',
+  timer: '<circle cx="12" cy="13" r="7.5" fill="none" stroke="#fff" stroke-width="2.2"/><path d="M12 9v4.5l3 2M9.5 2.5h5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" fill="none"/>',
+  heart: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill="#fff"/>'
+};
+const ic = k => `<svg viewBox="0 0 24 24">${ICON[k]}</svg>`;
+
+/* ---------- scenes ---------- */
+const SC = [];
+
+/* 1. The hook: Friday 19:40, the client asks, the phone floods */
+SC.push({cls: 'bg-dark', html: () => {
+  const N = [
+    ['WhatsApp', 'Client: Tara Foods', 'Hey, where are we on the reels?', 1],
+    ['WhatsApp', 'Reels team', 'who has the latest cut?'],
+    ['Gmail', 'Re: Fwd: Re: reels status', 'Looping in the team here...'],
+    ['WhatsApp', 'Design x Strategy', 'which version did we send them'],
+    ['Sheets', 'Tracker_v7_FINAL', '3 people edited this sheet'],
+    ['WhatsApp', 'Shoot day 2', 'did the call time move?'],
+    ['Gmail', 'Re: approvals', 'Did they approve v2 or v3?'],
+    ['WhatsApp', 'Edits', 'final_final_v4.mp4'],
+    ['WhatsApp', 'Accounts', 'any update for the client?'],
+    ['Gmail', 'Fwd: brief', 'see below, see below'],
+    ['WhatsApp', 'Reels team', '@all where are we on this'],
+    ['WhatsApp', 'Client: Tara Foods', 'Hello?', 1]
+  ];
+  return `<div class="a" data-k="t0" style="left:140px;top:360px;width:900px"><div class="micro">friday, 26 september</div><div class="h1" style="margin-top:22px">7:40 pm.</div></div>
+  <div class="a" data-k="t1" style="left:140px;top:330px;width:900px"><div class="micro">the client</div><div class="h2" style="margin-top:24px">“Hey, where are we<br>on the reels?”</div></div>
+  <div class="a" data-k="t2" style="left:140px;top:250px;width:900px">
+    <div class="h1 num" style="font-size:100px"><span data-k="c1">0</span> <span style="font-weight:300;font-size:56px;letter-spacing:-.02em">WhatsApp groups</span></div>
+    <div class="h1 num" style="font-size:100px;margin-top:22px"><span data-k="c2">0</span> <span style="font-weight:300;font-size:56px;letter-spacing:-.02em">email threads</span></div>
+    <div class="h1 num" style="font-size:100px;margin-top:22px"><span data-k="c3">0</span> <span style="font-weight:300;font-size:56px;letter-spacing:-.02em">someone's Google Sheet</span></div></div>
+  <div class="a h2" data-k="t3" style="left:140px;top:390px;width:900px">If you run an agency,<br>you know this feeling.</div>
+  <div class="a h2" data-k="t4" style="left:140px;top:350px;width:960px">The work is happening.</div>
+  <div class="a h2 flame" data-k="t5" style="left:140px;top:450px;width:960px">You just can't see it.</div>
+  <div class="a phone" data-k="phone">
+    <div style="position:absolute;left:0;right:0;top:90px;text-align:center;color:#fff"><div style="font-size:21px;opacity:.7">Friday 26 September</div><div style="font-size:120px;font-weight:300;letter-spacing:-.04em;line-height:1.1">19:40</div></div>
+    <div style="position:absolute;left:0;right:0;top:300px;bottom:0;overflow:hidden">
+      ${N.map((n, i) => `<div class="notif a${n[3] ? ' hot' : ''}" data-k="n${i}"><div class="ap"><i></i>${n[0]}<span style="margin-left:auto">now</span></div><div class="tt">${n[1]}</div><div class="tx">${n[2]}</div></div>`).join('')}
+    </div>
+    <div data-k="dim" style="position:absolute;inset:0;background:#000;opacity:0"></div>
+  </div>`;
+}, update(lt, r, B, dur) {
+  rise(r.t0, lt, B[0], B[1]);
+  rise(r.t1, lt, B[1], B[2]);
+  rise(r.t2, lt, B[2], B[3]);
+  count(r.c1, lt, B[2] + .3, 1.2, 0, 6); count(r.c2, lt, B[2] + 1.4, 1.2, 0, 3); count(r.c3, lt, B[2] + 2.6, .8, 0, 1);
+  rise(r.t3, lt, B[3], B[4]);
+  rise(r.t4, lt, B[4]); rise(r.t5, lt, B[4] + 1.6);
+  /* phone */
+  const ph = P(lt, .2, 1.2);
+  const shake = lt > B[4] ? Math.sin(lt * 40) * 3 * cl((lt - B[4]) / 1) * (1 - P(lt, dur - 1.5, 1)) : 0;
+  st(r.phone, ph, shake, (1 - ph) * 80, 1, shake * .15);
+  const times = [B[1] + .2];
+  const span = B[3] + 2 - (B[2] + .2);
+  for (let i = 1; i < 11; i++) times.push(B[2] + .2 + span * Math.pow(i / 11, .8));
+  times.push(B[4] + .4);
+  for (let i = 0; i < 12; i++) {
+    const el = r['n' + i];
+    let slot = 0; for (let j = i + 1; j < 12; j++) slot += P(lt, times[j], .35);
+    const pi = P(lt, times[i], .45, E.back);
+    el.style.opacity = cl(P(lt, times[i], .2) * (1 - cl((slot - 5) / 1)));
+    el.style.transform = `translateY(${20 + slot * 110 - (1 - pi) * 40}px) scale(${.92 + .08 * pi})`;
+  }
+  r.dim.style.opacity = .55 * P(lt, B[4] + 1.4, 1.2);
+}});
+
+/* 2. The idea: so I built m360 */
+SC.push({cls: 'bg-paper', html: () => `
+  <div class="a" data-k="mark" style="left:460px;top:390px;width:1000px;color:#000">${MARK}</div>
+  <div class="a h2 cx" data-k="l1" style="top:560px">The operating system for my agency.</div>
+  <div class="a cx" data-k="l2" style="top:700px;display:flex;justify-content:center;gap:22px">
+    ${['The work.', 'The clients.', 'The team.', 'The culture.'].map((w, i) => `<span class="a pill${i === 3 ? ' fl' : ' ink'}" data-k="w${i}" style="position:relative;font-size:36px;padding:16px 30px">${w}</span>`).join('')}
+  </div>
+  <div class="a h1 cx" data-k="r1" style="top:360px"><span class="flame">Results</span> and <span class="flame">culture</span></div>
+  <div class="a h2 cx" data-k="r2" style="top:520px;font-weight:400;color:var(--ink62)">are the only two things that count.</div>`,
+update(lt, r, B, dur) {
+  const m = r.mark;
+  const rev = P(lt, B[0], 1.4, E.inout);
+  m.style.clipPath = `inset(0 ${100 - rev * 100}% 0 0)`;
+  const up = P(lt, B[1], 1, E.inout);
+  st(m, 1 - P(lt, B[3], .4), 0, -up * 230, 1 - up * .45);
+  rise(r.l1, lt, B[1] + .4, B[3]);
+  r.l2.style.opacity = 1 - P(lt, B[3], .4);
+  const gap = (B[3] - B[2]) / 4.5;
+  for (let i = 0; i < 4; i++) pop(r['w' + i], lt, B[2] + .8 + i * gap);
+  rise(r.r1, lt, B[3] + .3);
+  rise(r.r2, lt, B[3] + 2.4);
+}});
+
+/* 3. The day: Riya checks in, posts her EOD line, the blocker flags itself */
+SC.push({cls: 'bg-warm', html: () => win('Home', `
+  <div class="a" data-k="hd" style="left:56px;top:46px"><div class="micro">friday 26 september, week 39</div><div class="h2" style="margin-top:10px;font-size:62px">Good morning, Riya.</div></div>
+  <div class="a card" data-k="ck" style="left:56px;top:190px;width:640px;height:330px">
+    <div class="micro">check in</div>
+    <div data-k="ckA" style="position:absolute;left:30px;top:78px;right:30px">
+      <div class="row"><span class="btn" style="width:260px">Check in, office</span><span class="btn sec" style="width:240px">Check in, WFH</span></div>
+      <div class="body" style="font-size:18px;margin-top:22px">WFH days used this week: 1 of 2</div>
+      <div class="body" style="font-size:17px;margin-top:8px">Checking in records the time and your location at that moment.</div>
+    </div>
+    <div data-k="ckB" style="position:absolute;left:30px;top:74px;right:30px;opacity:0">
+      <div style="font-size:30px;font-weight:500;letter-spacing:-.02em">Checked in at 10:04, office.</div>
+      <div class="row" style="margin-top:10px"><span class="pill ink">✓ Verified at Mumbai office</span><span class="pill">2 day streak</span></div>
+      <div style="position:relative;margin-top:22px;height:120px;border-radius:16px;background:var(--col);overflow:hidden;background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:40px 40px">
+        <div data-k="rad" style="position:absolute;left:260px;top:0;width:120px;height:120px;border-radius:99px;border:2px solid var(--flame);background:rgba(245,57,1,.08)"></div>
+        <div data-k="pin" style="position:absolute;left:304px;top:22px;width:32px;height:44px"><svg viewBox="0 0 24 32" width="32" height="44"><path d="M12 0a12 12 0 0 1 12 12c0 9-12 20-12 20S0 21 0 12A12 12 0 0 1 12 0z" fill="#F53901"/><circle cx="12" cy="12" r="4.5" fill="#fff"/></svg></div>
+      </div>
+    </div>
+  </div>
+  <div class="a card" data-k="md" style="left:56px;top:550px;width:640px;height:160px">
+    <div class="micro">how are you today</div>
+    <div class="row" style="margin-top:20px;gap:12px">${['drained', 'low', 'okay', 'good', 'on fire'].map((m, i) => `<span class="chip" data-k="m${i}" style="width:106px">${m}</span>`).join('')}</div>
+  </div>
+  <div class="a card" data-k="eod" style="left:730px;top:190px;width:570px;height:520px">
+    <div class="micro">eod line</div>
+    <div class="lbl">shipped</div><div class="field" data-k="f1"></div>
+    <div class="lbl">next</div><div class="field" data-k="f2"></div>
+    <div class="lbl">blocked</div><div class="field flame" data-k="f3" style="border-color:var(--line2)"></div>
+    <div class="row" style="position:absolute;left:30px;bottom:30px"><span class="btn" data-k="post" style="width:210px">Post EOD line</span><span class="pill" data-k="posted" style="opacity:0">Posted 19:02</span></div>
+  </div>
+  <div class="a" data-k="shade" style="left:0;top:0;width:1350px;height:900px;background:var(--warm);opacity:0"></div>
+`) + `
+  <div class="a pill ink" data-k="later" style="left:760px;top:250px;font-size:34px;padding:14px 30px">2 working days later</div>
+  <div class="a card" data-k="rule" style="left:360px;top:360px;width:1200px;border:2.5px solid var(--flame);padding:40px 46px">
+    <div class="row"><div class="micro">rule box</div><span class="pill fl" style="margin-left:auto">high</span></div>
+    <div class="h3" style="margin-top:18px">Escalate blockers</div>
+    <div class="body" style="margin-top:10px;font-size:30px;color:var(--ink)">Riya reported the same blocker two working days in a row: <span class="flame">logo files from the brand</span>.</div>
+    <div class="row" style="margin-top:26px"><span class="av f">R</span><span class="body" style="font-size:22px">Flagged on the founder's dashboard, automatically. <b style="color:var(--ink)">Nobody asked.</b></span></div>
+  </div>
+  <div class="a caption" data-k="cap">Nobody had to chase anybody.</div>
+  <div class="a" data-k="tag" style="right:200px;top:130px"><div class="row" style="background:#fff;border-radius:99px;padding:8px 22px 8px 8px;box-shadow:0 10px 30px rgba(0,0,0,.1)"><span class="av">R</span><span style="font-size:22px"><b>Riya</b> · designer</span></div></div>
+  ${CURSOR}`,
+update(lt, r, B, dur) {
+  const W = r.root.querySelector('.win');
+  st(W, P(lt, 0, .8), 0, (1 - P(lt, 0, .8)) * 40);
+  rise(r.hd, lt, .4); pop(r.tag, lt, B[0]);
+  rise(r.ck, lt, .8); rise(r.md, lt, 1.1);
+  const cin = B[1] + 1.6;
+  r.ckA.style.opacity = 1 - P(lt, cin, .3);
+  r.ckB.style.opacity = P(lt, cin + .2, .4);
+  const pinp = P(lt, cin + .5, .6, E.back);
+  r.pin.style.transform = `translateY(${(1 - pinp) * -60}px)`; r.pin.style.opacity = P(lt, cin + .5, .2);
+  const rp = ((lt - cin - .9) % 1.6 + 1.6) % 1.6 / 1.6;
+  r.rad.style.transform = `scale(${lt > cin + .9 ? .4 + rp * .8 : 0})`; r.rad.style.opacity = lt > cin + .9 ? 1 - rp : 0;
+  const moodAt = B[1] + 4.6;
+  const on = lt > moodAt;
+  r.m4.style.background = on ? 'var(--flame)' : ''; r.m4.style.color = on ? '#fff' : ''; r.m4.style.borderColor = on ? 'var(--flame)' : '';
+  r.m4.style.transform = `scale(${1 + .12 * Math.sin(cl((lt - moodAt) / .35) * Math.PI)})`;
+  rise(r.eod, lt, B[2]);
+  typeIn(r.f1, 'Six reel covers', lt, B[2] + 2.8, 22);
+  typeIn(r.f2, 'Carousel for the launch', lt, B[3] - .6, 26);
+  typeIn(r.f3, 'Logo files from the brand', lt, B[3] + 1.4, 24);
+  r.f3.style.borderColor = lt > B[3] + 1.4 ? 'var(--flame)' : '';
+  const postAt = B[3] + 3.4;
+  r.posted.style.opacity = P(lt, postAt + .2, .3);
+  cursor(r, lt, [[0, 1500, 950], [cin - 1.1, 1500, 950], [cin - .1, 620, 420], [moodAt - 1, 620, 420], [moodAt - .1, 1070, 745],
+    [postAt - 1.2, 1070, 745], [postAt - .1, 1240, 752]], [cin, moodAt, postAt], [B[1] + .4, B[4] - .2]);
+  r.shade.style.opacity = .7 * P(lt, B[4], .6);
+  const lp = P(lt, B[4], .6, E.back);
+  st(r.later, cl(P(lt, B[4], .3)) * (1 - P(lt, B[4] + 2.2, .4)), (1 - lp) * -200, 0, 1);
+  rise(r.rule, lt, B[4] + 2.3, Infinity, 80, .8);
+  rise(r.cap, lt, B[5]); r.cap.style.transform += ' translateX(-50%)';
+  r.cap.style.left = '50%';
+}});
+
+/* 4. A week with a rhythm */
+SC.push({cls: 'bg-warm', html: () => `
+  <div class="a" data-k="tt" style="left:140px;top:110px"><div class="micro">the fixed week</div><div class="h2" style="margin-top:12px">Four fixed moments.</div></div>
+  ${[['Mon', '10:00', 'Plan', 'three outcomes by Saturday'], ['Wed', '12:00', 'The 20% check', 'show rough direction early'], ['Daily', '19:00', 'EOD line', 'shipped, next, blocked'], ['Fri', '17:00', 'Review', 'every outcome, hit or miss']]
+    .map((m, i) => `<div class="a card" data-k="mo${i}" style="left:140px;top:${300 + i * 150}px;width:600px;height:130px;padding:26px 30px">
+      <div class="row"><div style="width:120px"><div style="font-size:34px;font-weight:600;letter-spacing:-.03em">${m[0]}</div><div class="num" style="font-size:20px;opacity:.6">${m[1]}</div></div>
+      <div><div style="font-size:30px;font-weight:500;letter-spacing:-.02em">${m[2]}</div><div style="font-size:20px;opacity:.6">${m[3]}</div></div></div></div>`).join('')}
+  <div class="a card" data-k="oc" style="left:820px;top:300px;width:960px;height:580px;padding:44px">
+    <div class="micro">this week's outcomes · arjun</div>
+    <div class="h3" style="margin-top:14px">Three outcomes that will exist by Saturday.</div>
+    ${['30 reel scripts locked with the client', 'Launch carousel approved', 'Pitch deck sent to the new brand'].map((o, i) => `
+      <div class="row" style="margin-top:${i ? 22 : 40}px;border:1.5px solid var(--line2);border-radius:18px;padding:20px 24px">
+        <span data-k="dot${i}" style="width:30px;height:30px;border-radius:99px;border:2.5px solid var(--line2);flex:none"></span>
+        <span data-k="o${i}" style="font-size:28px"></span><span class="a pill" data-k="hm${i}" style="position:relative;margin-left:auto"></span></div>`).join('')}
+  </div>
+  <div class="a card" data-k="p20" style="left:820px;top:300px;width:960px;height:580px;padding:44px">
+    <div class="row"><div class="micro">wednesday 12:00 · the 20% check</div><span class="a pill ink" data-k="shown" style="position:relative;margin-left:auto">20% shown</span></div>
+    <div class="h3" style="margin-top:14px">Launch film, rough direction</div>
+    <div class="row" style="margin-top:34px;gap:26px">
+      ${[0, 1].map(i => `<div data-k="sb${i}" style="position:relative;width:420px;height:250px;border-radius:18px;background:var(--col);border:2px dashed var(--line2);padding:20px">
+        <div style="font-size:20px;opacity:.6">direction ${i ? 'B' : 'A'}</div>
+        <div style="position:absolute;left:24px;right:24px;bottom:24px;display:flex;gap:10px">${[0, 1, 2].map(() => '<div style="flex:1;height:120px;border-radius:10px;background:rgba(14,14,14,.08)"></div>').join('')}</div>
+        <div class="a" data-k="mk${i}" style="right:18px;top:14px;width:52px;height:52px;border-radius:99px;background:${i ? 'var(--ink)' : 'var(--flame)'};display:flex;align-items:center;justify-content:center;color:#fff;font-size:30px;font-weight:600">${i ? '✓' : '✕'}</div></div>`).join('')}
+    </div>
+    <div class="a body" data-k="saved" style="position:relative;margin-top:30px;font-size:28px;color:var(--ink)">Wrong turn caught on Wednesday. <b>One full revision round saved.</b></div>
+  </div>
+  <div class="a" data-k="bd" style="left:820px;top:300px;width:960px;height:580px">
+    <div style="display:flex;gap:16px;height:100%">
+      ${['To do', 'Doing', 'In review', 'Done'].map(c => `<div class="col" style="flex:1"><div class="micro" style="font-size:16px">${c.toLowerCase()}</div></div>`).join('')}
+    </div>
+    ${[[0, 60, 'Moodboard for Tara'], [0, 200, 'Caption bank'], [1, 60, 'Reel 12 edit'], [3, 60, 'Shoot call sheet'], [3, 200, 'Brand deck v1']].map(c => `<div class="tcard" style="position:absolute;left:${16 + c[0] * 244}px;top:${c[1]}px;width:196px;height:120px;font-size:20px">${c[2]}</div>`).join('')}
+    <div class="tcard a" data-k="mv" style="left:504px;top:60px;width:196px;height:150px;font-size:20px;opacity:1">Launch carousel<div class="row" style="margin-top:14px;gap:8px"><span class="pill flo" data-k="rev" style="font-size:15px;padding:3px 10px">1 rev</span></div></div>
+    <div class="a" data-k="toast" style="left:250px;top:470px;background:var(--dark);color:#fff;border-radius:16px;padding:18px 28px;font-size:24px">Sent back, revision 2</div>
+  </div>
+  <div class="a caption" data-k="cap" style="bottom:60px">Quality isn't a feeling. It's a number.</div>`,
+update(lt, r, B, dur) {
+  rise(r.tt, lt, B[0]);
+  const act = [B[1], B[2], Infinity, B[4]];
+  for (let i = 0; i < 4; i++) {
+    rise(r['mo' + i], lt, B[0] + .6 + i * .35);
+    let on = 0;
+    if (i === 0) on = vis(lt, B[1], B[2], .3, .3);
+    if (i === 1) on = vis(lt, B[2], B[4], .3, .3);
+    if (i === 3) on = P(lt, B[4], .3);
+    const el = r['mo' + i];
+    el.style.background = on > .5 ? 'var(--ink)' : ''; el.style.color = on > .5 ? '#fff' : '';
+    el.style.transform += ` scale(${1 + .03 * on})`;
+  }
+  rise(r.oc, lt, B[1] + .3, B[2]);
+  const outc = ['30 reel scripts locked with the client', 'Launch carousel approved', 'Pitch deck sent to the new brand'];
+  for (let i = 0; i < 3; i++) {
+    if (lt < B[4]) typeIn(r['o' + i], outc[i], lt, B[1] + 1 + i * 1.4, 34); else r['o' + i].textContent = outc[i];
+    const hit = i < 2, ma = B[4] + 1.6 + i * .6;
+    const d = r['dot' + i];
+    const on = lt > ma;
+    d.style.background = on ? (hit ? 'var(--ink)' : 'var(--flame)') : ''; d.style.borderColor = on ? (hit ? 'var(--ink)' : 'var(--flame)') : '';
+    const hm = r['hm' + i]; hm.textContent = hit ? 'hit' : 'miss'; hm.className = 'a pill ' + (hit ? 'ink' : 'fl');
+    pop(hm, lt, ma);
+  }
+  /* reshow the outcomes on Friday */
+  if (lt > B[4] - .5) rise(r.oc, lt, B[4]);
+  rise(r.p20, lt, B[2] + .3, B[3]);
+  pop(r.shown, lt, B[2] + 5.5);
+  st(r.sb0, 1, 0, 0, 1); st(r.sb1, 1, 0, 0, 1);
+  pop(r.mk0, lt, B[2] + 3.6); pop(r.mk1, lt, B[2] + 4.6);
+  rise(r.saved, lt, B[2] + 6.5);
+  r.bd.style.opacity = vis(lt, B[3] + .3, B[4] - .5);
+  const mv = P(lt, B[3] + 2.2, 1, E.inout);
+  const lift = Math.sin(mv * Math.PI) * -30;
+  r.mv.style.transform = `translate(${-244 * mv}px,${lift}px) rotate(${Math.sin(mv * Math.PI) * -4}deg)`;
+  r.mv.style.opacity = 1;
+  r.rev.textContent = lt > B[3] + 3.2 ? '2 rev' : '1 rev';
+  const rv = lt > B[3] + 3.2; r.rev.className = 'pill ' + (rv ? 'fl' : 'flo');
+  r.rev.style.transform = `scale(${1 + .3 * Math.sin(cl((lt - B[3] - 3.2) / .4) * Math.PI)})`;
+  rise(r.toast, lt, B[3] + 3.3, B[4] - .6);
+  rise(r.cap, lt, B[3] + 5, B[4] - .3); r.cap.style.transform += ' translateX(-50%)';
+}});
+
+/* 5. It's gamified */
+SC.push({cls: 'bg-warm', html: () => `
+  <div class="a h1 cx" data-k="g" style="top:440px">It's <span class="flame">gamified.</span></div>
+  ${Array.from({length: 18}, (_, i) => `<div class="a" data-k="sp${i}" style="left:955px;top:500px;width:${10 + i % 3 * 6}px;height:${10 + i % 3 * 6}px;border-radius:99px;background:${i % 4 ? 'var(--flame)' : 'var(--ink)'}"></div>`).join('')}
+  <div class="a" data-k="tot" style="left:180px;top:320px"><div class="micro">your points this week</div><div class="num" data-k="totv" style="font-weight:600;font-size:220px;letter-spacing:-.05em;line-height:1">0</div></div>
+  ${[['+2', 'On time check in'], ['+2', 'EOD line posted'], ['+4', 'Monday outcomes'], ['+12', 'Outcome hit'], ['+6', 'Task done on time'], ['+2', 'Shown at 20%']]
+    .map((c, i) => `<div class="a card row" data-k="pc${i}" style="left:${1000 + (i % 2) * 380}px;top:${250 + Math.floor(i / 2) * 200}px;width:350px;height:160px;padding:26px"><span style="font-size:58px;font-weight:600;letter-spacing:-.04em;color:${+c[0].slice(1) >= 6 ? 'var(--flame)' : 'var(--ink)'}">${c[0]}</span><span style="font-size:24px;line-height:1.2">${c[1]}</span></div>`).join('')}
+  <div class="a" data-k="cmp" style="left:180px;top:250px;width:1560px">
+    <div class="micro">what scores</div>
+    <div class="row" style="margin-top:40px"><div style="width:260px;font-size:36px;font-weight:500">Output</div><div data-k="bo" style="height:90px;border-radius:18px;background:var(--ink);width:0"></div><div data-k="bov" style="font-size:44px;font-weight:600;margin-left:20px">3×</div></div>
+    <div class="row" style="margin-top:24px"><div style="width:260px;font-size:36px;font-weight:500">Discipline</div><div data-k="bdc" style="height:90px;border-radius:18px;background:var(--col);border:1.5px solid var(--line2);width:0"></div><div style="font-size:44px;font-weight:600;margin-left:20px">1×</div></div>
+    <div class="a h2" data-k="cmpl" style="position:relative;margin-top:80px">Showing up is the floor.<br><span class="flame">Shipping is what scores.</span></div>
+  </div>
+  <div class="a" data-k="lb" style="left:0;top:0;width:1920px;height:1080px">
+    <div style="position:absolute;left:140px;top:110px"><div class="row"><div class="micro">vibe · leaderboard</div><span class="pill">last week</span></div><div class="h2" style="margin-top:12px">The week's podium.</div></div>
+    ${[[1, 'A', 'Arjun', 241, 380, 300], [0, 'M', 'Meher', 284, 480, 620], [2, 'R', 'Riya', 226, 320, 940]].map(p => `
+      <div class="a" data-k="pd${p[0]}" style="left:${p[5] - 20}px;top:${860 - p[4]}px;width:300px;height:${p[4] + 150}px">
+        <div style="text-align:center"><span class="av${p[0] === 0 ? ' f' : ''}" style="width:96px;height:96px;font-size:40px">${p[1]}</span><div style="font-size:32px;font-weight:600;margin-top:10px">${p[2]}</div><div class="num" style="font-size:24px;opacity:.6"><span data-k="pv${p[0]}">0</span> pts</div></div>
+        <div style="position:absolute;left:0;right:0;bottom:0;height:${p[4] - 150}px;border-radius:22px 22px 0 0;background:${p[0] === 0 ? 'var(--ink)' : 'var(--paper)'};border:1px solid var(--line);display:flex;justify-content:center;padding-top:26px;font-size:80px;font-weight:600;color:${p[0] === 0 ? '#fff' : 'var(--ink)'}">${p[0] + 1}</div></div>`).join('')}
+    <div class="a card" data-k="why" style="left:1340px;top:330px;width:440px;padding:30px"><div class="micro">meher's week</div>
+      <div style="font-size:26px;margin-top:16px;line-height:1.5">3 of 3 outcomes hit<br>Campaign closed, 0 revisions<br><span style="opacity:.55">Checked in 10:11 avg</span></div></div>
+  </div>
+  <div class="a" data-k="cp" style="left:710px;top:210px;width:500px;height:600px;perspective:1400px">
+    <div data-k="cpi" style="width:100%;height:100%;background:var(--paper);border-radius:32px;border:2.5px solid var(--flame);box-shadow:0 50px 120px rgba(245,57,1,.25);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;text-align:center">
+      <div style="width:170px;height:170px;border-radius:99px;background:var(--flame);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" style="width:92px">${ICON.check}</svg></div>
+      <div class="micro" style="justify-content:center">trophy unlocked</div>
+      <div class="h2">Clean pass</div><div class="body" style="padding:0 40px">A task approved with zero revisions.</div></div>
+  </div>
+  <div class="a" data-k="grid" style="left:140px;top:200px;width:1640px">
+    <div class="row"><div class="micro">me · trophies</div><span class="pill ink" data-k="stk">🔥 12 day streak</span><span class="pill">level 5</span></div>
+    <div style="display:grid;grid-template-columns:repeat(6,250px);gap:28px;margin-top:40px">
+      ${[['flame', 'Five alive', 'Five working days in a row.'], ['sun', 'Early bird', 'Checked in before 9:30.'], ['moon', 'Night owl', 'An EOD line after 21:00.'], ['check', 'Clean pass', 'Zero revisions.'], ['star', 'Magnet', 'Received five kudos.'], ['timer', 'Deep worker', 'Ten focus sessions.'],
+         ['flame', 'Twenty deep', 'Twenty days in a row.'], ['heart', 'Good egg', 'Gave your first kudos.'], ['check', 'Shipped fifty', 'Fifty tasks done.'], ['star', 'Pollster', 'Asked the team a poll.'], ['sun', 'First light', 'Your first check in.'], ['timer', 'By the book', 'Read the handbook.']]
+        .map((t, i) => `<div class="a trophy" data-k="tr${i}" style="position:relative;${i > 5 && i !== 6 && i !== 7 ? 'filter:grayscale(1);opacity:.4' : ''}"><div class="ic" style="${[2, 3].includes(i) ? 'background:var(--flame)' : ''}">${ic(t[0])}</div><b>${t[1]}</b><small>${t[2]}</small></div>`).join('')}
+    </div>
+  </div>
+  <div class="a caption" data-k="cap">People actually check the leaderboard.</div>`,
+update(lt, r, B, dur) {
+  pop(r.g, lt, B[0] + .2, B[1]);
+  for (let i = 0; i < 18; i++) {
+    const a = i / 18 * Math.PI * 2 + .3, p = P(lt, B[0] + 1.6, 1.2), dist = 260 + (i % 3) * 120;
+    st(r['sp' + i], (lt > B[0] + 1.6 ? 1 : 0) * (1 - P(lt, B[0] + 2.4, .6)), Math.cos(a) * dist * p, Math.sin(a) * dist * p * .7, 1 - p * .5);
+  }
+  rise(r.tot, lt, B[1], B[2]);
+  const pts = [2, 2, 4, 12, 6, 2];
+  let tot = 158;
+  for (let i = 0; i < 6; i++) {
+    const a = B[1] + 1.2 + i * ((B[2] - B[1] - 2) / 6);
+    pop(r['pc' + i], lt, a, B[2]);
+    tot += pts[i] * P(lt, a + .2, .5);
+  }
+  r.totv.textContent = Math.round(tot);
+  r.cmp.style.opacity = vis(lt, B[2], B[3]);
+  r.bo.style.width = 1080 * P(lt, B[2] + .6, 1.4, E.inout) + 'px';
+  r.bdc.style.width = 360 * P(lt, B[2] + .9, 1.1, E.inout) + 'px';
+  rise(r.cmpl, lt, B[2] + 3.2);
+  r.lb.style.opacity = vis(lt, B[3], B[4]);
+  const order = [0, 1, 2], at = [B[3] + 1.8, B[3] + 1.0, B[3] + .4];
+  for (const i of order) {
+    const p = P(lt, at[i], .9, E.back);
+    st(r['pd' + i], cl(P(lt, at[i], .3)), 0, (1 - p) * 400);
+    count(r['pv' + i], lt, at[i], 1.4, 0, [284, 241, 226][i]);
+  }
+  rise(r.why, lt, B[3] + 4.5);
+  const cp = P(lt, B[4] + .1, 1, E.back);
+  r.cp.style.opacity = vis(lt, B[4], B[5], .3, .4);
+  r.cpi.style.transform = `rotateY(${(1 - cp) * 180}deg) scale(${.7 + .3 * cp})`;
+  r.grid.style.opacity = vis(lt, B[5], dur + 5);
+  for (let i = 0; i < 12; i++) pop(r['tr' + i], lt, B[5] + .5 + i * .22);
+  r.stk.style.transform = `scale(${1 + .04 * Math.sin(lt * 5)})`;
+  rise(r.cap, lt, B[6]); r.cap.style.transform += ' translateX(-50%)';
+}});
+
+/* 6. The vibe */
+SC.push({cls: 'bg-warm', html: () => `
+  <div class="a" data-k="tt" style="left:140px;top:90px"><div class="micro">vibe · feed · crew · pulse · leaderboard · music</div><div class="h2" style="margin-top:12px">It's the people.</div></div>
+  <div class="a card" data-k="k" style="left:140px;top:280px;width:560px;height:330px">
+    <div class="row"><span class="pill fl">kudos</span><span style="margin-left:auto;font-size:18px;opacity:.6">23:58</span></div>
+    <div class="h3" style="margin-top:18px">Kudos to Kabir</div>
+    <div style="font-size:25px;margin-top:10px;line-height:1.4">For staying back till midnight to land the edit.</div>
+    <div class="row" style="position:absolute;left:30px;bottom:26px;right:30px"><span class="av">R</span><span style="font-size:20px">from <b>Riya</b></span><span class="pill" style="margin-left:auto">2 of 3 left this week</span></div>
+  </div>
+  <div class="a card" data-k="f" style="left:740px;top:280px;width:520px;height:330px">
+    <div class="row"><span class="av w">M</span><div><b style="font-size:21px">Meher</b><div style="font-size:16px;opacity:.6">2h ago</div></div><span class="pill ink" style="margin-left:auto">win</span></div>
+    <div style="font-size:26px;margin-top:20px;line-height:1.4">Tara Foods reels went live. <b>1.2M views</b> in the first day.</div>
+    <div class="row" style="position:absolute;left:30px;bottom:26px;gap:12px">${[['🔥', 14], ['👍', 9], ['👀', 4], ['✅', 6]].map((x, i) => `<span class="pill" style="font-size:22px">${x[0]} <span class="num" data-k="re${i}">0</span></span>`).join('')}</div>
+  </div>
+  <div class="a card row" data-k="bday" style="left:1300px;top:280px;width:480px;height:155px">
+    <span class="av f" style="width:64px;height:64px;font-size:30px">T</span><div><div style="font-size:24px"><b>Tanvi's</b> birthday today</div><span class="pill ink" style="margin-top:10px">Wish Tanvi</span></div></div>
+  <div class="a card row" data-k="anni" style="left:1300px;top:455px;width:480px;height:155px">
+    <span class="av" style="width:64px;height:64px;font-size:30px">A</span><div><div style="font-size:24px"><b>Arjun</b>, 2 years with us today</div><span class="pill" style="margin-top:10px">Send a wish</span></div></div>
+  <div class="a card" data-k="ch" style="left:140px;top:650px;width:560px;height:350px;padding:26px">
+    <div class="row"><div class="micro">chat · riya and kabir</div></div>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:18px">
+      <div class="a msg them" data-k="c0" style="position:relative">Cut is up, have a look</div>
+      <div class="a tcard row" data-k="c1" style="position:relative;width:360px;padding:12px 16px"><span style="width:46px;height:46px;border-radius:10px;background:var(--flame);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600">▶</span><div><b style="font-size:19px">final_cut_v3.mp4</b><div style="font-size:15px;opacity:.6">84 MB</div></div></div>
+      <div class="a msg me" data-k="c2" style="position:relative">This is so good. Sending now.</div>
+    </div>
+  </div>
+  <div class="a card" data-k="mu" style="left:740px;top:650px;width:520px;height:350px">
+    <div class="micro">music · now playing for the team</div>
+    <div class="row" style="margin-top:22px;gap:22px">
+      <div style="width:150px;height:150px;border-radius:18px;background:linear-gradient(135deg,#F53901,#0A0A0A);flex:none;position:relative;overflow:hidden"><div style="position:absolute;left:14px;bottom:10px;color:#fff;font-weight:600;font-size:22px;line-height:1.1">shoot<br>day</div></div>
+      <div style="flex:1"><div style="font-size:30px;font-weight:600;letter-spacing:-.02em">Shoot day mix</div><div style="font-size:19px;opacity:.6">the team's playlist</div>
+        <div class="row" style="gap:6px;margin-top:18px;height:50px;align-items:flex-end">${Array.from({length: 14}, (_, i) => `<div data-k="eq${i}" style="width:10px;border-radius:4px;background:var(--flame);height:10px"></div>`).join('')}</div></div>
+    </div>
+    <div style="margin-top:22px;height:8px;border-radius:9px;background:var(--col)"><div data-k="prog" style="height:8px;border-radius:9px;background:var(--ink);width:10%"></div></div>
+    <div class="row" style="margin-top:16px;gap:0">${['R', 'K', 'M', 'A'].map((a, i) => `<span class="av${i % 2 ? ' w' : ''}" style="width:40px;height:40px;font-size:17px;margin-left:${i ? -10 : 0}px;border:3px solid #fff">${a}</span>`).join('')}<span style="margin-left:14px;font-size:19px">4 listening</span></div>
+  </div>
+  <div class="a card" data-k="pu" style="left:1300px;top:650px;width:480px;height:350px">
+    <div class="micro">pulse · team energy</div>
+    <div style="position:relative;height:190px;margin-top:22px;display:flex;align-items:flex-end;gap:14px">
+      <div style="position:absolute;left:0;right:0;bottom:${190 * 3 / 5}px;border-top:2px dashed var(--line2)"></div>
+      ${[4.1, 4.3, 3.9, 4.0, 3.7, 2.6, 3.8, 4.4].map((v, i) => `<div data-k="pb${i}" data-v="${v}" style="flex:1;border-radius:8px 8px 3px 3px;background:${v < 3 ? 'var(--flame)' : 'var(--ink)'};height:0"></div>`).join('')}
+    </div>
+    <div style="font-size:18px;margin-top:18px;opacity:.7">Anonymous. Your name is never stored with it.</div>
+  </div>`,
+update(lt, r, B, dur) {
+  rise(r.tt, lt, B[0]);
+  const focus = (el, a) => { const p = P(lt, a, .6, E.back); st(el, cl(P(lt, a, .3)), 0, (1 - p) * 60, .9 + .1 * p); };
+  focus(r.k, B[2]);
+  focus(r.f, B[3]);
+  for (let i = 0; i < 4; i++) count(r['re' + i], lt, B[3] + 1 + i * .3, 2, 0, [14, 9, 4, 6][i]);
+  focus(r.bday, B[3] + 3.6); focus(r.anni, B[3] + 4.6);
+  focus(r.ch, B[4]);
+  pop(r.c0, lt, B[4] + .6); pop(r.c1, lt, B[4] + 1.4); pop(r.c2, lt, B[4] + 2.4);
+  focus(r.mu, B[5]);
+  for (let i = 0; i < 14; i++) {
+    const h = lt > B[5] ? 10 + 40 * Math.abs(Math.sin(lt * (3 + i * .37) + i * 1.3)) : 10;
+    r['eq' + i].style.height = h + 'px';
+  }
+  r.prog.style.width = (10 + cl((lt - B[5]) / 60) * 90) + '%';
+  focus(r.pu, B[6]);
+  for (let i = 0; i < 8; i++) { const b = r['pb' + i]; b.style.height = (190 * +b.dataset.v / 5) * P(lt, B[6] + .6 + i * .18, .6) + 'px'; }
+  /* the camera leans toward the newest card */
+  const tgt = [[0, 0], [B[2], 1], [B[3], 2], [B[4], 3], [B[5], 4], [B[6], 5]];
+}});
+
+/* 7. Clients and new business */
+SC.push({cls: 'bg-warm', html: () => `
+  <div class="a card" data-k="cb" style="left:140px;top:130px;width:840px;height:820px;padding:46px">
+    <div class="row"><span style="width:84px;height:84px;border-radius:22px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:600">TF</span>
+      <div><div class="micro">accounts · client brain</div><div class="h3" style="margin-top:6px">Tara Foods</div></div><span class="pill ink" style="margin-left:auto">healthy</span></div>
+    ${[['what they love', 'Clean white space. Real people, real kitchens.'], ['what they approved', '30 reel concept, v2. Tone: warm, never loud.'], ['lines we never cross', 'Never use yellow on this brand.']].map((f, i) => `
+      <div class="a" data-k="bf${i}" style="position:relative;margin-top:${i ? 26 : 50}px;border-radius:18px;padding:22px 26px;${i === 2 ? 'border:2.5px solid var(--flame);background:rgba(245,57,1,.05)' : 'background:var(--warm)'}">
+        <div class="lbl" style="margin:0 0 6px;${i === 2 ? 'color:var(--flame)' : ''}">${f[0]}</div><div style="font-size:30px;${i === 2 ? 'color:var(--flame);font-weight:500' : ''}">${f[1]}</div></div>`).join('')}
+    <div class="row" style="position:absolute;left:46px;bottom:44px"><span class="btn" data-k="prep">Meeting prep</span><span class="pill">4 open tasks</span></div>
+  </div>
+  <div class="a card" data-k="pn" style="left:1030px;top:230px;width:750px;height:620px;padding:44px">
+    <div class="micro">prep note · 11:30 with tara foods</div>
+    <div data-k="pnt" style="font-size:27px;line-height:1.6;margin-top:22px;white-space:pre-line"></div>
+  </div>
+  <div class="a" data-k="rd" style="left:140px;top:110px;width:780px">
+    <div class="micro">radar · india first</div><div class="h2" style="margin-top:10px">Radar</div>
+    <div class="row" style="margin-top:24px;gap:10px;flex-wrap:wrap">${['People moves', 'Account moves', 'Launches', 'Campaigns', 'Awards'].map((c, i) => `<span class="pill${i === 0 ? ' ink' : ''}" style="font-size:19px">${c}</span>`).join('')}</div>
+    <div style="margin-top:28px;display:flex;flex-direction:column;gap:14px">
+      ${[['People moves', 'New CMO joins Tara Foods from a global beauty major', 1], ['Account moves', 'Snack brand moves its digital mandate after a pitch'], ['Launches', 'D2C skincare label launches in six cities'], ['Campaigns', 'Festive film crosses 20M views in a week'], ['Awards', 'Shortlists announced for this year\'s awards']]
+        .map((s, i) => `<div class="a tcard" data-k="st${i}" style="position:relative;padding:20px 24px;${s[2] ? '' : ''}"><div class="row"><span style="font-size:15px;letter-spacing:.1em;text-transform:uppercase;opacity:.55">${s[0]}</span><span style="margin-left:auto;font-size:15px;opacity:.5">${i + 1}h ago</span></div>
+          <div class="row" style="margin-top:6px"><span style="font-size:25px;font-weight:${s[2] ? 500 : 400}">${s[1]}</span>${s[2] ? '<span class="btn" data-k="pursue" style="height:48px;font-size:19px;margin-left:auto;flex:none">Pursue</span>' : ''}</div></div>`).join('')}
+    </div>
+  </div>
+  <div class="a card" data-k="hu" style="left:980px;top:110px;width:800px;height:860px;padding:40px">
+    <div class="micro">hunt · tara foods · new cmo</div>
+    ${[['linkedin connect note', 'Congratulations on the new role at Tara Foods. We make the short video that food brands scale on. Would love to share what we would do in your first 90 days.'], ['email', 'Subject: your first 90 days at Tara Foods'], ['whatsapp', 'Hi Nikhil, two ideas for the launch. Ready when you are.']].map((b, i) => `
+      <div class="a" data-k="hb${i}" style="position:relative;margin-top:${i ? 18 : 30}px;background:var(--warm);border-radius:18px;padding:20px 24px">
+        <div class="row"><div class="lbl" style="margin:0">${b[0]}</div><span class="pill" style="margin-left:auto;font-size:15px;padding:4px 12px">Copy</span></div>
+        <div data-k="ht${i}" style="font-size:23px;line-height:1.45;margin-top:8px;min-height:34px" data-t="${b[1].replace(/"/g, '&quot;')}"></div></div>`).join('')}
+    <div class="lbl" style="margin-top:26px">follow ups</div>
+    <div class="row" style="gap:10px">${['day 3', 'day 7', 'day 14', 'day 30'].map((d, i) => `<span class="a pill" data-k="fu${i}" style="position:relative;font-size:20px;padding:10px 18px">${d}</span>`).join('')}</div>
+  </div>
+  <div class="a" data-k="ba" style="left:0;top:0;width:1920px;height:1080px">
+    <div class="cx" style="position:absolute;top:150px"><div class="micro" style="justify-content:center">base · everyone we know</div><div class="num" data-k="bn" style="font-size:200px;font-weight:600;letter-spacing:-.05em;line-height:1.05">0</div><div class="h3" style="font-weight:400">people in the database</div></div>
+    <div style="position:absolute;left:460px;top:570px;width:1000px;height:90px;border-radius:24px;background:var(--paper);border:2px solid var(--ink);display:flex;align-items:center;padding:0 30px;gap:18px;box-shadow:0 30px 80px rgba(10,10,10,.1)">
+      <span style="width:36px;height:36px;border-radius:99px;background:var(--flame);flex:none"></span><span data-k="ask" style="font-size:32px"></span></div>
+    ${[['S', 'Sana Kapoor', 'Head of Marketing, Tara Foods', 'met at the Cannes lunch'], ['V', 'Vikram Rao', 'Brand Manager, Tara Foods', 'Meher\'s ex colleague'], ['N', 'Nikhil Shah', 'CMO, Tara Foods', 'new this week']].map((p, i) => `
+      <div class="a tcard row" data-k="bp${i}" style="left:460px;top:${690 + i * 104}px;width:1000px;height:92px;padding:0 24px"><span class="av${i === 2 ? ' f' : ''}">${p[0]}</span><div><b style="font-size:23px">${p[1]}</b><div style="font-size:18px;opacity:.6">${p[2]}</div></div><span class="pill" style="margin-left:auto">${p[3]}</span></div>`).join('')}
+  </div>
+  ${CURSOR}`,
+update(lt, r, B, dur) {
+  rise(r.cb, lt, B[0], B[3]);
+  for (let i = 0; i < 3; i++) rise(r['bf' + i], lt, B[1] + .4 + i * 1.6);
+  r.bf2.style.transform += ` scale(${1 + .04 * Math.sin(cl((lt - B[1] - 5) / .5) * Math.PI)})`;
+  const prepAt = B[2] + 1.2;
+  rise(r.pn, lt, prepAt + .3, B[3], 40);
+  typeIn(r.pnt, 'Nikhil joined as CMO 3 days ago.\nThey loved reel 7. Lead with it.\nOpen ask: the festive calendar.\nAvoid: yellow, loud supers.', lt, prepAt + .8, 38);
+  r.rd.style.opacity = vis(lt, B[3] + .2, dur + 5) * (1 - P(lt, B[5], .5));
+  for (let i = 0; i < 5; i++) rise(r['st' + i], lt, B[3] + .8 + i * .25);
+  const pAt = B[4] + 3.4;
+  const s0 = r.st0; s0.style.borderColor = lt > B[4] ? 'var(--flame)' : ''; s0.style.borderWidth = lt > B[4] ? '2.5px' : '';
+  s0.style.transform += ` scale(${1 + .03 * P(lt, B[4], .5)})`;
+  st(r.hu, vis(lt, pAt + .3, B[5], .6, .45), (1 - P(lt, pAt + .3, .7)) * 200, 0);
+  for (let i = 0; i < 3; i++) { rise(r['hb' + i], lt, pAt + .7 + i * .4); typeIn(r['ht' + i], r['ht' + i].dataset.t, lt, pAt + 1.2 + i * 2.2, i ? 45 : 70); }
+  for (let i = 0; i < 4; i++) pop(r['fu' + i], lt, pAt + 7 + i * .25);
+  cursor(r, lt, [[0, 1400, 950], [prepAt - 1.2, 1400, 950], [prepAt - .1, 300, 890], [pAt - 1.5, 300, 890], [pAt - .1, 830, 420]], [prepAt, pAt], [B[2], pAt + .8]);
+  r.ba.style.opacity = P(lt, B[5] + .2, .6);
+  count(r.bn, lt, B[5] + .4, 2.2, 0, 25413);
+  typeIn(r.ask, 'Who do we know at Tara Foods?', lt, B[5] + 3, 26);
+  for (let i = 0; i < 3; i++) rise(r['bp' + i], lt, B[5] + 4.6 + i * .35);
+}});
+
+/* 8. The buddy */
+SC.push({cls: 'bg-warm', html: () => win('Home', `
+  <div class="a" data-k="hd" style="left:56px;top:46px"><div class="micro">monday 29 september, week 40</div><div class="h2" style="margin-top:10px;font-size:62px">Welcome, Tanvi.</div></div>
+  ${[[56, 190, 640, 300], [730, 190, 570, 300], [56, 520, 1244, 330]].map((c, i) => `<div class="a card" data-k="bg${i}" style="left:${c[0]}px;top:${c[1]}px;width:${c[2]}px;height:${c[3]}px;background:var(--paper)"><div style="height:18px;width:${120 + i * 40}px;border-radius:9px;background:var(--col)"></div><div style="height:14px;width:70%;border-radius:9px;background:var(--col);margin-top:26px"></div><div style="height:14px;width:55%;border-radius:9px;background:var(--col);margin-top:14px"></div></div>`).join('')}
+`, ['T', 'Tanvi Mehta', 'Day one']) + `
+  <div class="a" data-k="ring" style="left:178px;top:0;width:214px;height:60px;border:3px solid var(--flame);border-radius:14px;box-shadow:0 0 0 6px rgba(245,57,1,.14)"></div>
+  <div class="a" data-k="bud" style="left:0;top:0;width:90px;height:90px;transform-origin:20px 20px">${FACE}</div>
+  <div class="a bubble" data-k="bub" style="left:0;top:0;width:440px"><span data-k="bt"></span></div>
+  <div class="a" data-k="tag" style="right:200px;top:130px"><div class="row" style="background:#fff;border-radius:99px;padding:8px 22px 8px 8px;box-shadow:0 10px 30px rgba(0,0,0,.1)"><span class="av f">T</span><span style="font-size:22px"><b>Tanvi</b> · day one · <span class="num" data-k="clk">10:00</span></span></div></div>
+  <div class="a caption" data-k="cap">By lunch, she knew where everything lived.</div>`,
+update(lt, r, B, dur) {
+  const W = r.root.querySelector('.win');
+  st(W, P(lt, 0, .8), 0, (1 - P(lt, 0, .8)) * 40);
+  rise(r.hd, lt, .5);
+  for (let i = 0; i < 3; i++) rise(r['bg' + i], lt, .7 + i * .2);
+  pop(r.tag, lt, B[1]);
+  const stops = [['Home', 'This is Home. Your day starts here.'], ['Work', 'Work. Your tasks, projects and the week.'], ['Accounts', 'Accounts. Every client and the pipeline.'], ['Vibe', 'Vibe. Kudos, the feed and the leaderboard.'], ['Radar', 'Radar. The industry news, every morning.'], ['Me', 'And Me. Your trophies live here.']];
+  const navY = n => 90 + 120 + NAV.indexOf(n) * 56 + 26;
+  /* keyframes: intro big in the middle, then hop the nav */
+  const t0 = B[0] + .2, hop0 = B[1] + .6, hopD = (B[2] - hop0) / stops.length;
+  const keys = [[0, 2100, 200, 3], [t0, 2100, 200, 3], [t0 + 1.2, 900, 420, 3.2], [hop0 - .8, 900, 420, 3.2]];
+  stops.forEach((s, i) => { const a = hop0 + i * hopD; keys.push([a, 420, navY(s[0]) - 20, 1.1], [a + hopD - .7, 420, navY(s[0]) - 20, 1.1]); });
+  keys.push([B[2] + .4, 1500, 700, 1.6], [dur + 5, 1500, 700, 1.6]);
+  const [x, y, s] = track(lt, keys);
+  /* arc: lift the path in the middle of each hop */
+  let lift = 0; for (let i = 0; i < keys.length - 1; i++) { const a = keys[i][0], b = keys[i + 1][0]; if (lt > a && lt < b && (keys[i][1] !== keys[i + 1][1] || keys[i][2] !== keys[i + 1][2])) lift = -Math.sin((lt - a) / (b - a) * Math.PI) * 60; }
+  const talk = lt > t0 + 1.2 && lt < B[2] + .2;
+  const bob = talk ? Math.sin(lt * 18) * 2 : Math.sin(lt * 3) * 3;
+  st(r.bud, cl(P(lt, t0, .4)), x, y + lift + bob, s, -10 + Math.sin(lt * 2) * 4);
+  r.mouth.style.transform = talk ? `scaleY(${1 + Math.abs(Math.sin(lt * 14)) * 1.6})` : '';
+  const lx = Math.sin(lt * 1.3) * .6; r.p1.setAttribute('cx', 10.4 + lx); r.p2.setAttribute('cx', 15.4 + lx);
+  /* bubble text */
+  let txt = 'Hi Tanvi. I\'m your m360 buddy. Let me show you around.', idx = -1;
+  stops.forEach((st_, i) => { if (lt > hop0 + i * hopD + .1) { txt = st_[1]; idx = i; } });
+  if (r.bt.textContent !== txt) r.bt.textContent = txt;
+  r.bub.style.opacity = vis(lt, t0 + 1.3, B[2], .4, .4);
+  r.bub.style.transform = `translate(${x + 80 * s * .9}px,${y + lift + 10}px)`;
+  for (const n of NAV) { const el = r['nav' + n]; const on = idx >= 0 && stops[idx][0] === n; el.classList.toggle('on', on || (idx < 0 && n === 'Home')); }
+  r.ring.style.opacity = idx >= 0 && lt < B[2] ? 1 : 0;
+  if (idx >= 0) r.ring.style.transform = `translateY(${navY(stops[idx][0]) - 30}px)`;
+  const clk = lt < B[2] ? 10 * 60 + Math.floor((lt - B[1]) / (B[2] - B[1]) * 40) : 13 * 60;
+  r.clk.textContent = String(Math.floor(Math.max(600, clk) / 60)).padStart(2, '0') + ':' + String(Math.max(600, clk) % 60).padStart(2, '0');
+  rise(r.cap, lt, B[2] + .3); r.cap.style.transform += ' translateX(-50%)';
+}});
+
+/* 9. The founder's view */
+SC.push({cls: 'bg-warm', html: () => `
+  <div class="a" data-k="tt" style="left:140px;top:90px"><div class="micro">hq · dashboard</div><div class="h2" style="margin-top:12px">Everything, in one place.</div></div>
+  ${[['in today', 11, ' of 12'], ['late today', 1, ''], ['office verified', 100, '%'], ['eod yesterday', 12, ' of 12'], ['outcomes hit', 27, ' of 33'],
+     ['tasks overdue', 2, ''], ['high flags', 1, ''], ['weighted pipeline', 18.4, 'L'], ['largest client share', 34, '%'], ['team energy', 4.2, ' / 5']]
+    .map((k, i) => `<div class="a tile" data-k="k${i}" style="left:${140 + (i % 5) * 332}px;top:${260 + Math.floor(i / 5) * 200}px;width:310px;height:180px"><div class="micro" style="font-size:16px">${k[0]}</div>
+      <div class="v num${i === 6 ? ' flame' : ''}">${i === 7 ? '₹' : ''}<span data-k="kv${i}" data-v="${k[1]}">0</span><span style="font-size:30px;font-weight:400;opacity:.55">${k[2]}</span></div></div>`).join('')}
+  <div class="a card" data-k="tape" style="left:140px;top:670px;width:800px;height:340px;padding:28px">
+    <div class="micro">the tape · today</div>
+    ${[['19:02', 'Riya posted her EOD line'], ['18:40', 'Arjun moved Launch carousel to Done'], ['17:15', 'Meher gave kudos to Kabir'], ['16:58', 'Tara Foods pitch moved to Proposal sent']].map((t, i) => `<div class="a row" data-k="tp${i}" style="position:relative;margin-top:${i ? 12 : 22}px;font-size:22px"><span class="num" style="opacity:.55;width:70px">${t[0]}</span>${t[1]}</div>`).join('')}
+  </div>
+  <div class="a card" data-k="heat" style="left:980px;top:670px;width:800px;height:340px;padding:28px">
+    <div class="micro">mood · last three weeks</div>
+    <div style="display:grid;grid-template-columns:repeat(18,1fr);gap:6px;margin-top:22px">
+      ${Array.from({length: 18 * 6}, (_, i) => { const v = (Math.sin(i * 7.3) + Math.sin(i * 1.7) + 2) / 4; return `<div data-k="hc${i}" style="height:36px;border-radius:6px;background:${v > .8 ? 'var(--flame)' : `rgba(14,14,14,${(.08 + v * .75).toFixed(2)})`};opacity:0"></div>`; }).join('')}
+    </div>
+  </div>
+  <div class="a card" data-k="ring" style="left:0;top:0;width:330px;height:200px;border:3px solid var(--flame);background:transparent;box-shadow:0 0 0 8px rgba(245,57,1,.12);padding:0"></div>
+  <div class="a" data-k="vsh" style="left:0;top:0;width:1920px;height:1080px;background:var(--warm)"></div>
+  <div class="a card" data-k="ver" style="left:460px;top:240px;width:1000px;padding:44px">
+    <div class="micro">admin · every change kept</div><div class="h3" style="margin-top:12px">Tara Foods, client brain</div>
+    ${[['Today 16:02', 'Meher', 'current'], ['Today 11:40', 'Arjun', ''], ['Yesterday 18:15', 'Riya', '']].map((v, i) => `<div class="row" style="margin-top:${i ? 12 : 30}px;padding:18px 22px;border-radius:16px;background:var(--warm);font-size:24px"><span class="num" style="width:230px">${v[0]}</span><span>${v[1]}</span>${v[2] ? '<span class="pill ink" style="margin-left:auto">current</span>' : `<span class="btn sec" data-k="rv${i}" style="margin-left:auto;height:50px;font-size:19px">Revert to this</span>`}</div>`).join('')}
+    <div class="a pill ink" data-k="done" style="position:relative;margin-top:24px;font-size:22px;padding:10px 20px">✓ Restored. Nothing is ever lost.</div>
+  </div>
+  <div class="a bg-dark" data-k="dk" style="left:0;top:0;width:1920px;height:1080px">
+    <div class="a h2 cx" data-k="d1" style="top:330px;color:rgba(255,255,255,.6);font-weight:400">I don't have to parent anyone.</div>
+    <div class="a h1 cx" data-k="d2" style="top:450px">The system does the checking.</div>
+    <div class="a h1 cx flame" data-k="d3" style="top:600px">So I can do the thinking.</div>
+  </div>
+  ${CURSOR}`,
+update(lt, r, B, dur) {
+  rise(r.tt, lt, B[0]);
+  for (let i = 0; i < 10; i++) {
+    pop(r['k' + i], lt, B[0] + .4 + i * .12, Infinity, .85);
+    const el = r['kv' + i], v = +el.dataset.v;
+    count(el, lt, B[0] + .6 + i * .12, 1.6, 0, v, x => v % 1 ? x.toFixed(1) : Math.round(x));
+  }
+  rise(r.tape, lt, B[0] + 1.6); rise(r.heat, lt, B[0] + 1.8);
+  for (let i = 0; i < 4; i++) rise(r['tp' + i], lt, B[0] + 2.2 + i * .3);
+  for (let i = 0; i < 108; i++) r['hc' + i].style.opacity = P(lt, B[0] + 2 + (i % 18) * .05 + Math.floor(i / 18) * .08, .4);
+  /* the ring walks the tiles as the lines name them */
+  const seq = [0, 3, 6, 7, 9], seg = (B[2] - B[1]) / 5.4;
+  const keys = seq.map((k, i) => [B[1] + i * seg, 140 + (k % 5) * 332 - 10, 260 + Math.floor(k / 5) * 200 - 10]);
+  const hk = []; keys.forEach((k, i) => { hk.push(k); hk.push([k[0] + seg - .35, k[1], k[2]]); });
+  const [rx, ry] = track(lt, hk);
+  st(r.ring, vis(lt, B[1], B[2] - .2, .3, .3), rx, ry);
+  r.ver.style.opacity = vis(lt, B[2], B[3] - .1);
+  r.vsh.style.opacity = .75 * vis(lt, B[2], B[3] - .1);
+  r.ver.style.transform = `translateY(${(1 - P(lt, B[2], .6)) * 40}px)`;
+  const rvAt = B[2] + 3;
+  pop(r.done, lt, rvAt + .3);
+  cursor(r, lt, [[0, 1600, 950], [rvAt - 1.2, 1600, 950], [rvAt - .1, 1330, 468]], [rvAt], [B[2] + .5, B[3] - .2]);
+  r.dk.style.opacity = P(lt, B[3], .6);
+  rise(r.d1, lt, B[3] + .3); rise(r.d2, lt, B[3] + 2.4); rise(r.d3, lt, B[3] + 4.4);
+}});
+
+/* 10. Close */
+SC.push({cls: 'bg-paper', html: () => `
+  <div class="a" data-k="mark" style="left:660px;top:250px;width:600px;color:#000">${MARK}</div>
+  <div class="a h1 cx" data-k="l1" style="top:520px"><span class="flame">Results</span> and <span class="flame">culture.</span></div>
+  <div class="a h2 cx" data-k="l2" style="top:660px;font-weight:400;color:var(--ink62)">The only two things that count.</div>
+  <div class="a micro cx" data-k="l3" style="top:900px;justify-content:center">m360 os</div>`,
+update(lt, r, B, dur) {
+  const rev = P(lt, 0.2, 1.4, E.inout);
+  r.mark.style.clipPath = `inset(0 ${100 - rev * 100}% 0 0)`;
+  st(r.mark, 1, 0, 0, 1 + .04 * (lt / dur));
+  rise(r.l1, lt, B[2]);
+  rise(r.l2, lt, B[2] + 1.6);
+  rise(r.l3, lt, B[2] + 3);
+}});
+
+/* ---------- assembly ---------- */
+const stage = document.getElementById('stage');
+let T0 = 0;
+const scenes = SC.map((s, i) => {
+  const T = SCENES_T[i];
+  const el = document.createElement('div');
+  el.className = 'scene ' + s.cls;
+  el.innerHTML = `<div class="cam">${s.html()}</div>`;
+  stage.appendChild(el);
+  const r = {root: el};
+  el.querySelectorAll('[data-k]').forEach(n => { r[n.dataset.k] = n; });
+  const total = T.words.reduce((a, b) => a + b, 0);
+  let acc = 0;
+  const B = T.words.map(w => { const b = LEAD + acc / total * (T.dur - LEAD - TAIL); acc += w; return b; });
+  const sc = {el, cam: el.firstChild, r, B, dur: T.dur, start: T0, update: s.update};
+  T0 += T.dur;
+  return sc;
+});
+const TOTAL = T0 + 1.0;
+window.TOTAL = TOTAL;
+window.seek = function (t) {
+  for (let i = 0; i < scenes.length; i++) {
+    const s = scenes[i], lt = t - s.start;
+    const on = lt > -0.01 && lt < s.dur + XF + .05;
+    if (!on) { s.el.style.opacity = 0; s.el.style.display = 'none'; continue; }
+    s.el.style.display = '';
+    /* scenes cross fade: the next one fades in on top of this one */
+    const fin = i === 0 ? 1 : P(lt, 0, XF, E.inout);
+    const fout = i === scenes.length - 1 ? 1 - P(lt, s.dur, 1, E.inout) : 1;
+    s.el.style.opacity = fin * fout;
+    s.el.style.zIndex = i;
+    s.cam.style.transform = `scale(${1 + .03 * cl(lt / s.dur)})`;
+    s.update(lt, s.r, s.B, s.dur);
+  }
+};
+/* live preview: open the page in a browser to play it; ?t=seconds seeks */
+const q = new URLSearchParams(location.search);
+if (!q.has('render')) {
+  const scale = () => { const k = Math.min(innerWidth / 1920, innerHeight / 1080); document.body.style.transform = `scale(${k})`; document.body.style.transformOrigin = '0 0'; };
+  addEventListener('resize', scale); scale();
+  const start = performance.now() - (+q.get('t') || 0) * 1000;
+  const loop = () => { const t = (performance.now() - start) / 1000; seek(t % TOTAL); requestAnimationFrame(loop); };
+  if (q.has('t') && q.has('still')) seek(+q.get('t')); else loop();
+}
+</script>
+</body>
+</html>
