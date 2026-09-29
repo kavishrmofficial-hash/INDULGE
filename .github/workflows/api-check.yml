@@ -31,3 +31,21 @@ jobs:
           probe "GET /api/apollo" "$SITE/api/apollo"
           probe "the address itself, from the runner" -L "$U" -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36'
           echo "== frame headers of the address"; curl -sSIL -m 30 "$U" | tr -d '\r' | grep -iE '^(HTTP|x-frame-options|content-security-policy|content-length|content-type)' || true
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: What the platform documents as its function limits
+        run: |
+          for u in https://pages.edgeone.ai/document/limits-and-quotas https://pages.edgeone.ai/document/error-codes https://pages.edgeone.ai/document/cloud-functions https://pages.edgeone.ai/document/node-functions https://pages.edgeone.ai/document/troubleshooting; do
+            echo "== $u"
+            curl -sSL -m 40 "$u" -H 'user-agent: Mozilla/5.0' -o doc.html || { echo "(no answer)"; continue; }
+            python3 - <<'PY'
+import re,html
+s=open('doc.html',encoding='utf-8',errors='replace').read()
+s=re.sub(r'<script[\s\S]*?</script>|<style[\s\S]*?</style>','',s)
+t=html.unescape(re.sub(r'<[^>]+>',' ',s)); t=re.sub(r'[ \t]+',' ',t); t=re.sub(r'\n\s*\n+','\n',t)
+for line in t.split('\n'):
+    l=line.strip()
+    if re.search(r'(?i)timeout|time out|\bMB\b|\bKB\b|seconds|\d+\s*s\b|size|memory|502|504|Bad Gateway|concurren|exceed',l) and len(l)<400: print(' ', l)
+PY
+          done
