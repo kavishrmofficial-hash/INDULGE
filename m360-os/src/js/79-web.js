@@ -3,7 +3,9 @@
    rest of m360 and gives the page the whole window (Escape brings it back). Links anywhere in m360 that
    would have opened a new browser tab open here instead (M.web.open). A site that refuses frames opens
    in reading mode: the team site fetches the page itself (/api/browse), links inside it stay inside, and
-   the address bar follows. Inside m360 Desktop (window.m360desktop) every tab is a real Chromium view:
+   the address bar follows. The page asks for that copy itself before showing it, so when the server cannot
+   pass a page on (too big, too slow, a Bad Gateway from the platform) the tab says so and offers the
+   page outside, in place of a blank frame or the platform's own error page. Inside m360 Desktop (window.m360desktop) every tab is a real Chromium view:
    no site can refuse, logins work, and the same rail drives it. Bookmarks live in links/team. */
 'use strict';
 (function () {
@@ -66,7 +68,15 @@
   }, true);
 
   let nextId = 1;
-  const newTab = url => ({id: nextId++, url: url || '', hist: url ? [url] : [], at: url ? 0 : -1, title: url ? hostOf(url) : 'New tab', icon: '', mode: 'frame', check: null, reader: null, key: 0, loading: false, nid: null, canBack: false, canFwd: false});
+  const newTab = url => ({id: nextId++, url: url || '', hist: url ? [url] : [], at: url ? 0 : -1, title: url ? hostOf(url) : 'New tab', icon: '', mode: 'frame', check: null, reader: null, key: 0, loading: false, nid: null, canBack: false, canFwd: false, proxySrc: '', proxyErr: ''});
+  /* what the server said when it could not pass a page on */
+  const proxyWhy = status => status === 502 ? 'The team site answered Bad Gateway: the page was too big or too slow for the server to pass on.'
+    : status === 504 ? 'The page did not answer the team site in time.'
+    : status === 413 ? 'The page is too big for the team site to pass on.'
+    : status === 401 ? 'Sign in to m360 again, then try once more.'
+    : status === 400 ? 'That is not a public web address.'
+    : 'The team site answered ' + status + ' for this page.';
+  const dropSrc = src => { if (src) { try { URL.revokeObjectURL(src); } catch (e) { /* gone */ } } };
   const persist = tabs => { try { sessionStorage.setItem('m360.tabs', JSON.stringify(tabs.map(t => ({url: t.url, title: t.title})))); } catch (e) { /* private */ } };
   const restore = () => { try { const j = JSON.parse(sessionStorage.getItem('m360.tabs') || 'null'); if (Array.isArray(j) && j.length) return j.map(t => { const x = newTab(t.url); if (t.title) x.title = t.title; return x; }); } catch (e) { /* none */ } return [newTab('')]; };
   /* favicons come from Google's service on the team site and the desktop; the claude.ai page keeps letter tiles */
@@ -137,6 +147,22 @@
         if (r && r.frameable === false) patch(id, x => x.url === c ? {mode: 'proxy', check: r, loading: true} : {});
       } catch (e) { /* unknown: try the frame */ }
     }, [nat]);
+    /* reading mode: fetch the server's copy first; a failure becomes a sentence with a way out, a page
+       becomes a blob the sandboxed frame shows (its <base> keeps the site's own assets loading) */
+    const proxyFor = async (id, url, key) => {
+      const net = window.M360_BROWSE;
+      if (!net) { patch(id, x => x.key === key ? {proxyErr: 'Reading mode runs on the team site only.', loading: false} : {}); return; }
+      const r = await net.fetchPage(proxyUrl(url));
+      if (!r.ok) { patch(id, x => x.key === key ? {proxyErr: r.status ? proxyWhy(r.status) : 'The team site did not answer.', loading: false} : {}); return; }
+      if (r.kind === 'file') { patch(id, x => x.key === key ? {proxyErr: 'This address is a file' + (r.type ? ' (' + r.type + ')' : '') + '. Files open outside m360.', loading: false} : {}); return; }
+      const src = URL.createObjectURL(r.blob);
+      patch(id, x => { if (x.key !== key) { dropSrc(src); return {}; } dropSrc(x.proxySrc); return {proxySrc: src, proxyErr: ''}; });
+    };
+    useEffect(() => {
+      if (!tab || nat || tab.mode !== 'proxy' || !tab.url) return;
+      patch(tab.id, x => { dropSrc(x.proxySrc); return {proxySrc: '', proxyErr: ''}; });
+      proxyFor(tab.id, tab.url, tab.key);
+    }, [tab && tab.id, tab && tab.mode, tab && tab.url, tab && tab.key, nat]);
     const readerFor = async (id, url) => {
       patch(id, {mode: 'reader', reader: null, loading: false});
       try { const r = await window.M360_API('readpage', {url}); patch(id, {reader: r, title: r.title || hostOf(url)}); }
@@ -285,8 +311,17 @@
       : proxied ? html`<div class="web-frame-wrap" id="web-proxy-wrap">
         <div class="web-note row between small"><span class="ink62"><b>${hostOf(tab.url)}</b> refuses frames, so this is reading mode: the page as m360 fetched it. ${tab.check && tab.check.signin ? 'Signing in needs m360 Desktop.' : 'Public pages only.'}</span>
           <span class="row nowrap" style=${{gap: '6px'}}><button type="button" class="linky tiny" id="web-text" onClick=${() => readerFor(tab.id, tab.url)}>Just the text</button><button type="button" class="linky tiny" onClick=${() => patch(tab.id, {mode: 'frame', check: null, key: tab.key + 1, loading: true})}>Try the frame</button><button type="button" class="linky tiny" onClick=${() => openOut()}>Outside</button></span></div>
-        <iframe key=${'p' + tab.key} id="web-frame" class="web-frame" data-mode="proxy" src=${proxyUrl(tab.url)} title=${hostOf(tab.url)} onLoad=${loaded}
-          sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads" referrerPolicy="no-referrer"/>
+        ${tab.proxyErr ? html`<div class="web-proxy-err" id="web-proxy-err">
+          <div class="display" style=${{fontSize: '22px'}}>m360 could not show this page here.</div>
+          <div class="small ink62" style=${{marginTop: '6px', maxWidth: '520px'}}>${tab.proxyErr}</div>
+          <div class="row" style=${{marginTop: '16px', gap: '8px'}}>
+            <${UI.Btn} sm=${true} id="web-proxy-out" onClick=${() => openOut()}>Open outside<//>
+            <${UI.Btn} kind="sec" sm=${true} onClick=${() => readerFor(tab.id, tab.url)}>Just the text<//>
+            <${UI.Btn} kind="sec" sm=${true} onClick=${() => patch(tab.id, {mode: 'frame', check: null, key: tab.key + 1, loading: true})}>Try the frame<//>
+          </div>
+        </div>`
+        : html`<iframe key=${'p' + tab.key} id="web-frame" class="web-frame" data-mode="proxy" data-src=${proxyUrl(tab.url)} src=${tab.proxySrc || 'about:blank'} title=${hostOf(tab.url)} onLoad=${() => { if (tab.proxySrc) loaded(); }}
+          sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads" referrerPolicy="no-referrer"/>`}
       </div>`
       : reading ? html`<div class="web-reader" id="web-reader">
         <div class="web-note row between small"><span class="ink62">The text of <b>${hostOf(tab.url)}</b>.</span>

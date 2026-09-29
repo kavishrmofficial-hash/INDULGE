@@ -103,6 +103,7 @@ def test(h):
     body = pf.inner_text('#hiring-list')
     check('Priya Nair' in body and 'panel' in body and 'due ' + fmt(deadline) in body and '0 of 2 evaluations' in body, body)
     check(pf.locator('#hiring-candidate a[target="_blank"][rel~="noopener"]').count() == 3, 'three link anchors on the candidate page')
+    check(pf.locator('#hiring-candidate a[target="_blank"][data-out="1"]').count() == 3, 'candidate links open in the real browser, never the reading mode inside')
     check(pf.locator('#hiring-eval-u_m1 .pill.flame-o:has-text("not submitted")').count() == 1, 'm1 not submitted')
     check(pf.locator('#hiring-eval-u_m2 .pill.flame-o:has-text("not submitted")').count() == 1, 'm2 not submitted')
     check(h.ctx(pf, 'M.hiring.panel(ctx)') == [{'id': cid, 'candidate': 'Priya Nair', 'submitted': 0, 'total': 2}], 'panel before any evaluation')

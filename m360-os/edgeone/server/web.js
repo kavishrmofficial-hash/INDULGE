@@ -12,7 +12,27 @@ const hashOf = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h
    reader stays inside m360. The page runs sandboxed with an opaque origin, so a link inside asks the
    m360 page to navigate (postMessage go) rather than navigating itself: the sandbox carries no cookies,
    the parent does. No cookies travel to the site either way: this is reading mode, for public pages. */
-const BROWSE_MAX = 6 * 1024 * 1024;
+/* the platform passes at most 6 MB through a function and stops one that runs out of memory with a
+   502, so a page is read in chunks up to this cap and a file (a PDF, an image) is never carried:
+   the frame gets a small page that says so and the address to open outside */
+const BROWSE_MAX = 2500000;
+const FILE_PAGE = (url, type) => '<!doctype html><meta charset="utf-8"><body style="font:15px Helvetica,Arial;padding:24px;color:#0a0a0a">This address is a file (' + String(type).split(';')[0] + '), so it opens outside m360.<br><br><a href="' + url.replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '" target="_blank" rel="noopener">Open it</a></body>';
+/* read a body up to cap bytes; null when it runs past the cap */
+async function readUpTo(r, cap) {
+  if (!r.body || typeof r.body.getReader !== 'function') { const b = await r.arrayBuffer(); return b.byteLength > cap ? null : new Uint8Array(b); }
+  const reader = r.body.getReader();
+  const parts = []; let n = 0;
+  for (;;) {
+    const {done, value} = await reader.read();
+    if (done) break;
+    n += value.byteLength;
+    if (n > cap) { try { await reader.cancel(); } catch (e) { /* closed */ } return null; }
+    parts.push(value);
+  }
+  const out = new Uint8Array(n); let o = 0;
+  for (const p of parts) { out.set(p, o); o += p.byteLength; }
+  return out;
+}
 const NAV_SCRIPT = `<script>(function(){var P='/api/browse';function go(u){try{parent.postMessage({m360ext:'go',url:String(u)},'*');}catch(e){}}
 function targetOf(h){try{var x=new URL(h,location.href);return x.pathname===P?(x.searchParams.get('u')||''):x.href;}catch(e){return '';}}
 document.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('a[href]'):null;if(!a)return;var h=a.href||'';if(!/^https?:/i.test(h))return;var t=targetOf(h);if(!t)return;e.preventDefault();e.stopPropagation();go(t);},true);
@@ -57,12 +77,15 @@ export function browseHandler(h) {
       const type = String(r.headers.get('content-type') || 'text/html');
       const finalUrl = publicHost(r.url || target) ? (r.url || target) : target;
       if (!/text\/html|application\/xhtml/i.test(type)) {
-        const buf = await r.arrayBuffer();
-        if (buf.byteLength > BROWSE_MAX) return new Response('too big', {status: 413});
-        return new Response(buf, {status: r.status, headers: {'content-type': type, 'cache-control': 'private, max-age=300', 'x-content-type-options': 'nosniff'}});
+        try { await r.body.cancel(); } catch (e) { /* no body */ }
+        return new Response(FILE_PAGE(finalUrl, type), {status: 200, headers: {'content-type': 'text/html; charset=utf-8', 'cache-control': 'private, max-age=60', 'x-m360-kind': 'file', 'x-m360-url': finalUrl, 'x-m360-type': type.split(';')[0].trim(),
+          'content-security-policy': 'sandbox allow-popups allow-popups-to-escape-sandbox', 'x-content-type-options': 'nosniff'}});
       }
-      let html = await r.text();
-      if (html.length > BROWSE_MAX) html = html.slice(0, BROWSE_MAX);
+      const declared = Number(r.headers.get('content-length') || 0);
+      if (declared > BROWSE_MAX) { try { await r.body.cancel(); } catch (e) { /* no body */ } return new Response('too big', {status: 413}); }
+      const bytes = await readUpTo(r, BROWSE_MAX);
+      if (!bytes) return new Response('too big', {status: 413});
+      const html = new TextDecoder('utf-8').decode(bytes);
       const self = url.origin + '/api/browse';
       /* the page runs in a sandbox with an opaque origin: its scripts never touch m360's cookies or storage */
       return new Response(rewrite(html, finalUrl, self), {status: r.status >= 400 ? r.status : 200, headers: {'content-type': 'text/html; charset=utf-8', 'cache-control': 'private, max-age=60', 'x-m360-url': finalUrl,

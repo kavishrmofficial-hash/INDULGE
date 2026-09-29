@@ -167,8 +167,9 @@ def standalone_part():
             # a site that refuses frames opens in reading mode, inside
             k.fill('#web-url', 'blocked.example'); k.keyboard.press('Enter')
             k.wait_for_selector('#web-frame[data-mode="proxy"]')
-            src = k.evaluate('() => document.querySelector("#web-frame").getAttribute("src")')
+            src = k.evaluate('() => document.querySelector("#web-frame").getAttribute("data-src")')
             check(src.startswith('/api/browse?') and 'u=https%3A%2F%2Fblocked.example' in src, 'the frame goes through the server, got %r' % src)
+            k.wait_for_function('() => document.querySelector("#web-frame").getAttribute("src").startsWith("blob:")')
             fr = k.frame_locator('#web-frame')
             fr.locator('h1:has-text("Blocked home")').wait_for()
             k.wait_for_function('() => document.querySelector("#web-tabs .web-tab.active .web-tab-title").textContent === "Blocked home"')
@@ -194,6 +195,25 @@ def standalone_part():
             # a private address is refused by the server
             st = k.evaluate('() => fetch("/api/browse?u=http%3A%2F%2F127.0.0.1%3A81%2F").then(r => r.status)')
             check(st == 400, 'a private address is refused, got %r' % st)
+            # a site that refuses frames and never delivers its page: the tab says so and offers the page outside
+            k.fill('#web-url', 'down.example'); k.keyboard.press('Enter')
+            k.wait_for_selector('#web-proxy-err')
+            txt = k.inner_text('#web-proxy-err')
+            check('could not show this page here' in txt and 'did not answer' in txt, 'the failure note: %r' % txt)
+            check(k.locator('#web-proxy-out').count() == 1, 'the failure note offers the page outside')
+            check(k.locator('#web-frame').count() == 0, 'no frame while the note shows')
+            # a file behind a no-frame header: the tab says it is a file and offers it outside
+            k.fill('#web-url', 'files.example/cv.pdf'); k.keyboard.press('Enter')
+            k.wait_for_function('() => { const n = document.querySelector("#web-proxy-err"); return n && /is a file/.test(n.textContent); }')
+            txt = k.inner_text('#web-proxy-err')
+            check('application/pdf' in txt and k.locator('#web-proxy-out').count() == 1, 'the file note: %r' % txt)
+            st = k.evaluate('() => fetch("/api/browse?u=https%3A%2F%2Ffiles.example%2Fcv.pdf").then(r => [r.status, r.headers.get("x-m360-kind"), r.headers.get("content-type")])')
+            check(st[0] == 200 and st[1] == 'file' and 'text/html' in (st[2] or ''), 'the server hands a file back as a small page, got %r' % (st,))
+            # a page past the cap: the server says too big before it reads the whole thing
+            st = k.evaluate('() => fetch("/api/browse?u=https%3A%2F%2Fhuge.example%2F").then(r => r.status)')
+            check(st == 413, 'a page past the cap is refused as too big, got %r' % st)
+            k.fill('#web-url', 'huge.example'); k.keyboard.press('Enter')
+            k.wait_for_function('() => { const n = document.querySelector("#web-proxy-err"); return n && /too big/.test(n.textContent); }')
             check(not errs, 'page errors: %r' % errs[:3])
             browser.close()
     finally:

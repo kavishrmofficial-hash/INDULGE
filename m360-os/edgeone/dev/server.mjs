@@ -123,6 +123,23 @@ async function fakeFetch(url, init) {
   }
   const g = await fakeGoogle(String(url), init || {});
   if (g) return g;
+  /* a file (a PDF) on a host that refuses frames: reading mode says it is a file and hands it outside */
+  if (/^https?:\/\/files\.example\//.test(String(url))) {
+    const hdr = {'content-type': 'application/pdf', 'x-frame-options': 'DENY', 'content-length': '120000'};
+    if ((init.method || 'GET').toUpperCase() === 'HEAD') return new Response('', {status: 200, headers: hdr});
+    return new Response(new Uint8Array(120000), {status: 200, headers: hdr});
+  }
+  /* a page far past the cap: reading mode says it is too big */
+  if (/^https?:\/\/huge\.example\//.test(String(url))) {
+    const hdr = {'content-type': 'text/html; charset=utf-8', 'x-frame-options': 'DENY'};
+    if ((init.method || 'GET').toUpperCase() === 'HEAD') return new Response('', {status: 200, headers: hdr});
+    return new Response('<!doctype html><html><body>' + 'x'.repeat(3000000) + '</body></html>', {status: 200, headers: hdr});
+  }
+  /* a site that refuses frames and then never delivers its page: reading mode has to say so */
+  if (/^https?:\/\/down\.example\//.test(String(url))) {
+    if ((init.method || 'GET').toUpperCase() === 'HEAD') return new Response('', {status: 200, headers: {'content-type': 'text/html', 'x-frame-options': 'DENY'}});
+    throw new Error('socket hang up');
+  }
   /* a site that refuses frames, with links, for reading mode */
   if (/^https?:\/\/blocked\.example\//.test(String(url))) {
     const u = new URL(String(url));

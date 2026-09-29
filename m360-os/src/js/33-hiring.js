@@ -127,11 +127,13 @@
   const StagePill = ({stage}) => html`<${UI.Pill} kind=${stageKind(stage)}>${(STAGE_LABEL[stage] || 'Screen').toLowerCase()}<//>`;
   const VerdictPill = ({v}) => html`<${UI.Pill} kind=${v === 'yes' || v === 'strong-yes' ? 'ink' : 'flame-o'}>${(VERDICT_LABEL[v] || 'No verdict').toLowerCase()}<//>`;
   const YesPill = ({label, v}) => html`<${UI.Pill} kind=${v === 'yes' ? 'ink' : 'flame-o'}>${label}: ${v === 'yes' ? 'yes' : 'no'}<//>`;
+  /* a candidate's links (a portfolio, a drive folder, a profile) open in the real browser: they need the
+     site's own scripts and often a sign in, which the reading mode inside m360 cannot give them */
   const Links = ({c}) => {
     const links = linksOf(c);
     if (!links.length) return html`<${UI.Empty} text="No links yet."/>`;
     return html`<div class="stack tight">
-      ${links.map((l, i) => html`<a key=${i} class="linky small" href=${l.href} target="_blank" rel="noopener noreferrer"
+      ${links.map((l, i) => html`<a key=${i} class="linky small" href=${l.href} target="_blank" rel="noopener noreferrer" data-out="1"
         style=${{overflowWrap: 'anywhere', alignSelf: 'flex-start'}}>${l.text}</a>`)}
     </div>`;
   };

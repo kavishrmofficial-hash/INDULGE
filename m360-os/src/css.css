@@ -939,6 +939,7 @@ body.web-focus .music-dock{display:none}
 
 /* the browser: reading mode's note bar, the desktop line */
 .web-note{padding:8px 12px; gap:8px; border-bottom:1px solid var(--line); flex:none; flex-wrap:wrap}
+.web-proxy-err{flex:1; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; padding:32px 28px}
 .web-foot{margin-top:auto; padding-top:12px; line-height:1.45}
 .web-foot a{color:inherit}
 
