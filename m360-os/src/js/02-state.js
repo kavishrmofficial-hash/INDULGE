@@ -38,6 +38,8 @@
   const COLLS = ['checkin','eod','plan','review','rocks','feed','reacts','acks','kudos','leave','leavedec',
     'tasks','projects','pitches','clients','handbook','candidates','evals','pulse','ideas','votes','access','onboard','me','fixes','contacts','orgs','chat','chatrooms','hunt'];
 
+  /* the books (invoices, expenses, payroll, HR letters, billing setup): the owner's alone, subscribed by nobody else */
+  const BOOK_COLLS = ['books', 'invoices', 'expenses', 'payroll', 'hr'];
   const OFF_COLL = Object.freeze({ready: false, map: Object.freeze({}), off: true});
   /* AppState wraps the whole signed-in app: subscribes once per collection, computes ctx. */
   M.AppState = function AppState({boot, children}) {
@@ -66,6 +68,7 @@
     const rm = ((rosterDoc.data || {}).members || {})[realUid];
     const founderish = !!me.isOwner || !!(rm && rm.role === 'founder' && rm.active !== false);
     coll.join = M.useColl(db, founderish ? 'join' : null);
+    for (const c of BOOK_COLLS) coll[c] = M.useColl(db, me.isOwner ? c : null);
 
     /* who the page renders as: in preview the founder becomes a plain member */
     const members0 = (rosterDoc.data || {}).members || {};
@@ -169,10 +172,10 @@
       return {db, user, mcp, downloads, permissions, sample, room, me, uid, realUid, viewAs, W,
         priv: {state: privState, keeper: isFounder ? privKeeper : {ready: true, data: null}, finance: isFounder ? privFinance : {ready: true, data: null}},
         ready: rosterDoc.ready && settingsDoc.ready,
-        roster, members, member, activeMembers, isFounder, founderUid, locked, remoteBase, baseOn,
+        roster, members, member, activeMembers, isFounder, isOwner: !viewAs && !!me.isOwner, founderUid, locked, remoteBase, baseOn,
         settings, holidays, coll, leaveMap, onLeave, isWorkingDay, startFor, canSee, now, online};
     }, [rosterDoc, settingsDoc, me, uid, realUid, viewAs, isFounder, locked, W, now, online, coll.join,
-      privState, privKeeper, privFinance, ...COLLS.map(c => coll[c])]);
+      privState, privKeeper, privFinance, ...COLLS.map(c => coll[c]), ...BOOK_COLLS.map(c => coll[c])]);
 
     /* rules engine output, computed each render pass */
     ctx.flags = (M.rules && M.rules.evaluate) ? M.rules.evaluate(ctx, new Date()) : [];

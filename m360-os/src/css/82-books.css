@@ -1,0 +1,91 @@
+/* ---------- the books: printable documents (invoice, payslip, letter) ---------- */
+.doc-wrap{display:flex; flex-direction:column; gap:10px; min-width:0}
+.doc-tools{gap:10px; flex-wrap:wrap}
+.doc{width:794px; max-width:100%; min-height:1000px; margin:0 auto; background:#FFFFFF; color:#0E0E0E; border:1px solid var(--line); box-shadow:0 6px 40px var(--shadow); display:flex; flex-direction:column; font-size:12px; line-height:1.5; overflow:hidden; position:relative}
+.doc-band{height:4px; background:var(--flame); flex:none}
+.doc-head{display:grid; grid-template-columns:1fr 1fr; gap:20px; padding:32px 44px 24px; border-bottom:1.5px solid #EFEDE7}
+.doc-head-right{display:flex; flex-direction:column; align-items:flex-end; justify-content:space-between; gap:10px; text-align:right}
+.doc-brand{font-size:22px; font-weight:800; letter-spacing:-.03em; line-height:1}
+.doc-brand b{color:var(--flame); font-weight:800}
+.doc-micro{font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:rgba(14,14,14,.5); margin-top:4px}
+.doc-addr{font-size:11px; letter-spacing:.04em; color:rgba(14,14,14,.66); line-height:1.9; margin-top:10px}
+.doc-pill{display:inline-block; font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--flame); border:1px solid var(--flame); border-radius:100px; padding:5px 14px}
+.doc-title{font-size:24px; font-weight:800; letter-spacing:-.04em; line-height:1.05; white-space:nowrap}
+.doc-cells{display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1.5px solid #EFEDE7}
+.doc-cell{padding:14px 16px 14px 44px; border-right:1.5px solid #EFEDE7; min-width:0}
+.doc-cell:last-child{border-right:0}
+.doc-cell .doc-micro{margin:0 0 4px}
+.doc-cell .v{font-size:13px; font-weight:700; letter-spacing:-.01em}
+.doc-cell .v.due{color:var(--flame)}
+.doc-parties{display:grid; grid-template-columns:1fr 1fr; border-bottom:1.5px solid #EFEDE7}
+.doc-party{padding:22px 44px; min-width:0}
+.doc-party:first-child{border-right:1.5px solid #EFEDE7}
+.doc-party .doc-micro{color:var(--flame); display:flex; align-items:center; gap:8px; margin:0 0 10px}
+.doc-party .doc-micro::before{content:""; width:14px; height:2px; background:var(--flame); flex:none}
+.doc-party-name{font-size:14px; font-weight:800; letter-spacing:-.02em; margin-bottom:6px}
+.doc-party .doc-addr{margin-top:0; line-height:1.8}
+.doc-tag{display:inline-block; margin-top:9px; font-size:11px; letter-spacing:.06em; color:rgba(14,14,14,.66); background:#F7F6F2; border-radius:4px; padding:3px 8px}
+.doc-table{width:100%; border-collapse:collapse}
+.doc-table th{font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:rgba(14,14,14,.5); font-weight:400; text-align:left; padding:14px 10px 10px; border-bottom:1.5px solid #EFEDE7}
+.doc-table th:first-child,.doc-table td:first-child{padding-left:44px}
+.doc-table th:last-child,.doc-table td:last-child{padding-right:44px; text-align:right}
+.doc-table td{padding:12px 10px; border-bottom:1px solid #EFEDE7; vertical-align:top}
+.doc-table td.n,.doc-table th.n{text-align:right; white-space:nowrap}
+.doc-table .doc-line{font-weight:700; font-size:12.5px}
+.doc-table .doc-note{color:rgba(14,14,14,.66); font-size:11px; margin-top:2px}
+.doc-words{padding:16px 44px; border-top:1.5px solid #EFEDE7; border-bottom:1.5px solid #EFEDE7; font-size:11px}
+.doc-words b{display:block; font-size:12px; margin-top:3px}
+.doc-lower{display:grid; grid-template-columns:1.2fr 1fr; gap:24px; padding:20px 44px}
+.doc-block{margin-bottom:14px}
+.doc-block .doc-micro{margin:0 0 5px}
+.doc-block .small{font-size:11px; line-height:1.7; color:rgba(14,14,14,.82)}
+.doc-totals{border:1px solid #EFEDE7; border-radius:8px; overflow:hidden}
+.doc-total-row{display:flex; justify-content:space-between; gap:12px; padding:9px 14px; border-bottom:1px solid #EFEDE7; font-size:12px}
+.doc-total-row:last-child{border-bottom:0}
+.doc-total-row.grand{background:#0E0E0E; color:#FFFFFF; font-weight:700; font-size:14px; padding:12px 14px}
+.doc-kv{display:grid; grid-template-columns:auto 1fr; gap:3px 12px; font-size:11px}
+.doc-kv span:nth-child(odd){color:rgba(14,14,14,.5); letter-spacing:.06em; text-transform:uppercase}
+.doc-sign{margin-top:auto; padding:8px 0 0; display:flex; flex-direction:column; align-items:flex-end; text-align:right; position:relative}
+.doc-sig{height:54px; width:auto; display:block; margin-bottom:6px}
+.doc-sig-space{height:54px}
+.doc-seal{position:absolute; right:130px; top:-6px; height:78px; width:auto; opacity:.9}
+.doc-sign-who{font-weight:700; font-size:13px}
+.doc-sub{font-size:11px; color:rgba(14,14,14,.66)}
+.doc-foot{margin-top:auto; padding:14px 44px 18px; border-top:1.5px solid #EFEDE7; font-size:11px; letter-spacing:.06em; color:rgba(14,14,14,.5); text-align:center}
+/* letters and payslips */
+.doc-body{padding:28px 44px 24px; font-size:13.5px; line-height:1.75; color:#0E0E0E; flex:1}
+.doc-body p{margin:0 0 14px}
+.doc-h{font-size:20px; font-weight:800; letter-spacing:-.03em; margin:0 0 16px}
+.doc-ref{display:flex; justify-content:space-between; gap:12px; padding:14px 44px; border-bottom:1.5px solid #EFEDE7; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:rgba(14,14,14,.66)}
+.doc-grid{display:grid; grid-template-columns:1fr 1fr; gap:0 24px; padding:16px 44px; border-bottom:1.5px solid #EFEDE7}
+.doc-grid .doc-kv{margin-bottom:8px}
+.doc-body .doc-sign{padding:24px 0 0}
+/* the books pages */
+.stat.rowbtn{cursor:pointer}
+.stat.hot .v{color:var(--flame)}
+.inv-row .no{font-weight:600; letter-spacing:-.01em}
+.inv-lines .listrow{align-items:flex-start}
+.inv-lines .input{min-height:38px}
+/* print: only the document, on A4 */
+@media print{
+  body.print-doc{background:#FFFFFF}
+  body.print-doc *{visibility:hidden}
+  body.print-doc .doc-print,body.print-doc .doc-print *{visibility:visible}
+  body.print-doc .doc-print{position:absolute; left:0; top:0; width:100%; max-width:none; min-height:0; border:0; box-shadow:none; margin:0}
+  body.print-doc .notices,body.print-doc .buddy,body.print-doc .tabbar,body.print-doc .topbar{display:none}
+  @page{size:A4; margin:0}
+}
+@media (max-width:860px){
+  .doc{font-size:11px}
+  .doc-head,.doc-parties,.doc-lower,.doc-grid{grid-template-columns:1fr}
+  .doc-head-right{align-items:flex-start; text-align:left}
+  .doc-cells{grid-template-columns:1fr 1fr}
+  .doc-cell{padding:12px 16px 12px 20px}
+  .doc-head,.doc-party,.doc-words,.doc-lower,.doc-body,.doc-foot,.doc-ref,.doc-grid{padding-left:20px; padding-right:20px}
+  .doc-table th:first-child,.doc-table td:first-child{padding-left:20px}
+  .doc-table th:last-child,.doc-table td:last-child{padding-right:20px}
+  .doc-party:first-child{border-right:0; border-bottom:1.5px solid #EFEDE7}
+  .doc-title{white-space:normal; font-size:22px}
+  .doc-table th.slim,.doc-table td.slim{display:none}
+  .doc-table th,.doc-table td{padding-left:6px; padding-right:6px}
+}

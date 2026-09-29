@@ -30,6 +30,7 @@ import {huntActions} from './hunt.js';
 import {spotifyActions} from './spotify.js';
 import {webActions, browseHandler} from './web.js';
 import {holidayNotice} from './holiday.js';
+import {booksDesk} from './books.js';
 import {fileActions} from './files.js';
 import {baseActions} from './base.js';
 
@@ -352,12 +353,13 @@ export function createApp({store, env = {}}) {
       head + '<div style="height:18px"></div>' + htmlBody +
       '<div style="height:22px"></div><div style="font-size:12px;color:#8A8A8A">m360 OS, the Mask360 operating system.</div></div>';
   };
-  async function sendMail(to, subject, text, htmlBody, base) {
+  async function sendMail(to, subject, text, htmlBody, base, opts) {
     const c = await mailConf();
     if (!c) return false;
+    const cc = (opts && Array.isArray(opts.cc) ? opts.cc : []).filter(x => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(x)));
     const r = await (env.fetch || fetch)('https://api.resend.com/emails', {
       method: 'POST', headers: {'content-type': 'application/json', authorization: 'Bearer ' + c.key},
-      body: JSON.stringify({from: c.from, to: [to], subject, text, html: brandMail(htmlBody, base)})
+      body: JSON.stringify(Object.assign({from: c.from, to: [to], subject, text, html: brandMail(htmlBody, base)}, cc.length ? {cc} : {}))
     });
     if (!r.ok) { const j = await r.json().catch(() => ({})); throw new HttpError(502, 'mail_failed', (j && j.message) || ('mail ' + r.status)); }
     return true;
@@ -1044,6 +1046,9 @@ export function createApp({store, env = {}}) {
     await log(uid, 'set', path, what || '');
   }
   const holiday = holidayNotice({getJ, docKey, appSettings, ownerUid, sendMail, writeAs, ymdIST, env});
+  /* the books: invoice mail from the owner's page, retainer drafts and auto-chase on a ten minute pass */
+  const books = booksDesk({getJ, docKey, listAll, ownerUid, sendMail, writeAs, ymdIST, levelOf, LEVEL, HttpError, env});
+  Object.assign(actions, books.actions);
   /* radar actions (news, awards, watch) live in radar.js and share the store helpers */
   Object.assign(actions, radarActions({store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, isObj, stampKey}));
   const google = googleActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError, log, rand, docKey});
@@ -1085,6 +1090,8 @@ export function createApp({store, env = {}}) {
       if (hooks.upkeep) await hooks.upkeep().catch(() => {});
       /* the day before a holiday, once: the announcement and the mails */
       await holiday().catch(() => {});
+      /* the books' pass: retainer drafts on the billing day, reminder steps when auto-chase is on */
+      await books.run(site).catch(() => {});
       /* once a day per instance, off the request's path: old log days go */
       const today = ymdIST(Date.now());
       if (logPruneDay !== today) { logPruneDay = today; pruneOldLogs(LOG_DAYS).catch(() => {}); }

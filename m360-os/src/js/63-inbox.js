@@ -79,6 +79,8 @@
         push('fixd:' + id, 'fix', r.decidedAt, T`Correction ${r.status}, ${kl[r.kind] || 'other'}${r.date ? ' ' + U.fmtDate(r.date) : ''}${r.decidedNote ? ': ' + r.decidedNote : ''}`, '#me', null, r.status === 'declined');
       }
     }
+    /* the books: an invoice past due, a retainer draft waiting, a compliance date, a letter unsigned (owner only) */
+    if (M.booksWatch && ctx.isOwner) M.booksWatch.inboxItems(ctx, (id, kind, at, text, ref, hot) => push(id, kind, at, T`${text}`, ref, null, hot));
     /* the day before a holiday, for everyone; the announcement takes its place once one is posted */
     if (M.holidays) {
       const hol = M.holidays.tomorrow(ctx);
@@ -93,7 +95,7 @@
   const seenAt = ctx => Number(((ctx.coll.me.map[ctx.uid] || {}).inboxSeen) || 0);
   const unread = ctx => items(ctx).filter(i => i.at > seenAt(ctx)).length;
 
-  const KIND_ICON = {tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift', fix: 'fix', chat: 'send'};
+  const KIND_ICON = {tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift', fix: 'fix', chat: 'send', books: 'log'};
 
   function Inbox({onClose}) {
     const ctx = M.useCtx();
@@ -122,7 +124,7 @@
      notification when m360 sits in another window. Chat lines have their own watcher. The mark of
      the newest item seen lives in this browser, per person; the first load on a device sets it, so
      a backlog never rains down. ---------- */
-  const TITLE = {tasks: 'Work', review: 'Review', feed: 'Feed', scores: 'Kudos', leave: 'Leave', people: 'Team', gift: 'Today', fix: 'Correction'};
+  const TITLE = {tasks: 'Work', review: 'Review', feed: 'Feed', scores: 'Kudos', leave: 'Leave', people: 'Team', gift: 'Today', fix: 'Correction', books: 'Books'};
   function InboxWatch() {
     const ctx = M.useCtx();
     const uid = ctx.uid;

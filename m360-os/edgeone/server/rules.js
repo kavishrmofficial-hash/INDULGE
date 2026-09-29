@@ -210,5 +210,30 @@ export const RULES = [
   "path": "orgs",
   "read": "interact",
   "write": "interact"
+ },
+ {
+  "path": "books",
+  "read": "owner",
+  "write": "owner"
+ },
+ {
+  "path": "invoices",
+  "read": "owner",
+  "write": "owner"
+ },
+ {
+  "path": "expenses",
+  "read": "owner",
+  "write": "owner"
+ },
+ {
+  "path": "payroll",
+  "read": "owner",
+  "write": "owner"
+ },
+ {
+  "path": "hr",
+  "read": "owner",
+  "write": "owner"
  }
 ];

@@ -151,6 +151,7 @@ img{max-width:100%}
 .row{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
 .row.between{justify-content:space-between}
 .row.nowrap{flex-wrap:nowrap}
+.linky.nowrap{white-space:nowrap}
 .grow{flex:1; min-width:0}
 .hair{border:0; border-top:1px solid var(--line); margin:14px 0}
 .listrow{display:flex; align-items:center; gap:11px; padding:10px 0; border-bottom:1px solid var(--line); min-width:0; flex-wrap:wrap}
@@ -1408,8 +1409,101 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
   .cl-news a{flex-wrap:wrap; gap:2px 10px}
   .cl-news .t{flex-basis:100%}
 }
+
+/* ==== 82-books.css ==== */
+/* ---------- the books: printable documents (invoice, payslip, letter) ---------- */
+.doc-wrap{display:flex; flex-direction:column; gap:10px; min-width:0}
+.doc-tools{gap:10px; flex-wrap:wrap}
+.doc{width:794px; max-width:100%; min-height:1000px; margin:0 auto; background:#FFFFFF; color:#0E0E0E; border:1px solid var(--line); box-shadow:0 6px 40px var(--shadow); display:flex; flex-direction:column; font-size:12px; line-height:1.5; overflow:hidden; position:relative}
+.doc-band{height:4px; background:var(--flame); flex:none}
+.doc-head{display:grid; grid-template-columns:1fr 1fr; gap:20px; padding:32px 44px 24px; border-bottom:1.5px solid #EFEDE7}
+.doc-head-right{display:flex; flex-direction:column; align-items:flex-end; justify-content:space-between; gap:10px; text-align:right}
+.doc-brand{font-size:22px; font-weight:800; letter-spacing:-.03em; line-height:1}
+.doc-brand b{color:var(--flame); font-weight:800}
+.doc-micro{font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:rgba(14,14,14,.5); margin-top:4px}
+.doc-addr{font-size:11px; letter-spacing:.04em; color:rgba(14,14,14,.66); line-height:1.9; margin-top:10px}
+.doc-pill{display:inline-block; font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--flame); border:1px solid var(--flame); border-radius:100px; padding:5px 14px}
+.doc-title{font-size:24px; font-weight:800; letter-spacing:-.04em; line-height:1.05; white-space:nowrap}
+.doc-cells{display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1.5px solid #EFEDE7}
+.doc-cell{padding:14px 16px 14px 44px; border-right:1.5px solid #EFEDE7; min-width:0}
+.doc-cell:last-child{border-right:0}
+.doc-cell .doc-micro{margin:0 0 4px}
+.doc-cell .v{font-size:13px; font-weight:700; letter-spacing:-.01em}
+.doc-cell .v.due{color:var(--flame)}
+.doc-parties{display:grid; grid-template-columns:1fr 1fr; border-bottom:1.5px solid #EFEDE7}
+.doc-party{padding:22px 44px; min-width:0}
+.doc-party:first-child{border-right:1.5px solid #EFEDE7}
+.doc-party .doc-micro{color:var(--flame); display:flex; align-items:center; gap:8px; margin:0 0 10px}
+.doc-party .doc-micro::before{content:""; width:14px; height:2px; background:var(--flame); flex:none}
+.doc-party-name{font-size:14px; font-weight:800; letter-spacing:-.02em; margin-bottom:6px}
+.doc-party .doc-addr{margin-top:0; line-height:1.8}
+.doc-tag{display:inline-block; margin-top:9px; font-size:11px; letter-spacing:.06em; color:rgba(14,14,14,.66); background:#F7F6F2; border-radius:4px; padding:3px 8px}
+.doc-table{width:100%; border-collapse:collapse}
+.doc-table th{font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:rgba(14,14,14,.5); font-weight:400; text-align:left; padding:14px 10px 10px; border-bottom:1.5px solid #EFEDE7}
+.doc-table th:first-child,.doc-table td:first-child{padding-left:44px}
+.doc-table th:last-child,.doc-table td:last-child{padding-right:44px; text-align:right}
+.doc-table td{padding:12px 10px; border-bottom:1px solid #EFEDE7; vertical-align:top}
+.doc-table td.n,.doc-table th.n{text-align:right; white-space:nowrap}
+.doc-table .doc-line{font-weight:700; font-size:12.5px}
+.doc-table .doc-note{color:rgba(14,14,14,.66); font-size:11px; margin-top:2px}
+.doc-words{padding:16px 44px; border-top:1.5px solid #EFEDE7; border-bottom:1.5px solid #EFEDE7; font-size:11px}
+.doc-words b{display:block; font-size:12px; margin-top:3px}
+.doc-lower{display:grid; grid-template-columns:1.2fr 1fr; gap:24px; padding:20px 44px}
+.doc-block{margin-bottom:14px}
+.doc-block .doc-micro{margin:0 0 5px}
+.doc-block .small{font-size:11px; line-height:1.7; color:rgba(14,14,14,.82)}
+.doc-totals{border:1px solid #EFEDE7; border-radius:8px; overflow:hidden}
+.doc-total-row{display:flex; justify-content:space-between; gap:12px; padding:9px 14px; border-bottom:1px solid #EFEDE7; font-size:12px}
+.doc-total-row:last-child{border-bottom:0}
+.doc-total-row.grand{background:#0E0E0E; color:#FFFFFF; font-weight:700; font-size:14px; padding:12px 14px}
+.doc-kv{display:grid; grid-template-columns:auto 1fr; gap:3px 12px; font-size:11px}
+.doc-kv span:nth-child(odd){color:rgba(14,14,14,.5); letter-spacing:.06em; text-transform:uppercase}
+.doc-sign{margin-top:auto; padding:8px 0 0; display:flex; flex-direction:column; align-items:flex-end; text-align:right; position:relative}
+.doc-sig{height:54px; width:auto; display:block; margin-bottom:6px}
+.doc-sig-space{height:54px}
+.doc-seal{position:absolute; right:130px; top:-6px; height:78px; width:auto; opacity:.9}
+.doc-sign-who{font-weight:700; font-size:13px}
+.doc-sub{font-size:11px; color:rgba(14,14,14,.66)}
+.doc-foot{margin-top:auto; padding:14px 44px 18px; border-top:1.5px solid #EFEDE7; font-size:11px; letter-spacing:.06em; color:rgba(14,14,14,.5); text-align:center}
+/* letters and payslips */
+.doc-body{padding:28px 44px 24px; font-size:13.5px; line-height:1.75; color:#0E0E0E; flex:1}
+.doc-body p{margin:0 0 14px}
+.doc-h{font-size:20px; font-weight:800; letter-spacing:-.03em; margin:0 0 16px}
+.doc-ref{display:flex; justify-content:space-between; gap:12px; padding:14px 44px; border-bottom:1.5px solid #EFEDE7; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:rgba(14,14,14,.66)}
+.doc-grid{display:grid; grid-template-columns:1fr 1fr; gap:0 24px; padding:16px 44px; border-bottom:1.5px solid #EFEDE7}
+.doc-grid .doc-kv{margin-bottom:8px}
+.doc-body .doc-sign{padding:24px 0 0}
+/* the books pages */
+.stat.rowbtn{cursor:pointer}
+.stat.hot .v{color:var(--flame)}
+.inv-row .no{font-weight:600; letter-spacing:-.01em}
+.inv-lines .listrow{align-items:flex-start}
+.inv-lines .input{min-height:38px}
+/* print: only the document, on A4 */
+@media print{
+  body.print-doc{background:#FFFFFF}
+  body.print-doc *{visibility:hidden}
+  body.print-doc .doc-print,body.print-doc .doc-print *{visibility:visible}
+  body.print-doc .doc-print{position:absolute; left:0; top:0; width:100%; max-width:none; min-height:0; border:0; box-shadow:none; margin:0}
+  body.print-doc .notices,body.print-doc .buddy,body.print-doc .tabbar,body.print-doc .topbar{display:none}
+  @page{size:A4; margin:0}
+}
+@media (max-width:860px){
+  .doc{font-size:11px}
+  .doc-head,.doc-parties,.doc-lower,.doc-grid{grid-template-columns:1fr}
+  .doc-head-right{align-items:flex-start; text-align:left}
+  .doc-cells{grid-template-columns:1fr 1fr}
+  .doc-cell{padding:12px 16px 12px 20px}
+  .doc-head,.doc-party,.doc-words,.doc-lower,.doc-body,.doc-foot,.doc-ref,.doc-grid{padding-left:20px; padding-right:20px}
+  .doc-table th:first-child,.doc-table td:first-child{padding-left:20px}
+  .doc-table th:last-child,.doc-table td:last-child{padding-right:20px}
+  .doc-party:first-child{border-right:0; border-bottom:1.5px solid #EFEDE7}
+  .doc-title{white-space:normal; font-size:22px}
+  .doc-table th.slim,.doc-table td.slim{display:none}
+  .doc-table th,.doc-table td{padding-left:6px; padding-right:6px}
+}
 </style>
-<script>window.M360_BUILD = "67de58a+.260929-1337";</script><script>
+<script>window.M360_BUILD = "280bc65+.260929-2210";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -2692,6 +2786,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   const COLLS = ['checkin','eod','plan','review','rocks','feed','reacts','acks','kudos','leave','leavedec',
     'tasks','projects','pitches','clients','handbook','candidates','evals','pulse','ideas','votes','access','onboard','me','fixes','contacts','orgs','chat','chatrooms','hunt'];
 
+  /* the books (invoices, expenses, payroll, HR letters, billing setup): the owner's alone, subscribed by nobody else */
+  const BOOK_COLLS = ['books', 'invoices', 'expenses', 'payroll', 'hr'];
   const OFF_COLL = Object.freeze({ready: false, map: Object.freeze({}), off: true});
   /* AppState wraps the whole signed-in app: subscribes once per collection, computes ctx. */
   M.AppState = function AppState({boot, children}) {
@@ -2720,6 +2816,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const rm = ((rosterDoc.data || {}).members || {})[realUid];
     const founderish = !!me.isOwner || !!(rm && rm.role === 'founder' && rm.active !== false);
     coll.join = M.useColl(db, founderish ? 'join' : null);
+    for (const c of BOOK_COLLS) coll[c] = M.useColl(db, me.isOwner ? c : null);
 
     /* who the page renders as: in preview the founder becomes a plain member */
     const members0 = (rosterDoc.data || {}).members || {};
@@ -2823,10 +2920,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       return {db, user, mcp, downloads, permissions, sample, room, me, uid, realUid, viewAs, W,
         priv: {state: privState, keeper: isFounder ? privKeeper : {ready: true, data: null}, finance: isFounder ? privFinance : {ready: true, data: null}},
         ready: rosterDoc.ready && settingsDoc.ready,
-        roster, members, member, activeMembers, isFounder, founderUid, locked, remoteBase, baseOn,
+        roster, members, member, activeMembers, isFounder, isOwner: !viewAs && !!me.isOwner, founderUid, locked, remoteBase, baseOn,
         settings, holidays, coll, leaveMap, onLeave, isWorkingDay, startFor, canSee, now, online};
     }, [rosterDoc, settingsDoc, me, uid, realUid, viewAs, isFounder, locked, W, now, online, coll.join,
-      privState, privKeeper, privFinance, ...COLLS.map(c => coll[c])]);
+      privState, privKeeper, privFinance, ...COLLS.map(c => coll[c]), ...BOOK_COLLS.map(c => coll[c])]);
 
     /* rules engine output, computed each render pass */
     ctx.flags = (M.rules && M.rules.evaluate) ? M.rules.evaluate(ctx, new Date()) : [];
@@ -2891,13 +2988,23 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     hq: {label: 'HQ', icon: 'command', page: 'HQ', founder: true, tabs: [
       {k: 'brief', label: 'Intelligence', route: 'hq'}, {k: 'dashboard', label: 'Dashboard', route: 'command'},
       {k: 'hiring', label: 'Hiring', route: 'hiring'}]},
-    admin: {label: 'Admin', icon: 'desk', page: 'Admin', founder: true}
+    admin: {label: 'Admin', icon: 'desk', page: 'Admin', founder: true},
+    books: {label: 'Books', icon: 'log', page: 'Books', founder: true, owner: true, tabs: [
+      {k: 'overview', label: 'Overview', route: 'books'}, {k: 'invoices', label: 'Invoices', route: 'invoices'},
+      {k: 'expenses', label: 'Expenses', route: 'expenses'}, {k: 'payroll', label: 'Payroll', route: 'payroll'},
+      {k: 'letters', label: 'Letters', route: 'letters'}, {k: 'billing', label: 'Setup', route: 'billing'}]}
   };
   M.SECTIONS = SECTIONS;
 
   /* every hash, old or new, lands in one section and tab */
-  function resolve(page, id, isFounder) {
+  function resolve(page, id, isFounder, isOwner) {
     switch (page) {
+      case 'books': case 'accounts-books': case 'ledger': return isOwner ? {s: 'books', t: 'overview'} : {s: 'home'};
+      case 'invoices': case 'invoice': return isOwner ? {s: 'books', t: 'invoices', id} : {s: 'home'};
+      case 'expenses': case 'expense': return isOwner ? {s: 'books', t: 'expenses', id} : {s: 'home'};
+      case 'payroll': case 'payslips': return isOwner ? {s: 'books', t: 'payroll', id} : {s: 'home'};
+      case 'letters': case 'letter': return isOwner ? {s: 'books', t: 'letters', id} : {s: 'home'};
+      case 'billing': return isOwner ? {s: 'books', t: 'billing', id} : {s: 'home'};
       case 'home': case 'today': return {s: 'home'};
       case 'work': return {s: 'work', t: 'tasks'};
       case 'projects': return {s: 'work', t: 'projects', id};
@@ -2962,6 +3069,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         for (const r of ((ctx.coll.leave.map[lu] || {}).reqs || [])) if (!dec[r.id]) pend++;
       }
       out.join = (M.team && M.team.requests) ? M.team.requests(ctx).length : 0;
+      if (ctx.isOwner && M.books) { const td = U.todayStr(); out.books = M.books.invoices(ctx).filter(i => { const st = M.books.status(i, td); return st === 'overdue' || (st === 'part' && i.due && i.due < td); }).length; }
       /* the Admin item counts leave waiting, corrections waiting and people waiting to join */
       out.admin = pend + (M.fixes && M.fixes.pending ? M.fixes.pending(ctx).length : 0) + (out.join || 0);
       out.hq = ctx.flags.filter(f => f.severity === 'high').length;
@@ -3127,14 +3235,14 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       return () => { window.removeEventListener('keydown', on); window.removeEventListener('m360:ask', open); window.removeEventListener('m360:inbox', inbox); window.removeEventListener('m360:keys', keys); };
     }, []);
 
-    const r = resolve(route.page, route.id, ctx.isFounder);
+    const r = resolve(route.page, route.id, ctx.isFounder, ctx.isOwner);
     const sec = SECTIONS[r.s] || SECTIONS.home;
     const Page = M.pages[sec.page];
     const b = M.badges(ctx);
     const go = k => { setMoreOpen(false); M.nav('#' + k); };
 
     const mainKeys = ['home', 'chat', 'work', 'accounts', 'workspace', 'base', 'radar', 'web', 'vibe', 'me'];
-    const founderKeys = ctx.isFounder ? ['hq', 'admin'] : [];
+    const founderKeys = ctx.isFounder ? (ctx.isOwner ? ['hq', 'books', 'admin'] : ['hq', 'admin']) : [];
     const item = k => {
       const s = SECTIONS[k];
       /* the open section lists its tabs; Me always does for members, so Leave and the Handbook are never hidden */
@@ -3155,7 +3263,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       onTask=${() => setNewTask(true)} onAsk=${() => setAskOpen(true)}/>` : null;
 
     const tabKeys = ctx.isFounder ? ['home', 'chat', 'hq', 'work'] : ['home', 'chat', 'work', 'accounts', 'me'];
-    const moreKeys = ctx.isFounder ? ['accounts', 'workspace', 'base', 'radar', 'web', 'me', 'admin'] : ['workspace', 'base', 'radar', 'web'];
+    const moreKeys = ctx.isFounder ? (ctx.isOwner ? ['accounts', 'workspace', 'base', 'radar', 'web', 'me', 'books', 'admin'] : ['accounts', 'workspace', 'base', 'radar', 'web', 'me', 'admin']) : ['workspace', 'base', 'radar', 'web'];
     const moreBadge = moreKeys.reduce((n, k) => n + (b[k] || 0), 0);
 
     return html`<div class="app">
@@ -3239,6 +3347,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       ${M.parts.FocusHost ? html`<${M.parts.FocusHost}/>` : null}
       ${M.parts.HolidayWatch ? html`<${M.parts.HolidayWatch}/>` : null}
       ${M.parts.FixHost ? html`<${M.parts.FixHost}/>` : null}
+      ${M.parts.BooksWatch ? html`<${M.parts.BooksWatch}/>` : null}
       ${M.parts.BreatheHost ? html`<${M.parts.BreatheHost}/>` : null}
       ${M.parts.ChatWatch ? html`<${M.parts.ChatWatch}/>` : null}
       ${M.parts.InboxWatch ? html`<${M.parts.InboxWatch}/>` : null}
@@ -12311,6 +12420,2033 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   M.parts.AddPerson = AddDrawer;
 })();
 
+/* ==== 42-books.js ==== */
+/* module: books. The owner's accounting and HR desk: the financial year, invoice numbers, money in
+   six currencies, amounts in words, invoice totals and statuses, the printable document frame, the
+   Books section with its tabs, the overview and the setup (company, bank, signatory, numbering,
+   defaults, auto-chase, compliance, and each client's billing profile). The books collections
+   (books, invoices, expenses, payroll, hr) reach the owner's page alone. */
+'use strict';
+(function () {
+  const {html, React, U, UI, icons} = M;
+  const {useState, useEffect, useMemo} = React;
+
+  /* ---------- money ---------- */
+  const CUR = {
+    INR: {sym: '₹', word: 'Rupees', locale: 'en-IN', intl: false},
+    AED: {sym: 'AED ', word: 'Dirhams', locale: 'en-US', intl: true},
+    USD: {sym: '$', word: 'Dollars', locale: 'en-US', intl: true},
+    EUR: {sym: '€', word: 'Euros', locale: 'en-US', intl: true},
+    GBP: {sym: '£', word: 'Pounds', locale: 'en-US', intl: true},
+    SAR: {sym: 'SAR ', word: 'Riyals', locale: 'en-US', intl: true}
+  };
+  const CUR_OPTS = Object.keys(CUR).map(k => ({v: k, label: k + ' ' + CUR[k].sym.trim()}));
+  const num = v => { const n = Number(String(v == null ? '' : v).replace(/[^0-9.-]/g, '')); return Number.isFinite(n) ? n : 0; };
+  const fmt = (n, cur) => {
+    const c = CUR[cur] || CUR.INR;
+    const v = Math.round(num(n) * 100) / 100;
+    const whole = Math.abs(v - Math.round(v)) < 0.005;
+    return new Intl.NumberFormat(c.locale, {minimumFractionDigits: whole && !c.intl ? 0 : 2, maximumFractionDigits: 2}).format(v);
+  };
+  const money = (n, cur) => (CUR[cur] || CUR.INR).sym + fmt(n, cur);
+  const ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const TENS = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  const two = x => x < 20 ? ONES[x] : TENS[Math.floor(x / 10)] + (x % 10 ? ' ' + ONES[x % 10] : '');
+  const three = x => x >= 100 ? ONES[Math.floor(x / 100)] + ' Hundred' + (x % 100 ? ' ' + two(x % 100) : '') : two(x);
+  const wordsIn = n => {
+    n = Math.round(n); if (!n) return 'Zero';
+    let r = '';
+    const cr = Math.floor(n / 10000000), lk = Math.floor((n % 10000000) / 100000), th = Math.floor((n % 100000) / 1000), rm = n % 1000;
+    if (cr) r += three(cr) + ' Crore ';
+    if (lk) r += two(lk) + ' Lakh ';
+    if (th) r += two(th) + ' Thousand ';
+    if (rm) r += three(rm);
+    return r.trim();
+  };
+  const wordsIntl = n => {
+    n = Math.round(n); if (!n) return 'Zero';
+    const scales = ['', 'Thousand', 'Million', 'Billion', 'Trillion'];
+    const parts = []; let i = 0;
+    while (n > 0) { const c = n % 1000; if (c) parts.unshift(three(c) + (scales[i] ? ' ' + scales[i] : '')); n = Math.floor(n / 1000); i++; }
+    return parts.join(' ').trim();
+  };
+  const words = (n, cur) => {
+    const c = CUR[cur] || CUR.INR;
+    const v = Math.round(Math.abs(num(n)) * 100) / 100;
+    if (!v) return 'Zero ' + c.word + ' Only';
+    const whole = Math.floor(v), frac = Math.round((v - whole) * 100);
+    const main = whole ? (c.intl ? wordsIntl(whole) : wordsIn(whole)) + ' ' + c.word : '';
+    const small = frac ? two(frac) + (c.intl ? ' Cents' : ' Paise') : '';
+    return (main && small ? main + ' and ' + small : main || small) + ' Only';
+  };
+
+  /* ---------- the financial year, April to March ---------- */
+  const fyOf = ymd => {
+    const d = U.parseYmd(ymd || U.todayStr());
+    const y = d.getFullYear(), m = d.getMonth() + 1;
+    const a = m >= 4 ? y : y - 1;
+    return a + '-' + String((a + 1) % 100).padStart(2, '0');
+  };
+  const fyRange = fy => { const a = Number(String(fy).slice(0, 4)); return {from: a + '-04-01', to: (a + 1) + '-03-31'}; };
+
+  /* ---------- settings, merged over what the invoice builder carried ---------- */
+  const DEFAULTS = Object.freeze({
+    company: {name: 'Mask Management', brand: 'Mask360', tagline: 'by Mask Management',
+      address: '608, Platinum Prive, Upper Juhu Lane, DN Nagar\nAndheri West, Mumbai 400053\nMaharashtra, India', state: 'Maharashtra',
+      pan: 'DGFPR0438M', gstin: '', udyam: 'UDYAM-MH-19-0114388', mail: 'accounts@mask360.agency', phone: '+91 9591075100',
+      cities: 'Mumbai · Delhi · Bengaluru · Dubai · Abu Dhabi', site: 'mask360.agency'},
+    bank: {holder: 'Mask Management', name: 'Axis Bank', branch: 'Khar (W), Linking Road', account: '922020011472266', ifsc: 'UTIB0000186', iban: '', swift: ''},
+    signatory: {who: 'Kaavish Ramchandani', title: 'Chief Alchemist · Mask Management'},
+    sig: '', seal: '',
+    numbering: {prefix: 'MM'},
+    defaults: {terms: '15 days from invoice date (Net 15)', termsDays: 15, sac: '998361', currency: 'INR', gstRate: 18, tdsRate: 10,
+      notes: 'Retainer billed 50% in advance and 50% on delivery per the Master Services Agreement.\nThis is a computer-generated invoice.',
+      exportNote: 'Export of services from India, no Indian GST charged. VAT to be accounted for by the recipient under reverse charge.'},
+    chase: {auto: false, days: '3,7,14', cc: ''},
+    compliance: {gst: true, tds: true, pf: false}
+  });
+  const deep = (a, b) => {
+    const out = {...a};
+    for (const k of Object.keys(b || {})) {
+      const v = b[k];
+      out[k] = (v && typeof v === 'object' && !Array.isArray(v) && a[k] && typeof a[k] === 'object') ? deep(a[k], v) : v;
+    }
+    return out;
+  };
+  const settings = ctx => deep(DEFAULTS, ((ctx.coll.books && ctx.coll.books.map.settings) || {}));
+  const clientBook = ctx => ((ctx.coll.books && ctx.coll.books.map.clients) || {}).map || {};
+
+  /* ---------- invoices ---------- */
+  const lineAmt = l => Math.round(num(l.qty) * num(l.rate) * 100) / 100;
+  const totals = inv => {
+    const sub = (inv.lines || []).reduce((s, l) => s + lineAmt(l), 0);
+    const rate = num(inv.gstRate == null ? 18 : inv.gstRate);
+    const cgst = inv.gst === 'intra' ? sub * rate / 200 : 0;
+    const sgst = inv.gst === 'intra' ? sub * rate / 200 : 0;
+    const igst = inv.gst === 'inter' ? sub * rate / 100 : 0;
+    const tax = cgst + sgst + igst;
+    const total = sub + tax;
+    const paid = (inv.payments || []).reduce((s, p) => s + num(p.amount), 0);
+    const tds = num(inv.tds);
+    const balance = Math.round((total - paid - tds) * 100) / 100;
+    return {sub, cgst, sgst, igst, tax, total, paid, tds, balance};
+  };
+  const status = (inv, today) => {
+    if (!inv) return 'draft';
+    if (inv.status === 'void') return 'void';
+    const t = totals(inv);
+    if (t.total > 0 && t.balance <= 0.5) return 'paid';
+    if (!inv.sentAt && inv.status !== 'sent') return 'draft';
+    if (t.paid > 0) return 'part';
+    if (inv.due && inv.due < (today || U.todayStr())) return 'overdue';
+    return 'sent';
+  };
+  const STATUS_PILL = {draft: undefined, sent: 'ink', overdue: 'flame', part: 'flame-o', paid: 'warm', void: undefined};
+  const STATUS_TEXT = {draft: 'draft', sent: 'sent', overdue: 'overdue', part: 'part paid', paid: 'paid', void: 'void'};
+  const invoices = ctx => {
+    const out = [];
+    const map = (ctx.coll.invoices && ctx.coll.invoices.map) || {};
+    for (const fy of Object.keys(map)) {
+      const rows = (map[fy] || {}).rows || {};
+      for (const id of Object.keys(rows)) if (rows[id]) out.push({...rows[id], id, fy});
+    }
+    out.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || (b.createdAt || 0) - (a.createdAt || 0));
+    return out;
+  };
+  const codeOf = (ctx, clientId) => {
+    const b = clientBook(ctx)[clientId];
+    if (b && b.code) return String(b.code).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4) || 'GEN';
+    const c = ctx.coll.clients.map[clientId];
+    const nm = (c && c.name) || '';
+    const init = nm.split(/\s+/).map(w => w[0] || '').join('').toUpperCase().replace(/[^A-Z]/g, '');
+    return init.slice(0, 3) || 'GEN';
+  };
+  const nextNumber = (ctx, code, fy) => {
+    const s = settings(ctx);
+    const head = s.numbering.prefix + '/' + fy + '/' + code + '-';
+    let max = 0;
+    for (const inv of invoices(ctx)) {
+      if (inv.fy !== fy || !String(inv.no || '').startsWith(head)) continue;
+      const n = Number(String(inv.no).slice(head.length)) || 0;
+      if (n > max) max = n;
+    }
+    return head + String(max + 1).padStart(3, '0');
+  };
+  const expenses = ctx => {
+    const out = [];
+    const map = (ctx.coll.expenses && ctx.coll.expenses.map) || {};
+    for (const month of Object.keys(map)) {
+      const rows = (map[month] || {}).rows || {};
+      for (const id of Object.keys(rows)) if (rows[id]) out.push({...rows[id], id, month});
+    }
+    out.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || (b.at || 0) - (a.at || 0));
+    return out;
+  };
+  /* days past due, for aging */
+  const ageOf = (inv, today) => inv.due ? U.daysBetween(inv.due, today || U.todayStr()) : 0;
+
+  /* ---------- the compliance calendar, India ---------- */
+  const NAMES_MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const nextDates = (ctx, today) => {
+    const s = settings(ctx).compliance;
+    const t = U.parseYmd(today || U.todayStr());
+    const out = [];
+    const push = (ymd, what, on) => { if (on && ymd >= U.ymd(t)) out.push({date: ymd, what}); };
+    for (let k = 0; k < 3; k++) {
+      const d = new Date(t.getFullYear(), t.getMonth() + k, 1);
+      const y = d.getFullYear(), m = d.getMonth();
+      const prev = NAMES_MON[(m + 11) % 12];
+      const ymd = day => U.ymd(new Date(y, m, day));
+      push(ymd(7), 'TDS for ' + prev + ' due', s.tds && !!s.tds);
+      push(ymd(11), 'GSTR-1 for ' + prev + ' due', s.gst && !!s.gst);
+      push(ymd(15), 'PF and ESI for ' + prev + ' due', !!s.pf);
+      push(ymd(20), 'GSTR-3B for ' + prev + ' due', !!s.gst);
+      if ([5, 8, 11, 2].includes(m)) push(ymd(15), 'Advance tax instalment due', true);
+      if (m === 6) push(ymd(31), 'TDS return for April to June due', !!s.tds);
+      if (m === 9) push(ymd(31), 'TDS return for July to September due', !!s.tds);
+      if (m === 0) push(ymd(31), 'TDS return for October to December due', !!s.tds);
+      if (m === 4) push(ymd(31), 'TDS return for January to March due', !!s.tds);
+    }
+    out.sort((a, b) => a.date.localeCompare(b.date));
+    return out.slice(0, 8);
+  };
+
+  /* ---------- the printable document ---------- */
+  function print(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add('doc-print');
+    document.body.classList.add('print-doc');
+    const done = () => { el.classList.remove('doc-print'); document.body.classList.remove('print-doc'); window.removeEventListener('afterprint', done); };
+    window.addEventListener('afterprint', done);
+    try { window.print(); } catch (e) { done(); }
+    setTimeout(done, 60000);
+  }
+  function DocFrame({id, title, actions, children}) {
+    return html`<div class="doc-wrap">
+      <div class="row between doc-tools">
+        <div class="micro" style=${{textTransform: 'none'}}>${title || 'document'}</div>
+        <span class="row nowrap" style=${{gap: '8px'}}>
+          ${actions || null}
+          <${UI.Btn} sm=${true} onClick=${() => print(id)}><${icons.download || icons.upload}/>Download PDF<//>
+        </span>
+      </div>
+      <div class="doc" id=${id}>
+        <div class="doc-band"/>
+        ${children}
+      </div>
+    </div>`;
+  }
+  /* the letterhead every document opens with */
+  function DocHead({ctx, right}) {
+    const s = settings(ctx);
+    const c = s.company;
+    return html`<div class="doc-head">
+      <div>
+        <div class="doc-brand"><span>${c.brand.replace(/360$/, '')}</span><b>${/360$/.test(c.brand) ? '360' : ''}</b></div>
+        <div class="doc-micro">${c.tagline}</div>
+        <div class="doc-addr">${String(c.address || '').split('\n').map((l, i) => html`<div key=${i}>${l}</div>`)}
+          <div>${c.pan ? 'PAN: ' + c.pan : ''}${c.pan && c.gstin ? ' · ' : ''}${c.gstin ? 'GSTIN: ' + c.gstin : ''}</div>
+          <div>${c.mail}${c.phone ? ' · ' + c.phone : ''}</div>
+        </div>
+      </div>
+      <div class="doc-head-right">${right || null}</div>
+    </div>`;
+  }
+  function DocSign({ctx, label}) {
+    const s = settings(ctx);
+    return html`<div class="doc-sign">
+      ${s.sig ? html`<img class="doc-sig" src=${s.sig} alt=""/>` : html`<div class="doc-sig-space"/>`}
+      ${s.seal ? html`<img class="doc-seal" src=${s.seal} alt=""/>` : null}
+      <div class="doc-micro">${label || 'Authorised signatory'}</div>
+      <div class="doc-sign-who">${s.signatory.who}</div>
+      <div class="doc-sub">${s.signatory.title}</div>
+    </div>`;
+  }
+  function DocFoot({ctx}) {
+    const c = settings(ctx).company;
+    return html`<div class="doc-foot">${c.site} · ${c.mail}${c.phone ? ' · ' + c.phone : ''}${c.cities ? ' · ' + c.cities : ''}</div>`;
+  }
+
+  /* ---------- images for the signature and the seal: shrunk in the browser ---------- */
+  const IMG_MAX = 90000;
+  function shrinkImage(file, side) {
+    return new Promise((res, rej) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const sc = Math.min(1, side / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.width * sc)); c.height = Math.max(1, Math.round(img.height * sc));
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        let out = c.toDataURL('image/png');
+        if (out.length > IMG_MAX) out = c.toDataURL('image/jpeg', 0.8);
+        URL.revokeObjectURL(url);
+        out.length > IMG_MAX ? rej(new Error('too big')) : res(out);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('not an image')); };
+      img.src = url;
+    });
+  }
+
+  /* ---------- the section ---------- */
+  const TABS = {overview: 'overview', invoices: 'Invoices', expenses: 'Expenses', payroll: 'Payroll', letters: 'Letters', billing: 'billing'};
+  function Books({tab, id}) {
+    const ctx = M.useCtx();
+    const t = TABS[tab] ? tab : 'overview';
+    if (!ctx.isOwner) return html`<div class="stack"><${UI.PageHead} micro="the books" title="Books"/><${UI.Empty} text="The books are the owner's alone."/></div>`;
+    const Page = t === 'invoices' ? M.pages.Invoices : t === 'expenses' ? M.pages.Expenses : t === 'payroll' ? M.pages.Payroll : t === 'letters' ? M.pages.Letters : null;
+    return html`<div class="stack" style=${{gap: '20px'}}>
+      <header class="hero ink">
+        <div>
+          <${UI.Micro}>${U.dateLabel(new Date(ctx.now))}<//>
+          <h1 class="hi">Books</h1>
+          <div class="sub" style=${{marginTop: '10px'}}>Invoices, expenses, payroll and letters. Yours alone.</div>
+        </div>
+      </header>
+      <${M.SectionTabs} section="books" active=${t}/>
+      ${t === 'overview' ? html`<${Overview}/>` : t === 'billing' ? html`<${Setup} id=${id}/>` : Page ? html`<${Page} id=${id}/>` : html`<${UI.Empty} text="This part of the books is not in this build."/>`}
+    </div>`;
+  }
+
+  /* ---------- overview ---------- */
+  function Tile({v, l, to, hot}) {
+    const inner = html`<span class="v num">${v}</span><span class="l">${l}</span>`;
+    return to ? html`<button type="button" class=${'stat rowbtn' + (hot ? ' hot' : '')} onClick=${() => M.nav(to)}>${inner}</button>` : html`<div class=${'stat' + (hot ? ' hot' : '')}>${inner}</div>`;
+  }
+  function Overview() {
+    const ctx = M.useCtx();
+    const today = U.todayStr();
+    const fy = fyOf(today), fr = fyRange(fy);
+    const month = U.monthId(new Date(ctx.now));
+    const list = invoices(ctx);
+    const issued = i => !['draft', 'void'].includes(status(i, today));
+    const inFy = list.filter(i => issued(i) && i.date >= fr.from && i.date <= fr.to);
+    const inrOf = i => (i.currency === 'INR' || !i.currency) ? 1 : num(i.fx) || 0;
+    const billed = inFy.reduce((s, i) => s + totals(i).total * inrOf(i), 0);
+    const collected = list.reduce((s, i) => s + (i.payments || []).filter(p => p.at && U.ymd(new Date(p.at)) >= fr.from).reduce((x, p) => x + num(p.amount), 0) * inrOf(i), 0);
+    const open = list.filter(i => ['sent', 'overdue', 'part'].includes(status(i, today)));
+    const outstanding = open.reduce((s, i) => s + totals(i).balance * inrOf(i), 0);
+    const overdue = open.filter(i => status(i, today) === 'overdue' || (status(i, today) === 'part' && i.due < today));
+    const overdueAmt = overdue.reduce((s, i) => s + totals(i).balance * inrOf(i), 0);
+    const exp = expenses(ctx);
+    const expMonth = exp.filter(e => e.month === month).reduce((s, e) => s + num(e.amount), 0);
+    const collMonth = list.reduce((s, i) => s + (i.payments || []).filter(p => p.at && U.monthId(new Date(p.at)) === month).reduce((x, p) => x + num(p.amount), 0) * inrOf(i), 0);
+    const run = (ctx.coll.payroll && ctx.coll.payroll.map[month] && ctx.coll.payroll.map[month].run) || null;
+    const payMonth = run ? Object.values(run.rows || {}).reduce((s, r) => s + num(r.net), 0) : 0;
+    const buckets = [['0 to 30', 0, 30], ['31 to 60', 31, 60], ['61 to 90', 61, 90], ['over 90', 91, 100000]].map(([l, a, b]) => {
+      const rows = open.filter(i => { const d = ageOf(i, today); return d >= a && d <= b; });
+      return {l, n: rows.length, amt: rows.reduce((s, i) => s + totals(i).balance * inrOf(i), 0)};
+    });
+    const months = [];
+    for (let k = 5; k >= 0; k--) {
+      const d = new Date(ctx.now); d.setDate(1); d.setMonth(d.getMonth() - k);
+      const mid = U.monthId(d);
+      const b = list.filter(i => issued(i) && String(i.date || '').slice(0, 7) === mid).reduce((s, i) => s + totals(i).total * inrOf(i), 0);
+      const c = list.reduce((s, i) => s + (i.payments || []).filter(p => p.at && U.monthId(new Date(p.at)) === mid).reduce((x, p) => x + num(p.amount), 0) * inrOf(i), 0);
+      const e = exp.filter(x => x.month === mid).reduce((s, x) => s + num(x.amount), 0);
+      months.push({mid, label: NAMES_MON[d.getMonth()] + ' ' + String(d.getFullYear()).slice(2), b, c, e});
+    }
+    const calls = [];
+    for (const i of overdue.slice(0, 6)) calls.push({key: 'inv' + i.id, text: i.no + ', ' + (i.clientName || 'client') + ', ' + money(totals(i).balance, i.currency) + ' due ' + U.fmtDate(i.due) + ', ' + ageOf(i, today) + ' days late', to: '#invoices/' + i.id, hot: true});
+    for (const i of list.filter(x => x.auto === 'retainer' && status(x, today) === 'draft').slice(0, 4)) calls.push({key: 'draft' + i.id, text: 'Retainer draft ready: ' + i.no + ', ' + (i.clientName || ''), to: '#invoices/' + i.id});
+    const hrMap = (ctx.coll.hr && ctx.coll.hr.map) || {};
+    for (const uid of Object.keys(hrMap)) for (const lid of Object.keys((hrMap[uid] || {}).letters || {})) { const l = hrMap[uid].letters[lid]; if (l && l.status === 'draft') calls.push({key: 'let' + lid, text: 'A ' + (l.kind || 'letter') + ' letter is drafted and not issued', to: '#letters/' + uid}); }
+    const dates = nextDates(ctx, today);
+    const fx = list.some(i => i.currency && i.currency !== 'INR' && !num(i.fx));
+    return html`<div class="stack" style=${{gap: '18px'}}>
+      <div class="grid4">
+        <${Tile} v=${U.inr(billed)} l=${'billed, FY ' + fy} to="#invoices"/>
+        <${Tile} v=${U.inr(collected)} l=${'collected, FY ' + fy} to="#invoices"/>
+        <${Tile} v=${U.inr(outstanding)} l=${open.length + ' open, outstanding'} to="#invoices" hot=${overdue.length > 0}/>
+        <${Tile} v=${overdue.length ? U.inr(overdueAmt) : '0'} l=${overdue.length + ' overdue'} to="#invoices" hot=${overdue.length > 0}/>
+      </div>
+      <div class="grid4">
+        <${Tile} v=${U.inr(collMonth)} l="collected this month"/>
+        <${Tile} v=${U.inr(expMonth)} l="expenses this month" to="#expenses"/>
+        <${Tile} v=${run ? U.inr(payMonth) : 'no run'} l="payroll this month" to="#payroll"/>
+        <${Tile} v=${U.inr(collMonth - expMonth - payMonth)} l="net this month" hot=${collMonth - expMonth - payMonth < 0}/>
+      </div>
+      ${fx ? html`<div class="card flame small">An invoice in a foreign currency has no INR rate on it, so the totals above leave it out. Open it and set the rate.</div>` : null}
+      <div class="split">
+        <div class="stack" style=${{gap: '18px'}}>
+          <${UI.Card} title="What needs a call" id="books-calls">
+            ${calls.length ? calls.map(c => html`<button type="button" key=${c.key} class="listrow rowbtn" onClick=${() => M.nav(c.to)}>
+              ${c.hot ? html`<span class="dotflame"/>` : html`<span class="pill">next</span>`}<span class="grow">${c.text}</span></button>`)
+              : html`<${UI.Empty} text="Nothing waiting on you. Invoices are paid or not yet due, no drafts sit unsent."/>`}
+          <//>
+          <${UI.Card} title="Six months" id="books-months">
+            <div class="tbl-wrap"><table class="tbl">
+              <thead><tr><th>month</th><th class="num">billed</th><th class="num">collected</th><th class="num">expenses</th></tr></thead>
+              <tbody>${months.map(m => html`<tr key=${m.mid}><td data-label="month">${m.label}</td><td data-label="billed" class="num">${U.inr(m.b)}</td><td data-label="collected" class="num">${U.inr(m.c)}</td><td data-label="expenses" class="num">${U.inr(m.e)}</td></tr>`)}</tbody>
+            </table></div>
+          <//>
+        </div>
+        <div class="stack" style=${{gap: '18px'}}>
+          <${UI.Card} title="Receivables by age" id="books-aging">
+            ${buckets.map(b => html`<div class="listrow" key=${b.l}><span class="grow">${b.l} days</span><span class="tiny ink62 num">${b.n}</span><span class="num" style=${{fontWeight: 500}}>${U.inr(b.amt)}</span></div>`)}
+          <//>
+          <${UI.Card} title="Compliance dates" id="books-dates">
+            ${dates.length ? dates.map(d => html`<div class="listrow" key=${d.date + d.what}><span class="num tiny ink62" style=${{width: '86px'}}>${U.fmtDay(d.date)}</span><span class="grow">${d.what}</span></div>`)
+              : html`<${UI.Empty} text="Switch GST or TDS on under Setup to see the dates."/>`}
+            <div class="tiny ink62" style=${{marginTop: '8px'}}>Each date lands in your inbox three days before.</div>
+          <//>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  /* ---------- setup ---------- */
+  const COUNTRIES = ['India', 'United Arab Emirates', 'Saudi Arabia', 'Qatar', 'Bahrain', 'Kuwait', 'Oman', 'United States', 'United Kingdom', 'Singapore', 'Other'];
+  function Setup({id}) {
+    const ctx = M.useCtx();
+    const s = settings(ctx);
+    const [f, setF] = useState(() => U.clone(s));
+    const [dirty, setDirty] = useState(false);
+    const [busy, setBusy] = useState(false);
+    useEffect(() => { if (!dirty) setF(U.clone(settings(ctx))); }, [ctx.coll.books]);
+    const set = (path, v) => { setDirty(true); setF(x => { const n = U.clone(x); let o = n; const ks = path.split('.'); for (let i = 0; i < ks.length - 1; i++) o = o[ks[i]]; o[ks[ks.length - 1]] = v; return n; }); };
+    const save = async () => {
+      setBusy(true);
+      try { await ctx.W.set('books/settings', {...f, updated: Date.now()}); setDirty(false); M.toast('Saved'); } catch (e) { M.toast('Could not save', true); }
+      setBusy(false);
+    };
+    const pick = (key, side) => e => {
+      const file = e.target.files && e.target.files[0]; e.target.value = '';
+      if (!file) return;
+      shrinkImage(file, side).then(d => set(key, d)).catch(() => M.toast('Use a PNG or JPEG under about 1 MB', true));
+    };
+    const In = ({k, label, type, hint}) => html`<${UI.Input} label=${label} type=${type} hint=${hint} value=${String(k.split('.').reduce((o, x) => (o || {})[x], f) == null ? '' : k.split('.').reduce((o, x) => (o || {})[x], f))} onChange=${v => set(k, type === 'number' ? num(v) : v)}/>`;
+    return html`<div class="stack" style=${{gap: '18px'}}>
+      <div class="row between">
+        <div class="sub small">The company block, the bank and the signatory print on every invoice, payslip and letter.</div>
+        <${UI.Btn} id="books-save" disabled=${!dirty || busy} onClick=${save}>Save setup<//>
+      </div>
+      <div class="grid2">
+        <${UI.Card} title="Company">
+          <div class="stack tight">
+            <${In} k="company.name" label="legal name"/>
+            <div class="grid2"><${In} k="company.brand" label="brand on the letterhead"/><${In} k="company.tagline" label="line under the brand"/></div>
+            <${UI.TextArea} label="address, one line per row" rows=${3} value=${f.company.address} onChange=${v => set('company.address', v)}/>
+            <div class="grid2"><${In} k="company.state" label="state, for GST"/><${In} k="company.gstin" label="GSTIN, blank when not registered"/></div>
+            <div class="grid2"><${In} k="company.pan" label="PAN"/><${In} k="company.udyam" label="Udyam"/></div>
+            <div class="grid2"><${In} k="company.mail" label="accounts email"/><${In} k="company.phone" label="phone"/></div>
+            <div class="grid2"><${In} k="company.site" label="site"/><${In} k="company.cities" label="cities on the footer"/></div>
+          </div>
+        <//>
+        <div class="stack" style=${{gap: '18px'}}>
+          <${UI.Card} title="Bank">
+            <div class="stack tight">
+              <${In} k="bank.holder" label="account holder"/>
+              <div class="grid2"><${In} k="bank.name" label="bank"/><${In} k="bank.branch" label="branch"/></div>
+              <div class="grid2"><${In} k="bank.account" label="account number"/><${In} k="bank.ifsc" label="IFSC"/></div>
+              <div class="grid2"><${In} k="bank.iban" label="IBAN, optional"/><${In} k="bank.swift" label="SWIFT, optional"/></div>
+            </div>
+          <//>
+          <${UI.Card} title="Signatory">
+            <div class="stack tight">
+              <div class="grid2"><${In} k="signatory.who" label="who signs"/><${In} k="signatory.title" label="title"/></div>
+              <div class="row">
+                <label class="btn sec sm">${f.sig ? 'Change the signature' : 'Add a signature image'}<input type="file" accept="image/*" style=${{display: 'none'}} onChange=${pick('sig', 420)}/></label>
+                ${f.sig ? html`<img src=${f.sig} alt="" style=${{height: '40px'}}/><button type="button" class="linky small" onClick=${() => set('sig', '')}>Remove</button>` : null}
+              </div>
+              <div class="row">
+                <label class="btn sec sm">${f.seal ? 'Change the seal' : 'Add a seal image'}<input type="file" accept="image/*" style=${{display: 'none'}} onChange=${pick('seal', 300)}/></label>
+                ${f.seal ? html`<img src=${f.seal} alt="" style=${{height: '40px'}}/><button type="button" class="linky small" onClick=${() => set('seal', '')}>Remove</button>` : null}
+              </div>
+            </div>
+          <//>
+        </div>
+      </div>
+      <div class="grid2">
+        <${UI.Card} title="Invoice defaults">
+          <div class="stack tight">
+            <div class="grid2"><${In} k="numbering.prefix" label="number prefix" hint="MM gives MM/2026-27/HH-001"/>
+              <${UI.Select} label="currency" value=${f.defaults.currency} options=${CUR_OPTS} onChange=${v => set('defaults.currency', v)}/></div>
+            <div class="grid2"><${In} k="defaults.gstRate" label="GST rate, percent" type="number"/><${In} k="defaults.sac" label="SAC code"/></div>
+            <div class="grid2"><${In} k="defaults.termsDays" label="due in days" type="number"/><${In} k="defaults.tdsRate" label="TDS the client deducts, percent" type="number"/></div>
+            <${In} k="defaults.terms" label="payment terms line"/>
+            <${UI.TextArea} label="notes on every invoice, one per line" rows=${3} value=${f.defaults.notes} onChange=${v => set('defaults.notes', v)}/>
+            <${UI.TextArea} label="the export line, for invoices outside India" rows=${2} value=${f.defaults.exportNote} onChange=${v => set('defaults.exportNote', v)}/>
+          </div>
+        <//>
+        <div class="stack" style=${{gap: '18px'}}>
+          <${UI.Card} title="Chasing">
+            <div class="stack tight">
+              <div class="row between"><span>Chase overdue invoices by email on the team site</span>
+                <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${f.chase.auto ? 'on' : 'off'} ariaLabel="Auto chase" onChange=${v => set('chase.auto', v === 'on')}/></div>
+              <${In} k="chase.days" label="days after the due date, comma separated" hint="3,7,14 sends three reminders; the fourth day lands in your inbox for a call"/>
+              <${In} k="chase.cc" label="copy every invoice and reminder to"/>
+              <div class="tiny ink62">Every reminder is polite, names the invoice and the amount, and carries the bank details. Nothing goes out for a draft.</div>
+            </div>
+          <//>
+          <${UI.Card} title="Compliance calendar">
+            <div class="stack tight">
+              ${[['gst', 'GST registered: GSTR-1 by the 11th, GSTR-3B by the 20th'], ['tds', 'TDS deducted on payments: due by the 7th, returns each quarter'], ['pf', 'PF and ESI: due by the 15th']].map(([k, l]) => html`<div class="row between" key=${k}><span class="small">${l}</span>
+                <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${f.compliance[k] ? 'on' : 'off'} ariaLabel=${k} onChange=${v => set('compliance.' + k, v === 'on')}/></div>`)}
+              <div class="tiny ink62">Advance tax dates (15 June, September, December, March) always show.</div>
+            </div>
+          <//>
+        </div>
+      </div>
+      <${ClientBilling} id=${id}/>
+    </div>`;
+  }
+
+  /* ---------- each client's billing profile ---------- */
+  const blankBilling = () => ({code: '', legalName: '', address: '', country: 'India', taxId: '', currency: 'INR', termsDays: 15, contactName: '', contactEmail: '',
+    retainer: {active: false, amount: 0, day: 1, desc: 'Monthly retainer', sac: '998361', gst: 'intra'}});
+  function ClientBilling({id}) {
+    const ctx = M.useCtx();
+    const book = clientBook(ctx);
+    const clients = Object.keys(ctx.coll.clients.map).map(k => ({id: k, ...ctx.coll.clients.map[k]})).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    const [open, setOpen] = useState(id && ctx.coll.clients.map[id] ? id : null);
+    return html`<${UI.Card} title="Clients, billing" id="billing-clients">
+      <p class="small ink62" style=${{marginTop: 0}}>Legal name, address, tax id, currency and the retainer. A retainer with a billing day drafts its invoice on that day each month.</p>
+      ${clients.length ? html`<div class="stack tight">${clients.map(c => {
+        const b = book[c.id];
+        return html`<div class="listrow" key=${c.id}>
+          <span class="grow"><b>${c.name}</b>${b ? html`<span class="tiny ink62"> · ${b.code || 'no code'} · ${b.currency || 'INR'}${b.retainer && b.retainer.active ? ' · retainer ' + money(b.retainer.amount, b.currency) + ' on day ' + b.retainer.day : ''}</span>` : html`<span class="tiny ink62"> · no billing profile yet</span>`}</span>
+          <${UI.Btn} kind="sec" sm=${true} onClick=${() => setOpen(c.id)}>${b ? 'Edit billing' : 'Set up billing'}<//>
+        </div>`;
+      })}</div>` : html`<${UI.Empty} text="No clients yet. Add one under Accounts."/>`}
+      ${open ? html`<${BillingDrawer} clientId=${open} onClose=${() => setOpen(null)}/>` : null}
+    <//>`;
+  }
+  function BillingDrawer({clientId, onClose}) {
+    const ctx = M.useCtx();
+    const c = ctx.coll.clients.map[clientId] || {};
+    const [f, setF] = useState(() => { const cur = clientBook(ctx)[clientId]; const b = deep(blankBilling(), cur || {}); if (!cur) { b.legalName = c.name || ''; b.code = codeOf(ctx, clientId); } return b; });
+    const [busy, setBusy] = useState(false);
+    const set = (k, v) => setF(x => ({...x, [k]: v}));
+    const setR = (k, v) => setF(x => ({...x, retainer: {...x.retainer, [k]: v}}));
+    const save = async () => {
+      setBusy(true);
+      const clean = {...f, code: String(f.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4), termsDays: num(f.termsDays) || 15, retainer: {...f.retainer, amount: num(f.retainer.amount), day: Math.min(28, Math.max(1, num(f.retainer.day) || 1))}};
+      try { await ctx.W.merge('books/clients', {map: {[clientId]: clean}, updated: Date.now()}); M.toast('Saved'); onClose(); } catch (e) { M.toast('Could not save', true); setBusy(false); }
+    };
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${'Billing, ' + (c.name || 'client')}
+      footer=${html`<${UI.Btn} id="billing-save" disabled=${busy || !f.legalName.trim()} onClick=${save}>Save billing<//>`}>
+      <div class="stack" id="billing-drawer">
+        <div class="grid2"><${UI.Input} id="billing-code" label="client code in the number" value=${f.code} onChange=${v => set('code', v.toUpperCase().slice(0, 4))} hint="HH gives MM/2026-27/HH-001"/>
+          <${UI.Select} label="currency" value=${f.currency} options=${CUR_OPTS} onChange=${v => set('currency', v)}/></div>
+        <${UI.Input} id="billing-legal" label="legal name on the invoice" value=${f.legalName} onChange=${v => set('legalName', v)}/>
+        <${UI.TextArea} label="billing address, one line per row" rows=${3} value=${f.address} onChange=${v => set('address', v)}/>
+        <div class="grid2"><${UI.Select} label="country" value=${f.country} options=${COUNTRIES.map(x => ({v: x, label: x}))} onChange=${v => set('country', v)}/>
+          <${UI.Input} label=${f.country === 'India' ? 'GSTIN' : 'tax registration, TRN'} value=${f.taxId} onChange=${v => set('taxId', v)}/></div>
+        <div class="grid2"><${UI.Input} label="due in days" type="number" value=${String(f.termsDays)} onChange=${v => set('termsDays', v)}/>
+          <${UI.Input} label="who receives invoices" value=${f.contactName} onChange=${v => set('contactName', v)}/></div>
+        <${UI.Input} id="billing-mail" label="their accounts email" value=${f.contactEmail} onChange=${v => set('contactEmail', v)}/>
+        <${UI.Field} label="retainer">
+          <div class="row between"><span class="small">Bill a fixed amount every month</span>
+            <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${f.retainer.active ? 'on' : 'off'} ariaLabel="Retainer" onChange=${v => setR('active', v === 'on')}/></div>
+        <//>
+        ${f.retainer.active ? html`<div class="stack tight">
+          <div class="grid2"><${UI.Input} id="billing-retainer" label=${'amount, ' + f.currency} type="number" value=${String(f.retainer.amount || '')} onChange=${v => setR('amount', v)}/>
+            <${UI.Input} label="billing day of the month" type="number" value=${String(f.retainer.day)} onChange=${v => setR('day', v)}/></div>
+          <div class="grid2"><${UI.Input} label="line on the invoice" value=${f.retainer.desc} onChange=${v => setR('desc', v)}/><${UI.Input} label="SAC" value=${f.retainer.sac} onChange=${v => setR('sac', v)}/></div>
+          <${UI.Select} label="tax" value=${f.retainer.gst} options=${[{v: 'intra', label: 'CGST and SGST, same state'}, {v: 'inter', label: 'IGST, another state'}, {v: 'none', label: 'No GST, export or unregistered'}]} onChange=${v => setR('gst', v)}/>
+        </div>` : null}
+      </div>
+    <//>`;
+  }
+
+  M.books = {CUR, CUR_OPTS, num, fmt, money, words, fyOf, fyRange, settings, clientBook, totals, status, STATUS_PILL, STATUS_TEXT, invoices, expenses, nextNumber, codeOf, ageOf, nextDates, print, shrinkImage, deep, blankBilling};
+  M.parts.DocFrame = DocFrame;
+  M.parts.DocHead = DocHead;
+  M.parts.DocSign = DocSign;
+  M.parts.DocFoot = DocFoot;
+  M.parts.BillingDrawer = BillingDrawer;
+  M.pages.Books = Books;
+})();
+
+/* ==== 43-invoices.js ==== */
+/* module: invoices. The invoice book: the list by financial year, the builder (client, number, dates,
+   GST mode, lines with SAC, TDS, notes, a foreign currency with its INR rate), the printed document
+   in the Mask360 letterhead, sending by email (the team site sends through Resend; the claude.ai page
+   opens the mail app with the text ready), payments, reminders and void. Rows live in
+   invoices/<FY>.rows. Owner only. */
+'use strict';
+(function () {
+  const {html, React, U, UI, icons} = M;
+  const {useState, useEffect, useMemo} = React;
+
+  const GST_OPTS = [{v: 'intra', label: 'CGST and SGST, same state'}, {v: 'inter', label: 'IGST, another state'}, {v: 'none', label: 'No GST, export or unregistered'}];
+  const FILTERS = [{v: 'open', label: 'Open'}, {v: 'overdue', label: 'Overdue'}, {v: 'draft', label: 'Drafts'}, {v: 'paid', label: 'Paid'}, {v: 'all', label: 'All'}];
+  const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const B = () => M.books;
+
+  /* ---------- a new invoice from the client's billing profile ---------- */
+  function fresh(ctx, clientId) {
+    const b = B();
+    const s = b.settings(ctx);
+    const prof = clientId ? b.clientBook(ctx)[clientId] : null;
+    const client = clientId ? ctx.coll.clients.map[clientId] : null;
+    const today = U.todayStr();
+    const days = prof && prof.termsDays ? b.num(prof.termsDays) : s.defaults.termsDays;
+    const abroad = prof && prof.country && prof.country !== 'India';
+    const fy = b.fyOf(today);
+    const d = new Date(ctx.now);
+    return {
+      no: clientId ? b.nextNumber(ctx, b.codeOf(ctx, clientId), fy) : '',
+      client: clientId || '', clientName: (prof && prof.legalName) || (client && client.name) || '',
+      billTo: {legalName: (prof && prof.legalName) || (client && client.name) || '', address: (prof && prof.address) || '', country: (prof && prof.country) || 'India', taxId: (prof && prof.taxId) || '', contactEmail: (prof && prof.contactEmail) || '', contactName: (prof && prof.contactName) || ''},
+      date: today, due: U.ymd(U.addDays(U.parseYmd(today), days)), period: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()] + ' ' + d.getFullYear(),
+      currency: (prof && prof.currency) || s.defaults.currency, gst: abroad ? 'none' : (prof && prof.retainer && prof.retainer.gst) || 'intra', gstRate: s.defaults.gstRate, reverse: !!abroad,
+      place: abroad ? (prof.country) : (s.company.state || ''),
+      lines: [{desc: (prof && prof.retainer && prof.retainer.active) ? prof.retainer.desc : '', note: '', sac: (prof && prof.retainer && prof.retainer.sac) || s.defaults.sac, qty: 1, rate: (prof && prof.retainer && prof.retainer.active) ? prof.retainer.amount : ''}],
+      tds: 0, tdsNote: '', status: 'draft', sentAt: null, sentTo: '', payments: [], chased: [],
+      notes: s.defaults.notes, terms: days === s.defaults.termsDays ? s.defaults.terms : days + ' days from invoice date (Net ' + days + ')',
+      fx: '', auto: '', createdAt: Date.now(), updatedAt: Date.now()
+    };
+  }
+
+  /* ---------- the email for an invoice or a reminder: subject, plain text and html ---------- */
+  function mailFor(ctx, inv, kind) {
+    const b = B();
+    const s = b.settings(ctx);
+    const t = b.totals(inv);
+    const who = inv.billTo && inv.billTo.contactName ? inv.billTo.contactName.split(' ')[0] : 'there';
+    const amt = b.money(kind === 'remind' ? t.balance : t.total, inv.currency);
+    const late = inv.due ? b.ageOf(inv, U.todayStr()) : 0;
+    const subject = kind === 'remind'
+      ? 'Reminder: invoice ' + inv.no + ', ' + amt + (late > 0 ? ', ' + late + ' days past due' : '')
+      : 'Invoice ' + inv.no + ' from ' + s.company.name + ', ' + amt;
+    const lines = (inv.lines || []).filter(l => l.desc).map(l => '• ' + l.desc + ': ' + b.money(b.num(l.qty) * b.num(l.rate), inv.currency));
+    const bank = ['A/C name: ' + s.bank.holder, 'Bank: ' + s.bank.name + (s.bank.branch ? ', ' + s.bank.branch : ''), 'A/C no: ' + s.bank.account, 'IFSC: ' + s.bank.ifsc].concat(s.bank.iban ? ['IBAN: ' + s.bank.iban] : []).concat(s.bank.swift ? ['SWIFT: ' + s.bank.swift] : []);
+    const text = kind === 'remind'
+      ? ['Hi ' + who + ',', '', 'A gentle reminder that invoice ' + inv.no + ' for ' + amt + ' was due on ' + U.fmtDate(inv.due) + (late > 0 ? ' and is ' + late + ' days past due.' : '.'), 'Could you let us know when it is scheduled for payment? If it has already gone out, please share the reference and we will close it on our side.', '', 'Bank details for the transfer:', ...bank, '', 'Thank you,', s.signatory.who, s.signatory.title, s.company.mail].join('\n')
+      : ['Hi ' + who + ',', '', 'Please find invoice ' + inv.no + ' for ' + amt + ', due on ' + U.fmtDate(inv.due) + '.', '', ...lines, '', 'Bank details for the transfer:', ...bank, '', 'The invoice is attached as a page below. Reply here with any question.', '', 'Thank you,', s.signatory.who, s.signatory.title, s.company.mail].join('\n');
+    const rows = (inv.lines || []).filter(l => l.desc).map(l => '<tr><td style="padding:6px 8px;border-bottom:1px solid #EFEDE7">' + esc(l.desc) + (l.note ? '<div style="color:#BBBBBB;font-size:12px">' + esc(l.note) + '</div>' : '') + '</td><td style="padding:6px 8px;border-bottom:1px solid #EFEDE7;text-align:right;white-space:nowrap">' + esc(b.money(b.num(l.qty) * b.num(l.rate), inv.currency)) + '</td></tr>').join('');
+    const tot = [['Subtotal', t.sub]].concat(inv.gst === 'intra' ? [['CGST', t.cgst], ['SGST', t.sgst]] : inv.gst === 'inter' ? [['IGST', t.igst]] : []).concat(t.tds ? [['TDS deductible', -t.tds]] : []).concat([['Total due', t.total]]).concat(t.paid ? [['Paid', -t.paid], ['Balance', t.balance]] : []);
+    const totHtml = tot.map(([l, v], i) => '<tr><td style="padding:5px 8px;color:' + (i === tot.length - 1 || l === 'Total due' ? '#0E0E0E;font-weight:700' : '#0E0E0E') + '">' + esc(l) + '</td><td style="padding:5px 8px;text-align:right;white-space:nowrap' + (l === 'Total due' ? ';font-weight:700' : '') + '">' + esc(b.money(v, inv.currency)) + '</td></tr>').join('');
+    const htmlBody = '<p>' + esc(text.split('\n\n')[0]) + '</p><p>' + esc(text.split('\n\n')[1]) + '</p>' +
+      '<table style="width:100%;border-collapse:collapse;font-size:14px;margin:12px 0"><tr><th style="text-align:left;padding:6px 8px;border-bottom:2px solid #0E0E0E">Invoice ' + esc(inv.no) + '</th><th style="text-align:right;padding:6px 8px;border-bottom:2px solid #0E0E0E">' + esc(inv.currency) + '</th></tr>' + rows + '</table>' +
+      '<table style="margin-left:auto;font-size:14px;border-collapse:collapse">' + totHtml + '</table>' +
+      '<p style="margin-top:14px"><b>Bank details</b><br>' + bank.map(esc).join('<br>') + '</p>' +
+      '<p>' + (kind === 'remind' ? 'If it has already gone out, please share the reference and we will close it on our side.' : 'Reply here with any question.') + '</p>' +
+      '<p>' + esc(s.signatory.who) + '<br><span style="color:#BBBBBB">' + esc(s.signatory.title) + ' · ' + esc(s.company.mail) + '</span></p>';
+    return {subject, text, html: htmlBody};
+  }
+
+  /* ---------- the document ---------- */
+  function InvoiceDoc({inv}) {
+    const ctx = M.useCtx();
+    const b = B();
+    const s = b.settings(ctx);
+    const t = b.totals(inv);
+    const c = s.company;
+    const to = inv.billTo || {};
+    const abroad = to.country && to.country !== 'India';
+    const taxType = inv.gst === 'intra' ? 'CGST and SGST (same state)' : inv.gst === 'inter' ? 'IGST (another state)' : 'Not applicable';
+    const lines = (inv.lines || []).filter(l => l.desc || b.num(l.rate));
+    const st = b.status(inv, U.todayStr());
+    return html`<${M.parts.DocFrame} id="invoice-doc" title=${'invoice ' + inv.no}>
+      <${M.parts.DocHead} ctx=${ctx} right=${html`<div>
+        <span class="doc-pill">${inv.gst === 'none' ? 'Invoice' : 'Tax invoice'}</span>
+        <div class="doc-title" style=${{marginTop: '16px'}}>${inv.no}</div>
+        <div class="doc-micro">Invoice number${st === 'paid' ? ' · paid' : st === 'void' ? ' · void' : ''}</div>
+      </div>`}/>
+      <div class="doc-cells">
+        <div class="doc-cell"><div class="doc-micro">Invoice date</div><div class="v num">${U.fmtDate(inv.date)}</div></div>
+        <div class="doc-cell"><div class="doc-micro">Due date</div><div class="v num due">${inv.due ? U.fmtDate(inv.due) : 'on receipt'}</div></div>
+        <div class="doc-cell"><div class="doc-micro">Period of service</div><div class="v">${inv.period || '·'}</div></div>
+        <div class="doc-cell"><div class="doc-micro">Currency</div><div class="v">${inv.currency} ${(b.CUR[inv.currency] || b.CUR.INR).sym.trim()}</div></div>
+      </div>
+      <div class="doc-parties">
+        <div class="doc-party">
+          <div class="doc-micro">Billed from</div>
+          <div class="doc-party-name">${c.name}</div>
+          <div class="doc-addr">${String(c.address || '').split('\n').map((l, i) => html`<div key=${i}>${l}</div>`)}</div>
+          ${c.udyam ? html`<span class="doc-tag">Udyam: ${c.udyam}</span>` : null}
+          ${c.gstin ? html`<span class="doc-tag" style=${{marginLeft: '6px'}}>GSTIN: ${c.gstin}</span>` : null}
+        </div>
+        <div class="doc-party">
+          <div class="doc-micro">Billed to</div>
+          <div class="doc-party-name">${to.legalName || inv.clientName}</div>
+          <div class="doc-addr">${String(to.address || '').split('\n').filter(Boolean).map((l, i) => html`<div key=${i}>${l}</div>`)}${to.country ? html`<div>${to.country}</div>` : null}</div>
+          ${to.taxId ? html`<span class="doc-tag">${abroad ? 'Tax reg / TRN: ' : 'GSTIN: '}${to.taxId}</span>` : null}
+          <div class="doc-kv" style=${{marginTop: '10px'}}>
+            <span>Place of supply</span><span>${inv.place || '·'}</span>
+            <span>Tax type</span><span>${taxType}</span>
+            <span>Reverse charge</span><span>${inv.reverse ? 'Yes' : 'No'}</span>
+          </div>
+        </div>
+      </div>
+      <table class="doc-table">
+        <thead><tr><th>#</th><th>Description of services</th><th class="slim">SAC</th><th class="n slim">Qty</th><th class="n">Rate</th><th class="n">Amount</th></tr></thead>
+        <tbody>${lines.map((l, i) => html`<tr key=${i}>
+          <td class="num">${String(i + 1).padStart(2, '0')}</td>
+          <td><div class="doc-line">${l.desc}</div>${l.note ? html`<div class="doc-note">${l.note}</div>` : null}</td>
+          <td class="num slim">${l.sac || '·'}</td>
+          <td class="n num slim">${b.fmt(l.qty, 'INR')}</td>
+          <td class="n num">${b.fmt(l.rate, inv.currency)}</td>
+          <td class="n num">${b.fmt(b.num(l.qty) * b.num(l.rate), inv.currency)}</td>
+        </tr>`)}</tbody>
+      </table>
+      <div class="doc-words"><span class="doc-micro">Amount in words</span><b>${b.words(t.total, inv.currency)}</b></div>
+      <div class="doc-lower">
+        <div>
+          <div class="doc-block"><div class="doc-micro">Payment terms</div><div class="small">${inv.terms || s.defaults.terms}</div></div>
+          <div class="doc-block"><div class="doc-micro">Notes</div><div class="small">
+            ${inv.currency !== 'INR' ? html`<div>All amounts are in ${b.CUR[inv.currency] ? b.CUR[inv.currency].word : inv.currency} (${inv.currency}).</div>` : null}
+            ${inv.gst === 'none' && abroad ? html`<div>${s.defaults.exportNote}${to.taxId ? ' Recipient tax registration ' + to.taxId + '.' : ''}</div>` : null}
+            ${String(inv.notes || '').split('\n').filter(Boolean).map((l, i) => html`<div key=${i}>${l}</div>`)}
+          </div></div>
+          <div class="doc-block"><div class="doc-micro">Bank details</div>
+            <div class="doc-kv">
+              <span>A/C name</span><span>${s.bank.holder}</span>
+              <span>Bank</span><span>${s.bank.name}</span>
+              ${s.bank.branch ? html`<span>Branch</span><span>${s.bank.branch}</span>` : null}
+              <span>A/C no</span><span class="num">${s.bank.account}</span>
+              <span>IFSC</span><span>${s.bank.ifsc}</span>
+              ${s.bank.iban ? html`<span>IBAN</span><span>${s.bank.iban}</span>` : null}
+              ${s.bank.swift ? html`<span>SWIFT</span><span>${s.bank.swift}</span>` : null}
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="doc-totals">
+            <div class="doc-total-row"><span>Subtotal (taxable value)</span><span class="num">${b.money(t.sub, inv.currency)}</span></div>
+            ${inv.gst === 'intra' ? html`<div class="doc-total-row"><span>CGST @ ${b.num(inv.gstRate) / 2}%</span><span class="num">${b.money(t.cgst, inv.currency)}</span></div>
+              <div class="doc-total-row"><span>SGST @ ${b.num(inv.gstRate) / 2}%</span><span class="num">${b.money(t.sgst, inv.currency)}</span></div>` : null}
+            ${inv.gst === 'inter' ? html`<div class="doc-total-row"><span>IGST @ ${b.num(inv.gstRate)}%</span><span class="num">${b.money(t.igst, inv.currency)}</span></div>` : null}
+            ${t.tds ? html`<div class="doc-total-row"><span>TDS deductible${inv.tdsNote ? ' (' + inv.tdsNote + ')' : ''}</span><span class="num">${b.money(t.tds, inv.currency)}</span></div>` : null}
+            <div class="doc-total-row grand"><span>Total due</span><span class="num">${b.money(t.total, inv.currency)}</span></div>
+            ${t.paid ? html`<div class="doc-total-row"><span>Received</span><span class="num">${b.money(t.paid, inv.currency)}</span></div>
+              <div class="doc-total-row"><span>Balance</span><span class="num">${b.money(t.balance, inv.currency)}</span></div>` : null}
+          </div>
+          <div class="doc-block" style=${{marginTop: '16px'}}><div class="doc-micro">Declaration</div><div class="small">We hereby declare that this invoice shows the actual price of the services described and that all particulars are true and correct to the best of our knowledge.</div></div>
+          <${M.parts.DocSign} ctx=${ctx} label="Authorised signatory"/>
+        </div>
+      </div>
+      <${M.parts.DocFoot} ctx=${ctx}/>
+    <//>`;
+  }
+
+  /* ---------- the builder ---------- */
+  function Builder({inv, onClose, onSaved}) {
+    const ctx = M.useCtx();
+    const b = B();
+    const [f, setF] = useState(() => U.clone(inv));
+    const [busy, setBusy] = useState(false);
+    const clients = Object.keys(ctx.coll.clients.map).map(k => ({v: k, label: ctx.coll.clients.map[k].name || k})).sort((x, y) => x.label.localeCompare(y.label));
+    const set = (k, v) => setF(x => ({...x, [k]: v}));
+    const setTo = (k, v) => setF(x => ({...x, billTo: {...(x.billTo || {}), [k]: v}}));
+    const setLine = (i, k, v) => setF(x => { const lines = x.lines.map((l, j) => j === i ? {...l, [k]: v} : l); return {...x, lines}; });
+    const addLine = () => setF(x => ({...x, lines: x.lines.concat([{desc: '', note: '', sac: b.settings(ctx).defaults.sac, qty: 1, rate: ''}])}));
+    const dropLine = i => setF(x => ({...x, lines: x.lines.length > 1 ? x.lines.filter((l, j) => j !== i) : x.lines}));
+    const pickClient = id => { const n = fresh(ctx, id); setF(x => ({...n, id: x.id, lines: x.lines.some(l => l.desc) ? x.lines : n.lines, notes: x.notes || n.notes, createdAt: x.createdAt || n.createdAt})); };
+    const t = b.totals(f);
+    const abroad = f.billTo && f.billTo.country && f.billTo.country !== 'India';
+    const canSave = !!(f.no && f.date && (f.lines || []).some(l => l.desc && b.num(l.rate) > 0));
+    const save = async (andSend) => {
+      if (!canSave || busy) return;
+      setBusy(true);
+      const fy = b.fyOf(f.date);
+      const id = f.id || U.uid();
+      const row = {...f, tds: b.num(f.tds), gstRate: b.num(f.gstRate), fx: f.currency === 'INR' ? '' : (b.num(f.fx) || ''), updatedAt: Date.now()};
+      delete row.id; delete row.fy;
+      if (andSend && !row.sentAt) { row.sentAt = Date.now(); row.status = 'sent'; }
+      try {
+        if (inv.fy && inv.fy !== fy) await ctx.W.merge('invoices/' + inv.fy, {rows: {[id]: null}, updated: Date.now()});
+        await ctx.W.merge('invoices/' + fy, {rows: {[id]: row}, updated: Date.now()});
+        M.toast(andSend ? 'Saved and marked sent' : 'Saved');
+        onSaved(id);
+      } catch (e) { M.toast('Could not save', true); setBusy(false); }
+    };
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${inv.id ? 'Edit ' + inv.no : 'New invoice'}
+      footer=${html`<div class="row between grow"><span class="num" style=${{fontWeight: 600}}>${b.money(t.total, f.currency)}</span>
+        <span class="row nowrap" style=${{gap: '8px'}}>
+          ${!inv.sentAt ? html`<${UI.Btn} kind="sec" id="inv-save-sent" disabled=${!canSave || busy} onClick=${() => save(true)}>Save, mark sent<//>` : null}
+          <${UI.Btn} id="inv-save" disabled=${!canSave || busy} onClick=${() => save(false)}>Save<//></span></div>`}>
+      <div class="stack" id="inv-drawer">
+        <${UI.Select} id="inv-client" label="client" value=${f.client} options=${[{v: '', label: 'Pick a client'}].concat(clients)} onChange=${pickClient}/>
+        <div class="grid2"><${UI.Input} id="inv-no" label="invoice number" value=${f.no} onChange=${v => set('no', v)}/>
+          <${UI.Select} label="currency" value=${f.currency} options=${b.CUR_OPTS} onChange=${v => set('currency', v)}/></div>
+        <div class="grid2"><${UI.Input} id="inv-date" label="invoice date" type="date" value=${f.date} onChange=${v => set('date', v)}/>
+          <${UI.Input} id="inv-due" label="due date" type="date" value=${f.due} onChange=${v => set('due', v)}/></div>
+        <div class="grid2"><${UI.Input} label="period of service" value=${f.period} onChange=${v => set('period', v)}/>
+          <${UI.Input} label="place of supply" value=${f.place} onChange=${v => set('place', v)}/></div>
+        <div class="grid2"><${UI.Select} id="inv-gst" label="tax" value=${f.gst} options=${GST_OPTS} onChange=${v => set('gst', v)}/>
+          <${UI.Input} label="GST rate, percent" type="number" value=${String(f.gstRate)} onChange=${v => set('gstRate', v)}/></div>
+        ${abroad ? html`<${UI.Check} label="Reverse charge: the recipient accounts for VAT" checked=${!!f.reverse} onChange=${v => set('reverse', v)}/>` : null}
+        <${UI.Field} label="billed to">
+          <div class="stack tight">
+            <${UI.Input} id="inv-legal" label="legal name" value=${(f.billTo || {}).legalName || ''} onChange=${v => setTo('legalName', v)}/>
+            <${UI.TextArea} label="address, one line per row" rows=${2} value=${(f.billTo || {}).address || ''} onChange=${v => setTo('address', v)}/>
+            <div class="grid2"><${UI.Input} label="country" value=${(f.billTo || {}).country || ''} onChange=${v => setTo('country', v)}/>
+              <${UI.Input} label=${abroad ? 'tax registration, TRN' : 'GSTIN'} value=${(f.billTo || {}).taxId || ''} onChange=${v => setTo('taxId', v)}/></div>
+            <${UI.Input} label="their accounts email" value=${(f.billTo || {}).contactEmail || ''} onChange=${v => setTo('contactEmail', v)}/>
+          </div>
+        <//>
+        <${UI.Field} label="lines">
+          <div class="stack tight inv-lines">
+            ${f.lines.map((l, i) => html`<div class="card" key=${i} style=${{padding: '12px 14px'}}>
+              <div class="stack tight">
+                <div class="row between"><${UI.Micro} plain>line ${i + 1}<//>${f.lines.length > 1 ? html`<button type="button" class="linky small" onClick=${() => dropLine(i)}>Remove</button>` : null}</div>
+                <${UI.Input} id=${'inv-line-desc-' + i} label="service" value=${l.desc} onChange=${v => setLine(i, 'desc', v)} placeholder="Monthly retainer, September"/>
+                <${UI.Input} label="description, optional" value=${l.note || ''} onChange=${v => setLine(i, 'note', v)}/>
+                <div class="grid2" style=${{gridTemplateColumns: '1fr 1fr 1.4fr'}}>
+                  <${UI.Input} label="SAC" value=${l.sac || ''} onChange=${v => setLine(i, 'sac', v)}/>
+                  <${UI.Input} label="qty" type="number" value=${String(l.qty)} onChange=${v => setLine(i, 'qty', v)}/>
+                  <${UI.Input} id=${'inv-line-rate-' + i} label=${'rate, ' + f.currency} type="number" value=${String(l.rate)} onChange=${v => setLine(i, 'rate', v)}/>
+                </div>
+                <div class="tiny ink62 num">${b.money(b.num(l.qty) * b.num(l.rate), f.currency)}</div>
+              </div>
+            </div>`)}
+            <div><${UI.Btn} kind="sec" sm=${true} id="inv-add-line" onClick=${addLine}><${icons.plus}/>Add a line<//></div>
+          </div>
+        <//>
+        <div class="grid2"><${UI.Input} id="inv-tds" label=${'TDS the client deducts, ' + f.currency} type="number" value=${String(f.tds || '')} onChange=${v => set('tds', v)} hint="Shown on the invoice and expected short of the total"/>
+          <${UI.Input} label="TDS section, optional" value=${f.tdsNote || ''} onChange=${v => set('tdsNote', v)} placeholder="194J at 10%"/></div>
+        ${f.currency !== 'INR' ? html`<${UI.Input} id="inv-fx" label=${'INR per ' + f.currency + ', for the books'} type="number" value=${String(f.fx || '')} onChange=${v => set('fx', v)} hint="The overview and GST figures use this rate"/>` : null}
+        <${UI.Input} label="payment terms line" value=${f.terms} onChange=${v => set('terms', v)}/>
+        <${UI.TextArea} label="notes, one per line" rows=${3} value=${f.notes} onChange=${v => set('notes', v)}/>
+        <div class="card" style=${{padding: '12px 14px'}}>
+          <div class="stack tight small">
+            <div class="row between"><span>Subtotal</span><span class="num">${b.money(t.sub, f.currency)}</span></div>
+            ${t.tax ? html`<div class="row between"><span>GST</span><span class="num">${b.money(t.tax, f.currency)}</span></div>` : null}
+            <div class="row between"><b>Total due</b><b class="num">${b.money(t.total, f.currency)}</b></div>
+            <div class="tiny ink62">${b.words(t.total, f.currency)}</div>
+          </div>
+        </div>
+      </div>
+    <//>`;
+  }
+
+  /* ---------- one invoice, opened ---------- */
+  function PayDrawer({inv, onClose}) {
+    const ctx = M.useCtx();
+    const b = B();
+    const t = b.totals(inv);
+    const [f, setF] = useState({amount: String(Math.max(0, t.balance) || ''), date: U.todayStr(), ref: '', note: ''});
+    const [busy, setBusy] = useState(false);
+    const save = async () => {
+      if (!b.num(f.amount) || busy) return;
+      setBusy(true);
+      const payments = (inv.payments || []).concat([{at: U.parseYmd(f.date).getTime() + 43200000, amount: b.num(f.amount), ref: f.ref.trim(), note: f.note.trim()}]);
+      try { await ctx.W.merge('invoices/' + inv.fy, {rows: {[inv.id]: {payments, updatedAt: Date.now()}}, updated: Date.now()}); M.toast('Payment recorded'); onClose(); }
+      catch (e) { M.toast('Could not save', true); setBusy(false); }
+    };
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${'Payment on ' + inv.no}
+      footer=${html`<${UI.Btn} id="inv-pay-record" disabled=${busy || !b.num(f.amount)} onClick=${save}>Record the payment<//>`}>
+      <div class="stack" id="inv-pay-drawer">
+        <div class="grid2"><${UI.Input} id="inv-pay-amount" label=${'amount received, ' + inv.currency} type="number" value=${f.amount} onChange=${v => setF(x => ({...x, amount: v}))}/>
+          <${UI.Input} label="received on" type="date" value=${f.date} onChange=${v => setF(x => ({...x, date: v}))}/></div>
+        <${UI.Input} label="reference, UTR or cheque" value=${f.ref} onChange=${v => setF(x => ({...x, ref: v}))}/>
+        <${UI.Input} label="note, optional" value=${f.note} onChange=${v => setF(x => ({...x, note: v}))}/>
+        <div class="small ink62">Balance before this payment: <span class="num">${b.money(t.balance, inv.currency)}</span>${t.tds ? ', after TDS of ' + b.money(t.tds, inv.currency) : ''}.</div>
+      </div>
+    <//>`;
+  }
+
+  function SendDrawer({inv, kind, onClose}) {
+    const ctx = M.useCtx();
+    const b = B();
+    const s = b.settings(ctx);
+    const m = useMemo(() => mailFor(ctx, inv, kind), [inv, kind]);
+    const [to, setTo] = useState((inv.billTo && inv.billTo.contactEmail) || '');
+    const [cc, setCc] = useState(s.chase.cc || '');
+    const [subject, setSubject] = useState(m.subject);
+    const [text, setText] = useState(m.text);
+    const [busy, setBusy] = useState(false);
+    const site = typeof window.M360_API === 'function';
+    const mark = async (via) => {
+      const patch = {updatedAt: Date.now()};
+      if (kind === 'remind') patch.chased = (inv.chased || []).concat([{at: Date.now(), step: 'hand', via}]);
+      else { patch.sentAt = inv.sentAt || Date.now(); patch.status = 'sent'; patch.sentTo = to; }
+      await ctx.W.merge('invoices/' + inv.fy, {rows: {[inv.id]: patch}, updated: Date.now()}).catch(() => {});
+    };
+    const send = async () => {
+      if (!to.trim() || busy) return;
+      setBusy(true);
+      try {
+        /* the server sends the mail and marks the invoice in the same breath */
+        await window.M360_API('invoicesend', {fy: inv.fy, id: inv.id, to: to.trim(), cc: cc.trim(), subject, text, html: m.html.replace(esc(m.text.split('\n\n')[0]), esc(text.split('\n\n')[0])), kind});
+        M.toast(kind === 'remind' ? 'Reminder sent' : 'Invoice sent');
+        onClose();
+      } catch (e) { M.toast((e && e.message) || 'Could not send', true); setBusy(false); }
+    };
+    const openMail = async () => {
+      const href = 'mailto:' + encodeURIComponent(to.trim()) + '?' + (cc.trim() ? 'cc=' + encodeURIComponent(cc.trim()) + '&' : '') + 'subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(text);
+      try { window.open(href, '_self'); } catch (e) { /* no mail app */ }
+      await mark('mailto');
+      M.toast(kind === 'remind' ? 'Reminder marked as sent' : 'Marked as sent');
+      onClose();
+    };
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${kind === 'remind' ? 'Chase ' + inv.no : 'Send ' + inv.no}
+      footer=${site ? html`<${UI.Btn} id="send-go" disabled=${busy || !to.trim()} onClick=${send}><${icons.send}/>${kind === 'remind' ? 'Send the reminder' : 'Send the invoice'}<//>`
+        : html`<${UI.Btn} id="send-mailto" disabled=${!to.trim()} onClick=${openMail}><${icons.send}/>Open in the mail app<//>`}>
+      <div class="stack" id="send-drawer">
+        <div class="grid2"><${UI.Input} id="send-to" label="to" value=${to} onChange=${setTo}/><${UI.Input} label="copy" value=${cc} onChange=${setCc}/></div>
+        <${UI.Input} label="subject" value=${subject} onChange=${setSubject}/>
+        <${UI.TextArea} id="send-text" label="the email" rows=${14} value=${text} onChange=${setText}/>
+        <div class="tiny ink62">${site ? 'Sent from the team site through Resend, with the invoice table and the bank details laid out, and marked as sent here.' : 'The claude.ai page hands the text to your mail app and marks the invoice as sent. The team site sends it for you.'}</div>
+      </div>
+    <//>`;
+  }
+
+  function InvoiceView({inv, onBack}) {
+    const ctx = M.useCtx();
+    const b = B();
+    const today = U.todayStr();
+    const st = b.status(inv, today);
+    const t = b.totals(inv);
+    const [edit, setEdit] = useState(false);
+    const [pay, setPay] = useState(false);
+    const [send, setSend] = useState(null);
+    const patch = p => ctx.W.merge('invoices/' + inv.fy, {rows: {[inv.id]: {...p, updatedAt: Date.now()}}, updated: Date.now()});
+    const dup = async () => {
+      const n = {...U.clone(inv), no: b.nextNumber(ctx, b.codeOf(ctx, inv.client), b.fyOf(today)), date: today, due: U.ymd(U.addDays(U.parseYmd(today), Math.max(0, U.daysBetween(inv.date, inv.due) || 15))), status: 'draft', sentAt: null, sentTo: '', payments: [], chased: [], auto: '', createdAt: Date.now(), updatedAt: Date.now()};
+      delete n.id; delete n.fy;
+      const id = U.uid();
+      await ctx.W.merge('invoices/' + b.fyOf(today), {rows: {[id]: n}, updated: Date.now()}).catch(() => {});
+      M.nav('#invoices/' + id);
+    };
+    const remove = async () => { await ctx.W.merge('invoices/' + inv.fy, {rows: {[inv.id]: null}, updated: Date.now()}).catch(() => {}); M.toast('Draft deleted'); onBack(); };
+    return html`<div class="stack" style=${{gap: '16px'}}>
+      <div class="row between">
+        <button type="button" class="linky nowrap" id="inv-back" onClick=${onBack}><${icons.chevL}/>All invoices</button>
+        <span class="row nowrap" style=${{gap: '8px'}}><${UI.Pill} kind=${b.STATUS_PILL[st]}>${b.STATUS_TEXT[st]}<//>${inv.auto === 'retainer' ? html`<${UI.Pill}>retainer, drafted for you<//>` : null}</span>
+      </div>
+      <div class="split">
+        <${InvoiceDoc} inv=${inv}/>
+        <div class="stack" style=${{gap: '14px'}}>
+          <${UI.Card} title="This invoice" id="inv-side">
+            <div class="stack tight">
+              <div class="row between"><span class="small ink62">Total</span><span class="num" style=${{fontWeight: 600}}>${b.money(t.total, inv.currency)}</span></div>
+              ${t.tds ? html`<div class="row between"><span class="small ink62">TDS the client deducts</span><span class="num">${b.money(t.tds, inv.currency)}</span></div>` : null}
+              <div class="row between"><span class="small ink62">Received</span><span class="num">${b.money(t.paid, inv.currency)}</span></div>
+              <div class="row between"><b>Balance</b><b class="num">${b.money(t.balance, inv.currency)}</b></div>
+              ${inv.sentAt ? html`<div class="tiny ink62">Sent ${U.timeAgo(inv.sentAt)}${inv.sentTo ? ' to ' + inv.sentTo : ''}${(inv.chased || []).length ? ' · chased ' + inv.chased.length + (inv.chased.length === 1 ? ' time' : ' times') + ', last ' + U.timeAgo(inv.chased[inv.chased.length - 1].at) : ''}</div>` : html`<div class="tiny ink62">A draft. Nothing goes to the client until you send it or mark it sent.</div>`}
+              ${st === 'overdue' ? html`<div class="small flame-t">${b.ageOf(inv, today)} days past due.</div>` : null}
+            </div>
+          <//>
+          <${UI.Card} title="Do">
+            <div class="stack tight">
+              ${st !== 'void' && st !== 'paid' ? html`<div class="row">
+                ${st === 'draft' ? html`<${UI.Btn} id="inv-send" onClick=${() => setSend('send')}><${icons.send}/>Send to the client<//><${UI.Btn} kind="sec" id="inv-mark-sent" onClick=${() => patch({sentAt: Date.now(), status: 'sent'}).then(() => M.toast('Marked sent'))}>Mark sent<//>`
+                  : html`<${UI.Btn} id="inv-chase" onClick=${() => setSend('remind')}><${icons.send}/>Chase now<//><${UI.Btn} kind="sec" id="inv-resend" onClick=${() => setSend('send')}>Send again<//>`}
+              </div>` : null}
+              <div class="row">
+                ${st !== 'void' ? html`<${UI.Btn} kind="sec" sm=${true} id="inv-pay" onClick=${() => setPay(true)}>Record a payment<//>` : null}
+                <${UI.Btn} kind="sec" sm=${true} id="inv-edit" onClick=${() => setEdit(true)}>${st === 'draft' ? 'Edit' : 'Edit the details'}<//>
+                <${UI.Btn} kind="ghost" sm=${true} id="inv-dup" onClick=${dup}>Duplicate<//>
+              </div>
+              <div class="row">
+                ${st === 'draft' ? html`<${UI.ConfirmBtn} sm=${true} kind="ghost" onConfirm=${remove}>Delete the draft<//>`
+                  : st !== 'void' ? html`<${UI.ConfirmBtn} sm=${true} kind="ghost" onConfirm=${() => patch({status: 'void'}).then(() => M.toast('Voided'))}>Void<//>`
+                  : html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => patch({status: inv.sentAt ? 'sent' : 'draft'})}>Undo the void<//>`}
+              </div>
+            </div>
+          <//>
+          ${(inv.payments || []).length ? html`<${UI.Card} title="Payments">
+            ${inv.payments.map((p, i) => html`<div class="listrow" key=${i}><span class="num tiny ink62" style=${{width: '86px'}}>${U.fmtDate(U.ymd(new Date(p.at)))}</span><span class="grow">${p.ref || 'no reference'}${p.note ? ' · ' + p.note : ''}</span><span class="num" style=${{fontWeight: 500}}>${b.money(p.amount, inv.currency)}</span></div>`)}
+          <//>` : null}
+        </div>
+      </div>
+      ${edit ? html`<${Builder} inv=${inv} onClose=${() => setEdit(false)} onSaved=${() => setEdit(false)}/>` : null}
+      ${pay ? html`<${PayDrawer} inv=${inv} onClose=${() => setPay(false)}/>` : null}
+      ${send ? html`<${SendDrawer} inv=${inv} kind=${send} onClose=${() => setSend(null)}/>` : null}
+    </div>`;
+  }
+
+  /* ---------- the list ---------- */
+  function Invoices({id}) {
+    const ctx = M.useCtx();
+    const b = B();
+    const today = U.todayStr();
+    const all = b.invoices(ctx);
+    const [filter, setFilter] = useState('open');
+    const [fy, setFy] = useState('all');
+    const [draft, setDraft] = useState(null);
+    if (!ctx.isOwner) return html`<${UI.Empty} text="The books are the owner's alone."/>`;
+    const open = id ? all.find(i => i.id === id) : null;
+    if (id && open) return html`<${InvoiceView} inv=${open} onBack=${() => M.nav('#invoices')}/>`;
+    const fys = Array.from(new Set(all.map(i => i.fy))).sort().reverse();
+    const list = all.filter(i => (fy === 'all' || i.fy === fy)).filter(i => {
+      const st = b.status(i, today);
+      if (filter === 'all') return true;
+      if (filter === 'open') return ['sent', 'overdue', 'part'].includes(st);
+      if (filter === 'overdue') return st === 'overdue' || (st === 'part' && i.due < today);
+      return st === filter;
+    });
+    const sum = list.reduce((s, i) => s + (i.currency === 'INR' || !i.currency ? b.totals(i).balance : b.totals(i).balance * (b.num(i.fx) || 0)), 0);
+    const noClients = !Object.keys(ctx.coll.clients.map).length;
+    return html`<div class="stack" style=${{gap: '16px'}}>
+      <${UI.PageHead} micro=${list.length + (list.length === 1 ? ' invoice' : ' invoices') + (filter === 'open' || filter === 'overdue' ? ', ' + U.inr(sum) + ' outstanding' : '')} title="Invoices">
+        <${UI.Btn} id="inv-new" disabled=${noClients} onClick=${() => setDraft(fresh(ctx, ''))}><${icons.plus}/>New invoice<//>
+      <//>
+      ${noClients ? html`<div class="card small">Add a client under Accounts first; the invoice takes its legal name, address and currency from the client's billing profile under Setup.</div>` : null}
+      <div class="row between">
+        <${UI.Seg} sm=${true} options=${FILTERS} value=${filter} onChange=${setFilter} ariaLabel="Which invoices"/>
+        ${fys.length > 1 ? html`<${UI.Seg} sm=${true} options=${[{v: 'all', label: 'All years'}].concat(fys.map(x => ({v: x, label: 'FY ' + x})))} value=${fy} onChange=${setFy} ariaLabel="Financial year"/>` : null}
+      </div>
+      <${UI.Card} id="inv-list">
+        ${list.length ? html`<div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>number</th><th>client</th><th>date</th><th>due</th><th class="num">total</th><th class="num">balance</th><th>status</th></tr></thead>
+          <tbody>${list.map(i => { const st = b.status(i, today), t = b.totals(i); return html`<tr key=${i.id} class="inv-row" style=${{cursor: 'pointer'}} onClick=${() => M.nav('#invoices/' + i.id)}>
+            <td data-label="number" class="no">${i.no}</td>
+            <td data-label="client">${i.clientName || (i.billTo && i.billTo.legalName) || 'client'}</td>
+            <td data-label="date" class="num">${U.fmtDate(i.date)}</td>
+            <td data-label="due" class=${'num' + (st === 'overdue' ? ' flame-t' : '')}>${i.due ? U.fmtDate(i.due) : ''}</td>
+            <td data-label="total" class="num">${b.money(t.total, i.currency)}</td>
+            <td data-label="balance" class="num">${st === 'paid' || st === 'void' ? '' : b.money(t.balance, i.currency)}</td>
+            <td data-label="status"><${UI.Pill} kind=${b.STATUS_PILL[st]}>${b.STATUS_TEXT[st]}<//></td>
+          </tr>`; })}</tbody>
+        </table></div>` : html`<${UI.Empty} text=${filter === 'all' ? 'No invoices yet. Press New invoice, or set a retainer under Setup and the first of the month drafts it for you.' : 'Nothing here.'}/>`}
+      <//>
+      ${draft ? html`<${Builder} inv=${draft} onClose=${() => setDraft(null)} onSaved=${nid => { setDraft(null); M.nav('#invoices/' + nid); }}/>` : null}
+    </div>`;
+  }
+
+  M.invoices = {fresh, mailFor};
+  M.parts.InvoiceDoc = InvoiceDoc;
+  M.pages.Invoices = Invoices;
+})();
+
+/* ==== 44-expenses.js ==== */
+/* module: expenses. What the company spends: a row per expense (date, vendor, category, amount, GST
+   paid on it, how it was paid), recurring rows the first of the month copies forward, a receipt
+   attached on the team site, totals by month and category, and a CSV. Rows live in
+   expenses/<yyyy-mm>.rows. Owner only. */
+'use strict';
+(function () {
+  const {html, React, U, UI, icons} = M;
+  const {useState, useMemo} = React;
+
+  const CATS = ['Salaries', 'Rent', 'Software and tools', 'Freelancers', 'Production', 'Travel', 'Meals and client', 'Marketing', 'Professional fees', 'Bank and taxes', 'Equipment', 'Other'];
+  const METHODS = [{v: 'bank', label: 'Bank transfer'}, {v: 'card', label: 'Card'}, {v: 'upi', label: 'UPI'}, {v: 'cash', label: 'Cash'}, {v: 'due', label: 'Not paid yet'}];
+  const B = () => M.books;
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthLabel = mid => { const [y, m] = mid.split('-').map(Number); return MON[m - 1] + ' ' + y; };
+  const csvCell = v => { const s = String(v == null ? '' : v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+
+  const blank = () => ({date: U.todayStr(), vendor: '', category: 'Software and tools', desc: '', amount: '', gstInput: '', method: 'bank', recurring: '', receipt: null});
+
+  function ExpenseDrawer({row, onClose}) {
+    const ctx = M.useCtx();
+    const b = B();
+    const [f, setF] = useState(() => row ? {...blank(), ...row} : blank());
+    const [busy, setBusy] = useState(false);
+    const set = (k, v) => setF(x => ({...x, [k]: v}));
+    const canSave = !!(f.vendor.trim() && b.num(f.amount) > 0 && /^\d{4}-\d{2}-\d{2}$/.test(f.date));
+    const save = async () => {
+      if (!canSave || busy) return;
+      setBusy(true);
+      const month = f.date.slice(0, 7);
+      const id = f.id || U.uid();
+      const doc = {date: f.date, vendor: f.vendor.trim(), category: f.category, desc: String(f.desc || '').trim(), amount: b.num(f.amount), gstInput: b.num(f.gstInput),
+        method: f.method, paid: f.method !== 'due', recurring: f.recurring || '', receipt: f.receipt || null, at: f.at || Date.now(), updatedAt: Date.now()};
+      try {
+        if (row && row.month && row.month !== month) await ctx.W.merge('expenses/' + row.month, {rows: {[id]: null}, updated: Date.now()});
+        await ctx.W.merge('expenses/' + month, {rows: {[id]: doc}, updated: Date.now()});
+        M.toast('Saved'); onClose();
+      } catch (e) { M.toast('Could not save', true); setBusy(false); }
+    };
+    const remove = async () => { await ctx.W.merge('expenses/' + row.month, {rows: {[row.id]: null}, updated: Date.now()}).catch(() => {}); M.toast('Removed'); onClose(); };
+    const attach = e => {
+      const file = e.target.files && e.target.files[0]; e.target.value = '';
+      if (!file || !M.files || !M.files.upload) { M.toast('Receipts attach on the team site', true); return; }
+      M.files.upload(file, 'books').then(r => set('receipt', {id: r.id, url: r.url, type: r.type, size: r.size, filename: file.name})).catch(() => M.toast('Could not attach', true));
+    };
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${row ? 'Edit expense' : 'New expense'}
+      footer=${html`<div class="row between grow">${row ? html`<${UI.ConfirmBtn} sm=${true} kind="ghost" onConfirm=${remove}>Remove<//>` : html`<span/>`}<${UI.Btn} id="exp-save" disabled=${!canSave || busy} onClick=${save}>Save<//></div>`}>
+      <div class="stack" id="exp-drawer">
+        <div class="grid2"><${UI.Input} id="exp-date" label="date" type="date" value=${f.date} onChange=${v => set('date', v)}/>
+          <${UI.Input} id="exp-amount" label="amount, INR" type="number" value=${String(f.amount)} onChange=${v => set('amount', v)}/></div>
+        <${UI.Input} id="exp-vendor" label="paid to" value=${f.vendor} onChange=${v => set('vendor', v)} placeholder="Adobe, the landlord, a freelancer"/>
+        <div class="grid2"><${UI.Select} id="exp-cat" label="category" value=${f.category} options=${CATS.map(c => ({v: c, label: c}))} onChange=${v => set('category', v)}/>
+          <${UI.Select} label="paid by" value=${f.method} options=${METHODS} onChange=${v => set('method', v)}/></div>
+        <${UI.Input} label="what for, optional" value=${f.desc} onChange=${v => set('desc', v)}/>
+        <div class="grid2"><${UI.Input} label="GST paid on it, INR" type="number" value=${String(f.gstInput || '')} onChange=${v => set('gstInput', v)} hint="Input credit, when the vendor charged GST"/>
+          <${UI.Select} label="repeats" value=${f.recurring} options=${[{v: '', label: 'Once'}, {v: 'monthly', label: 'Every month'}]} onChange=${v => set('recurring', v)}/></div>
+        <div class="row">
+          <label class="btn sec sm">${f.receipt ? 'Change the receipt' : 'Attach a receipt'}<input type="file" accept="image/*,.pdf" style=${{display: 'none'}} onChange=${attach}/></label>
+          ${f.receipt ? html`<span class="small">${f.receipt.filename || 'receipt'}</span><button type="button" class="linky small" onClick=${() => set('receipt', null)}>Remove</button>` : null}
+        </div>
+      </div>
+    <//>`;
+  }
+
+  function Expenses({id}) {
+    const ctx = M.useCtx();
+    const b = B();
+    const all = b.expenses(ctx);
+    const [month, setMonth] = useState(() => U.monthId(new Date(ctx.now)));
+    const [cat, setCat] = useState('all');
+    const [open, setOpen] = useState(null);
+    if (!ctx.isOwner) return html`<${UI.Empty} text="The books are the owner's alone."/>`;
+    const months = Array.from(new Set(all.map(e => e.month).concat([U.monthId(new Date(ctx.now))]))).sort().reverse();
+    const list = all.filter(e => e.month === month && (cat === 'all' || e.category === cat));
+    const total = list.reduce((s, e) => s + b.num(e.amount), 0);
+    const gst = list.reduce((s, e) => s + b.num(e.gstInput), 0);
+    const byCat = {};
+    for (const e of all.filter(x => x.month === month)) byCat[e.category] = (byCat[e.category] || 0) + b.num(e.amount);
+    const cats = Object.keys(byCat).sort((x, y) => byCat[y] - byCat[x]);
+    const csv = async () => {
+      const lines = [['date', 'paid to', 'category', 'what for', 'amount', 'gst paid', 'paid by', 'paid', 'repeats'].join(',')]
+        .concat(list.map(e => [e.date, e.vendor, e.category, e.desc, e.amount, e.gstInput || 0, e.method, e.paid ? 'yes' : 'no', e.recurring || ''].map(csvCell).join(',')));
+      const r = await ctx.downloads.save({filename: 'expenses-' + month + '.csv', data: lines.join('\n')});
+      M.toast(r && r.status === 'delivered' ? 'Sent' : 'Downloaded');
+    };
+    return html`<div class="stack" style=${{gap: '16px'}}>
+      <${UI.PageHead} micro=${monthLabel(month) + ', ' + U.inr(total) + (gst ? ', GST paid ' + U.inr(gst) : '')} title="Expenses">
+        <${UI.Btn} id="exp-new" onClick=${() => setOpen({})}><${icons.plus}/>New expense<//>
+      <//>
+      <div class="row between">
+        <${UI.Seg} sm=${true} options=${months.slice(0, 8).map(m => ({v: m, label: monthLabel(m)}))} value=${month} onChange=${setMonth} ariaLabel="Month"/>
+        ${ctx.downloads && list.length ? html`<${UI.Btn} kind="sec" sm=${true} id="exp-csv" onClick=${csv}>Download the month<//>` : null}
+      </div>
+      <div class="split">
+        <${UI.Card} id="exp-list">
+          ${cats.length > 1 ? html`<div style=${{marginBottom: '10px'}}><${UI.Seg} sm=${true} options=${[{v: 'all', label: 'All'}].concat(cats.map(c => ({v: c, label: c})))} value=${cat} onChange=${setCat} ariaLabel="Category"/></div>` : null}
+          ${list.length ? html`<div class="tbl-wrap"><table class="tbl">
+            <thead><tr><th>date</th><th>paid to</th><th>category</th><th class="num">amount</th><th>paid by</th></tr></thead>
+            <tbody>${list.map(e => html`<tr key=${e.id} style=${{cursor: 'pointer'}} onClick=${() => setOpen(e)}>
+              <td data-label="date" class="num">${U.fmtDate(e.date)}</td>
+              <td data-label="paid to"><b>${e.vendor}</b>${e.desc ? html`<span class="tiny ink62"> · ${e.desc}</span>` : null}${e.recurring ? html` <${UI.Pill}>monthly<//>` : null}${e.receipt ? html` <span class="tiny ink62">receipt</span>` : null}</td>
+              <td data-label="category">${e.category}</td>
+              <td data-label="amount" class="num">${U.inr(e.amount)}</td>
+              <td data-label="paid by">${e.paid ? (METHODS.find(m => m.v === e.method) || {}).label || e.method : html`<span class="flame-t">not paid</span>`}</td>
+            </tr>`)}</tbody>
+          </table></div>` : html`<${UI.Empty} text="Nothing logged this month. Salaries land here from a closed payroll run; rent and tools can repeat every month."/>`}
+        <//>
+        <${UI.Card} title="By category" id="exp-cats">
+          ${cats.length ? cats.map(c => html`<div class="listrow" key=${c}><span class="grow">${c}</span><span class="num" style=${{fontWeight: 500}}>${U.inr(byCat[c])}</span></div>`) : html`<${UI.Empty} text="Nothing yet."/>`}
+          ${cats.length ? html`<div class="listrow"><b class="grow">Total</b><b class="num">${U.inr(Object.values(byCat).reduce((s, v) => s + v, 0))}</b></div>` : null}
+        <//>
+      </div>
+      ${open ? html`<${ExpenseDrawer} row=${open.id ? open : null} onClose=${() => setOpen(null)}/>` : null}
+    </div>`;
+  }
+
+  M.expenses = {CATS, METHODS, blank, monthLabel};
+  M.pages.Expenses = Expenses;
+})();
+
+/* ==== 45-payroll.js ==== */
+/* module: payroll. The owner's payroll desk under Books: each person's monthly pay (earnings,
+   deductions, bank, PAN, UAN), the monthly run prepared from the roster and attendance (working
+   days, loss of pay from days with no check-in and no leave), payslips on the letterhead, and a
+   CSV register. Everything is INR. Data lives in payroll/salaries and payroll/<yyyy-mm>, ids only. */
+'use strict';
+(function () {
+  const {html, React, U, UI, icons} = M;
+  const {useState} = React;
+
+  const EARN = [['basic', 'Basic'], ['hra', 'House rent allowance'], ['special', 'Special allowance'], ['allowances', 'Other allowances']];
+  const DEDUCT = [['pf', 'Provident fund'], ['tds', 'Tax deducted at source'], ['esi', 'ESI'], ['other', 'Other deductions']];
+  const PF_CAP = 1800;
+  const NOTE_MAX = 200;
+
+  /* ---------- pure helpers ---------- */
+  const num = v => { const n = Number(String(v == null ? '' : v).replace(/[^0-9.-]/g, '')); return Number.isFinite(n) ? n : 0; };
+  const okMonth = s => /^\d{4}-(0[1-9]|1[0-2])$/.test(String(s || ''));
+  const monthName = month => { const [y, m] = String(month).split('-').map(Number); return U.cap(U.MONTHS[(m || 1) - 1] || '') + ' ' + y; };
+  const daysIn = month => { const [y, m] = String(month).split('-').map(Number); return new Date(y, m, 0).getDate(); };
+  const dateIn = (month, d) => month + '-' + U.pad(d);
+  const isWorking = (ctx, ymd) => {
+    if (U.parseYmd(ymd).getDay() === 0) return false;
+    return !(ctx && ctx.holidays && typeof ctx.holidays.has === 'function' && ctx.holidays.has(ymd));
+  };
+  const salaryMap = ctx => (((ctx.coll.payroll && ctx.coll.payroll.map.salaries) || {}).map) || {};
+  const runOf = (ctx, month) => ((ctx.coll.payroll && ctx.coll.payroll.map[month]) || {}).run || null;
+  const hasPay = s => !!s && (num(s.basic) > 0 || num(s.hra) > 0 || num(s.special) > 0 || num(s.allowances) > 0 || num(s.ctc) > 0);
+
+  /* Monday to Saturday, minus the holidays */
+  function workingDays(ctx, month) {
+    if (!okMonth(month)) return 0;
+    let n = 0;
+    for (let d = 1; d <= daysIn(month); d++) if (isWorking(ctx, dateIn(month, d))) n++;
+    return n;
+  }
+  /* working days up to today with no check-in and no approved leave; a date after today never counts */
+  function absentDays(ctx, uid, month, today) {
+    if (!okMonth(month)) return 0;
+    const t = today || U.todayStr();
+    const att = M.att;
+    if (!att || typeof att.dayStatus !== 'function') return 0;
+    let n = 0;
+    for (let d = 1; d <= daysIn(month); d++) {
+      const ymd = dateIn(month, d);
+      if (ymd > t || !isWorking(ctx, ymd)) continue;
+      let s = null;
+      try { const r = att.dayStatus(ctx, uid, ymd); s = r ? r.status : null; } catch (e) { s = null; }
+      if (s === 'none') n++;
+    }
+    return n;
+  }
+  /* the row numbers: each earning prorated by paid days over days, deductions as set */
+  function compute(salary, days, lop) {
+    const s = salary || {};
+    const dd = Math.max(0, Math.round(num(days)));
+    const l = Math.min(dd, Math.max(0, Math.round(num(lop))));
+    const paidDays = dd - l;
+    const ratio = dd > 0 ? paidDays / dd : 0;
+    const row = {days: dd, paidDays, lop: l};
+    let gross = 0;
+    for (const [k] of EARN) { row[k] = Math.round(num(s[k]) * ratio); gross += row[k]; }
+    let ded = 0;
+    for (const [k] of DEDUCT) { row[k] = Math.round(num(s[k])); ded += row[k]; }
+    row.gross = gross;
+    row.net = gross - ded;
+    return row;
+  }
+  function monthly(salary) {
+    const s = salary || {};
+    const gross = EARN.reduce((t, [k]) => t + num(s[k]), 0);
+    const deductions = DEDUCT.reduce((t, [k]) => t + num(s[k]), 0);
+    return {gross: Math.round(gross), deductions: Math.round(deductions), net: Math.round(gross - deductions)};
+  }
+  const deductionsOf = row => DEDUCT.reduce((t, [k]) => t + num((row || {})[k]), 0);
+  const netOf = row => num((row || {}).gross) - deductionsOf(row);
+  /* a split of the CTC: basic half, HRA a fifth, the rest special, PF at 12 percent of basic capped */
+  function suggest(ctc) {
+    const m = num(ctc) / 12;
+    const basic = Math.round(m * 0.5), hra = Math.round(m * 0.2);
+    const special = Math.max(0, Math.round(m) - basic - hra);
+    return {basic, hra, special, allowances: 0, pf: Math.min(PF_CAP, Math.round(basic * 0.12)), tds: 0, esi: 0, other: 0};
+  }
+  const mask = acct => { const a = String(acct || '').replace(/\s+/g, ''); return a ? 'xxxx ' + a.slice(-4) : ''; };
+  const inr = n => M.books.money(n, 'INR');
+  const csvCell = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+
+  /* ---------- the pay drawer ---------- */
+  const blank = () => ({ctc: '', basic: '', hra: '', special: '', allowances: '', pf: '', tds: '', esi: '', other: '',
+    bank: {holder: '', account: '', ifsc: ''}, pan: '', uan: '', effective: '', note: ''});
+  function PayDrawer({uid, onClose}) {
+    const ctx = M.useCtx();
+    const [f, setF] = useState(() => {
+      const cur = salaryMap(ctx)[uid] || {};
+      const b = blank();
+      for (const k of Object.keys(b)) if (k !== 'bank' && cur[k] != null) b[k] = String(cur[k]);
+      b.bank = {...b.bank, ...(cur.bank || {})};
+      return b;
+    });
+    const [busy, setBusy] = useState(false);
+    const set = (k, v) => setF(x => ({...x, [k]: v}));
+    const setB = (k, v) => setF(x => ({...x, bank: {...x.bank, [k]: v}}));
+    const m = monthly(f);
+    const canSuggest = num(f.ctc) > 0 && !num(f.basic) && !num(f.hra) && !num(f.special);
+    const applySplit = () => { const s = suggest(f.ctc); setF(x => { const n = {...x}; for (const k of Object.keys(s)) n[k] = String(s[k]); return n; }); };
+    const save = async () => {
+      setBusy(true);
+      const clean = {ctc: num(f.ctc), basic: num(f.basic), hra: num(f.hra), special: num(f.special), allowances: num(f.allowances),
+        pf: num(f.pf), tds: num(f.tds), esi: num(f.esi), other: num(f.other),
+        bank: {holder: String(f.bank.holder || '').trim().slice(0, 80), account: String(f.bank.account || '').trim().slice(0, 34), ifsc: String(f.bank.ifsc || '').trim().toUpperCase().slice(0, 11)},
+        pan: String(f.pan || '').trim().toUpperCase().slice(0, 10), uan: String(f.uan || '').trim().slice(0, 12),
+        effective: /^\d{4}-\d{2}-\d{2}$/.test(f.effective) ? f.effective : '', note: String(f.note || '').trim().slice(0, NOTE_MAX)};
+      try { await ctx.W.merge('payroll/salaries', {map: {[uid]: clean}, updated: Date.now()}); M.toast('Saved'); onClose(); }
+      catch (e) { M.toast('Could not save', true); setBusy(false); }
+    };
+    const numIn = (k, label) => html`<${UI.Input} id=${'pay-' + k} label=${label} type="number" min="0" step="1" value=${f[k]} onChange=${v => set(k, v)}/>`;
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Edit pay"
+      footer=${html`<${UI.Btn} id="pay-save" disabled=${busy} onClick=${save}>Save pay<//>`}>
+      <div class="stack" id="pay-drawer">
+        <div class="row nowrap" style=${{gap: '10px'}}><${UI.Avatar} id=${uid} size=${30}/><b><${UI.Name} id=${uid}/></b></div>
+        <${UI.Input} id="pay-ctc" label="cost to company, per year" type="number" min="0" step="1" value=${f.ctc} onChange=${v => set('ctc', v)}
+          hint=${num(f.ctc) > 0 ? inr(num(f.ctc) / 12) + ' a month' : 'Monthly parts below are what payroll uses'}/>
+        ${canSuggest ? html`<div class="row"><${UI.Btn} kind="sec" sm=${true} id="pay-suggest" onClick=${applySplit}>Suggest a split from the CTC<//></div>` : null}
+        <${UI.Field} label="monthly earnings">
+          <div class="grid2">${EARN.map(([k, l]) => html`<div key=${k}>${numIn(k, l.toLowerCase())}</div>`)}</div>
+        <//>
+        <${UI.Field} label="monthly deductions">
+          <div class="grid2">${DEDUCT.map(([k, l]) => html`<div key=${k}>${numIn(k, l.toLowerCase())}</div>`)}</div>
+        <//>
+        <div class="listrow" style=${{borderBottom: 0}}>
+          <span class="grow small">gross <span class="num">${inr(m.gross)}</span> · deductions <span class="num">${inr(m.deductions)}</span></span>
+          <b>net <span class="num" id="pay-net">${inr(m.net)}</span></b>
+        </div>
+        <${UI.Field} label="bank">
+          <div class="stack tight">
+            <${UI.Input} id="pay-holder" label="account holder" value=${f.bank.holder} onChange=${v => setB('holder', v)}/>
+            <div class="grid2">
+              <${UI.Input} id="pay-account" label="account number" value=${f.bank.account} onChange=${v => setB('account', v)}/>
+              <${UI.Input} id="pay-ifsc" label="IFSC" value=${f.bank.ifsc} onChange=${v => setB('ifsc', v.toUpperCase())}/>
+            </div>
+          </div>
+        <//>
+        <div class="grid2">
+          <${UI.Input} id="pay-pan" label="PAN" value=${f.pan} onChange=${v => set('pan', v.toUpperCase())}/>
+          <${UI.Input} id="pay-uan" label="UAN" value=${f.uan} onChange=${v => set('uan', v)}/>
+        </div>
+        <${UI.Input} id="pay-effective" label="effective from" type="date" value=${f.effective} onChange=${v => set('effective', v)}/>
+        <${UI.TextArea} id="pay-note" label="note" rows=${2} value=${f.note} onChange=${v => set('note', v.slice(0, NOTE_MAX))}/>
+      </div>
+    <//>`;
+  }
+
+  /* ---------- salaries ---------- */
+  function Salaries() {
+    const ctx = M.useCtx();
+    const map = salaryMap(ctx);
+    const [open, setOpen] = useState(null);
+    const people = ctx.activeMembers || [];
+    return html`<${UI.Card} title="Salaries" id="pay-salaries">
+      <p class="small ink62" style=${{marginTop: 0}}>Monthly earnings and deductions for each person on the roster. The run below reads these.</p>
+      ${people.length ? html`<div class="stack tight">${people.map(p => {
+        const s = map[p.uid];
+        const m = monthly(s);
+        return html`<div class="listrow" key=${p.uid}>
+          <${UI.Avatar} id=${p.uid} size=${30}/>
+          <span class="grow"><b><${UI.Name} id=${p.uid}/></b>
+            <span class="tiny ink62 num"> · ${p.empId || ''}${p.title ? ' · ' + p.title : ''}</span>
+            ${hasPay(s) ? html`<div class="small ink62">gross <span class="num">${inr(m.gross)}</span> · deductions <span class="num">${inr(m.deductions)}</span> · net <span class="num">${inr(m.net)}</span></div>`
+              : html`<div class="small ink62">no pay set</div>`}
+          </span>
+          <${UI.Btn} kind="sec" sm=${true} id=${'pay-edit-' + p.uid} onClick=${() => setOpen(p.uid)}><${icons.edit}/>Edit pay<//>
+        </div>`;
+      })}</div>` : html`<${UI.Empty} text="Nobody on the roster yet."/>`}
+      ${open ? html`<${PayDrawer} uid=${open} onClose=${() => setOpen(null)}/>` : null}
+    <//>`;
+  }
+
+  /* ---------- the monthly run ---------- */
+  function totalsOf(rows) {
+    const t = {gross: 0, deductions: 0, net: 0, n: 0};
+    for (const uid of Object.keys(rows || {})) {
+      const r = rows[uid]; if (!r) continue;
+      t.n++; t.gross += num(r.gross); t.deductions += deductionsOf(r); t.net += netOf(r);
+    }
+    return t;
+  }
+  function Run({month, setMonth}) {
+    const ctx = M.useCtx();
+    const today = U.todayStr();
+    const run = runOf(ctx, month);
+    const closed = !!(run && run.closed);
+    const map = salaryMap(ctx);
+    const [draft, setDraft] = useState(null);      /* {month, rows} while edited */
+    const [busy, setBusy] = useState(false);
+    const dirty = !!(draft && draft.month === month);
+    const rows = dirty ? draft.rows : (run ? run.rows || {} : null);
+    const days = workingDays(ctx, month);
+    const people = (ctx.activeMembers || []).filter(p => rows && rows[p.uid]);
+    const orphans = rows ? Object.keys(rows).filter(u => rows[u] && !people.some(p => p.uid === u)) : [];
+    const list = people.map(p => p.uid).concat(orphans);
+    const prepare = () => {
+      const out = {};
+      for (const p of ctx.activeMembers || []) {
+        const s = map[p.uid];
+        if (!hasPay(s)) continue;
+        const lop = absentDays(ctx, p.uid, month, today);
+        out[p.uid] = {...compute(s, days, lop), note: '', paidAt: null};
+      }
+      if (!Object.keys(out).length) { M.toast('Nobody has a salary set yet', true); return; }
+      setDraft({month, rows: out});
+    };
+    const edit = (uid, patch) => setDraft(d => {
+      const cur = U.clone(d && d.month === month ? d.rows : (run ? run.rows || {} : {}));
+      const r = {...(cur[uid] || {}), ...patch};
+      if ('lop' in patch) {
+        const s = map[uid];
+        if (hasPay(s)) Object.assign(r, compute(s, r.days, patch.lop));
+        else { r.lop = Math.min(num(r.days), Math.max(0, Math.round(num(patch.lop)))); r.paidDays = num(r.days) - r.lop; }
+      }
+      cur[uid] = r;
+      return {month, rows: cur};
+    });
+    const write = async (close) => {
+      if (!rows) return;
+      setBusy(true);
+      const out = U.clone(rows);
+      const now = Date.now();
+      for (const uid of Object.keys(out)) {
+        const r = out[uid]; if (!r) { delete out[uid]; continue; }
+        r.note = String(r.note || '').slice(0, NOTE_MAX);
+        r.net = netOf(r);
+        r.paidAt = close ? now : (r.paidAt || null);
+      }
+      const doc = {run: {at: (run && run.at) || now, by: (run && run.by) || ctx.uid, closed: !!close, rows: out}, updated: now};
+      try { await ctx.W.set('payroll/' + month, doc); setDraft(null); M.toast(close ? 'Month closed' : 'Run saved'); }
+      catch (e) { M.toast('Could not save', true); }
+      setBusy(false);
+    };
+    const t = totalsOf(rows);
+    const paidRow = closed ? Object.values(run.rows || {}).find(x => x && x.paidAt) : null;
+    const paidOn = paidRow ? U.fmtDate(U.ymd(new Date(paidRow.paidAt))) : '';
+    return html`<${UI.Card} title="Monthly run" id="pay-run" action=${closed ? html`<${UI.Pill} kind="ink">closed<//>` : run ? html`<${UI.Pill}>saved<//>` : null}>
+      <div class="row" style=${{alignItems: 'flex-end'}}>
+        <div style=${{maxWidth: '200px'}}><${UI.Input} id="pay-month" label="month" type="month" value=${month} onChange=${v => { if (okMonth(v)) { setMonth(v); } }}/></div>
+        ${closed ? null : html`<${UI.Btn} id="pay-prepare" kind=${rows ? 'sec' : undefined} disabled=${busy} onClick=${prepare}>${rows ? 'Prepare again' : 'Prepare payroll'}<//>`}
+        ${rows && !closed ? html`<${UI.Btn} id="pay-save-run" disabled=${busy || !dirty} onClick=${() => write(false)}>Save the run<//>` : null}
+        ${rows && !closed ? html`<${UI.ConfirmBtn} kind="sec" onConfirm=${() => write(true)}>Close the month<//>` : null}
+      </div>
+      <div class="tiny ink62" style=${{marginTop: '6px'}}>${monthName(month)}: <span class="num">${days}</span> working days, Monday to Saturday, minus holidays. Loss of pay starts at the days so far with no check-in and no approved leave.</div>
+      ${rows ? html`<div class="tbl-wrap" style=${{marginTop: '12px'}}><table class="tbl" id="pay-rows">
+        <thead><tr><th>person</th><th class="num">days</th><th class="num">paid</th><th class="num">lop</th><th class="num">gross</th><th class="num">deductions</th><th class="num">net</th><th>note</th></tr></thead>
+        <tbody>${list.map(uid => {
+          const r = rows[uid];
+          return html`<tr key=${uid}>
+            <td data-label="person"><span class="row nowrap" style=${{gap: '8px'}}><${UI.Avatar} id=${uid} size=${22}/><${UI.Name} id=${uid}/></span></td>
+            <td data-label="days" class="num">${r.days}</td>
+            <td data-label="paid" class="num">${r.paidDays}</td>
+            <td data-label="lop" class="num">${closed ? r.lop : html`<input class="input" type="number" min="0" max=${r.days} step="1" style=${{width: '72px', minHeight: '34px'}} aria-label="Loss of pay days"
+              value=${String(r.lop)} onInput=${e => edit(uid, {lop: num(e.target.value)})}/>`}</td>
+            <td data-label="gross" class="num">${inr(r.gross)}</td>
+            <td data-label="deductions" class="num">${inr(deductionsOf(r))}</td>
+            <td data-label="net" class="num"><b>${inr(netOf(r))}</b></td>
+            <td data-label="note">${closed ? (r.note || '') : html`<input class="input" style=${{minWidth: '160px', minHeight: '34px'}} aria-label="Note" placeholder="Note on the payslip"
+              value=${r.note || ''} onInput=${e => edit(uid, {note: e.target.value.slice(0, NOTE_MAX)})}/>`}</td>
+          </tr>`;
+        })}
+        <tr class="dark"><td>${t.n} people</td><td/><td/><td/><td class="num">${inr(t.gross)}</td><td class="num">${inr(t.deductions)}</td><td class="num">${inr(t.net)}</td><td/></tr>
+        </tbody>
+      </table></div>
+      <div class="small ink62" id="pay-totals" style=${{marginTop: '8px'}}>gross <span class="num">${inr(t.gross)}</span> · deductions <span class="num">${inr(t.deductions)}</span> · net <span class="num">${inr(t.net)}</span> · headcount <span class="num">${t.n}</span>${dirty ? ' · unsaved changes' : ''}${paidOn ? ' · paid on ' + paidOn : ''}</div>`
+      : html`<div style=${{marginTop: '12px'}}><${UI.Empty} text="No run for this month yet. Prepare it from the salaries and attendance."/></div>`}
+    <//>`;
+  }
+
+  /* ---------- payslips ---------- */
+  function Payslip({uid, month, row}) {
+    const ctx = M.useCtx();
+    const s = salaryMap(ctx)[uid] || {};
+    const m = (ctx.members || {})[uid] || {};
+    /* the name as plain text: the kv grid styles every odd span as a label */
+    const profs = M.useProfiles([uid]);
+    const who = (profs[uid] && profs[uid].name) || 'Someone';
+    const net = netOf(row);
+    const pairs = EARN.map(([k, l], i) => ({k, l, d: DEDUCT[i]}));
+    return html`<${M.parts.DocFrame} id="payslip-doc" title="payslip">
+      <${M.parts.DocHead} ctx=${ctx} right=${html`<div><span class="doc-pill">Payslip</span></div><div class="doc-title">${monthName(month)}</div>`}/>
+      <div class="doc-grid">
+        <div class="doc-kv">
+          <span>employee</span><span><b>${who}</b></span>
+          <span>employee id</span><span class="num">${m.empId || ''}</span>
+          <span>title</span><span>${m.title || ''}</span>
+          <span>PAN</span><span class="num">${s.pan || ''}</span>
+          <span>UAN</span><span class="num">${s.uan || ''}</span>
+          <span>bank account</span><span class="num">${mask((s.bank || {}).account)}</span>
+          <span>IFSC</span><span class="num">${(s.bank || {}).ifsc || ''}</span>
+        </div>
+        <div class="doc-kv">
+          <span>month</span><span>${monthName(month)}</span>
+          <span>days</span><span class="num">${row.days}</span>
+          <span>paid days</span><span class="num">${row.paidDays}</span>
+          <span>loss of pay</span><span class="num">${row.lop}</span>
+          <span>paid on</span><span class="num">${row.paidAt ? U.fmtDate(U.ymd(new Date(row.paidAt))) : 'pending'}</span>
+        </div>
+      </div>
+      <table class="doc-table">
+        <thead><tr><th>earnings</th><th class="n">amount</th><th>deductions</th><th class="n">amount</th></tr></thead>
+        <tbody>${pairs.map(p => html`<tr key=${p.k}>
+          <td><span class="doc-line">${p.l}</span></td><td class="n"><span class="num">${inr(row[p.k])}</span></td>
+          <td><span class="doc-line">${p.d[1]}</span></td><td class="n"><span class="num">${inr(row[p.d[0]])}</span></td>
+        </tr>`)}</tbody>
+      </table>
+      <div class="doc-lower">
+        <div>
+          <div class="doc-totals">
+            <div class="doc-total-row"><span>Gross earnings</span><span class="num">${inr(row.gross)}</span></div>
+            <div class="doc-total-row"><span>Deductions</span><span class="num">${inr(deductionsOf(row))}</span></div>
+            <div class="doc-total-row grand"><span>Net pay</span><span class="num">${inr(net)}</span></div>
+          </div>
+          <div class="doc-block" style=${{marginTop: '14px'}}>
+            <div class="doc-micro">Net pay in words</div>
+            <div class="small"><b>${M.books.words(net, 'INR')}</b></div>
+          </div>
+          ${row.note ? html`<div class="doc-block"><div class="doc-micro">Note</div><div class="small">${row.note}</div></div>` : null}
+        </div>
+        <${M.parts.DocSign} ctx=${ctx}/>
+      </div>
+      <${M.parts.DocFoot} ctx=${ctx}/>
+    <//>`;
+  }
+  function Payslips({month, id}) {
+    const ctx = M.useCtx();
+    const run = runOf(ctx, month);
+    const rows = (run && run.rows) || {};
+    const [pick, setPick] = useState(() => (id && rows[id] ? id : null));
+    const list = (ctx.activeMembers || []).map(p => p.uid).filter(u => rows[u])
+      .concat(Object.keys(rows).filter(u => rows[u] && !(ctx.activeMembers || []).some(p => p.uid === u)));
+    const uid = pick && rows[pick] ? pick : null;
+    if (!run) return null;
+    return html`<${UI.Card} title="Payslips" id="pay-slips" action=${html`<${UI.Pill}>${monthName(month)}<//>`}>
+      ${list.length ? html`<div class="stack tight">${list.map(u => html`<div class="listrow" key=${u}>
+        <${UI.Avatar} id=${u} size=${28}/>
+        <span class="grow"><b><${UI.Name} id=${u}/></b><span class="small ink62"> · net <span class="num">${inr(netOf(rows[u]))}</span>${rows[u].lop ? html` · <span class="num">${rows[u].lop}</span> days loss of pay` : ''}</span></span>
+        <${UI.Btn} kind=${uid === u ? undefined : 'sec'} sm=${true} id=${'pay-slip-' + u} onClick=${() => setPick(u)}>Payslip<//>
+      </div>`)}</div>` : html`<${UI.Empty} text="The run has no rows."/>`}
+      ${uid ? html`<div style=${{marginTop: '16px'}}><${Payslip} uid=${uid} month=${month} row=${rows[uid]}/></div>` : null}
+    <//>`;
+  }
+
+  /* ---------- the register ---------- */
+  const COLS = ['month', 'employee_id', 'name', 'title', 'days', 'paid_days', 'lop', 'basic', 'hra', 'special', 'allowances', 'gross', 'pf', 'tds', 'esi', 'other', 'net', 'account_holder', 'account', 'ifsc', 'pan', 'uan', 'paid_on', 'note'];
+  function Register({month}) {
+    const ctx = M.useCtx();
+    const [busy, setBusy] = useState(false);
+    const run = runOf(ctx, month);
+    if (!ctx.downloads || !run) return null;
+    const go = async () => {
+      setBusy(true);
+      try {
+        const rows = run.rows || {};
+        const uids = Object.keys(rows).filter(u => rows[u]);
+        const profs = (ctx.user && ctx.user.profiles) ? await ctx.user.profiles(uids) : {};
+        const sal = salaryMap(ctx);
+        const lines = [COLS.map(csvCell).join(',')];
+        for (const u of uids) {
+          const r = rows[u], s = sal[u] || {}, m = (ctx.members || {})[u] || {};
+          lines.push([month, m.empId || '', (profs[u] && profs[u].name) || '', m.title || '', r.days, r.paidDays, r.lop,
+            r.basic, r.hra, r.special, r.allowances, r.gross, r.pf, r.tds, r.esi, r.other, netOf(r),
+            (s.bank || {}).holder || '', (s.bank || {}).account || '', (s.bank || {}).ifsc || '', s.pan || '', s.uan || '',
+            r.paidAt ? U.ymd(new Date(r.paidAt)) : '', r.note || ''].map(csvCell).join(','));
+        }
+        const res = await ctx.downloads.save({filename: 'payroll-' + month + '.csv', data: lines.join('\n')});
+        M.toast(res && res.status === 'delivered' ? 'Sent' : 'Downloaded');
+      } catch (e) {
+        M.toast(e && e.code === 'declined' ? 'Download cancelled' : 'That did not download. Try again in a moment.', true);
+      }
+      setBusy(false);
+    };
+    return html`<${UI.Btn} kind="sec" sm=${true} id="pay-csv" disabled=${busy} onClick=${go}><${icons.download || icons.upload}/>Download the register<//>`;
+  }
+
+  /* ---------- the page ---------- */
+  function Payroll({id}) {
+    const ctx = M.useCtx();
+    const [month, setMonth] = useState(() => okMonth(id) ? id : U.monthId(new Date(ctx.now)));
+    if (!ctx.isOwner) return html`<${UI.Empty} text="Payroll is the owner's alone."/>`;
+    const run = runOf(ctx, month);
+    return html`<div class="stack" style=${{gap: '18px'}} id="pay-page">
+      <${Salaries}/>
+      <${Run} month=${month} setMonth=${setMonth}/>
+      ${run ? html`<div class="row between">
+        <span class="small ink62">The register is the CSV for the bank upload and the accountant.</span>
+        <${Register} month=${month}/>
+      </div>` : null}
+      <${Payslips} month=${month} id=${okMonth(id) ? null : id}/>
+    </div>`;
+  }
+
+  M.pages.Payroll = Payroll;
+  M.parts.Payslip = Payslip;
+  M.payroll = {workingDays, absentDays, compute, monthly, netOf, suggest, monthName, EARN, DEDUCT};
+})();
+
+/* ==== 46-letters.js ==== */
+/* module: letters. The HR desk inside the books: offer, appointment, increment, experience, relieving,
+   non-disclosure and warning letters for every active member and for candidates at the offer or hired
+   stage. Each letter is a set of variables, a body the owner drafts from a template (or has the model
+   rewrite), and a status: a draft stays editable, an issued letter carries a reference number and is
+   read only. Letters live in hr/<uid>, the owner's alone. */
+'use strict';
+(function () {
+  const {html, React, U, UI} = M;
+  const {useState, useEffect, useMemo, useRef} = React;
+
+  /* ---------- the kinds ---------- */
+  const KINDS = [
+    {v: 'offer', label: 'Offer letter'},
+    {v: 'appointment', label: 'Appointment letter'},
+    {v: 'increment', label: 'Increment letter'},
+    {v: 'experience', label: 'Experience letter'},
+    {v: 'relieving', label: 'Relieving letter'},
+    {v: 'nda', label: 'Non-disclosure agreement'},
+    {v: 'warning', label: 'Warning letter'}
+  ];
+  const LABEL = Object.fromEntries(KINDS.map(k => [k.v, k.label]));
+  const ACCEPTS = ['offer', 'appointment', 'nda'];
+  const YESNO = [{v: 'yes', label: 'Yes'}, {v: 'no', label: 'No'}];
+  const DUES = [{v: 'settled', label: 'Settled'}, {v: 'to be settled', label: 'To be settled'}];
+  /* the variables of each kind, after the three every letter carries: who, role, date */
+  const COMMON = [
+    {k: 'who', label: 'to'},
+    {k: 'role', label: 'role'},
+    {k: 'date', label: 'letter date', type: 'date'}
+  ];
+  const FIELDS = {
+    offer: [
+      {k: 'ctc', label: 'annual CTC, INR', type: 'number'},
+      {k: 'start', label: 'start date', type: 'date'},
+      {k: 'probationMonths', label: 'probation, months', type: 'number'},
+      {k: 'noticeDays', label: 'notice, days', type: 'number'},
+      {k: 'reportsTo', label: 'reports to'},
+      {k: 'location', label: 'location'},
+      {k: 'hours', label: 'working hours'},
+      {k: 'acceptBy', label: 'accept by', type: 'date'}
+    ],
+    appointment: [
+      {k: 'ctc', label: 'annual CTC, INR', type: 'number'},
+      {k: 'start', label: 'start date', type: 'date'},
+      {k: 'probationMonths', label: 'probation, months', type: 'number'},
+      {k: 'noticeDays', label: 'notice, days', type: 'number'},
+      {k: 'reportsTo', label: 'reports to'},
+      {k: 'location', label: 'location'},
+      {k: 'empId', label: 'employee id'}
+    ],
+    increment: [
+      {k: 'oldCtc', label: 'current CTC, INR', type: 'number'},
+      {k: 'newCtc', label: 'revised CTC, INR', type: 'number'},
+      {k: 'effective', label: 'effective from', type: 'date'},
+      {k: 'reason', label: 'reason, one line'}
+    ],
+    experience: [
+      {k: 'from', label: 'employed from', type: 'date'},
+      {k: 'to', label: 'employed to', type: 'date'},
+      {k: 'lastRole', label: 'last role held'}
+    ],
+    relieving: [
+      {k: 'lastDay', label: 'last working day', type: 'date'},
+      {k: 'noticeServed', label: 'notice served', options: YESNO},
+      {k: 'dues', label: 'dues', options: DUES}
+    ],
+    nda: [
+      {k: 'effective', label: 'effective from', type: 'date'},
+      {k: 'years', label: 'runs for, years after leaving', type: 'number'}
+    ],
+    warning: [
+      {k: 'what', label: 'what happened, one line'},
+      {k: 'when', label: 'when', type: 'date'},
+      {k: 'expected', label: 'what we expect from here, one line'}
+    ]
+  };
+  const fieldsOf = kind => COMMON.concat(FIELDS[kind] || []);
+
+  /* ---------- small helpers ---------- */
+  const isCand = uid => String(uid || '').startsWith('cand:');
+  const candIdOf = uid => String(uid).slice(5);
+  const candOf = (ctx, uid) => isCand(uid) ? (((ctx.coll.candidates || {}).map || {})[candIdOf(uid)] || null) : null;
+  const hrMap = ctx => (ctx.coll.hr && ctx.coll.hr.map) || {};
+  const lettersOf = (ctx, uid) => {
+    const m = ((hrMap(ctx)[uid] || {}).letters) || {};
+    return Object.keys(m).filter(id => m[id] && typeof m[id] === 'object').map(id => ({...m[id], id}))
+      .sort((a, b) => (b.at || 0) - (a.at || 0));
+  };
+  const allIssued = ctx => {
+    const out = [];
+    const map = hrMap(ctx);
+    for (const uid of Object.keys(map)) {
+      const ls = (map[uid] || {}).letters || {};
+      for (const id of Object.keys(ls)) if (ls[id] && ls[id].status === 'issued') out.push({...ls[id], id, uid});
+    }
+    return out;
+  };
+  const issuedCount = (ctx, uid) => lettersOf(ctx, uid).filter(l => l.status === 'issued').length;
+  const okDate = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
+  const day = s => okDate(s) ? U.fmtDate(s) : (s ? String(s) : '');
+  const plusDays = (ymd, n) => U.ymd(U.addDays(U.parseYmd(ymd), n));
+  const n0 = v => M.books.num(v);
+  const inr = v => M.books.money(n0(v), 'INR');
+  const inWords = v => M.books.words(n0(v), 'INR');
+  const monthly = v => inr(Math.round(n0(v) / 12));
+  const plural = (n, one, many) => n0(n) === 1 ? one : many;
+  const clean = s => String(s || '').trim();
+  const endStop = s => { const t = clean(s).replace(/[.\s]+$/, ''); return t ? t + '.' : ''; };
+  /* a display name for the roster or a candidate: the profile, then the me doc, then the title */
+  const nameOf = (ctx, uid, profiles) => {
+    const c = candOf(ctx, uid);
+    if (c) return clean(c.name) || 'Candidate';
+    const p = profiles && profiles[uid];
+    if (p && p.name) return p.name;
+    const me = ((ctx.coll.me && ctx.coll.me.map) || {})[uid];
+    if (me && me.name) return String(me.name);
+    const m = (ctx.members || {})[uid];
+    return (m && m.title) || 'Teammate';
+  };
+
+  /* ---------- the variables, prefilled ---------- */
+  function vars(kind, ctx, uid, who) {
+    const today = U.todayStr();
+    const m = (ctx.members || {})[uid] || {};
+    const c = candOf(ctx, uid);
+    const sal = ((((ctx.coll.payroll || {}).map || {}).salaries || {}).map || {})[uid] || {};
+    const s = M.books.settings(ctx);
+    const v = {
+      who: who || (c ? clean(c.name) : nameOf(ctx, uid)),
+      role: c ? clean(c.role) : (m.title || ''),
+      date: today
+    };
+    const joined = okDate(m.joined) ? m.joined : (okDate(m.start) ? m.start : '');
+    const ctc = sal.ctc ? n0(sal.ctc) : '';
+    if (kind === 'offer' || kind === 'appointment') {
+      v.ctc = ctc;
+      v.start = joined || (kind === 'offer' ? plusDays(today, 14) : today);
+      v.probationMonths = 3;
+      v.noticeDays = 30;
+      v.reportsTo = s.signatory.who;
+      v.location = 'Mumbai';
+      if (kind === 'offer') { v.hours = '10:30 to 19:30, Monday to Saturday'; v.acceptBy = plusDays(today, 7); }
+      else v.empId = m.empId || '';
+    } else if (kind === 'increment') {
+      v.oldCtc = ctc; v.newCtc = ''; v.effective = today; v.reason = '';
+    } else if (kind === 'experience') {
+      v.from = joined; v.to = today; v.lastRole = m.title || (c ? clean(c.role) : '');
+    } else if (kind === 'relieving') {
+      v.lastDay = today; v.noticeServed = 'yes'; v.dues = 'settled';
+    } else if (kind === 'nda') {
+      v.effective = joined || today; v.years = 2;
+    } else if (kind === 'warning') {
+      v.what = ''; v.when = today; v.expected = '';
+    }
+    return v;
+  }
+
+  /* ---------- the templates: plain letters in our voice ---------- */
+  const T = {};
+  T.offer = v => [
+    'Dear ' + v.who + ',',
+    'We are glad to offer you the role of ' + v.role + ' at Mask360. You met the team, you did the work, and we want you with us.',
+    'You will report to ' + v.reportsTo + '. The work you own will sit close to our clients, and you will have the room to run it.',
+    'Your annual cost to company will be ' + inr(v.ctc) + ' (' + inWords(v.ctc) + '), which comes to ' + monthly(v.ctc) + ' a month before statutory deductions. The full break up follows in your appointment letter.',
+    'Your start date is ' + day(v.start) + ', at our ' + v.location + ' office.',
+    'The first ' + n0(v.probationMonths) + ' ' + plural(v.probationMonths, 'month', 'months') + ' are probation. Either side may end the engagement in this period with ' + n0(v.noticeDays) + ' days of notice. After probation, the notice period is ' + n0(v.noticeDays) + ' days on both sides.',
+    'Our working hours are ' + v.hours + '.',
+    'On day one, bring your PAN card, your Aadhaar card, two passport photos, your last relieving letter and your bank details.',
+    'Sign and return this letter by ' + day(v.acceptBy) + ' to accept. After that date the offer lapses.',
+    'We are looking forward to building with you.'
+  ];
+  T.appointment = v => [
+    'Dear ' + v.who + ',',
+    'This letter confirms your appointment as ' + v.role + ' with Mask Management, effective ' + day(v.start) + '.' + (v.empId ? ' Your employee id is ' + v.empId + '.' : ''),
+    'You will report to ' + v.reportsTo + ' and work from our ' + v.location + ' office.',
+    'Your annual cost to company is ' + inr(v.ctc) + ' (' + inWords(v.ctc) + '), paid monthly as ' + monthly(v.ctc) + ' less statutory deductions. The salary structure is set out in your salary annexure.',
+    'The first ' + n0(v.probationMonths) + ' ' + plural(v.probationMonths, 'month', 'months') + ' of your employment are probation. On confirmation, you become a permanent member of the team.',
+    'The notice period is ' + n0(v.noticeDays) + ' days on both sides. Notice is served in full, and any shortfall is adjusted against your final settlement.',
+    'Client work, client data and the company\'s internal material stay confidential, during your employment and after it.',
+    'The policies in the handbook apply to you. They may change from time to time, with notice.',
+    'Please sign the duplicate copy of this letter to accept these terms.',
+    'We are glad to have you with us.'
+  ];
+  T.increment = v => [
+    'Dear ' + v.who + ',',
+    'Thank you for the work you have put in as ' + v.role + '. It shows in what we ship and in how the team runs.',
+    'We are revising your annual cost to company from ' + inr(v.oldCtc) + ' to ' + inr(v.newCtc) + ' (' + inWords(v.newCtc) + '), effective ' + day(v.effective) + '. That comes to ' + monthly(v.newCtc) + ' a month before statutory deductions.',
+    clean(v.reason) ? 'This revision recognises ' + clean(v.reason).replace(/[.\s]+$/, '') + '.' : '',
+    'All other terms of your employment stay the same. Your revised salary annexure follows.',
+    'Keep going. We are glad you are here.'
+  ];
+  T.experience = v => [
+    'To whom it may concern,',
+    'This is to certify that ' + v.who + ' was employed with Mask Management from ' + day(v.from) + ' to ' + day(v.to) + '. At the time of leaving, ' + v.who + ' held the role of ' + v.lastRole + '.',
+    'During this period ' + v.who + ' handled the work with care and ownership, and was a valued member of the team.',
+    'We wish ' + v.who + ' every success in what comes next.'
+  ];
+  T.relieving = v => [
+    'Dear ' + v.who + ',',
+    'This letter confirms that you have been relieved from your duties as ' + v.role + ' at Mask Management at the close of business on ' + day(v.lastDay) + '.',
+    v.noticeServed === 'yes' ? 'You served your notice period in full.' : 'The shortfall in your notice period is adjusted in your final settlement.',
+    v.dues === 'settled' ? 'Your full and final settlement has been made, and no dues remain on either side.' : 'Your full and final settlement will be processed within 30 days of your last working day.',
+    'Client work, client data and internal material you came across at Mask360 stay confidential after you leave.',
+    'Thank you for your time with us. We wish you well.'
+  ];
+  T.nda = v => [
+    'This agreement is between Mask Management (Mask360) and ' + v.who + ', ' + v.role + ', and takes effect on ' + day(v.effective) + '.',
+    'In your work with us you will come across confidential information: client briefs, strategies, pricing, creative work before release, internal numbers, access details, and anything marked or clearly meant as private.',
+    'You agree to use confidential information only for Mask360\'s work, to share it only with people inside the company who need it, and to keep it out of personal accounts, devices and conversations.',
+    'Work you produce for Mask360 or its clients belongs to Mask Management, or to the client the work was made for.',
+    'These obligations run for ' + n0(v.years) + ' ' + plural(v.years, 'year', 'years') + ' after your engagement with Mask360 ends, or for as long as the information stays confidential, whichever is longer.',
+    'If any confidential information is lost or exposed, you will tell us the same day.',
+    'Both parties sign below to confirm the agreement.'
+  ];
+  T.warning = v => [
+    'Dear ' + v.who + ',',
+    'This letter is a formal warning, and it goes on your record.',
+    'On ' + day(v.when) + ', ' + (clean(v.what) ? clean(v.what).replace(/[.\s]+$/, '') + '.' : 'the matter discussed with you took place.'),
+    'This falls short of what we expect from a ' + v.role + ' at Mask360.' + (clean(v.expected) ? ' From here we expect ' + endStop(v.expected) : ''),
+    'We will review this over the next 30 days. A repeat may lead to further action under the handbook, up to and including termination.',
+    'Please sign the copy of this letter to confirm you have received it. If you want to talk it through, come and find me.'
+  ];
+  const template = (kind, v) => (T[kind] || T.offer)(v || {}).filter(p => clean(p)).join('\n\n');
+
+  /* ---------- the reference number: MM/HR/2026-27/001, over every issued letter that year ---------- */
+  function nextRef(ctx, fy) {
+    const head = M.books.settings(ctx).numbering.prefix + '/HR/' + fy + '/';
+    let max = 0;
+    for (const l of allIssued(ctx)) {
+      if (!String(l.ref || '').startsWith(head)) continue;
+      const n = Number(String(l.ref).slice(head.length)) || 0;
+      if (n > max) max = n;
+    }
+    return head + String(max + 1).padStart(3, '0');
+  }
+
+  const paragraphs = body => String(body || '').split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+
+  /* ---------- the document ---------- */
+  function LetterDoc({letter, who}) {
+    const ctx = M.useCtx();
+    const Frame = M.parts.DocFrame, Head = M.parts.DocHead, Sign = M.parts.DocSign, Foot = M.parts.DocFoot;
+    const v = letter.vars || {};
+    const label = LABEL[letter.kind] || 'Letter';
+    const accept = ACCEPTS.includes(letter.kind);
+    return html`<${Frame} id="letter-doc" title=${label}>
+      <${Head} ctx=${ctx} right=${html`<span class="doc-pill">${label}</span>`}/>
+      <div class="doc-ref"><span>${letter.ref || 'draft'}</span><span>${day(v.date)}</span></div>
+      <div class="doc-body">
+        <div class="doc-h">${label}</div>
+        ${paragraphs(letter.body).map((p, i) => html`<p key=${i}>${p}</p>`)}
+        ${accept ? html`<div style=${{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginTop: 'auto'}}>
+          <div class="doc-sign" style=${{alignItems: 'flex-start', textAlign: 'left'}}>
+            <div class="doc-sig-space"/>
+            <div class="doc-micro">Accepted by</div>
+            <div class="doc-sign-who">${v.who || who || ''}</div>
+            <div class="doc-sub">Accepted on: ____________</div>
+          </div>
+          <${Sign} ctx=${ctx} label="For Mask Management"/>
+        </div>` : html`<${Sign} ctx=${ctx} label="For Mask Management"/>`}
+      </div>
+      <${Foot} ctx=${ctx}/>
+    <//>`;
+  }
+
+  /* ---------- the drawer: variables, the body, save or issue ---------- */
+  function LetterDrawer({uid, letter, onClose, onChange}) {
+    const ctx = M.useCtx();
+    const [busy, setBusy] = useState(false);
+    const [live, setLive] = useState(false);
+    const ctrl = useRef(null);
+    useEffect(() => () => { if (ctrl.current) ctrl.current.abort(); }, []);
+    const f = letter;
+    const setVar = (k, val) => onChange({...f, vars: {...f.vars, [k]: val}});
+    const setBody = b => onChange({...f, body: b});
+    const writeIt = () => setBody(template(f.kind, f.vars));
+    const stored = () => ({kind: f.kind, at: f.at || Date.now(), ref: f.ref || '', vars: {...f.vars}, body: String(f.body || ''), status: f.status || 'draft', issuedAt: f.issuedAt || 0});
+    const save = async () => {
+      setBusy(true);
+      try { await ctx.W.merge('hr/' + uid, {letters: {[f.id]: stored()}, updated: Date.now()}); M.toast('Saved'); onClose(); }
+      catch (e) { M.toast('Could not save', true); setBusy(false); }
+    };
+    const issue = async () => {
+      if (!clean(f.body)) { M.toast('Write the letter first.', true); return; }
+      setBusy(true);
+      const ref = nextRef(ctx, M.books.fyOf(okDate(f.vars.date) ? f.vars.date : U.todayStr()));
+      const doc = {...stored(), ref, status: 'issued', issuedAt: Date.now()};
+      try { await ctx.W.merge('hr/' + uid, {letters: {[f.id]: doc}, updated: Date.now()}); onChange({...f, ...doc}); M.toast('Issued ' + ref); onClose(); }
+      catch (e) { M.toast('Could not issue', true); setBusy(false); }
+    };
+    const rewrite = async () => {
+      if (!clean(f.body)) { M.toast('Write the letter first.', true); return; }
+      if (ctrl.current) ctrl.current.abort();
+      const c = new AbortController(); ctrl.current = c;
+      setLive(true);
+      const before = f.body;
+      const tidy = t => String(t || '').replace(new RegExp('[' + String.fromCharCode(8212, 8211) + ']', 'g'), ', ').replace(/!/g, '.');
+      try {
+        const out = await M.ai.text(ctx,
+          'Rewrite this letter in our voice. Keep every fact, figure, date and name exactly as written. Short paragraphs, plain words, warm and direct, sentence case. No dashes, no exclamation marks, no legal filler. Return only the letter body, paragraphs separated by a blank line.\n\n' + before,
+          {signal: c.signal, cache: false, onText: r => { if (r && r.text) setBody(tidy(r.text)); }});
+        if (clean(out)) setBody(tidy(out)); else setBody(before);
+      } catch (e) {
+        if (!(e && e.code === 'cancelled')) { M.toast(M.ai.errCopy(e && e.code), true); setBody(before); }
+      }
+      setLive(false);
+    };
+    const fields = fieldsOf(f.kind);
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${(LABEL[f.kind] || 'Letter') + ', draft'}
+      footer=${html`<span class="row nowrap" style=${{gap: '8px'}}>
+          <${UI.Btn} kind="sec" id="letter-save" disabled=${busy || live} onClick=${save}>Save draft<//>
+          <span id="letter-issue"><${UI.ConfirmBtn} kind="flame" sm=${false} onConfirm=${issue}>Issue the letter<//></span>
+        </span>`}>
+      <div class="stack" id="letter-drawer">
+        <div class="grid2">
+          ${fields.map(fd => fd.options
+            ? html`<${UI.Select} key=${fd.k} id=${'letter-var-' + fd.k} label=${fd.label} value=${String(f.vars[fd.k] == null ? '' : f.vars[fd.k])} options=${fd.options} onChange=${val => setVar(fd.k, val)}/>`
+            : html`<${UI.Input} key=${fd.k} id=${'letter-var-' + fd.k} label=${fd.label} type=${fd.type || 'text'}
+                value=${String(f.vars[fd.k] == null ? '' : f.vars[fd.k])} onChange=${val => setVar(fd.k, fd.type === 'number' ? (val === '' ? '' : n0(val)) : val)}/>`)}
+        </div>
+        <div class="row between">
+          <span class="sub small">Fill the fields, then write the body from the template. Edit it as you like.</span>
+          <span class="row nowrap" style=${{gap: '8px'}}>
+            <${UI.Btn} kind="sec" sm=${true} id="letter-write" disabled=${live} onClick=${writeIt}>Write it<//>
+            ${M.ai.on(ctx) ? html`<${UI.Btn} kind="ghost" sm=${true} id="letter-rewrite" disabled=${live || !clean(f.body)} onClick=${rewrite}>${live ? 'Rewriting' : 'Rewrite in our voice'}<//>` : null}
+          </span>
+        </div>
+        <${UI.TextArea} id="letter-body" label="the letter" rows=${18} value=${f.body || ''} onChange=${setBody} placeholder="Tap Write it to draft the body from the template."/>
+      </div>
+    <//>`;
+  }
+
+  /* ---------- the page ---------- */
+  function Letters({id}) {
+    const ctx = M.useCtx();
+    const [sel, setSel] = useState(id || '');
+    const [kind, setKind] = useState('offer');
+    const [openId, setOpenId] = useState(null);
+    const [draft, setDraft] = useState(null);
+    useEffect(() => { if (id) { setSel(id); setOpenId(null); setDraft(null); } }, [id]);
+    const members = ctx.activeMembers || [];
+    const memberIds = members.map(m => m.uid);
+    const profiles = M.useProfiles(memberIds);
+    const cands = useMemo(() => {
+      const m = ((ctx.coll.candidates || {}).map) || {};
+      return Object.keys(m).filter(cid => m[cid] && (m[cid].stage === 'offer' || m[cid].stage === 'hired')).map(cid => ({uid: 'cand:' + cid, c: m[cid]}));
+    }, [ctx.coll.candidates]);
+    if (!ctx.isOwner) return html`<${UI.Empty} text="Letters are the owner's alone."/>`;
+    const people = members.map(m => ({uid: m.uid, who: nameOf(ctx, m.uid, profiles), sub: m.title || m.role || '', cand: false}))
+      .concat(cands.map(x => ({uid: x.uid, who: nameOf(ctx, x.uid, profiles), sub: clean(x.c.role), cand: true})));
+    const person = people.find(p => p.uid === sel) || null;
+    const list = person ? lettersOf(ctx, person.uid) : [];
+    const stored = openId ? list.find(l => l.id === openId) : null;
+    const shown = draft && draft.id === openId ? draft : stored;
+    const pick = uid => { setSel(uid); setOpenId(null); setDraft(null); M.nav('#letters/' + encodeURIComponent(uid)); };
+    const startDraft = () => {
+      if (!person) return;
+      const l = {id: U.uid(), kind, at: Date.now(), ref: '', vars: vars(kind, ctx, person.uid, person.who), body: '', status: 'draft', issuedAt: 0};
+      setDraft(l); setOpenId(l.id);
+    };
+    const openLetter = l => { setOpenId(l.id); setDraft(l.status === 'issued' ? null : {...l, vars: {...(l.vars || {})}}); };
+    const editing = draft && draft.id === openId;
+    return html`<div class="split" id="letters-page">
+      <div class="stack" style=${{gap: '18px'}}>
+        <${UI.Card} title="Who" id="letters-people">
+          ${people.length ? people.map(p => html`<button type="button" key=${p.uid} class="listrow rowbtn" aria-pressed=${p.uid === sel}
+              style=${{fontWeight: p.uid === sel ? 500 : 300}} onClick=${() => pick(p.uid)}>
+              <${UI.Avatar} id=${p.cand ? '' : p.uid} size=${24}/>
+              <span class="grow" style=${{minWidth: 0}}>${p.who}${p.sub ? html`<span class="tiny ink62"> · ${p.sub}</span>` : null}</span>
+              ${p.cand ? html`<${UI.Pill}>candidate<//>` : null}
+              <span class="tiny ink62 num">${issuedCount(ctx, p.uid)} issued</span>
+            </button>`) : html`<${UI.Empty} text="No active members and no candidates at offer or hired yet."/>`}
+        <//>
+      </div>
+      <div class="stack" style=${{gap: '18px'}}>
+        ${person ? html`<${UI.Card} title=${'Letters, ' + person.who} id="letters-list">
+          ${list.length ? list.map(l => html`<div class="listrow" key=${l.id}>
+              <span class="grow" style=${{minWidth: 0}}><b>${LABEL[l.kind] || 'Letter'}</b><span class="tiny ink62"> · ${l.ref || 'no ref'} · ${day((l.vars || {}).date) || day(U.ymd(new Date(l.at || Date.now())))}</span></span>
+              <${UI.Pill} kind=${l.status === 'issued' ? 'ink' : undefined}>${l.status === 'issued' ? 'issued' : 'draft'}<//>
+              <${UI.Btn} kind="ghost" sm=${true} onClick=${() => openLetter(l)}>Open<//>
+            </div>`) : html`<${UI.Empty} text="No letters yet."/>`}
+          <div class="row between" style=${{marginTop: '12px', alignItems: 'flex-end'}}>
+            <div class="grow"><${UI.Select} id="letter-kind" label="new letter" value=${kind} options=${KINDS} onChange=${setKind}/></div>
+            <${UI.Btn} id="letter-draft" onClick=${startDraft}>Draft the letter<//>
+          </div>
+        <//>` : html`<${UI.Card} title="Letters"><${UI.Empty} text="Pick a person on the left."/><//>`}
+      </div>
+      ${person && shown ? html`<div style=${{gridColumn: '1 / -1'}}>
+        ${editing || shown.status === 'issued' ? null : html`<div class="row" style=${{marginBottom: '10px'}}><${UI.Btn} kind="sec" sm=${true} onClick=${() => openLetter(shown)}>Edit the draft<//></div>`}
+        <${LetterDoc} letter=${shown} who=${person.who}/>
+      </div>` : null}
+      ${person && editing ? html`<${LetterDrawer} uid=${person.uid} letter=${draft} onClose=${() => setDraft(null)} onChange=${setDraft}/>` : null}
+    </div>`;
+  }
+
+  M.letters = {KINDS, LABEL, FIELDS, template, vars, nextRef, lettersOf, allIssued};
+  M.pages.Letters = Letters;
+})();
+
+/* ==== 47-books-watch.js ==== */
+/* module: books watch. The part of the books that runs by itself on the owner's page: a retainer
+   drafts its invoice on the billing day, the first of the month copies recurring expenses forward,
+   and the owner's inbox carries what the books need a call on (an invoice past due, a retainer draft
+   waiting, a compliance date three days out, a letter drafted and not issued). The team site does
+   the same drafting on the server and mails the reminders (edgeone/server/books.js); this page marks
+   nothing twice because every draft carries the client and the period it is for. */
+'use strict';
+(function () {
+  const {html, React, U, UI} = M;
+  const {useEffect} = React;
+
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const periodOf = mid => { const [y, m] = mid.split('-').map(Number); return MON[m - 1] + ' ' + y; };
+
+  /* the retainer invoices due for drafting today: one per client per month, on or after the billing day */
+  function retainerDrafts(ctx, today) {
+    const b = M.books;
+    const out = [];
+    const book = b.clientBook(ctx);
+    const mid = today.slice(0, 7);
+    const day = Number(today.slice(8, 10));
+    const have = b.invoices(ctx);
+    for (const clientId of Object.keys(book)) {
+      const p = book[clientId];
+      const r = p && p.retainer;
+      if (!r || !r.active || !b.num(r.amount) || !ctx.coll.clients.map[clientId]) continue;
+      if (day < Math.min(28, Math.max(1, b.num(r.day) || 1))) continue;
+      if (have.some(i => i.client === clientId && i.auto === 'retainer' && i.autoPeriod === mid)) continue;
+      out.push({clientId, mid});
+    }
+    return out;
+  }
+  function draftRetainer(ctx, clientId, mid) {
+    const b = M.books;
+    const inv = M.invoices.fresh(ctx, clientId);
+    const p = b.clientBook(ctx)[clientId];
+    inv.period = periodOf(mid);
+    inv.lines = [{desc: p.retainer.desc || 'Monthly retainer', note: periodOf(mid), sac: p.retainer.sac || b.settings(ctx).defaults.sac, qty: 1, rate: b.num(p.retainer.amount)}];
+    inv.gst = (p.country && p.country !== 'India') ? 'none' : (p.retainer.gst || 'intra');
+    inv.auto = 'retainer'; inv.autoPeriod = mid;
+    const id = U.uid();
+    return ctx.W.merge('invoices/' + b.fyOf(inv.date), {rows: {[id]: inv}, updated: Date.now()});
+  }
+  /* recurring expenses: the first month without a copy gets one, dated the first */
+  function recurringDue(ctx, today) {
+    const b = M.books;
+    const mid = today.slice(0, 7);
+    const all = b.expenses(ctx);
+    const out = [];
+    const seen = new Set(all.filter(e => e.month === mid).map(e => e.recurFrom || e.id));
+    const prev = [...new Set(all.filter(e => e.recurring === 'monthly' && e.month < mid).map(e => e.recurFrom || e.id))];
+    for (const key of prev) {
+      if (seen.has(key)) continue;
+      const src = all.filter(e => (e.recurFrom || e.id) === key).sort((x, y) => y.month.localeCompare(x.month))[0];
+      if (src) out.push({key, src, mid});
+    }
+    return out;
+  }
+
+  function BooksWatch() {
+    const ctx = M.useCtx();
+    const on = !!(ctx && ctx.isOwner && ctx.ready && ctx.coll.books && ctx.coll.books.ready && ctx.coll.invoices && ctx.coll.invoices.ready && ctx.coll.expenses && ctx.coll.expenses.ready && ctx.coll.clients.ready);
+    const today = U.todayStr();
+    useEffect(() => {
+      if (!on || !M.books || !M.invoices) return;
+      /* a short wait, so the team site's own pass (which writes the same drafts) lands first */
+      const t = setTimeout(async () => {
+        const c = M.lastCtx || ctx;
+        try {
+          for (const d of retainerDrafts(c, today).slice(0, 6)) await draftRetainer(c, d.clientId, d.mid);
+          for (const r of recurringDue(c, today).slice(0, 12)) {
+            const e = r.src;
+            const row = {date: r.mid + '-01', vendor: e.vendor, category: e.category, desc: e.desc || '', amount: e.amount, gstInput: e.gstInput || 0, method: e.method, paid: e.method !== 'due', recurring: 'monthly', receipt: null, recurFrom: r.key, at: Date.now(), updatedAt: Date.now()};
+            await c.W.merge('expenses/' + r.mid, {rows: {[U.uid()]: row}, updated: Date.now()});
+          }
+        } catch (e) { /* the next load tries again */ }
+      }, 12000);
+      return () => clearTimeout(t);
+    }, [on, today, ctx.coll.books, ctx.coll.invoices, ctx.coll.expenses]);
+    return null;
+  }
+
+  /* the owner's inbox lines from the books */
+  function inboxItems(ctx, push) {
+    if (!ctx.isOwner || !M.books) return;
+    const b = M.books;
+    const today = U.todayStr();
+    for (const inv of b.invoices(ctx)) {
+      const st = b.status(inv, today);
+      if (st === 'overdue' || (st === 'part' && inv.due && inv.due < today)) {
+        const days = b.ageOf(inv, today);
+        if ([1, 3, 7, 14, 30, 45, 60, 90].includes(days) || days > 90) push('bkdue:' + inv.id + ':' + Math.min(days, 91), 'books', U.parseYmd(today).getTime(), 'Invoice ' + inv.no + ', ' + (inv.clientName || 'client') + ', ' + b.money(b.totals(inv).balance, inv.currency) + ' is ' + days + (days === 1 ? ' day' : ' days') + ' past due', '#invoices/' + inv.id, true);
+      }
+      if (st === 'draft' && inv.auto === 'retainer') push('bkdraft:' + inv.id, 'books', inv.createdAt || 0, 'Retainer invoice ' + inv.no + ' for ' + (inv.clientName || 'client') + ' is drafted. Open it, check it, send it', '#invoices/' + inv.id);
+    }
+    for (const d of b.nextDates(ctx, today)) {
+      const gap = U.daysBetween(today, d.date);
+      if (gap >= 0 && gap <= 3) push('bkdate:' + d.date + d.what, 'books', U.parseYmd(today).getTime(), d.what + (gap === 0 ? ' today' : gap === 1 ? ' tomorrow' : ' in ' + gap + ' days') + ', ' + U.fmtDay(d.date), '#books');
+    }
+    const hrMap = (ctx.coll.hr && ctx.coll.hr.map) || {};
+    for (const uid of Object.keys(hrMap)) for (const lid of Object.keys((hrMap[uid] || {}).letters || {})) {
+      const l = hrMap[uid].letters[lid];
+      if (l && l.status === 'draft' && Date.now() - (l.at || 0) > 86400000) push('bklet:' + lid, 'books', l.at || 0, 'A ' + (l.kind || 'letter') + ' letter for ' + ((l.vars && l.vars.who) || 'someone') + ' has waited a day unsigned', '#letters/' + uid.replace(/^cand:/, ''));
+    }
+    if (today.slice(8) === '01' || today.slice(8) === '02') {
+      const d = U.parseYmd(today); d.setDate(0);
+      const mid = U.monthId(d);
+      const inFy = b.invoices(ctx).filter(i => !['draft', 'void'].includes(b.status(i, today)) && String(i.date || '').slice(0, 7) === mid);
+      const billed = inFy.reduce((s, i) => s + b.totals(i).total * (i.currency === 'INR' || !i.currency ? 1 : b.num(i.fx) || 0), 0);
+      const exp = b.expenses(ctx).filter(e => e.month === mid).reduce((s, e) => s + b.num(e.amount), 0);
+      push('bkmonth:' + mid, 'books', U.parseYmd(today).getTime(), 'Books for ' + periodOf(mid) + ': billed ' + U.inr(billed) + ', spent ' + U.inr(exp) + '. Open the books for the rest', '#books');
+    }
+  }
+
+  M.booksWatch = {retainerDrafts, draftRetainer, recurringDue, inboxItems, periodOf};
+  M.parts.BooksWatch = BooksWatch;
+})();
+
 /* ==== 50-home.js ==== */
 /* module: home. Every person's own dashboard. The dark hero carries the greeting and the one
    thing to do right now; below it, focus, the AI brief, numbers and the crew. */
@@ -15217,6 +17353,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         push('fixd:' + id, 'fix', r.decidedAt, T`Correction ${r.status}, ${kl[r.kind] || 'other'}${r.date ? ' ' + U.fmtDate(r.date) : ''}${r.decidedNote ? ': ' + r.decidedNote : ''}`, '#me', null, r.status === 'declined');
       }
     }
+    /* the books: an invoice past due, a retainer draft waiting, a compliance date, a letter unsigned (owner only) */
+    if (M.booksWatch && ctx.isOwner) M.booksWatch.inboxItems(ctx, (id, kind, at, text, ref, hot) => push(id, kind, at, T`${text}`, ref, null, hot));
     /* the day before a holiday, for everyone; the announcement takes its place once one is posted */
     if (M.holidays) {
       const hol = M.holidays.tomorrow(ctx);
@@ -15231,7 +17369,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   const seenAt = ctx => Number(((ctx.coll.me.map[ctx.uid] || {}).inboxSeen) || 0);
   const unread = ctx => items(ctx).filter(i => i.at > seenAt(ctx)).length;
 
-  const KIND_ICON = {tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift', fix: 'fix', chat: 'send'};
+  const KIND_ICON = {tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift', fix: 'fix', chat: 'send', books: 'log'};
 
   function Inbox({onClose}) {
     const ctx = M.useCtx();
@@ -15260,7 +17398,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
      notification when m360 sits in another window. Chat lines have their own watcher. The mark of
      the newest item seen lives in this browser, per person; the first load on a device sets it, so
      a backlog never rains down. ---------- */
-  const TITLE = {tasks: 'Work', review: 'Review', feed: 'Feed', scores: 'Kudos', leave: 'Leave', people: 'Team', gift: 'Today', fix: 'Correction'};
+  const TITLE = {tasks: 'Work', review: 'Review', feed: 'Feed', scores: 'Kudos', leave: 'Leave', people: 'Team', gift: 'Today', fix: 'Correction', books: 'Books'};
   function InboxWatch() {
     const ctx = M.useCtx();
     const uid = ctx.uid;

@@ -51,13 +51,23 @@
     hq: {label: 'HQ', icon: 'command', page: 'HQ', founder: true, tabs: [
       {k: 'brief', label: 'Intelligence', route: 'hq'}, {k: 'dashboard', label: 'Dashboard', route: 'command'},
       {k: 'hiring', label: 'Hiring', route: 'hiring'}]},
-    admin: {label: 'Admin', icon: 'desk', page: 'Admin', founder: true}
+    admin: {label: 'Admin', icon: 'desk', page: 'Admin', founder: true},
+    books: {label: 'Books', icon: 'log', page: 'Books', founder: true, owner: true, tabs: [
+      {k: 'overview', label: 'Overview', route: 'books'}, {k: 'invoices', label: 'Invoices', route: 'invoices'},
+      {k: 'expenses', label: 'Expenses', route: 'expenses'}, {k: 'payroll', label: 'Payroll', route: 'payroll'},
+      {k: 'letters', label: 'Letters', route: 'letters'}, {k: 'billing', label: 'Setup', route: 'billing'}]}
   };
   M.SECTIONS = SECTIONS;
 
   /* every hash, old or new, lands in one section and tab */
-  function resolve(page, id, isFounder) {
+  function resolve(page, id, isFounder, isOwner) {
     switch (page) {
+      case 'books': case 'accounts-books': case 'ledger': return isOwner ? {s: 'books', t: 'overview'} : {s: 'home'};
+      case 'invoices': case 'invoice': return isOwner ? {s: 'books', t: 'invoices', id} : {s: 'home'};
+      case 'expenses': case 'expense': return isOwner ? {s: 'books', t: 'expenses', id} : {s: 'home'};
+      case 'payroll': case 'payslips': return isOwner ? {s: 'books', t: 'payroll', id} : {s: 'home'};
+      case 'letters': case 'letter': return isOwner ? {s: 'books', t: 'letters', id} : {s: 'home'};
+      case 'billing': return isOwner ? {s: 'books', t: 'billing', id} : {s: 'home'};
       case 'home': case 'today': return {s: 'home'};
       case 'work': return {s: 'work', t: 'tasks'};
       case 'projects': return {s: 'work', t: 'projects', id};
@@ -122,6 +132,7 @@
         for (const r of ((ctx.coll.leave.map[lu] || {}).reqs || [])) if (!dec[r.id]) pend++;
       }
       out.join = (M.team && M.team.requests) ? M.team.requests(ctx).length : 0;
+      if (ctx.isOwner && M.books) { const td = U.todayStr(); out.books = M.books.invoices(ctx).filter(i => { const st = M.books.status(i, td); return st === 'overdue' || (st === 'part' && i.due && i.due < td); }).length; }
       /* the Admin item counts leave waiting, corrections waiting and people waiting to join */
       out.admin = pend + (M.fixes && M.fixes.pending ? M.fixes.pending(ctx).length : 0) + (out.join || 0);
       out.hq = ctx.flags.filter(f => f.severity === 'high').length;
@@ -287,14 +298,14 @@
       return () => { window.removeEventListener('keydown', on); window.removeEventListener('m360:ask', open); window.removeEventListener('m360:inbox', inbox); window.removeEventListener('m360:keys', keys); };
     }, []);
 
-    const r = resolve(route.page, route.id, ctx.isFounder);
+    const r = resolve(route.page, route.id, ctx.isFounder, ctx.isOwner);
     const sec = SECTIONS[r.s] || SECTIONS.home;
     const Page = M.pages[sec.page];
     const b = M.badges(ctx);
     const go = k => { setMoreOpen(false); M.nav('#' + k); };
 
     const mainKeys = ['home', 'chat', 'work', 'accounts', 'workspace', 'base', 'radar', 'web', 'vibe', 'me'];
-    const founderKeys = ctx.isFounder ? ['hq', 'admin'] : [];
+    const founderKeys = ctx.isFounder ? (ctx.isOwner ? ['hq', 'books', 'admin'] : ['hq', 'admin']) : [];
     const item = k => {
       const s = SECTIONS[k];
       /* the open section lists its tabs; Me always does for members, so Leave and the Handbook are never hidden */
@@ -315,7 +326,7 @@
       onTask=${() => setNewTask(true)} onAsk=${() => setAskOpen(true)}/>` : null;
 
     const tabKeys = ctx.isFounder ? ['home', 'chat', 'hq', 'work'] : ['home', 'chat', 'work', 'accounts', 'me'];
-    const moreKeys = ctx.isFounder ? ['accounts', 'workspace', 'base', 'radar', 'web', 'me', 'admin'] : ['workspace', 'base', 'radar', 'web'];
+    const moreKeys = ctx.isFounder ? (ctx.isOwner ? ['accounts', 'workspace', 'base', 'radar', 'web', 'me', 'books', 'admin'] : ['accounts', 'workspace', 'base', 'radar', 'web', 'me', 'admin']) : ['workspace', 'base', 'radar', 'web'];
     const moreBadge = moreKeys.reduce((n, k) => n + (b[k] || 0), 0);
 
     return html`<div class="app">
@@ -399,6 +410,7 @@
       ${M.parts.FocusHost ? html`<${M.parts.FocusHost}/>` : null}
       ${M.parts.HolidayWatch ? html`<${M.parts.HolidayWatch}/>` : null}
       ${M.parts.FixHost ? html`<${M.parts.FixHost}/>` : null}
+      ${M.parts.BooksWatch ? html`<${M.parts.BooksWatch}/>` : null}
       ${M.parts.BreatheHost ? html`<${M.parts.BreatheHost}/>` : null}
       ${M.parts.ChatWatch ? html`<${M.parts.ChatWatch}/>` : null}
       ${M.parts.InboxWatch ? html`<${M.parts.InboxWatch}/>` : null}

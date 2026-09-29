@@ -104,6 +104,8 @@ want_rules += [{"path": "join", "read": "admin", "write": "admin"}, {"path": "jo
 want_rules += [{"path": "fixes", "read": "admin", "write": "admin"}, {"path": "fixes/{self}", "read": "interact", "write": "interact"},
                {"path": "log", "read": "admin", "write": "admin"}, {"path": "log/{self}", "read": "interact", "write": "interact"},
                {"path": "contacts", "read": "interact", "write": "interact"}, {"path": "orgs", "read": "interact", "write": "interact"}]
+# v16: the books (invoices, expenses, payroll, HR letters, billing setup) are the owner's alone
+want_rules += [{"path": c, "read": "owner", "write": "owner"} for c in ("books", "invoices", "expenses", "payroll", "hr")]
 if caps['db']['rules'] != want_rules:
     bad('capabilities.db.rules do not match BRIEF section 5 plus the me, join, fixes and log rules')
 for k in ('sample', 'room'):

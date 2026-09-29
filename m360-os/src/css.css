@@ -147,6 +147,7 @@ img{max-width:100%}
 .row{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
 .row.between{justify-content:space-between}
 .row.nowrap{flex-wrap:nowrap}
+.linky.nowrap{white-space:nowrap}
 .grow{flex:1; min-width:0}
 .hair{border:0; border-top:1px solid var(--line); margin:14px 0}
 .listrow{display:flex; align-items:center; gap:11px; padding:10px 0; border-bottom:1px solid var(--line); min-width:0; flex-wrap:wrap}
