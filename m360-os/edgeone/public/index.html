@@ -322,6 +322,9 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .home-hero .hero-greet{display:flex; flex-direction:column; justify-content:space-between; align-self:stretch; min-width:0; padding-top:6px}
 .home-hero .hero-greet .hi{margin-top:auto; padding-top:28px}
 .home-hero .hero-chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:20px}
+.home-hero .hero-tomorrow{display:flex; align-items:center; gap:8px; margin-top:14px; font-size:14px; font-weight:500}
+.home-hero.night .hero-tomorrow{color:rgba(255,255,255,.86)}
+.checkin-reopen{gap:10px}
 .home-hero .hero-panel{background:var(--dark); color:#fff; border-radius:18px; padding:20px 20px 18px; border:1px solid rgba(255,255,255,.08); min-width:0}
 .home-hero.night .hero-panel{background:rgba(255,255,255,.06); background:color-mix(in srgb, var(--dark) 93%, #fff); border-color:rgba(255,255,255,.12)}
 .home-hero.day .hero-clock{color:var(--micro)}
@@ -1404,7 +1407,7 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
   .cl-news .t{flex-basis:100%}
 }
 </style>
-<script>window.M360_BUILD = "b1efdd7+.260929-1023";</script><script>
+<script>window.M360_BUILD = "49301ad+.260929-1212";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -3232,6 +3235,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       ${inboxOpen && M.parts.Inbox ? html`<${M.parts.Inbox} onClose=${() => setInboxOpen(false)}/>` : null}
       ${keysOpen ? html`<${Keys} onClose=${() => setKeysOpen(false)}/>` : null}
       ${M.parts.FocusHost ? html`<${M.parts.FocusHost}/>` : null}
+      ${M.parts.HolidayWatch ? html`<${M.parts.HolidayWatch}/>` : null}
+      ${M.parts.FixHost ? html`<${M.parts.FixHost}/>` : null}
       ${M.parts.BreatheHost ? html`<${M.parts.BreatheHost}/>` : null}
       ${M.parts.ChatWatch ? html`<${M.parts.ChatWatch}/>` : null}
       <${NewerBuild}/>
@@ -4464,6 +4469,14 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       writeDay({in: Date.now(), out: null, mode: pick, loc: selfLoc(place), outLoc: null}, 'Checked in')
         .then(() => { if (live.current) setPick(null); done(); });
     };
+    /* the founder reopens a day in one tap; everyone else asks, and the request lands with Kaavish */
+    const reopen = () => {
+      if (busy) return;
+      const current = daysOf(ctxRef.current, uid)[today];
+      if (!current || !current.in || !current.out) return;
+      setBusy(true);
+      writeDay({...U.clone(current), out: null, outLoc: null}, 'Day reopened').then(done);
+    };
     const checkOut = () => {
       if (busy) return;
       const current = daysOf(ctxRef.current, uid)[today];
@@ -4516,12 +4529,16 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         ${consent}
       </div>`;
     } else {
+      const sent = M.fixes && M.fixes.reopenPending ? M.fixes.reopenPending(ctx, uid, today) : false;
       body = html`<div class="stack">
         <div class="row">
           <span class="num">In ${U.hhmm(ds.in)}, out ${U.hhmm(ds.out)}, ${U.durText(ds.hours)}.</span>
           ${latePill}
         </div>
         <div class="sub small">${U.cap(modeLabel(ds.entry.mode))}. ${placeText(ds.loc)}</div>
+        ${sent ? html`<div class="sub small" id="checkin-reopen-sent"><span class="dotflame"/> Asked Kaavish to reopen the day. It opens again when he approves; the answer lands in your inbox.</div>`
+          : ctx.isFounder ? html`<div class="row"><${UI.Btn} kind="sec" sm=${true} id="checkin-reopen" disabled=${busy} onClick=${reopen}>Reopen the day<//><span class="sub small">Checked out by mistake? The check-in stays as it was.</span></div>`
+          : html`<div class="row checkin-reopen"><span class="sub small">Checked out by mistake?</span><${UI.Btn} kind="sec" sm=${true} id="checkin-reopen" disabled=${busy} onClick=${() => M.fixes && M.fixes.ask({kind: 'attendance', field: 'reopen', date: today})}>Ask Kaavish to reopen the day<//></div>`}
         ${consent}
       </div>`;
     }
@@ -12392,8 +12409,19 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 
   function InNow() {
     const ctx = M.useCtx();
-    const a = M.att.dayStatus(ctx, ctx.uid, U.todayStr());
+    const today = U.todayStr();
+    const a = M.att.dayStatus(ctx, ctx.uid, today);
     const [busy, setBusy] = useState(false);
+    /* a check-out pressed by mistake: the founder reopens the day in one tap; everyone else asks Kaavish */
+    const reopenSent = a.out && M.fixes && M.fixes.reopenPending ? M.fixes.reopenPending(ctx, ctx.uid, today) : false;
+    async function reopen() {
+      setBusy(true);
+      const days = U.clone((ctx.coll.checkin.map[ctx.uid] || {}).days || {});
+      const e = days[today];
+      if (e && e.out) { e.out = null; e.outLoc = null; days[today] = e; await ctx.W.merge('checkin/' + ctx.uid, {days: U.pruneDays(days)}).catch(() => {}); }
+      setBusy(false);
+      M.toast('Day reopened');
+    }
     async function out() {
       setBusy(true);
       const pos = await M.getLoc();
@@ -12415,7 +12443,15 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         </div>
       </div>
       ${a.out ? null : html`<button type="button" class="btn on-dark sec sm" disabled=${busy} onClick=${out}>Check out</button>`}
-    </div>`;
+    </div>
+    ${a.out ? (reopenSent
+      ? html`<div class="small" id="home-reopen-sent" style=${{color: 'rgba(255,255,255,.7)', marginTop: '12px'}}><span class="dotflame"/> Asked Kaavish to reopen the day. It opens again when he approves; the answer lands in your inbox.</div>`
+      : html`<div class="row" style=${{marginTop: '12px', gap: '10px'}}>
+        <span class="small" style=${{color: 'rgba(255,255,255,.7)'}}>Checked out by mistake?</span>
+        ${ctx.isFounder
+          ? html`<button type="button" class="btn on-dark sec sm" id="home-reopen" disabled=${busy} onClick=${reopen}>Reopen the day</button>`
+          : html`<button type="button" class="btn on-dark sec sm" id="home-reopen" disabled=${busy} onClick=${() => M.fixes && M.fixes.ask({kind: 'attendance', field: 'reopen', date: today})}>Ask Kaavish to reopen the day</button>`}
+      </div>`) : null}`;
   }
 
   function Clock() {
@@ -12464,6 +12500,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const st = todayStatus(ctx, ctx.uid);
     const special = a.status === 'leave' ? "You're on approved leave today. Log off."
       : a.status === 'holiday' ? 'Today is a holiday.' : a.status === 'sunday' ? 'Sunday. The OS rests too.' : '';
+    const hol = M.holidays ? M.holidays.tomorrow(ctx) : null;
     return html`<header class=${'hero home-hero ' + (night ? 'ink night' : 'day')} id="home-hero" data-mode=${sky.mode}
       style=${{'--sx': sky.x + '%', '--sy': sky.y + '%', '--px': sky.px + '%', '--py': sky.py + '%', '--sun': sky.size + 'px'}}>
       <div class="hero-in">
@@ -12476,6 +12513,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
             <span class=${chip}>level <b class="num">${lv.lvl}</b></span>
             <button type="button" class=${chip} onClick=${onStatus}>${st ? html`<span class="dotflame"/>${st.text}` : 'Set a status'}</button>
           </div>
+          ${hol ? html`<div class="hero-tomorrow" id="hero-tomorrow"><span class="dotflame"/><span>${M.holidays.line(hol)}</span></div>` : null}
         </div>
         <div class="hero-panel">${special ? html`<div class="display" style=${{fontSize: '24px'}}>${special}</div>`
           : (a.in ? html`<${InNow}/>` : html`<${TapIn}/>`)}</div>
@@ -14533,7 +14571,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 
   function Notices() {
     const [items, setItems] = useState(list);
-    useEffect(() => M.notices.on(setItems), []);
+    useEffect(() => { const un = M.notices.on(setItems); setItems(list); return un; }, []);
     if (!items.length) return null;
     const previews = M.notices.previews();
     return html`<div class="notices" id="notices" aria-live="polite">
@@ -14752,11 +14790,61 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 'use strict';
 (function () {
   const {html, React, U, UI} = M;
-  const {useState} = React;
+  const {useState, useEffect} = React;
 
   /* fixed-date public holidays; festivals move every year, so those stay manual */
   const FIXED = [['01-26', 'Republic Day'], ['05-01', 'Maharashtra Day'], ['08-15', 'Independence Day'],
     ['10-02', 'Gandhi Jayanti'], ['12-25', 'Christmas']];
+  const NAME_OF = Object.fromEntries(FIXED.map(([md, name]) => [md, name]));
+  const nameOf = date => NAME_OF[String(date || '').slice(5)] || '';
+  /* tomorrow, when it is a holiday: {date, name}; name is blank for a holiday added by hand */
+  const tomorrowOf = ctx => {
+    if (!ctx || !ctx.holidays || typeof ctx.holidays.has !== 'function') return null;
+    const tm = U.ymd(U.addDays(U.parseYmd(U.todayStr()), 1));
+    return ctx.holidays.has(tm) ? {date: tm, name: nameOf(tm)} : null;
+  };
+  const lineFor = h => 'Tomorrow, ' + U.fmtDay(h.date) + ', is a holiday' + (h.name ? ': ' + h.name : '') + '. m360 rests too.';
+  /* the announcement for this holiday has been posted (by the team site, or by the founder's page) */
+  const noted = (ctx, date) => !!(ctx && ctx.settings && Array.isArray(ctx.settings.holNotes) && ctx.settings.holNotes.includes(date));
+  M.holidays = {nameOf, tomorrow: tomorrowOf, line: lineFor, noted};
+
+  /* the day before a holiday: one corner notice per person (and the browser's own when the tab is
+     away), and the announcement on the feed for everyone. The team site posts the announcement and
+     emails the team from the server at its first request that day; the founder's page posts it only
+     when nothing has after a short wait, which covers the claude.ai page. */
+  const NOTE_WAIT = 15000;
+  function HolidayWatch() {
+    const ctx = M.useCtx();
+    const hol = ctx && ctx.ready && ctx.uid ? tomorrowOf(ctx) : null;
+    const date = hol ? hol.date : '';
+    const isNoted = hol ? noted(ctx, date) : true;
+    const founder = !!(ctx && ctx.isFounder);
+    useEffect(() => {
+      if (!hol || M.prefs.get('holnote.' + ctx.uid + '.' + date, '') === '1') return;
+      M.prefs.set('holnote.' + ctx.uid + '.' + date, '1');
+      if (M.notices) M.notices.push({key: 'hol:' + date, title: 'Tomorrow is a holiday', body: lineFor(hol), href: '#calendar', life: 14000});
+    }, [date]);
+    useEffect(() => {
+      if (!hol || !founder || isNoted) return;
+      const t = setTimeout(async () => {
+        const c = M.lastCtx || ctx;
+        if (!c || noted(c, date)) return;
+        try {
+          const uid = c.uid;
+          const mine = (c.coll.feed.map[uid]) || {};
+          const id = U.uid();
+          const post = {id, kind: 'announce', text: lineFor(hol), at: Date.now(), auto: 'holiday'};
+          const posts = [post].concat(Array.isArray(mine.posts) ? U.clone(mine.posts) : []).slice(0, 80);
+          await c.W.merge('settings/app', {holNotes: (Array.isArray(c.settings.holNotes) ? c.settings.holNotes : []).concat([date]).slice(-24)});
+          await c.W.merge('feed/' + uid, {posts, pinned: uid + ':' + id});
+        } catch (e) { /* the next page load tries again */ }
+      }, NOTE_WAIT);
+      return () => clearTimeout(t);
+    }, [date, founder, isNoted]);
+    return null;
+  }
+  M.parts.HolidayWatch = HolidayWatch;
+
   function fixedHolidays(now) {
     const y = new Date(now).getFullYear(), td = U.todayStr();
     const out = [];
@@ -15080,13 +15168,18 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     /* corrections: the founder sees each pending request, the person sees the decision */
     if (M.fixes && M.fixes.pending) {
       const kl = M.fixes.KIND_LABEL || {};
-      if (ctx.isFounder) M.fixes.pending(ctx).forEach(({uid, id, req}) => { if (uid !== me) push('fix:' + id, 'fix', req.at || 0, html`${nm(uid)} asked for a correction: ${kl[req.kind] || 'other'}`, '#admin', uid); });
+      if (ctx.isFounder) M.fixes.pending(ctx).forEach(({uid, id, req}) => { if (uid !== me) push('fix:' + id, 'fix', req.at || 0, req.field === 'reopen' ? html`${nm(uid)} checked out by mistake and asks you to reopen ${req.date ? U.fmtDay(req.date) : 'the day'}` : html`${nm(uid)} asked for a correction: ${kl[req.kind] || 'other'}`, '#admin', uid, req.field === 'reopen'); });
       const mine = ((ctx.coll.fixes.map[me] || {}).reqs) || {};
       for (const id of Object.keys(mine)) {
         const r = mine[id];
         if (!r || !r.decidedAt || M.fixes.statusOf(r) === 'pending') continue;
         push('fixd:' + id, 'fix', r.decidedAt, html`Correction ${r.status}, ${kl[r.kind] || 'other'}${r.date ? ' ' + U.fmtDate(r.date) : ''}${r.decidedNote ? ': ' + r.decidedNote : ''}`, '#me', null, r.status === 'declined');
       }
+    }
+    /* the day before a holiday, for everyone; the announcement takes its place once one is posted */
+    if (M.holidays) {
+      const hol = M.holidays.tomorrow(ctx);
+      if (hol && !M.holidays.noted(ctx, hol.date)) push('hol:' + hol.date, 'gift', U.parseYmd(U.todayStr()).getTime(), html`${M.holidays.line(hol)}`, '#calendar', null, true);
     }
     /* celebrations */
     if (M.trophies && M.trophies.today) M.trophies.today(ctx).forEach(c => { if (c.uid !== me) push('cel:' + c.uid + c.kind, 'gift', U.parseYmd(U.todayStr()).getTime(), html`${nm(c.uid)}: ${c.text}`, '#home', c.uid); });
@@ -15992,7 +16085,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   ];
   const KIND_LABEL = Object.fromEntries(KINDS.map(k => [k.v, k.label.toLowerCase()]));
   const FIELDS = {
-    attendance: [{v: 'in', label: 'Check-in time'}, {v: 'out', label: 'Check-out time'}, {v: 'mode', label: 'Office or WFH'}],
+    attendance: [{v: 'in', label: 'Check-in time'}, {v: 'out', label: 'Check-out time'}, {v: 'reopen', label: 'Undo a check-out'}, {v: 'mode', label: 'Office or WFH'}],
     leave: [{v: 'balance', label: 'Leave balance'}, {v: 'request', label: 'A leave request'}],
     task: [{v: 'status', label: 'Status'}, {v: 'due', label: 'Due date'}, {v: 'points', label: 'Points'}],
     profile: [{v: 'title', label: 'Title'}, {v: 'pod', label: 'Pod'}, {v: 'joined', label: 'Joined date'}, {v: 'empId', label: 'Employee id'}],
@@ -16005,6 +16098,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   /* each person keeps their newest 40 requests */
   const KEEP = 40;
   const BY_HAND = 'Approved. Apply the change by hand if it is not automatic.';
+  const REOPEN_WANT = 'Still working: the check-out was pressed by mistake';
 
   /* ---------- pure helpers ---------- */
   const okDate = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) && U.ymd(U.parseYmd(s)) === s;
@@ -16036,8 +16130,13 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   function plan(ctx, uid, req) {
     const want = String(req.want || '').trim();
     if (req.kind === 'attendance' && okDate(req.date)) {
-      const field = req.field === 'out' ? 'out' : req.field === 'mode' ? 'mode' : 'in';
+      const field = req.field === 'out' ? 'out' : req.field === 'mode' ? 'mode' : req.field === 'reopen' ? 'reopen' : 'in';
       const entry = ((collMap(ctx, 'checkin')[uid] || {}).days || {})[req.date] || null;
+      /* a check-out pressed by mistake: the day opens again, the check-in and its place stay */
+      if (field === 'reopen') {
+        if (!entry || !entry.in || !entry.out) return null;
+        return {path: 'checkin/' + uid, patch: {days: {[req.date]: {out: null, outLoc: null}}}, text: 'reopens ' + U.fmtDate(req.date) + ': the check-out goes, the check-in stays'};
+      }
       if (field === 'mode') {
         const mode = want.toLowerCase();
         if ((mode === 'office' || mode === 'wfh') && entry) return {path: 'checkin/' + uid, patch: {days: {[req.date]: {mode}}}, text: 'sets ' + req.date + ' to ' + mode};
@@ -16071,14 +16170,15 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const set = (k, v) => setF(x => ({...x, [k]: v}));
     const setKind = v => setF(x => ({...x, kind: v, field: (FIELDS[v][0] || {v: ''}).v}));
     const fields = FIELDS[f.kind] || [];
-    const canSend = !!f.want.trim() && !busy && (!f.date || okDate(f.date));
+    const reopen = f.kind === 'attendance' && f.field === 'reopen';
+    const canSend = (reopen ? okDate(f.date) : !!f.want.trim()) && !busy && (!f.date || okDate(f.date));
     const timeHint = f.kind === 'attendance' && f.field !== 'mode' ? 'HH:MM, for example 09:45' : f.kind === 'attendance' ? 'office or wfh' : '';
     const send = () => {
       if (!canSend) return;
       setBusy(true);
       const id = U.uid();
       const req = {kind: f.kind, date: okDate(f.date) ? f.date : '', field: fields.length ? f.field : '',
-        want: f.want.trim().slice(0, WANT_MAX), note: f.note.trim().slice(0, NOTE_MAX), at: Date.now(), status: 'pending',
+        want: reopen ? REOPEN_WANT : f.want.trim().slice(0, WANT_MAX), note: f.note.trim().slice(0, NOTE_MAX), at: Date.now(), status: 'pending',
         decidedAt: null, decidedNote: ''};
       const cur = U.clone(reqsOf(ctx, ctx.uid));
       const keep = Object.keys(cur).sort((a, b) => (cur[b].at || 0) - (cur[a].at || 0)).slice(0, KEEP - 1);
@@ -16094,11 +16194,12 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         <${UI.Field} label="what is wrong">
           <${UI.Seg} options=${KINDS} value=${f.kind} onChange=${setKind} ariaLabel="Kind"/>
         <//>
-        ${fields.length ? html`<${UI.Select} id="fix-field" label="which part" value=${f.field} onChange=${v => set('field', v)} options=${fields}/>` : null}
-        <${UI.Input} id="fix-date" label="date, if it is about one day" type="date" value=${f.date} onChange=${v => set('date', v)}/>
-        <${UI.Input} id="fix-want" label="what it should be" value=${f.want} hint=${timeHint}
+        ${fields.length ? html`<${UI.Select} id="fix-field" label="which part" value=${f.field} onChange=${v => setF(x => ({...x, field: v, date: v === 'reopen' && !x.date ? U.todayStr() : x.date}))} options=${fields}/>` : null}
+        <${UI.Input} id="fix-date" label=${reopen ? 'the day to reopen' : 'date, if it is about one day'} type="date" value=${f.date} onChange=${v => set('date', v)}/>
+        ${reopen ? html`<div class="small" id="fix-reopen-line">${REOPEN_WANT}. Kaavish approves, the check-out goes, and the day is open again with the check-in as it was.</div>`
+          : html`<${UI.Input} id="fix-want" label="what it should be" value=${f.want} hint=${timeHint}
           placeholder=${f.kind === 'attendance' && f.field !== 'mode' ? '09:45' : 'The correct value'}
-          onChange=${v => set('want', v.slice(0, WANT_MAX))}/>
+          onChange=${v => set('want', v.slice(0, WANT_MAX))}/>`}
         <${UI.TextArea} id="fix-note" label="why" value=${f.note} rows=${3} placeholder="What happened, in a line or two"
           onChange=${v => set('note', v.slice(0, NOTE_MAX))}/>
         <div class="sub small">Kaavish sees this and decides. The decision lands in your inbox.</div>
@@ -16173,7 +16274,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           ${req.field && FIELD_LABEL[req.field] ? html`<span class="tiny ink62">${FIELD_LABEL[req.field]}</span>` : null}
           ${req.date ? html`<span class="tiny ink62 num">${U.fmtDate(req.date)}</span>` : null}
         </div>
-        <div class="fix-want">Should be: ${req.want}</div>
+        <div class="fix-want">${req.field === 'reopen' ? 'Reopen the day. The check-out was pressed by mistake; the check-in stays.' : 'Should be: ' + req.want}</div>
         ${req.note ? html`<div class="small ink62">Why: ${req.note}</div>` : null}
         <div class="tiny ink62">asked ${U.timeAgo(req.at || Date.now())} · ${auto ? 'approving ' + auto.text : 'approving records the decision for you to apply by hand'}</div>
         ${mode === 'decline' ? html`<div class="row" style=${{marginTop: '8px'}}>
@@ -16232,7 +16333,19 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   M.deskTabs.push({v: 'fixes', label: html`<${TabLabel}/>`, render: FixQueue});
   M.parts.RequestFixCard = RequestFixCard;
   M.parts.FixQueue = FixQueue;
-  M.fixes = {open, pending, decided, all, plan, statusOf, KINDS, KIND_LABEL, FIELD_LABEL, okTime};
+  /* M.fixes.ask(initial): the request drawer, opened from anywhere, rendered at the shell level */
+  const askSubs = new Set();
+  function FixHost() {
+    const [init, setInit] = useState(null);
+    useEffect(() => { askSubs.add(setInit); return () => askSubs.delete(setInit); }, []);
+    return init ? html`<${FixDrawer} initial=${init} onClose=${() => setInit(null)}/>` : null;
+  }
+  const ask = initial => { askSubs.forEach(f => f({...(initial || {})})); };
+  M.parts.FixHost = FixHost;
+  /* a pending request to reopen this day, if the person has one */
+  const reopenPending = (ctx, uid, date) => Object.values(reqsOf(ctx, uid)).some(r => r && r.kind === 'attendance' && r.field === 'reopen' && r.date === date && statusOf(r) === 'pending');
+  M.parts.FixDrawer = FixDrawer;
+  M.fixes = {open, ask, pending, decided, all, plan, statusOf, reopenPending, KINDS, KIND_LABEL, FIELD_LABEL, okTime};
 })();
 
 /* ==== 73-log.js ==== */

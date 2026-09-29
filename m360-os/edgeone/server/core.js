@@ -29,6 +29,7 @@ import {googleActions} from './google.js';
 import {huntActions} from './hunt.js';
 import {spotifyActions} from './spotify.js';
 import {webActions, browseHandler} from './web.js';
+import {holidayNotice} from './holiday.js';
 import {fileActions} from './files.js';
 import {baseActions} from './base.js';
 
@@ -1033,6 +1034,16 @@ export function createApp({store, env = {}}) {
       return {content: j.content || [], stop_reason: j.stop_reason || ''};
     }
   };
+  /* a document written by the server in someone's name: the same version keeping, marker and log as a write from a page */
+  async function writeAs(uid, path, doc, what) {
+    const key = docKey(path), s = segs(path), str = JSON.stringify(doc);
+    const cur = await getJ(key).catch(() => null);
+    if (hooks.beforeWrite) await hooks.beforeWrite(key, path, uid, cur).catch(() => {});
+    await store.set(key, str);
+    await bumpMarker(s.slice(0, -1).join('/'), s[s.length - 1], digest([str])).catch(() => {});
+    await log(uid, 'set', path, what || '');
+  }
+  const holiday = holidayNotice({getJ, docKey, appSettings, ownerUid, sendMail, writeAs, ymdIST, env});
   /* radar actions (news, awards, watch) live in radar.js and share the store helpers */
   Object.assign(actions, radarActions({store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, isObj, stampKey}));
   const google = googleActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError, log, rand, docKey});
@@ -1072,6 +1083,8 @@ export function createApp({store, env = {}}) {
       const v = await viewer(request);
       /* once a day: the backup and the trash and backup pruning (safety.js); never fails a request */
       if (hooks.upkeep) await hooks.upkeep().catch(() => {});
+      /* the day before a holiday, once: the announcement and the mails */
+      await holiday().catch(() => {});
       /* once a day per instance, off the request's path: old log days go */
       const today = ymdIST(Date.now());
       if (logPruneDay !== today) { logPruneDay = today; pruneOldLogs(LOG_DAYS).catch(() => {}); }

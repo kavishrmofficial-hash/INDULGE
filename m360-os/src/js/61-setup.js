@@ -3,11 +3,61 @@
 'use strict';
 (function () {
   const {html, React, U, UI} = M;
-  const {useState} = React;
+  const {useState, useEffect} = React;
 
   /* fixed-date public holidays; festivals move every year, so those stay manual */
   const FIXED = [['01-26', 'Republic Day'], ['05-01', 'Maharashtra Day'], ['08-15', 'Independence Day'],
     ['10-02', 'Gandhi Jayanti'], ['12-25', 'Christmas']];
+  const NAME_OF = Object.fromEntries(FIXED.map(([md, name]) => [md, name]));
+  const nameOf = date => NAME_OF[String(date || '').slice(5)] || '';
+  /* tomorrow, when it is a holiday: {date, name}; name is blank for a holiday added by hand */
+  const tomorrowOf = ctx => {
+    if (!ctx || !ctx.holidays || typeof ctx.holidays.has !== 'function') return null;
+    const tm = U.ymd(U.addDays(U.parseYmd(U.todayStr()), 1));
+    return ctx.holidays.has(tm) ? {date: tm, name: nameOf(tm)} : null;
+  };
+  const lineFor = h => 'Tomorrow, ' + U.fmtDay(h.date) + ', is a holiday' + (h.name ? ': ' + h.name : '') + '. m360 rests too.';
+  /* the announcement for this holiday has been posted (by the team site, or by the founder's page) */
+  const noted = (ctx, date) => !!(ctx && ctx.settings && Array.isArray(ctx.settings.holNotes) && ctx.settings.holNotes.includes(date));
+  M.holidays = {nameOf, tomorrow: tomorrowOf, line: lineFor, noted};
+
+  /* the day before a holiday: one corner notice per person (and the browser's own when the tab is
+     away), and the announcement on the feed for everyone. The team site posts the announcement and
+     emails the team from the server at its first request that day; the founder's page posts it only
+     when nothing has after a short wait, which covers the claude.ai page. */
+  const NOTE_WAIT = 15000;
+  function HolidayWatch() {
+    const ctx = M.useCtx();
+    const hol = ctx && ctx.ready && ctx.uid ? tomorrowOf(ctx) : null;
+    const date = hol ? hol.date : '';
+    const isNoted = hol ? noted(ctx, date) : true;
+    const founder = !!(ctx && ctx.isFounder);
+    useEffect(() => {
+      if (!hol || M.prefs.get('holnote.' + ctx.uid + '.' + date, '') === '1') return;
+      M.prefs.set('holnote.' + ctx.uid + '.' + date, '1');
+      if (M.notices) M.notices.push({key: 'hol:' + date, title: 'Tomorrow is a holiday', body: lineFor(hol), href: '#calendar', life: 14000});
+    }, [date]);
+    useEffect(() => {
+      if (!hol || !founder || isNoted) return;
+      const t = setTimeout(async () => {
+        const c = M.lastCtx || ctx;
+        if (!c || noted(c, date)) return;
+        try {
+          const uid = c.uid;
+          const mine = (c.coll.feed.map[uid]) || {};
+          const id = U.uid();
+          const post = {id, kind: 'announce', text: lineFor(hol), at: Date.now(), auto: 'holiday'};
+          const posts = [post].concat(Array.isArray(mine.posts) ? U.clone(mine.posts) : []).slice(0, 80);
+          await c.W.merge('settings/app', {holNotes: (Array.isArray(c.settings.holNotes) ? c.settings.holNotes : []).concat([date]).slice(-24)});
+          await c.W.merge('feed/' + uid, {posts, pinned: uid + ':' + id});
+        } catch (e) { /* the next page load tries again */ }
+      }, NOTE_WAIT);
+      return () => clearTimeout(t);
+    }, [date, founder, isNoted]);
+    return null;
+  }
+  M.parts.HolidayWatch = HolidayWatch;
+
   function fixedHolidays(now) {
     const y = new Date(now).getFullYear(), td = U.todayStr();
     const out = [];

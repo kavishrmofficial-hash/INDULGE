@@ -318,6 +318,9 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .home-hero .hero-greet{display:flex; flex-direction:column; justify-content:space-between; align-self:stretch; min-width:0; padding-top:6px}
 .home-hero .hero-greet .hi{margin-top:auto; padding-top:28px}
 .home-hero .hero-chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:20px}
+.home-hero .hero-tomorrow{display:flex; align-items:center; gap:8px; margin-top:14px; font-size:14px; font-weight:500}
+.home-hero.night .hero-tomorrow{color:rgba(255,255,255,.86)}
+.checkin-reopen{gap:10px}
 .home-hero .hero-panel{background:var(--dark); color:#fff; border-radius:18px; padding:20px 20px 18px; border:1px solid rgba(255,255,255,.08); min-width:0}
 .home-hero.night .hero-panel{background:rgba(255,255,255,.06); background:color-mix(in srgb, var(--dark) 93%, #fff); border-color:rgba(255,255,255,.12)}
 .home-hero.day .hero-clock{color:var(--micro)}

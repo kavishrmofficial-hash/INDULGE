@@ -151,7 +151,14 @@ def test(h):
     pf.wait_for_selector('#checkin-card:has-text("In 10:12, out 19:40, 9h 28m.")')
     text = card(pf)
     check('Office. Verified at Mumbai office.' in text, 'place line after check-out: ' + text)
-    check(pf.locator('#checkin-card button').count() == 0, 'no buttons after check-out')
+    # checked out by mistake: the founder reopens the day in one tap, the check-in stays, then checks out again
+    check(pf.locator('#checkin-card button').count() == 1 and btn(pf, 'Reopen the day').count() == 1, 'one button after check-out for the founder: Reopen the day')
+    btn(pf, 'Reopen the day').click()
+    pf.wait_for_selector('#checkin-card:has-text("Checked in at 10:12")')
+    e = pf.evaluate('window.__db.get("checkin/u_founder")')['days'][today]
+    check(e['in'] and e['out'] is None and e['outLoc'] is None and e['loc']['verified'] is True, 'reopened entry keeps the check-in %r' % e)
+    btn(pf, 'Check out').click()
+    pf.wait_for_selector('#checkin-card:has-text("In 10:12, out 19:40, 9h 28m.")')
     e = pf.evaluate('window.__db.get("checkin/u_founder")')['days'][today]
     check(e['out'] and e['outLoc'] and e['outLoc']['verified'] is True and e['outLoc']['src'] == 'gps', 'check-out entry %r' % e)
     ds = h.ctx(pf, 'M.att.dayStatus(ctx, "u_founder", "%s")' % today)
@@ -222,6 +229,18 @@ def test(h):
     check('WFH. Home, self reported.' in card(pc), 'place line after wfh check-out: ' + card(pc))
     e = pc.evaluate('window.__db.get("checkin/u_m1")')['days'][today]
     check(e['out'] and e['outLoc'] is None, 'check-out without location %r' % e)
+    # a member who checked out by mistake asks Kaavish to reopen the day, from the card, without leaving the page
+    check(btn(pc, 'Ask Kaavish to reopen the day').count() == 1, 'the member gets the reopen request button')
+    where = pc.evaluate('location.hash')
+    btn(pc, 'Ask Kaavish to reopen the day').click()
+    pc.wait_for_selector('#fix-drawer')
+    check(pc.input_value('#fix-field') == 'reopen' and pc.input_value('#fix-date') == today and pc.locator('#fix-reopen-line').count() == 1, 'the drawer is prefilled to reopen today')
+    pc.click('#fix-send')
+    pc.wait_for_selector('#checkin-reopen-sent')
+    reqs = pc.evaluate('window.__db.get("fixes/u_m1")')['reqs']
+    check(any(r['kind'] == 'attendance' and r['field'] == 'reopen' and r['date'] == today and r['status'] == 'pending' for r in reqs.values()), 'reopen request shape %r' % reqs)
+    check(pc.evaluate('location.hash') == where, 'the request is made without leaving the page')
+    check(h.ctx(pc, 'M.fixes.reopenPending(ctx, "u_m1", "%s")' % today) is True, 'reopenPending')
 
     # ---- WFH cap: two wfh days earlier this week disable the WFH button ----
     ctx_c.clock.set_fixed_time(t_in)

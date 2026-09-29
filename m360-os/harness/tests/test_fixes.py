@@ -130,6 +130,49 @@ def t(h):
     p.locator('.drawer').get_by_role('button', name='Close').click()
     p.wait_for_function('() => !document.querySelector(".drawer")')
 
+    # ---- a check-out pressed by mistake: the request from Home, the approval reopens the day ----
+    if now.weekday() != 6 and today not in (doc(p, 'settings/app') or {}).get('holidays', []):
+        h.go(p, 'm1', hash='#home', width=1280)
+        p.wait_for_selector('#home-hero .hero-panel')
+        now_ms = p.evaluate('Date.now()')
+        h.seed_doc(p, 'checkin/u_m1', {'days': {today: {'in': now_ms - 3600000, 'out': now_ms - 60000, 'mode': 'office', 'loc': None, 'outLoc': None}}})
+        p.wait_for_selector('#home-hero:has-text("Done for today")')
+        p.click('#home-reopen')
+        p.wait_for_selector('#fix-drawer')
+        check(p.input_value('#fix-field') == 'reopen' and p.input_value('#fix-date') == today, 'the drawer from Home is prefilled to reopen today')
+        p.click('#fix-send')
+        p.wait_for_selector('#home-reopen-sent')
+        reqs = doc(p, 'fixes/u_m1')['reqs']
+        rid = next(k for k, r in reqs.items() if r.get('field') == 'reopen')
+        h.go(p, 'founder', hash='#home', width=1280)
+        p.wait_for_selector('.side-tools')
+        p.keyboard.press('i')
+        p.wait_for_selector('.drawer:has-text("Inbox")')
+        body = p.inner_text('.drawer')
+        check('Durvesh Patil checked out by mistake and asks you to reopen' in body, 'founder inbox missing the reopen request: ' + body[:300])
+        p.locator('.drawer').get_by_role('button', name='Close').click()
+        p.wait_for_function('() => !document.querySelector(".drawer")')
+        h.go(p, 'founder', hash='#admin', width=1280)
+        p.get_by_role('tab', name=re.compile(r'^Corrections')).click()
+        p.wait_for_selector('#fix-' + rid)
+        qtext = p.inner_text('#fix-' + rid)
+        check('Reopen the day' in qtext and 'reopens' in qtext, 'reopen queue row: ' + qtext[:300])
+        p.locator('#fix-' + rid).get_by_role('button', name='Approve').click()
+        p.wait_for_function('() => ((window.__db.get("fixes/u_m1").reqs["%s"] || {}).status) === "approved"' % rid)
+        after = doc(p, 'checkin/u_m1')['days'][today]
+        check(after['out'] is None and after['outLoc'] is None and after['in'] == now_ms - 3600000 and after['mode'] == 'office', 'the day did not reopen: %r' % after)
+        h.go(p, 'm1', hash='#home', width=1280)
+        p.wait_for_selector('#home-hero:has-text("In since")')
+        p.locator('#home-hero .hero-panel').get_by_role('button', name='Check out', exact=True).wait_for()
+        # the founder's own day: one tap reopens it
+        h.seed_doc(p, 'checkin/u_founder', {'days': {today: {'in': now_ms - 3600000, 'out': now_ms - 60000, 'mode': 'office', 'loc': None, 'outLoc': None}}})
+        h.go(p, 'founder', hash='#home', width=1280)
+        p.wait_for_selector('#home-hero:has-text("Done for today")')
+        p.click('#home-reopen')
+        p.wait_for_selector('#home-hero:has-text("In since")')
+        fd = doc(p, 'checkin/u_founder')['days'][today]
+        check(fd['out'] is None and fd['in'] == now_ms - 3600000, 'the founder reopen did not clear the check-out: %r' % fd)
+
     # deep link from anywhere: M.fixes.open(kind, date, field) lands on Me with the drawer prefilled
     h.go(p, 'm1', hash='#home', width=1280)
     p.wait_for_selector('.side-tools')

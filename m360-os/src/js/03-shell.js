@@ -397,6 +397,8 @@
       ${inboxOpen && M.parts.Inbox ? html`<${M.parts.Inbox} onClose=${() => setInboxOpen(false)}/>` : null}
       ${keysOpen ? html`<${Keys} onClose=${() => setKeysOpen(false)}/>` : null}
       ${M.parts.FocusHost ? html`<${M.parts.FocusHost}/>` : null}
+      ${M.parts.HolidayWatch ? html`<${M.parts.HolidayWatch}/>` : null}
+      ${M.parts.FixHost ? html`<${M.parts.FixHost}/>` : null}
       ${M.parts.BreatheHost ? html`<${M.parts.BreatheHost}/>` : null}
       ${M.parts.ChatWatch ? html`<${M.parts.ChatWatch}/>` : null}
       <${NewerBuild}/>

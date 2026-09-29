@@ -41,7 +41,7 @@
 
   function Notices() {
     const [items, setItems] = useState(list);
-    useEffect(() => M.notices.on(setItems), []);
+    useEffect(() => { const un = M.notices.on(setItems); setItems(list); return un; }, []);
     if (!items.length) return null;
     const previews = M.notices.previews();
     return html`<div class="notices" id="notices" aria-live="polite">

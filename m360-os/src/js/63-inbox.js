@@ -64,13 +64,18 @@
     /* corrections: the founder sees each pending request, the person sees the decision */
     if (M.fixes && M.fixes.pending) {
       const kl = M.fixes.KIND_LABEL || {};
-      if (ctx.isFounder) M.fixes.pending(ctx).forEach(({uid, id, req}) => { if (uid !== me) push('fix:' + id, 'fix', req.at || 0, html`${nm(uid)} asked for a correction: ${kl[req.kind] || 'other'}`, '#admin', uid); });
+      if (ctx.isFounder) M.fixes.pending(ctx).forEach(({uid, id, req}) => { if (uid !== me) push('fix:' + id, 'fix', req.at || 0, req.field === 'reopen' ? html`${nm(uid)} checked out by mistake and asks you to reopen ${req.date ? U.fmtDay(req.date) : 'the day'}` : html`${nm(uid)} asked for a correction: ${kl[req.kind] || 'other'}`, '#admin', uid, req.field === 'reopen'); });
       const mine = ((ctx.coll.fixes.map[me] || {}).reqs) || {};
       for (const id of Object.keys(mine)) {
         const r = mine[id];
         if (!r || !r.decidedAt || M.fixes.statusOf(r) === 'pending') continue;
         push('fixd:' + id, 'fix', r.decidedAt, html`Correction ${r.status}, ${kl[r.kind] || 'other'}${r.date ? ' ' + U.fmtDate(r.date) : ''}${r.decidedNote ? ': ' + r.decidedNote : ''}`, '#me', null, r.status === 'declined');
       }
+    }
+    /* the day before a holiday, for everyone; the announcement takes its place once one is posted */
+    if (M.holidays) {
+      const hol = M.holidays.tomorrow(ctx);
+      if (hol && !M.holidays.noted(ctx, hol.date)) push('hol:' + hol.date, 'gift', U.parseYmd(U.todayStr()).getTime(), html`${M.holidays.line(hol)}`, '#calendar', null, true);
     }
     /* celebrations */
     if (M.trophies && M.trophies.today) M.trophies.today(ctx).forEach(c => { if (c.uid !== me) push('cel:' + c.uid + c.kind, 'gift', U.parseYmd(U.todayStr()).getTime(), html`${nm(c.uid)}: ${c.text}`, '#home', c.uid); });

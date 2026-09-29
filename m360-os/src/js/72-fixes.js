@@ -13,7 +13,7 @@
   ];
   const KIND_LABEL = Object.fromEntries(KINDS.map(k => [k.v, k.label.toLowerCase()]));
   const FIELDS = {
-    attendance: [{v: 'in', label: 'Check-in time'}, {v: 'out', label: 'Check-out time'}, {v: 'mode', label: 'Office or WFH'}],
+    attendance: [{v: 'in', label: 'Check-in time'}, {v: 'out', label: 'Check-out time'}, {v: 'reopen', label: 'Undo a check-out'}, {v: 'mode', label: 'Office or WFH'}],
     leave: [{v: 'balance', label: 'Leave balance'}, {v: 'request', label: 'A leave request'}],
     task: [{v: 'status', label: 'Status'}, {v: 'due', label: 'Due date'}, {v: 'points', label: 'Points'}],
     profile: [{v: 'title', label: 'Title'}, {v: 'pod', label: 'Pod'}, {v: 'joined', label: 'Joined date'}, {v: 'empId', label: 'Employee id'}],
@@ -26,6 +26,7 @@
   /* each person keeps their newest 40 requests */
   const KEEP = 40;
   const BY_HAND = 'Approved. Apply the change by hand if it is not automatic.';
+  const REOPEN_WANT = 'Still working: the check-out was pressed by mistake';
 
   /* ---------- pure helpers ---------- */
   const okDate = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) && U.ymd(U.parseYmd(s)) === s;
@@ -57,8 +58,13 @@
   function plan(ctx, uid, req) {
     const want = String(req.want || '').trim();
     if (req.kind === 'attendance' && okDate(req.date)) {
-      const field = req.field === 'out' ? 'out' : req.field === 'mode' ? 'mode' : 'in';
+      const field = req.field === 'out' ? 'out' : req.field === 'mode' ? 'mode' : req.field === 'reopen' ? 'reopen' : 'in';
       const entry = ((collMap(ctx, 'checkin')[uid] || {}).days || {})[req.date] || null;
+      /* a check-out pressed by mistake: the day opens again, the check-in and its place stay */
+      if (field === 'reopen') {
+        if (!entry || !entry.in || !entry.out) return null;
+        return {path: 'checkin/' + uid, patch: {days: {[req.date]: {out: null, outLoc: null}}}, text: 'reopens ' + U.fmtDate(req.date) + ': the check-out goes, the check-in stays'};
+      }
       if (field === 'mode') {
         const mode = want.toLowerCase();
         if ((mode === 'office' || mode === 'wfh') && entry) return {path: 'checkin/' + uid, patch: {days: {[req.date]: {mode}}}, text: 'sets ' + req.date + ' to ' + mode};
@@ -92,14 +98,15 @@
     const set = (k, v) => setF(x => ({...x, [k]: v}));
     const setKind = v => setF(x => ({...x, kind: v, field: (FIELDS[v][0] || {v: ''}).v}));
     const fields = FIELDS[f.kind] || [];
-    const canSend = !!f.want.trim() && !busy && (!f.date || okDate(f.date));
+    const reopen = f.kind === 'attendance' && f.field === 'reopen';
+    const canSend = (reopen ? okDate(f.date) : !!f.want.trim()) && !busy && (!f.date || okDate(f.date));
     const timeHint = f.kind === 'attendance' && f.field !== 'mode' ? 'HH:MM, for example 09:45' : f.kind === 'attendance' ? 'office or wfh' : '';
     const send = () => {
       if (!canSend) return;
       setBusy(true);
       const id = U.uid();
       const req = {kind: f.kind, date: okDate(f.date) ? f.date : '', field: fields.length ? f.field : '',
-        want: f.want.trim().slice(0, WANT_MAX), note: f.note.trim().slice(0, NOTE_MAX), at: Date.now(), status: 'pending',
+        want: reopen ? REOPEN_WANT : f.want.trim().slice(0, WANT_MAX), note: f.note.trim().slice(0, NOTE_MAX), at: Date.now(), status: 'pending',
         decidedAt: null, decidedNote: ''};
       const cur = U.clone(reqsOf(ctx, ctx.uid));
       const keep = Object.keys(cur).sort((a, b) => (cur[b].at || 0) - (cur[a].at || 0)).slice(0, KEEP - 1);
@@ -115,11 +122,12 @@
         <${UI.Field} label="what is wrong">
           <${UI.Seg} options=${KINDS} value=${f.kind} onChange=${setKind} ariaLabel="Kind"/>
         <//>
-        ${fields.length ? html`<${UI.Select} id="fix-field" label="which part" value=${f.field} onChange=${v => set('field', v)} options=${fields}/>` : null}
-        <${UI.Input} id="fix-date" label="date, if it is about one day" type="date" value=${f.date} onChange=${v => set('date', v)}/>
-        <${UI.Input} id="fix-want" label="what it should be" value=${f.want} hint=${timeHint}
+        ${fields.length ? html`<${UI.Select} id="fix-field" label="which part" value=${f.field} onChange=${v => setF(x => ({...x, field: v, date: v === 'reopen' && !x.date ? U.todayStr() : x.date}))} options=${fields}/>` : null}
+        <${UI.Input} id="fix-date" label=${reopen ? 'the day to reopen' : 'date, if it is about one day'} type="date" value=${f.date} onChange=${v => set('date', v)}/>
+        ${reopen ? html`<div class="small" id="fix-reopen-line">${REOPEN_WANT}. Kaavish approves, the check-out goes, and the day is open again with the check-in as it was.</div>`
+          : html`<${UI.Input} id="fix-want" label="what it should be" value=${f.want} hint=${timeHint}
           placeholder=${f.kind === 'attendance' && f.field !== 'mode' ? '09:45' : 'The correct value'}
-          onChange=${v => set('want', v.slice(0, WANT_MAX))}/>
+          onChange=${v => set('want', v.slice(0, WANT_MAX))}/>`}
         <${UI.TextArea} id="fix-note" label="why" value=${f.note} rows=${3} placeholder="What happened, in a line or two"
           onChange=${v => set('note', v.slice(0, NOTE_MAX))}/>
         <div class="sub small">Kaavish sees this and decides. The decision lands in your inbox.</div>
@@ -194,7 +202,7 @@
           ${req.field && FIELD_LABEL[req.field] ? html`<span class="tiny ink62">${FIELD_LABEL[req.field]}</span>` : null}
           ${req.date ? html`<span class="tiny ink62 num">${U.fmtDate(req.date)}</span>` : null}
         </div>
-        <div class="fix-want">Should be: ${req.want}</div>
+        <div class="fix-want">${req.field === 'reopen' ? 'Reopen the day. The check-out was pressed by mistake; the check-in stays.' : 'Should be: ' + req.want}</div>
         ${req.note ? html`<div class="small ink62">Why: ${req.note}</div>` : null}
         <div class="tiny ink62">asked ${U.timeAgo(req.at || Date.now())} · ${auto ? 'approving ' + auto.text : 'approving records the decision for you to apply by hand'}</div>
         ${mode === 'decline' ? html`<div class="row" style=${{marginTop: '8px'}}>
@@ -253,5 +261,17 @@
   M.deskTabs.push({v: 'fixes', label: html`<${TabLabel}/>`, render: FixQueue});
   M.parts.RequestFixCard = RequestFixCard;
   M.parts.FixQueue = FixQueue;
-  M.fixes = {open, pending, decided, all, plan, statusOf, KINDS, KIND_LABEL, FIELD_LABEL, okTime};
+  /* M.fixes.ask(initial): the request drawer, opened from anywhere, rendered at the shell level */
+  const askSubs = new Set();
+  function FixHost() {
+    const [init, setInit] = useState(null);
+    useEffect(() => { askSubs.add(setInit); return () => askSubs.delete(setInit); }, []);
+    return init ? html`<${FixDrawer} initial=${init} onClose=${() => setInit(null)}/>` : null;
+  }
+  const ask = initial => { askSubs.forEach(f => f({...(initial || {})})); };
+  M.parts.FixHost = FixHost;
+  /* a pending request to reopen this day, if the person has one */
+  const reopenPending = (ctx, uid, date) => Object.values(reqsOf(ctx, uid)).some(r => r && r.kind === 'attendance' && r.field === 'reopen' && r.date === date && statusOf(r) === 'pending');
+  M.parts.FixDrawer = FixDrawer;
+  M.fixes = {open, ask, pending, decided, all, plan, statusOf, reopenPending, KINDS, KIND_LABEL, FIELD_LABEL, okTime};
 })();

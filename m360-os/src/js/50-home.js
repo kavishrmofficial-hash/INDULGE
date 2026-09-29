@@ -98,8 +98,19 @@
 
   function InNow() {
     const ctx = M.useCtx();
-    const a = M.att.dayStatus(ctx, ctx.uid, U.todayStr());
+    const today = U.todayStr();
+    const a = M.att.dayStatus(ctx, ctx.uid, today);
     const [busy, setBusy] = useState(false);
+    /* a check-out pressed by mistake: the founder reopens the day in one tap; everyone else asks Kaavish */
+    const reopenSent = a.out && M.fixes && M.fixes.reopenPending ? M.fixes.reopenPending(ctx, ctx.uid, today) : false;
+    async function reopen() {
+      setBusy(true);
+      const days = U.clone((ctx.coll.checkin.map[ctx.uid] || {}).days || {});
+      const e = days[today];
+      if (e && e.out) { e.out = null; e.outLoc = null; days[today] = e; await ctx.W.merge('checkin/' + ctx.uid, {days: U.pruneDays(days)}).catch(() => {}); }
+      setBusy(false);
+      M.toast('Day reopened');
+    }
     async function out() {
       setBusy(true);
       const pos = await M.getLoc();
@@ -121,7 +132,15 @@
         </div>
       </div>
       ${a.out ? null : html`<button type="button" class="btn on-dark sec sm" disabled=${busy} onClick=${out}>Check out</button>`}
-    </div>`;
+    </div>
+    ${a.out ? (reopenSent
+      ? html`<div class="small" id="home-reopen-sent" style=${{color: 'rgba(255,255,255,.7)', marginTop: '12px'}}><span class="dotflame"/> Asked Kaavish to reopen the day. It opens again when he approves; the answer lands in your inbox.</div>`
+      : html`<div class="row" style=${{marginTop: '12px', gap: '10px'}}>
+        <span class="small" style=${{color: 'rgba(255,255,255,.7)'}}>Checked out by mistake?</span>
+        ${ctx.isFounder
+          ? html`<button type="button" class="btn on-dark sec sm" id="home-reopen" disabled=${busy} onClick=${reopen}>Reopen the day</button>`
+          : html`<button type="button" class="btn on-dark sec sm" id="home-reopen" disabled=${busy} onClick=${() => M.fixes && M.fixes.ask({kind: 'attendance', field: 'reopen', date: today})}>Ask Kaavish to reopen the day</button>`}
+      </div>`) : null}`;
   }
 
   function Clock() {
@@ -170,6 +189,7 @@
     const st = todayStatus(ctx, ctx.uid);
     const special = a.status === 'leave' ? "You're on approved leave today. Log off."
       : a.status === 'holiday' ? 'Today is a holiday.' : a.status === 'sunday' ? 'Sunday. The OS rests too.' : '';
+    const hol = M.holidays ? M.holidays.tomorrow(ctx) : null;
     return html`<header class=${'hero home-hero ' + (night ? 'ink night' : 'day')} id="home-hero" data-mode=${sky.mode}
       style=${{'--sx': sky.x + '%', '--sy': sky.y + '%', '--px': sky.px + '%', '--py': sky.py + '%', '--sun': sky.size + 'px'}}>
       <div class="hero-in">
@@ -182,6 +202,7 @@
             <span class=${chip}>level <b class="num">${lv.lvl}</b></span>
             <button type="button" class=${chip} onClick=${onStatus}>${st ? html`<span class="dotflame"/>${st.text}` : 'Set a status'}</button>
           </div>
+          ${hol ? html`<div class="hero-tomorrow" id="hero-tomorrow"><span class="dotflame"/><span>${M.holidays.line(hol)}</span></div>` : null}
         </div>
         <div class="hero-panel">${special ? html`<div class="display" style=${{fontSize: '24px'}}>${special}</div>`
           : (a.in ? html`<${InNow}/>` : html`<${TapIn}/>`)}</div>

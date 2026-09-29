@@ -140,6 +140,14 @@
       writeDay({in: Date.now(), out: null, mode: pick, loc: selfLoc(place), outLoc: null}, 'Checked in')
         .then(() => { if (live.current) setPick(null); done(); });
     };
+    /* the founder reopens a day in one tap; everyone else asks, and the request lands with Kaavish */
+    const reopen = () => {
+      if (busy) return;
+      const current = daysOf(ctxRef.current, uid)[today];
+      if (!current || !current.in || !current.out) return;
+      setBusy(true);
+      writeDay({...U.clone(current), out: null, outLoc: null}, 'Day reopened').then(done);
+    };
     const checkOut = () => {
       if (busy) return;
       const current = daysOf(ctxRef.current, uid)[today];
@@ -192,12 +200,16 @@
         ${consent}
       </div>`;
     } else {
+      const sent = M.fixes && M.fixes.reopenPending ? M.fixes.reopenPending(ctx, uid, today) : false;
       body = html`<div class="stack">
         <div class="row">
           <span class="num">In ${U.hhmm(ds.in)}, out ${U.hhmm(ds.out)}, ${U.durText(ds.hours)}.</span>
           ${latePill}
         </div>
         <div class="sub small">${U.cap(modeLabel(ds.entry.mode))}. ${placeText(ds.loc)}</div>
+        ${sent ? html`<div class="sub small" id="checkin-reopen-sent"><span class="dotflame"/> Asked Kaavish to reopen the day. It opens again when he approves; the answer lands in your inbox.</div>`
+          : ctx.isFounder ? html`<div class="row"><${UI.Btn} kind="sec" sm=${true} id="checkin-reopen" disabled=${busy} onClick=${reopen}>Reopen the day<//><span class="sub small">Checked out by mistake? The check-in stays as it was.</span></div>`
+          : html`<div class="row checkin-reopen"><span class="sub small">Checked out by mistake?</span><${UI.Btn} kind="sec" sm=${true} id="checkin-reopen" disabled=${busy} onClick=${() => M.fixes && M.fixes.ask({kind: 'attendance', field: 'reopen', date: today})}>Ask Kaavish to reopen the day<//></div>`}
         ${consent}
       </div>`;
     }
