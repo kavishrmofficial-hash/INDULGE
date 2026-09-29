@@ -1,0 +1,20 @@
+name: deps-check
+# Prints the SHA-384 of the three pinned scripts the claude.ai page loads from public CDNs, so the
+# integrity attributes in m360-os/build.py can be checked against what the CDNs serve today.
+on:
+  workflow_dispatch:
+jobs:
+  hashes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: What the CDNs serve
+        run: |
+          for u in \
+            https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js \
+            https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js \
+            https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js; do
+            curl -sSL -m 60 "$u" -o f.js
+            echo "== $u"
+            echo "bytes: $(wc -c < f.js)"
+            echo "sha384-$(openssl dgst -sha384 -binary f.js | openssl base64 -A)"
+          done
