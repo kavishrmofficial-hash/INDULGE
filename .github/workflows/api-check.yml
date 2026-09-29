@@ -1,0 +1,33 @@
+name: api-check
+# Asks the team site's API functions how they answer, without a sign in: a healthy function refuses
+# with 401 or 400 at once; a function that fails to load or dies answers with the platform's own
+# Bad Gateway page. Also fetches a few addresses from the runner the way the browse function does.
+on:
+  workflow_dispatch:
+    inputs:
+      site:
+        description: The site to check
+        default: https://m360os-wx9u1bqs.edgeone.dev
+      url:
+        description: An address to try through the browse function and from the runner
+        default: https://www.behance.net/
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: What the API functions answer
+        env:
+          SITE: ${{ github.event.inputs.site || 'https://m360os-wx9u1bqs.edgeone.dev' }}
+          U: ${{ github.event.inputs.url || 'https://www.behance.net/' }}
+        run: |
+          probe() { echo "== $1"; curl -sS -m 40 -o body.txt -w 'status %{http_code}  type %{content_type}  bytes %{size_download}  time %{time_total}s\n' "${@:2}" || echo "(curl failed)"; head -c 300 body.txt | tr '\n' ' '; echo; echo; }
+          probe "GET /api/m360 (no action)" "$SITE/api/m360"
+          probe "POST /api/m360 me" -X POST "$SITE/api/m360" -H 'content-type: application/json' -d '{"a":"me"}'
+          probe "POST /api/m360 framecheck, signed out" -X POST "$SITE/api/m360" -H 'content-type: application/json' -d "{\"a\":\"framecheck\",\"url\":\"$U\"}"
+          probe "GET /api/browse, no address" "$SITE/api/browse"
+          probe "GET /api/browse, signed out" "$SITE/api/browse?u=$(python3 -c "import urllib.parse,os;print(urllib.parse.quote(os.environ['U'],safe=''))")"
+          probe "GET /api/file, signed out" "$SITE/api/file?id=x"
+          probe "GET /api/google, signed out" "$SITE/api/google"
+          probe "GET /api/apollo" "$SITE/api/apollo"
+          probe "the address itself, from the runner" -L "$U" -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36'
+          echo "== frame headers of the address"; curl -sSIL -m 30 "$U" | tr -d '\r' | grep -iE '^(HTTP|x-frame-options|content-security-policy|content-length|content-type)' || true
