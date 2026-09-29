@@ -290,7 +290,11 @@
           <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${allRooms ? 'on' : 'off'} ariaLabel="Room notices"
             onChange=${v => { M.prefs.set('noticeAll', v === 'on' ? '1' : '0'); setAllRooms(v === 'on'); }}/>
         </div>
-        ${perm === 'default' ? html`<div class="row between"><span>Notices while m360 is in the background</span><button type="button" class="linky small" id="notify-ask" onClick=${() => M.notices && M.notices.ask().then(p => setPerm(p || 'denied'))}>Allow</button></div>` : null}
+        <div class="row between"><span>Bubbles while m360 is in another window</span>
+          ${perm === 'default' ? html`<button type="button" class="linky small" id="notify-ask" onClick=${() => M.notices && M.notices.ask().then(p => setPerm(p || 'denied'))}>Allow</button>`
+            : perm === 'granted' ? html`<span class="pill ink" id="notify-state">on</span>`
+            : perm === 'denied' ? html`<span class="tiny ink62" id="notify-state">blocked in this browser's site settings</span>`
+            : html`<span class="tiny ink62" id="notify-state">not on this browser</span>`}</div>
         <div class="row between"><span>The tour</span><button type="button" class="linky small" id="tour-again" onClick=${() => M.tour && M.tour.start()}>Show me around</button></div>
         <div class="row between"><span>Keyboard shortcuts</span><button type="button" class="linky small" onClick=${() => window.dispatchEvent(new CustomEvent('m360:keys'))}>Show the sheet</button></div>
         <div class="row between"><span>This build</span><span class="num tiny ink62" id="build-stamp">${window.M360_BUILD || 'claude.ai page'}</span></div>

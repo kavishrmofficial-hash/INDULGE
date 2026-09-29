@@ -680,6 +680,7 @@
 
     return html`<div class="stack" style=${{gap: '18px'}}>
       <${Hero} onStatus=${() => setStatus(true)}/>
+      ${M.parts.NoticePermit ? html`<${M.parts.NoticePermit}/>` : null}
       ${M.parts.JoinBanner ? html`<${M.parts.JoinBanner}/>` : null}
       <${Announcement}/>
       ${Celebrate ? html`<${Celebrate}/>` : null}

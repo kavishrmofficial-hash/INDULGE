@@ -321,6 +321,8 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .home-hero .hero-tomorrow{display:flex; align-items:center; gap:8px; margin-top:14px; font-size:14px; font-weight:500}
 .home-hero.night .hero-tomorrow{color:rgba(255,255,255,.86)}
 .checkin-reopen{gap:10px}
+.notify-card{border-color:var(--flame)}
+@media (max-width:860px){ .notify-card .row.between{flex-direction:column; align-items:stretch} .notify-card .row.nowrap{justify-content:flex-start} }
 .home-hero .hero-panel{background:var(--dark); color:#fff; border-radius:18px; padding:20px 20px 18px; border:1px solid rgba(255,255,255,.08); min-width:0}
 .home-hero.night .hero-panel{background:rgba(255,255,255,.06); background:color-mix(in srgb, var(--dark) 93%, #fff); border-color:rgba(255,255,255,.12)}
 .home-hero.day .hero-clock{color:var(--micro)}
@@ -857,7 +859,7 @@ body.web-focus .web-rail{border-right-width:1px; padding-top:calc(12px + env(saf
 .chat-composer .iconbtn{flex:none; height:44px; width:44px}
 
 /* notices: small cards in the top right, the way a phone shows a message */
-.notices{position:fixed; top:14px; right:14px; z-index:95; display:flex; flex-direction:column; gap:8px; width:min(340px,calc(100vw - 28px)); pointer-events:none}
+.notices{position:fixed; top:14px; right:14px; z-index:59; display:flex; flex-direction:column; gap:8px; width:min(340px,calc(100vw - 28px)); pointer-events:none}
 .notice{display:flex; align-items:flex-start; gap:4px; background:var(--paper); color:var(--ink); border:1px solid var(--line); border-radius:16px; box-shadow:0 14px 34px var(--shadow); padding:10px 8px 10px 12px; pointer-events:auto; animation:notice-in .28s cubic-bezier(.2,.8,.2,1)}
 @keyframes notice-in{from{opacity:0; transform:translateY(-10px) scale(.98)}to{opacity:1; transform:none}}
 .notice-body{display:flex; align-items:center; gap:10px; flex:1; min-width:0; border:0; background:transparent; font:inherit; color:inherit; text-align:left; padding:0; cursor:pointer}

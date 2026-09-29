@@ -27,7 +27,7 @@
       setTimeout(() => { list = list.filter(x => x.id !== item.id); emit(); }, n.life || LIFE);
       /* the tab is away: the browser shows it too */
       try {
-        if (document.hidden && window.Notification && Notification.permission === 'granted') {
+        if ((document.hidden || !document.hasFocus()) && window.Notification && Notification.permission === 'granted') {
           const nn = new Notification(n.title, {body: M.notices.previews() ? String(n.body || '').slice(0, 140) : 'New message', tag: n.key || ('m360-' + item.id), icon: 'icons/icon-192.png'});
           nn.onclick = () => { try { window.focus(); if (n.href) M.nav(n.href); nn.close(); } catch (e) { /* closed */ } };
         }
@@ -36,6 +36,8 @@
     dismiss(id) { list = list.filter(x => x.id !== id); emit(); },
     clear() { list = []; emit(); },
     ask: () => { try { if (window.Notification && Notification.permission === 'default') return Notification.requestPermission(); } catch (e) { /* none */ } return Promise.resolve(window.Notification ? Notification.permission : 'denied'); },
+    /* 'default' (never asked), 'granted', 'denied', or 'none' when this browser has no notifications */
+    state: () => { try { return window.Notification ? Notification.permission : 'none'; } catch (e) { return 'none'; } },
     on: f => { subs.add(f); return () => subs.delete(f); }
   };
 
@@ -59,4 +61,28 @@
   }
 
   M.parts.Notices = Notices;
+
+  /* the one-time card on Home: browsers only grant notifications from a tap, so this asks for it */
+  function NoticePermit() {
+    const ctx = M.useCtx();
+    const uid = ctx && ctx.uid;
+    const [perm, setPerm] = useState(() => M.notices.state());
+    const [gone, setGone] = useState(() => !!uid && M.prefs.get('notifyAsk.' + uid, '') === '0');
+    if (!uid || perm !== 'default' || gone) return null;
+    const later = () => { M.prefs.set('notifyAsk.' + uid, '0'); setGone(true); };
+    const on = () => M.notices.ask().then(p => { setPerm(p || 'denied'); M.toast(p === 'granted' ? 'Notifications are on' : 'Notifications stay off'); });
+    return html`<div class="card notify-card" id="notify-card">
+      <div class="row between">
+        <div class="grow" style=${{minWidth: 0}}>
+          <div class="card-title">Get a bubble when something is for you</div>
+          <div class="small ink62" style=${{marginTop: '4px'}}>A task handed to you, a message, an approval, kudos, a holiday: m360 shows it on your screen even while it sits in another window.</div>
+        </div>
+        <span class="row nowrap" style=${{gap: '8px'}}>
+          <${UI.Btn} sm=${true} id="notify-on" onClick=${on}>Turn on notifications<//>
+          <${UI.Btn} kind="ghost" sm=${true} id="notify-later" onClick=${later}>Not now<//>
+        </span>
+      </div>
+    </div>`;
+  }
+  M.parts.NoticePermit = NoticePermit;
 })();

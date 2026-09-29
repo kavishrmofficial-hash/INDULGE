@@ -401,6 +401,7 @@
       ${M.parts.FixHost ? html`<${M.parts.FixHost}/>` : null}
       ${M.parts.BreatheHost ? html`<${M.parts.BreatheHost}/>` : null}
       ${M.parts.ChatWatch ? html`<${M.parts.ChatWatch}/>` : null}
+      ${M.parts.InboxWatch ? html`<${M.parts.InboxWatch}/>` : null}
       <${NewerBuild}/>
       ${M.parts.Notices ? html`<${M.parts.Notices}/>` : null}
       ${M.parts.MusicDock ? html`<${M.parts.MusicDock}/>` : null}

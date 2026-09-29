@@ -4,15 +4,22 @@
 'use strict';
 (function () {
   const {html, React, U, UI, icons} = M;
-  const {useState, useEffect} = React;
+  const {useState, useEffect, useMemo} = React;
 
   const KEEP_DAYS = 21;
+  /* a line with names in it: T`${nm(uid)} handed you ${title}` gives {el} for the drawer (names as
+     live components) and {plain(nameOf)} for a bubble or a system notification */
+  const NAME = Symbol('name');
+  const nm = id => ({[NAME]: id});
+  const T = (strings, ...vals) => ({
+    el: html(strings, ...vals.map(v => (v && v[NAME]) ? html`<${UI.Name} id=${v[NAME]}/>` : v)),
+    plain: nameOf => strings.reduce((acc, str, i) => acc + str + (i < vals.length ? ((vals[i] && vals[i][NAME]) ? nameOf(vals[i][NAME]) : (vals[i] == null ? '' : String(vals[i]))) : ''), '')
+  });
 
   function items(ctx) {
     const out = [];
     const me = ctx.uid, since = ctx.now - KEEP_DAYS * 86400000;
-    const push = (id, kind, at, text, ref, actor, hot) => { if (at >= since) out.push({id, kind, at, text, ref, actor, hot: !!hot}); };
-    const nm = id => html`<${UI.Name} id=${id}/>`;
+    const push = (id, kind, at, line, ref, actor, hot) => { if (at >= since) out.push({id, kind, at, text: line.el, plain: line.plain, ref, actor, hot: !!hot}); };
 
     /* tasks */
     const tmap = ctx.coll.tasks.map;
@@ -20,65 +27,65 @@
       const t = tmap[id];
       if (!t) continue;
       const mine = t.owner === me;
-      if (mine && t.by && t.by !== me) push('assign:' + id, 'tasks', t.created || 0, html`${nm(t.by)} handed you ${t.title}`, '#tasks/' + id, t.by);
-      if (mine && t.status === 'done' && t.doneAt && t.approvedBy && t.approvedBy !== me) push('ok:' + id, 'review', t.doneAt, html`${nm(t.approvedBy)} approved ${t.title}`, '#tasks/' + id, t.approvedBy);
-      if (mine && t.sentBackAt && t.sentBackBy && t.sentBackBy !== me) push('back:' + id, 'review', t.sentBackAt, html`${nm(t.sentBackBy)} sent ${t.title} back${t.sentBackNote ? ': ' + t.sentBackNote : ''}`, '#tasks/' + id, t.sentBackBy, true);
+      if (mine && t.by && t.by !== me) push('assign:' + id, 'tasks', t.created || 0, T`${nm(t.by)} handed you ${t.title}`, '#tasks/' + id, t.by);
+      if (mine && t.status === 'done' && t.doneAt && t.approvedBy && t.approvedBy !== me) push('ok:' + id, 'review', t.doneAt, T`${nm(t.approvedBy)} approved ${t.title}`, '#tasks/' + id, t.approvedBy);
+      if (mine && t.sentBackAt && t.sentBackBy && t.sentBackBy !== me) push('back:' + id, 'review', t.sentBackAt, T`${nm(t.sentBackBy)} sent ${t.title} back${t.sentBackNote ? ': ' + t.sentBackNote : ''}`, '#tasks/' + id, t.sentBackBy, true);
       if (!mine && t.status === 'review' && t.reviewAt && (ctx.isFounder || (t.project && ctx.coll.projects.map[t.project] && ctx.coll.projects.map[t.project].owner === me)))
-        push('rev:' + id, 'review', t.reviewAt, html`${nm(t.owner)} put ${t.title} up for review`, '#reviews', t.owner);
+        push('rev:' + id, 'review', t.reviewAt, T`${nm(t.owner)} put ${t.title} up for review`, '#reviews', t.owner);
       const cs = t.comments || {};
       for (const cid of Object.keys(cs)) {
         const c = cs[cid];
         if (!c || c.by === me) continue;
         const mentioned = (c.mentions || []).includes(me);
-        if (mentioned || mine) push('cm:' + cid, 'feed', c.at || 0, html`${nm(c.by)}${mentioned ? ' mentioned you on ' : ' commented on '}${t.title}`, '#tasks/' + id, c.by, mentioned);
+        if (mentioned || mine) push('cm:' + cid, 'feed', c.at || 0, T`${nm(c.by)}${mentioned ? ' mentioned you on ' : ' commented on '}${t.title}`, '#tasks/' + id, c.by, mentioned);
       }
     }
     /* kudos to me */
     const kmap = ctx.coll.kudos.map;
     for (const giver of Object.keys(kmap)) for (const k of (kmap[giver].given || [])) {
-      if (k && k.to === me && giver !== me) push('k:' + k.id, 'scores', k.at || 0, html`${nm(giver)} gave you kudos: ${k.why}`, '#feed', giver, true);
+      if (k && k.to === me && giver !== me) push('k:' + k.id, 'scores', k.at || 0, T`${nm(giver)} gave you kudos: ${k.why}`, '#feed', giver, true);
     }
     /* leave decisions on my requests */
     const dec = ((ctx.coll.leavedec.map[me] || {}).d) || {};
     const reqs = ((ctx.coll.leave.map[me] || {}).reqs) || [];
     for (const r of reqs) {
       const d = r && dec[r.id];
-      if (d && d.at) push('lv:' + r.id, 'leave', d.at, html`Leave ${U.fmtDate(r.from)}${r.to !== r.from ? ' to ' + U.fmtDate(r.to) : ''} ${d.status}`, '#leave', null, d.status === 'declined');
+      if (d && d.at) push('lv:' + r.id, 'leave', d.at, T`Leave ${U.fmtDate(r.from)}${r.to !== r.from ? ' to ' + U.fmtDate(r.to) : ''} ${d.status}`, '#leave', null, d.status === 'declined');
     }
     /* announcements */
     const fmap = ctx.coll.feed.map;
     for (const author of Object.keys(fmap)) for (const p of (fmap[author].posts || [])) {
-      if (p && p.kind === 'announce' && author !== me) push('an:' + p.id, 'feed', p.at || 0, html`${nm(author)} announced: ${String(p.text).slice(0, 90)}`, '#feed', author, true);
-      if (p && p.kind === 'poll' && author !== me && !((p.votes || {})[me]) && ((((ctx.coll.votes || {}).map || {})[me] || {}).polls || {})[author + ':' + p.id] === undefined) push('poll:' + p.id, 'feed', p.at || 0, html`${nm(author)} asked: ${String(p.text).slice(0, 80)}`, '#feed', author);
+      if (p && p.kind === 'announce' && author !== me) push('an:' + p.id, 'feed', p.at || 0, T`${nm(author)} announced: ${String(p.text).slice(0, 90)}`, '#feed', author, true);
+      if (p && p.kind === 'poll' && author !== me && !((p.votes || {})[me]) && ((((ctx.coll.votes || {}).map || {})[me] || {}).polls || {})[author + ':' + p.id] === undefined) push('poll:' + p.id, 'feed', p.at || 0, T`${nm(author)} asked: ${String(p.text).slice(0, 80)}`, '#feed', author);
     }
     /* chat: direct messages and mentions since the read mark */
     if (M.rooms && ctx.coll.chat) {
       const myName = ((ctx.coll.me.map[me] || {}).name) || '';
-      for (const it of M.rooms.inboxItems(ctx, myName)) push(it.id, 'chat', it.m.at || 0, html`${nm(it.m.by)}${it.dm ? '' : ' in #' + it.room}: ${String(it.m.text).slice(0, 90)}`, '#chat/' + it.room, it.m.by, it.dm);
+      for (const it of M.rooms.inboxItems(ctx, myName)) push(it.id, 'chat', it.m.at || 0, T`${nm(it.m.by)}${it.dm ? '' : ' in #' + it.room}: ${String(it.m.text).slice(0, 90)}`, '#chat/' + it.room, it.m.by, it.dm);
     }
     /* founder: joins and leave requests */
     if (ctx.isFounder) {
-      (M.team ? M.team.requests(ctx) : []).forEach(r => push('join:' + r.uid, 'people', r.at, html`${nm(r.uid)} wants to join the team`, '#admin', r.uid, true));
-      if (M.leave && M.leave.pending) M.leave.pending(ctx).forEach(({uid, req}) => push('lvr:' + req.id, 'leave', req.at || 0, html`${nm(uid)} asked for leave, ${M.leave.rangeText(req)}`, '#admin', uid));
+      (M.team ? M.team.requests(ctx) : []).forEach(r => push('join:' + r.uid, 'people', r.at, T`${nm(r.uid)} wants to join the team`, '#admin', r.uid, true));
+      if (M.leave && M.leave.pending) M.leave.pending(ctx).forEach(({uid, req}) => push('lvr:' + req.id, 'leave', req.at || 0, T`${nm(uid)} asked for leave, ${M.leave.rangeText(req)}`, '#admin', uid));
     }
     /* corrections: the founder sees each pending request, the person sees the decision */
     if (M.fixes && M.fixes.pending) {
       const kl = M.fixes.KIND_LABEL || {};
-      if (ctx.isFounder) M.fixes.pending(ctx).forEach(({uid, id, req}) => { if (uid !== me) push('fix:' + id, 'fix', req.at || 0, req.field === 'reopen' ? html`${nm(uid)} checked out by mistake and asks you to reopen ${req.date ? U.fmtDay(req.date) : 'the day'}` : html`${nm(uid)} asked for a correction: ${kl[req.kind] || 'other'}`, '#admin', uid, req.field === 'reopen'); });
+      if (ctx.isFounder) M.fixes.pending(ctx).forEach(({uid, id, req}) => { if (uid !== me) push('fix:' + id, 'fix', req.at || 0, req.field === 'reopen' ? T`${nm(uid)} checked out by mistake and asks you to reopen ${req.date ? U.fmtDay(req.date) : 'the day'}` : T`${nm(uid)} asked for a correction: ${kl[req.kind] || 'other'}`, '#admin', uid, req.field === 'reopen'); });
       const mine = ((ctx.coll.fixes.map[me] || {}).reqs) || {};
       for (const id of Object.keys(mine)) {
         const r = mine[id];
         if (!r || !r.decidedAt || M.fixes.statusOf(r) === 'pending') continue;
-        push('fixd:' + id, 'fix', r.decidedAt, html`Correction ${r.status}, ${kl[r.kind] || 'other'}${r.date ? ' ' + U.fmtDate(r.date) : ''}${r.decidedNote ? ': ' + r.decidedNote : ''}`, '#me', null, r.status === 'declined');
+        push('fixd:' + id, 'fix', r.decidedAt, T`Correction ${r.status}, ${kl[r.kind] || 'other'}${r.date ? ' ' + U.fmtDate(r.date) : ''}${r.decidedNote ? ': ' + r.decidedNote : ''}`, '#me', null, r.status === 'declined');
       }
     }
     /* the day before a holiday, for everyone; the announcement takes its place once one is posted */
     if (M.holidays) {
       const hol = M.holidays.tomorrow(ctx);
-      if (hol && !M.holidays.noted(ctx, hol.date)) push('hol:' + hol.date, 'gift', U.parseYmd(U.todayStr()).getTime(), html`${M.holidays.line(hol)}`, '#calendar', null, true);
+      if (hol && !M.holidays.noted(ctx, hol.date)) push('hol:' + hol.date, 'gift', U.parseYmd(U.todayStr()).getTime(), T`${M.holidays.line(hol)}`, '#calendar', null, true);
     }
     /* celebrations */
-    if (M.trophies && M.trophies.today) M.trophies.today(ctx).forEach(c => { if (c.uid !== me) push('cel:' + c.uid + c.kind, 'gift', U.parseYmd(U.todayStr()).getTime(), html`${nm(c.uid)}: ${c.text}`, '#home', c.uid); });
+    if (M.trophies && M.trophies.today) M.trophies.today(ctx).forEach(c => { if (c.uid !== me) push('cel:' + c.uid + c.kind, 'gift', U.parseYmd(U.todayStr()).getTime(), T`${nm(c.uid)}: ${c.text}`, '#home', c.uid); });
     out.sort((a, b) => b.at - a.at);
     return out.slice(0, 60);
   }
@@ -110,6 +117,41 @@
       </div>` : html`<${UI.Empty} text="Nothing yet. Assignments, kudos, mentions and decisions land here."/>`}
     <//>`;
   }
+
+  /* ---------- the watcher: a new item for you becomes a bubble wherever you are, and a system
+     notification when m360 sits in another window. Chat lines have their own watcher. The mark of
+     the newest item seen lives in this browser, per person; the first load on a device sets it, so
+     a backlog never rains down. ---------- */
+  const TITLE = {tasks: 'Work', review: 'Review', feed: 'Feed', scores: 'Kudos', leave: 'Leave', people: 'Team', gift: 'Today', fix: 'Correction'};
+  function InboxWatch() {
+    const ctx = M.useCtx();
+    const uid = ctx.uid;
+    const ids = useMemo(() => ctx.activeMembers.map(m => m.uid), [ctx.activeMembers]);
+    const profs = M.useProfiles(ids);
+    const nameOf = id => (profs[id] && profs[id].name) || (ctx.members[id] && ctx.members[id].name) || 'Someone';
+    useEffect(() => {
+      if (!uid || !ctx.ready || !M.notices) return;
+      const key = 'inboxNotice.' + uid;
+      const now = Date.now();
+      const list = items(ctx).filter(i => i.kind !== 'chat' && i.at <= now + 120000);
+      const newest = list.reduce((m, i) => Math.max(m, Number(i.at) || 0), 0);
+      const mark = Number(M.prefs.get(key, '0')) || 0;
+      if (!mark) { M.prefs.set(key, String(newest || now)); return; }
+      const seen = seenAt(ctx);
+      const fresh = list.filter(i => i.at > mark && i.at > seen).sort((a, b) => a.at - b.at);
+      if (newest > mark) M.prefs.set(key, String(newest));
+      if (!fresh.length) return;
+      for (const it of fresh.slice(-4)) {
+        const who = it.actor ? nameOf(it.actor) : '';
+        const line = it.plain(nameOf);
+        const body = who && line.startsWith(who + ' ') ? U.cap(line.slice(who.length + 1)) : line;
+        M.notices.push({key: 'inbox:' + it.id, who: it.actor || null, title: who || (TITLE[it.kind] || 'm360'), body, hidden: 'Something new for you in m360', href: it.ref, life: 12000});
+      }
+      M.sound.play('soft');
+    }, [ctx]);
+    return null;
+  }
+  M.parts.InboxWatch = InboxWatch;
 
   M.inbox = {items, unread, seenAt};
   M.parts.Inbox = Inbox;
