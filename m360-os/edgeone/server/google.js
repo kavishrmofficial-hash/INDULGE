@@ -177,7 +177,9 @@ export function googleActions(h) {
       if (!c) throw new HttpError(400, 'google_off', 'Google is not set up yet. Kaavish adds the client in Admin.');
       const nonce = rand(32).replace(/[^a-z0-9]/gi, '').slice(0, 32);
       const back = /^#[a-z0-9/_-]*$/i.test(String(body.back || '')) ? String(body.back) : '#mail';
-      await putJ('c/g/' + nonce, {uid: v.uid, until: Date.now() + STATE_MS, back});
+      /* the public address the page came from is kept with the state: the callback arrives at the
+         platform's own function address, which is neither the registered redirect nor a place to send a browser */
+      await putJ('c/g/' + nonce, {uid: v.uid, until: Date.now() + STATE_MS, back, site: String((req && req.site) || '')});
       const url = 'https://accounts.google.com/o/oauth2/v2/auth?' + q({client_id: c.clientId, redirect_uri: redirectFor(req), response_type: 'code',
         scope: SCOPES.join(' '), access_type: 'offline', prompt: 'consent', include_granted_scopes: 'true', state: nonce});
       return {url};
@@ -311,12 +313,14 @@ export function googleActions(h) {
     /* the address the browser used, so the way back lands on the same host and port */
     const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || '';
     const proto = (request.headers.get('x-forwarded-proto') || url.protocol.replace(':', '') || 'https').split(',')[0].trim();
-    const site = host ? proto + '://' + host : url.origin;
+    let site = host ? proto + '://' + host : url.origin;
     const back = (where, ok, why) => new Response('', {status: 302, headers: {location: site + '/?google=' + (ok ? 'ok' : 'error') + (why ? '&why=' + encodeURIComponent(why) : '') + (where || '#mail'), 'cache-control': 'no-store'}});
     const code = url.searchParams.get('code') || '', state = url.searchParams.get('state') || '';
     if (!/^[a-z0-9]{10,64}$/i.test(state)) return back('', false, 'state');
     const rec = await getJ('c/g/' + state).catch(() => null);
     await store.delete('c/g/' + state).catch(() => {});
+    /* the address the sign-in started from wins: the redirect registered with Google and the page the browser returns to */
+    if (rec && /^https?:\/\/[^/]+$/.test(String(rec.site || ''))) site = rec.site;
     if (!rec || !rec.uid || Number(rec.until) < Date.now()) return back('', false, 'expired');
     if (!code || url.searchParams.get('error')) return back(rec.back, false, url.searchParams.get('error') || 'nocode');
     const c = await conf();
