@@ -83,8 +83,14 @@ SEC_HEADERS = [
 def csp_for(doc):
     import hashlib, base64
     hashes = []
-    for m in re.finditer(r'<script>([\s\S]*?)</script>', doc):
-        h = base64.b64encode(hashlib.sha256(m.group(1).encode('utf-8')).digest()).decode('ascii')
+    # reading mode (edgeone/server/web.js) frames a page it fetched as a blob document, which inherits this policy,
+    # and appends its own small navigation script to it; that script is named by its hash too
+    web = open(os.path.join(ROOT, 'edgeone', 'server', 'web.js'), encoding='utf-8').read()
+    nav = re.search(r'const NAV_SCRIPT = `<script>([\s\S]*?)</script>`;', web)
+    assert nav, 'NAV_SCRIPT not found in web.js'
+    assert '${' not in nav.group(1) and '\\' not in nav.group(1), 'NAV_SCRIPT must be a plain literal to hash'
+    for body in [m.group(1) for m in re.finditer(r'<script>([\s\S]*?)</script>', doc)] + [nav.group(1)]:
+        h = base64.b64encode(hashlib.sha256(body.encode('utf-8')).digest()).decode('ascii')
         if "'sha256-%s'" % h not in hashes:
             hashes.append("'sha256-%s'" % h)
     return '; '.join([
@@ -95,7 +101,7 @@ def csp_for(doc):
         "font-src 'self' data:",
         "media-src 'self' data: blob: https:",
         "connect-src 'self' https://api.spotify.com https://accounts.spotify.com https://*.spotify.com wss://*.spotify.com https://*.scdn.co https://*.spotifycdn.com",
-        "frame-src https:",
+        "frame-src https: blob:",
         "worker-src 'self'",
         "object-src 'none'",
         "base-uri 'self'",

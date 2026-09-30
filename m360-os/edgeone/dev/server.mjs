@@ -263,6 +263,8 @@ http.createServer(async (req, res) => {
   /* the same headers the platform answers with (edgeone.json), so the browser under test enforces the site's CSP */
   const hdrs = {'content-type': TYPES[path.extname(f)] || 'application/octet-stream'};
   for (const h of CFG_HEADERS) if (h.source === url.pathname || (h.source === '/*' && url.pathname !== '/') || (h.source === '/' && rel === 'index.html')) for (const x of h.headers || []) hdrs[x.key.toLowerCase()] = x.value;
+  /* the tests stand in for outside sites with local http pages; the live policy allows them over https only */
+  if (hdrs['content-security-policy']) hdrs['content-security-policy'] = hdrs['content-security-policy'].replace(/(frame-src|img-src|media-src|connect-src)([^;]*)/g, '$1$2 http://localhost:* http://127.0.0.1:*');
   res.writeHead(200, hdrs);
   fs.createReadStream(f).pipe(res);
 }).listen(port, '127.0.0.1', () => console.log('m360 local edge on http://localhost:' + port));
