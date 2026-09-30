@@ -326,7 +326,6 @@
         <button type="button" class="btn ghost sm" disabled=${busy === 'share'} onClick=${() => act('share', async () => { await postLink(ctx, it.title, it.link); M.toast('Shared to the feed'); })}>
           <${icons.feed}/> Share to Vibe</button>
         ${M.ai.on(ctx) ? html`<${WhyItMatters} it=${it}/>` : null}
-        ${M.hunt && (it.lane === 'people' || it.lane === 'accounts' || it.lane === 'launches') ? html`<button type="button" class="btn ghost sm" onClick=${() => M.hunt.pursueFromNews(it)}>Pursue</button>` : null}
       </div>
     </article>`;
   }

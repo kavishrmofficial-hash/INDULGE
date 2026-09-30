@@ -135,20 +135,18 @@
     const pm = ctx.isFounder && M.pitches && M.pitches.metrics ? M.pitches.metrics(ctx) : null;
     const sh = ctx.isFounder && M.clients && M.clients.shares ? M.clients.shares(ctx) : [];
     const mrr = sh.reduce((n, r) => n + (r.monthly || 0), 0);
-    const hunting = M.hunt ? M.hunt.pursuits(ctx).filter(p => ['found', 'audited', 'sent', 'replied', 'talking', 'pilot'].includes(p.stage || 'found')).length : 0;
     const t = tab || 'clients';
     return html`<div class="stack" style=${{gap: '20px'}}>
       <${M.SectionHero} micro="accounts" title="Accounts">
         <div class="row" style=${{gap: '8px'}}>
           <${Mini} v=${live} l="live clients"/>
           <${Mini} v=${inPlay} l="pitches in play"/>
-          ${M.hunt ? html`<${Mini} v=${hunting} l="big brands in pursuit"/>` : null}
           ${pm ? html`<${Mini} v=${U.inr(pm.weighted)} l="weighted pipeline"/>` : null}
           ${ctx.isFounder ? html`<${Mini} v=${U.inr(mrr)} l="monthly revenue"/>` : null}
         </div>
       <//>
       <${M.SectionTabs} section="accounts" active=${t}/>
-      ${t === 'pipeline' ? html`<${Embed} page="Pitches"/>` : t === 'crm' && M.parts.CRM ? html`<${M.parts.CRM}/>` : t === 'hunt' ? html`<${Embed} page="Hunt"/>` : html`<${Embed} page="Clients"/>`}
+      ${t === 'pipeline' ? html`<${Embed} page="Pitches"/>` : t === 'crm' && M.parts.CRM ? html`<${M.parts.CRM}/>` : html`<${Embed} page="Clients"/>`}
     </div>`;
   }
 

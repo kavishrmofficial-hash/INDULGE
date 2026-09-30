@@ -33,7 +33,7 @@
       {k: 'calendar', label: 'Calendar', route: 'calendar'}, {k: 'reviews', label: 'Reviews', route: 'reviews'},
       {k: 'week', label: 'The week', route: 'week'}]},
     accounts: {label: 'Accounts', icon: 'clients', page: 'Accounts', tabs: [
-      {k: 'clients', label: 'Clients', route: 'clients'}, {k: 'pipeline', label: 'Pipeline', route: 'pitches'}, {k: 'crm', label: 'CRM', route: 'crm'}, {k: 'hunt', label: 'Hunt', route: 'hunt'}]},
+      {k: 'clients', label: 'Clients', route: 'clients'}, {k: 'pipeline', label: 'Pipeline', route: 'pitches'}, {k: 'crm', label: 'CRM', route: 'crm'}]},
     vibe: {label: 'Vibe', icon: 'feed', page: 'Vibe', tabs: [
       {k: 'feed', label: 'Feed', route: 'feed'}, {k: 'crew', label: 'Crew', route: 'people'},
       {k: 'pulse', label: 'Pulse and ideas', route: 'voice'}, {k: 'scores', label: 'Leaderboard', route: 'scores'}, {k: 'music', label: 'Music', route: 'music'}]},
@@ -49,7 +49,7 @@
       {k: 'profile', label: 'Profile', route: 'me'}, {k: 'notes', label: 'Notes', route: 'notes'}, {k: 'trophies', label: 'Trophies', route: 'trophies'}, {k: 'leave', label: 'Leave', route: 'leave'},
       {k: 'handbook', label: 'Handbook', route: 'handbook'}, {k: 'hiring', label: 'Hiring', route: 'hiring'}]},
     hq: {label: 'HQ', icon: 'command', page: 'HQ', founder: true, tabs: [
-      {k: 'brief', label: 'Intelligence', route: 'hq'}, {k: 'scout', label: 'Scout', route: 'scout'}, {k: 'dashboard', label: 'Dashboard', route: 'command'},
+      {k: 'brief', label: 'Intelligence', route: 'hq'}, {k: 'dashboard', label: 'Dashboard', route: 'command'},
       {k: 'hiring', label: 'Hiring', route: 'hiring'}]},
     admin: {label: 'Admin', icon: 'desk', page: 'Admin', founder: true},
     books: {label: 'Books', icon: 'log', page: 'Books', founder: true, owner: true, tabs: [
@@ -78,7 +78,6 @@
       case 'accounts': case 'clients': return {s: 'accounts', t: 'clients'};
       case 'pitches': case 'pipeline': return {s: 'accounts', t: 'pipeline'};
       case 'crm': return {s: 'accounts', t: 'crm'};
-      case 'hunt': case 'pursuits': return {s: 'accounts', t: 'hunt', id};
       case 'web': case 'browser': return {s: 'web'};
       case 'chat': case 'dm': return {s: 'chat', id};
       case 'mail': case 'gmail': case 'workspace': return {s: 'workspace', t: 'mail'};
@@ -103,7 +102,6 @@
       case 'hiring': return isFounder ? {s: 'hq', t: 'hiring', id} : {s: 'me', t: 'hiring', id};
       case 'hq': return isFounder ? {s: 'hq', t: 'brief'} : {s: 'home'};
       case 'command': return isFounder ? {s: 'hq', t: 'dashboard'} : {s: 'home'};
-      case 'scout': case 'buddy': return isFounder ? {s: 'hq', t: 'scout'} : {s: 'home'};
       case 'admin': case 'desk': return isFounder ? {s: 'admin'} : {s: 'home'};
       default: return {s: isFounder ? 'hq' : 'home'};
     }
@@ -412,7 +410,6 @@
       ${M.parts.HolidayWatch ? html`<${M.parts.HolidayWatch}/>` : null}
       ${M.parts.FixHost ? html`<${M.parts.FixHost}/>` : null}
       ${M.parts.BooksWatch ? html`<${M.parts.BooksWatch}/>` : null}
-      ${M.parts.ScoutWatch ? html`<${M.parts.ScoutWatch}/>` : null}
       ${M.parts.BreatheHost ? html`<${M.parts.BreatheHost}/>` : null}
       ${M.parts.ChatWatch ? html`<${M.parts.ChatWatch}/>` : null}
       ${M.parts.InboxWatch ? html`<${M.parts.InboxWatch}/>` : null}

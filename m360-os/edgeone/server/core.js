@@ -26,7 +26,6 @@ import {safetyActions} from './safety.js';
 import {peekActions} from './peek.js';
 import {voiceActions} from './voice.js';
 import {googleActions} from './google.js';
-import {huntActions} from './hunt.js';
 import {spotifyActions} from './spotify.js';
 import {webActions, browseHandler} from './web.js';
 import {holidayNotice} from './holiday.js';
@@ -1094,8 +1093,6 @@ export function createApp({store, env = {}}) {
   /* the books: invoice mail from the owner's page, mail mining, statements, retainer drafts and auto-chase on a ten minute pass */
   const books = booksDesk({getJ, docKey, listAll, ownerUid, sendMail, writeAs, ymdIST, levelOf, LEVEL, HttpError, env, aiKey, google});
   Object.assign(actions, books.actions);
-  const hunt = huntActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError, log});
-  Object.assign(actions, hunt.actions);
   Object.assign(actions, spotifyActions({levelOf, LEVEL, HttpError}).actions);
   Object.assign(actions, webActions({env, getJ, putJ, levelOf, LEVEL, HttpError}));
   const files = fileActions({store, getJ, putJ, levelOf, LEVEL, HttpError, log, rand, listAll});
@@ -1153,7 +1150,6 @@ export function createApp({store, env = {}}) {
   };
   /* GET /api/google: Google's sign-in comes back here; /api/file serves attachments; /api/browse renders a page inside */
   handle.google = request => google.googleCallback(request);
-  handle.apollo = request => hunt.apolloWebhook(request);
   handle.file = request => files.fileGet(request, viewer);
   handle.browse = request => browse(request, viewer);
   return handle;

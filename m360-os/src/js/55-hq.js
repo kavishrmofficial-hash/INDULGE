@@ -230,8 +230,7 @@
       ${M.parts.JoinBanner ? html`<${M.parts.JoinBanner}/>` : null}
       ${M.parts.SetupCard && !setupDone ? html`<${UI.Fold} title="Get m360 ready" summary=${setupSum} open=${false} id="fold-setup"><${M.parts.SetupCard}/><//>` : null}
       <${M.SectionTabs} section="hq" active=${t}/>
-      ${t === 'dashboard' ? html`<${Embed} page="Command"/>` : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>` : t === 'scout' && M.pages.Scout ? html`<${M.pages.Scout}/>` : html`<div class="stack" style=${{gap: '20px'}}>
-        ${M.parts.ScoutCard ? html`<${M.parts.ScoutCard} compact=${true}/>` : null}
+      ${t === 'dashboard' ? html`<${Embed} page="Command"/>` : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>` : html`<div class="stack" style=${{gap: '20px'}}>
         <${IntelBrief}/>
         ${M.parts.BaseNudges ? html`<${M.parts.BaseNudges}/>` : null}
         <div class="split">
