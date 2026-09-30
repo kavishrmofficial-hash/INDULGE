@@ -49,7 +49,7 @@
       {k: 'profile', label: 'Profile', route: 'me'}, {k: 'notes', label: 'Notes', route: 'notes'}, {k: 'trophies', label: 'Trophies', route: 'trophies'}, {k: 'leave', label: 'Leave', route: 'leave'},
       {k: 'handbook', label: 'Handbook', route: 'handbook'}, {k: 'hiring', label: 'Hiring', route: 'hiring'}]},
     hq: {label: 'HQ', icon: 'command', page: 'HQ', founder: true, tabs: [
-      {k: 'brief', label: 'Intelligence', route: 'hq'}, {k: 'dashboard', label: 'Dashboard', route: 'command'},
+      {k: 'brief', label: 'Intelligence', route: 'hq'}, {k: 'scout', label: 'Scout', route: 'scout'}, {k: 'dashboard', label: 'Dashboard', route: 'command'},
       {k: 'hiring', label: 'Hiring', route: 'hiring'}]},
     admin: {label: 'Admin', icon: 'desk', page: 'Admin', founder: true},
     books: {label: 'Books', icon: 'log', page: 'Books', founder: true, owner: true, tabs: [
@@ -103,6 +103,7 @@
       case 'hiring': return isFounder ? {s: 'hq', t: 'hiring', id} : {s: 'me', t: 'hiring', id};
       case 'hq': return isFounder ? {s: 'hq', t: 'brief'} : {s: 'home'};
       case 'command': return isFounder ? {s: 'hq', t: 'dashboard'} : {s: 'home'};
+      case 'scout': case 'buddy': return isFounder ? {s: 'hq', t: 'scout'} : {s: 'home'};
       case 'admin': case 'desk': return isFounder ? {s: 'admin'} : {s: 'home'};
       default: return {s: isFounder ? 'hq' : 'home'};
     }
@@ -411,6 +412,7 @@
       ${M.parts.HolidayWatch ? html`<${M.parts.HolidayWatch}/>` : null}
       ${M.parts.FixHost ? html`<${M.parts.FixHost}/>` : null}
       ${M.parts.BooksWatch ? html`<${M.parts.BooksWatch}/>` : null}
+      ${M.parts.ScoutWatch ? html`<${M.parts.ScoutWatch}/>` : null}
       ${M.parts.BreatheHost ? html`<${M.parts.BreatheHost}/>` : null}
       ${M.parts.ChatWatch ? html`<${M.parts.ChatWatch}/>` : null}
       ${M.parts.InboxWatch ? html`<${M.parts.InboxWatch}/>` : null}

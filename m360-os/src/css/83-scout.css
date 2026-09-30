@@ -1,0 +1,68 @@
+/* ---------- scout: the founder's business development buddy ---------- */
+.scout-stage{display:flex; gap:18px; align-items:flex-start; min-width:0}
+.scout-figure{width:120px; height:120px; flex:none; position:relative}
+.scout-svg{display:block; width:120px; height:120px; overflow:visible}
+.scout-avatar{width:110px; height:110px; border-radius:26px; object-fit:cover; display:block; margin:5px; box-shadow:0 6px 24px var(--shadow)}
+.scout-badge{position:absolute; right:2px; bottom:2px; width:30px; height:30px; border-radius:50%; background:var(--flame); color:#fff; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px var(--shadow)}
+.scout-badge svg{width:16px; height:16px}
+.scout-side{flex:1; min-width:0; display:flex; flex-direction:column; gap:8px}
+.scout-line{font-size:15px; font-weight:500; letter-spacing:-.01em; line-height:1.4}
+.scout-log{display:flex; flex-direction:column; gap:4px}
+.scout-log-row{display:flex; gap:10px; align-items:baseline; min-width:0}
+.scout-log-row .num{flex:none; width:44px}
+.scout-log-row .linky{text-align:left; padding:0}
+.scout-row{border:1px solid var(--line); border-radius:14px; padding:10px 12px; min-width:0}
+/* the drawn flame */
+.sc-shadow{fill:rgba(10,10,10,.12)}
+.sc-body{fill:var(--flame); stroke:#fff; stroke-width:2.5; stroke-linejoin:round}
+.sc-belly{fill:rgba(255,255,255,.28)}
+.sc-eye{fill:#fff}
+.sc-pupil{fill:#0A0A0A}
+.sc-lid{stroke:#0A0A0A; stroke-width:2.5; stroke-linecap:round; opacity:0}
+.sc-mouth{fill:none; stroke:#0A0A0A; stroke-width:2.2; stroke-linecap:round}
+.sc-arm{fill:none; stroke:var(--flame); stroke-width:6; stroke-linecap:round}
+.sc-prop{opacity:0; fill:none; stroke:#0A0A0A; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; transition:opacity .25s ease}
+.sc-paper rect,.sc-door rect{fill:#fff}
+.sc-plane path{fill:#fff}
+.sc-bubble rect{fill:#fff}
+.sc-bubble circle{fill:#0A0A0A; stroke:none}
+.sc-z{font:700 14px var(--font, sans-serif); fill:#0A0A0A; stroke:none}
+.sc-z2{font:700 10px var(--font, sans-serif); fill:#0A0A0A; stroke:none}
+.sc-body-g{transform-origin:60px 96px; animation:sc-breathe 3.2s ease-in-out infinite}
+.sc-pupil{animation:sc-look 6s ease-in-out infinite}
+/* states */
+.sc-sleep .sc-body-g{animation:sc-breathe 5s ease-in-out infinite}
+.sc-sleep .sc-lid{opacity:1}
+.sc-sleep .sc-pupil,.sc-sleep .sc-eye{opacity:0}
+.sc-sleep .sc-zzz{opacity:1; animation:sc-rise 2.4s ease-in-out infinite}
+.sc-read .sc-paper{opacity:1}
+.sc-read .sc-arm-r{animation:sc-hold 1s ease-in-out infinite alternate}
+.sc-read .sc-pupil{animation:sc-scan 1.6s ease-in-out infinite}
+.sc-find .sc-glass{opacity:1; animation:sc-peer 1.8s ease-in-out infinite}
+.sc-think .sc-bubble{opacity:1}
+.sc-think .sc-bubble circle{animation:sc-dots 1.2s ease-in-out infinite}
+.sc-think .sc-bubble circle:nth-child(3){animation-delay:.2s}
+.sc-think .sc-bubble circle:nth-child(4){animation-delay:.4s}
+.sc-write .sc-paper,.sc-write .sc-pen{opacity:1}
+.sc-write .sc-pen{animation:sc-scribble .5s ease-in-out infinite alternate; transform-origin:104px 76px}
+.sc-deliver .sc-plane{opacity:1; animation:sc-fly 1.6s ease-out infinite}
+.sc-nudge .sc-door{opacity:1}
+.sc-nudge .sc-arm-r{animation:sc-knock .6s ease-in-out infinite alternate; transform-origin:88px 78px}
+.sc-rest .sc-mouth{d:path("M51 78c5 6 13 6 18 0")}
+.sc-idle .sc-body-g{animation:sc-breathe 3.2s ease-in-out infinite}
+@keyframes sc-breathe{0%,100%{transform:scale(1)} 50%{transform:scale(1.03,.97)}}
+@keyframes sc-look{0%,40%,100%{transform:translate(0,0)} 50%,70%{transform:translate(2px,0)} 80%{transform:translate(-1px,1px)}}
+@keyframes sc-scan{0%,100%{transform:translate(-2px,1px)} 50%{transform:translate(2px,1px)}}
+@keyframes sc-hold{from{transform:translate(0,0)} to{transform:translate(0,-2px)}}
+@keyframes sc-peer{0%,100%{transform:translate(0,0)} 50%{transform:translate(-6px,-4px)}}
+@keyframes sc-dots{0%,100%{transform:translate(0,0)} 50%{transform:translate(0,-3px)}}
+@keyframes sc-scribble{from{transform:rotate(-8deg) translate(0,0)} to{transform:rotate(6deg) translate(3px,2px)}}
+@keyframes sc-fly{0%{transform:translate(0,0); opacity:0} 15%{opacity:1} 100%{transform:translate(28px,-30px); opacity:0}}
+@keyframes sc-knock{from{transform:rotate(0)} to{transform:rotate(-18deg)}}
+@keyframes sc-rise{0%{transform:translate(0,0); opacity:0} 30%{opacity:1} 100%{transform:translate(6px,-14px); opacity:0}}
+@media (prefers-reduced-motion: reduce){ .scout-figure *{animation:none !important} }
+@media (max-width:860px){
+  .scout-stage{flex-direction:column; align-items:center; text-align:center}
+  .scout-log-row{text-align:left}
+}
+.clamp2{display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}

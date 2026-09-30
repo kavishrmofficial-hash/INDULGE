@@ -684,6 +684,6 @@
 
   M.pages.Hunt = Hunt;
   M.adminCards.push(HuntSettings);
-  M.hunt = {TRIGGERS, LANES, STAGES, OBJECTIONS, writeCopy, bankOf, seedFromNews, create, pursuits, seed: null,
+  M.hunt = {TRIGGERS, LANES, STAGES, OBJECTIONS, TITLE_SETS, LADDER, writeCopy, aiCopy, bankOf, seedFromNews, create, markSent, pursuits, seed: null,
     pursueFromNews: it => { M.hunt.seed = seedFromNews(it); M.intend('#hunt', 'pursue'); }};
 })();
