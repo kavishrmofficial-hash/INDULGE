@@ -5,7 +5,7 @@
   const {useState, useMemo} = React;
 
   const PRINCIPLE = 'Output earns about three times what discipline earns. Showing up is the floor. Shipping is what scores.';
-  const PERIODS = [{v: 'week', label: 'Week'}, {v: 'month', label: 'Month'}, {v: 'quarter', label: 'Quarter'}];
+  const PERIODS = [{v: 'week', label: 'Week'}, {v: 'month', label: 'Month'}, {v: 'quarter', label: 'Quarter'}, {v: 'all', label: 'Since joining'}];
   const LABELS = {
     checkinOnTime: 'on-time check-ins', eod: 'eod lines', planOnTime: 'monday outcomes on time',
     planLate: 'monday outcomes late', outcomeHit: 'outcomes hit', outcomeMiss: 'outcomes missed',
@@ -61,7 +61,8 @@
       ? M.points.leaderboard(ctx, period, new Date(ctx.now)) : [], [ctx, period]);
     /* one profiles call for the whole page: hooks never run inside a loop */
     const profs = M.useProfiles(board.map(r => r.uid));
-    const top = board.length ? Math.max(1, board[0].total) : 1;
+    const byPace = !!(board.length && board[0].ranked === 'pace');
+    const top = board.length ? Math.max(1, ...board.map(r => r.total)) : 1;
     const three = board.slice(0, 3);
     /* podium order: second, first, third */
     const podium = three.length === 3 ? [three[1], three[0], three[2]] : three;
@@ -87,14 +88,18 @@
         </div>
       <//>` : null}
 
-      <${UI.Card} title="Leaderboard" action=${lastWeek ? html`<span class="pill ink">last week</span>` : null}>
+      <${UI.Card} title="Leaderboard" action=${lastWeek ? html`<span class="pill ink">last week</span>` : byPace ? html`<span class="pill ink" id="board-pace">by pace</span>` : null}>
         ${lastWeek ? html`<div class="small ink62" style=${{marginBottom: '10px'}}>Nothing has scored in the new week yet. The board shows last week until someone does.</div>` : null}
+        ${byPace ? html`<div class="small ink62" id="board-fair" style=${{marginBottom: '10px'}}>${period === 'all'
+          ? 'Everyone is measured from the day they joined: points per working day, with the career total beside it. Time here is not an advantage.'
+          : 'Someone joined part way through, so this board ranks by points per working day. The totals stay; the newcomer is not behind for days they were not here.'}</div>` : null}
         ${board.length ? html`<div class="stack tight">
           ${board.map((r, i) => html`<div class="listrow nowrap lb-row" key=${r.uid}>
             <span class="num ink62" style=${{width: '20px', flex: 'none'}}>${i + 1}</span>
             <${UI.Avatar} id=${r.uid} size=${28}/>
             <span class="lb-name" style=${{flex: '1 1 120px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}><${UI.Name} id=${r.uid}/></span>
             <${UI.Bar} a=${Math.max(0, r.output)} b=${Math.max(0, r.discipline)} max=${top}/>
+            ${byPace ? html`<span class="tiny ink62 num" style=${{width: '74px', textAlign: 'right', flex: 'none'}} title=${r.days + (r.days === 1 ? ' working day' : ' working days') + (r.partial ? ', joined ' + U.fmtDate(r.joined) : '')}>${r.pace}/day</span>` : null}
             <span class="num" style=${{fontWeight: 500, width: '46px', textAlign: 'right', flex: 'none'}}>${r.total}</span>
           </div>`)}
         </div>` : html`<${UI.Empty} text="No points yet."/>`}

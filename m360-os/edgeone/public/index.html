@@ -1504,7 +1504,7 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
   .doc-table th,.doc-table td{padding-left:6px; padding-right:6px}
 }
 </style>
-<script>window.M360_BUILD = "b9238aa+.260930-0237";</script><script>
+<script>window.M360_BUILD = "fcb7edb+.260930-0240";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -4404,6 +4404,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   function boardRange(ctx, period, now) {
     const d = nowDate(ctx, now);
     const p = period || 'week';
+    /* since joining: from the earliest join on the roster to today; each person is then measured from their own day */
+    if (p === 'all') {
+      const joins = ((ctx && ctx.activeMembers) || []).map(m => m && m.joined).filter(j => /^\d{4}-\d{2}-\d{2}$/.test(j || '')).sort();
+      return {from: joins[0] || U.ymd(U.addDays(d, -365)), to: U.ymd(d), label: ''};
+    }
     const range = U.periodRange(p, d);
     if (p !== 'week') return {from: range.from, to: range.to, label: ''};
     const today = U.ymd(d);
@@ -4421,9 +4426,16 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   /* ---------- leaderboard ---------- */
   /* [{uid, total, output, discipline, badges, parts, counts}] ranked by total, then output.
      The founder is left out unless settings.leaderboardIncludesFounder. The range comes from boardRange. */
+  /* Fair to whoever joined last: each row carries the working days the person actually had in the range
+     (from their join date when it falls inside it, up to today) and their pace, points per working day.
+     A board where someone joined mid range, and the "since joining" board, rank by pace, so a newcomer
+     with two good days stands beside an old hand with twenty; every other board ranks by total. The
+     totals are always kept and shown; nothing resets, the bracket is the period. */
   function leaderboard(ctx, period, now) {
     if (!ctx) return [];
-    const range = boardRange(ctx, period || 'week', now);
+    const p0 = period || 'week';
+    const range = boardRange(ctx, p0, now);
+    const today = U.ymd(nowDate(ctx, now));
     const withFounder = !!settingOf(ctx, 'leaderboardIncludesFounder');
     const members = Array.isArray(ctx.activeMembers) ? ctx.activeMembers : [];
     const rows = [];
@@ -4431,12 +4443,20 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       if (!m || !m.uid) continue;
       const founder = m.role === 'founder' || m.uid === ctx.founderUid;
       if (founder && !withFounder) continue;
-      const p = pointsFor(ctx, m.uid, range.from, range.to);
-      rows.push({uid: m.uid, total: p.total, output: p.output, discipline: p.discipline, badges: p.badges, parts: p.parts, counts: p.counts});
+      const joined = /^\d{4}-\d{2}-\d{2}$/.test(m.joined || '') ? m.joined : '';
+      const from = joined && joined > range.from ? joined : range.from;
+      const to = range.to < today ? range.to : today;
+      const p = pointsFor(ctx, m.uid, from, range.to);
+      const days = Math.max(1, workingDays(ctx, m.uid, from, to).length);
+      const pace = Math.round(p.total / days * 10) / 10;
+      rows.push({uid: m.uid, total: p.total, output: p.output, discipline: p.discipline, badges: p.badges, parts: p.parts, counts: p.counts,
+        days, pace, partial: !!(joined && joined > range.from), joined, from});
     }
+    const byPace = p0 === 'all' || rows.some(r => r.partial);
     const order = {};
     members.forEach((m, i) => { if (m && m.uid) order[m.uid] = i; });
-    rows.sort((a, b) => (b.total - a.total) || (b.output - a.output) || (order[a.uid] - order[b.uid]));
+    rows.sort((a, b) => (byPace ? (b.pace - a.pace) || (b.total - a.total) : (b.total - a.total)) || (b.output - a.output) || (order[a.uid] - order[b.uid]));
+    for (const r of rows) r.ranked = byPace ? 'pace' : 'total';
     return rows;
   }
 
@@ -9160,7 +9180,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   const {useState, useMemo} = React;
 
   const PRINCIPLE = 'Output earns about three times what discipline earns. Showing up is the floor. Shipping is what scores.';
-  const PERIODS = [{v: 'week', label: 'Week'}, {v: 'month', label: 'Month'}, {v: 'quarter', label: 'Quarter'}];
+  const PERIODS = [{v: 'week', label: 'Week'}, {v: 'month', label: 'Month'}, {v: 'quarter', label: 'Quarter'}, {v: 'all', label: 'Since joining'}];
   const LABELS = {
     checkinOnTime: 'on-time check-ins', eod: 'eod lines', planOnTime: 'monday outcomes on time',
     planLate: 'monday outcomes late', outcomeHit: 'outcomes hit', outcomeMiss: 'outcomes missed',
@@ -9216,7 +9236,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       ? M.points.leaderboard(ctx, period, new Date(ctx.now)) : [], [ctx, period]);
     /* one profiles call for the whole page: hooks never run inside a loop */
     const profs = M.useProfiles(board.map(r => r.uid));
-    const top = board.length ? Math.max(1, board[0].total) : 1;
+    const byPace = !!(board.length && board[0].ranked === 'pace');
+    const top = board.length ? Math.max(1, ...board.map(r => r.total)) : 1;
     const three = board.slice(0, 3);
     /* podium order: second, first, third */
     const podium = three.length === 3 ? [three[1], three[0], three[2]] : three;
@@ -9242,14 +9263,18 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         </div>
       <//>` : null}
 
-      <${UI.Card} title="Leaderboard" action=${lastWeek ? html`<span class="pill ink">last week</span>` : null}>
+      <${UI.Card} title="Leaderboard" action=${lastWeek ? html`<span class="pill ink">last week</span>` : byPace ? html`<span class="pill ink" id="board-pace">by pace</span>` : null}>
         ${lastWeek ? html`<div class="small ink62" style=${{marginBottom: '10px'}}>Nothing has scored in the new week yet. The board shows last week until someone does.</div>` : null}
+        ${byPace ? html`<div class="small ink62" id="board-fair" style=${{marginBottom: '10px'}}>${period === 'all'
+          ? 'Everyone is measured from the day they joined: points per working day, with the career total beside it. Time here is not an advantage.'
+          : 'Someone joined part way through, so this board ranks by points per working day. The totals stay; the newcomer is not behind for days they were not here.'}</div>` : null}
         ${board.length ? html`<div class="stack tight">
           ${board.map((r, i) => html`<div class="listrow nowrap lb-row" key=${r.uid}>
             <span class="num ink62" style=${{width: '20px', flex: 'none'}}>${i + 1}</span>
             <${UI.Avatar} id=${r.uid} size=${28}/>
             <span class="lb-name" style=${{flex: '1 1 120px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}><${UI.Name} id=${r.uid}/></span>
             <${UI.Bar} a=${Math.max(0, r.output)} b=${Math.max(0, r.discipline)} max=${top}/>
+            ${byPace ? html`<span class="tiny ink62 num" style=${{width: '74px', textAlign: 'right', flex: 'none'}} title=${r.days + (r.days === 1 ? ' working day' : ' working days') + (r.partial ? ', joined ' + U.fmtDate(r.joined) : '')}>${r.pace}/day</span>` : null}
             <span class="num" style=${{fontWeight: 500, width: '46px', textAlign: 'right', flex: 'none'}}>${r.total}</span>
           </div>`)}
         </div>` : html`<${UI.Empty} text="No points yet."/>`}

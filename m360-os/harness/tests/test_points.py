@@ -221,6 +221,23 @@ def test(h):
     check(lb[0]['total'] == 77 and lb[1]['total'] == 14, 'leaderboard totals %r' % [(r['uid'], r['total']) for r in lb])
     check(lb[0]['badges'] == ['Every EOD'] and 'parts' in lb[0] and lb[0]['output'] == 63, 'leaderboard row %r' % lb[0])
 
+    check(all(r['ranked'] == 'total' for r in lb) and lb[0]['days'] >= 1 and lb[0]['pace'] > 0, 'a board with nobody new ranks by total and carries days and pace: %r' % [(r['uid'], r.get('ranked'), r.get('days'), r.get('pace')) for r in lb])
+    # someone who joined this morning: the board ranks by pace, so their two points on one day beat a slow week
+    team = page.evaluate('window.__db.get("roster/team")')
+    team['members']['u_m3'] = dict(team['members'][M2], joined=page.evaluate('M.U.todayStr()'), empId='M360-009', title='New joiner')
+    h.seed_doc(page, 'roster/team', team)
+    page.wait_for_function('() => M.lastCtx && M.lastCtx.activeMembers.some(m => m.uid === "u_m3")')
+    lb3 = h.ctx(page, 'M.points.leaderboard(ctx, "week", new Date())')
+    m3 = [r for r in lb3 if r['uid'] == 'u_m3']
+    check(len(m3) == 1 and m3[0]['partial'] is True and m3[0]['days'] == 1 and all(r['ranked'] == 'pace' for r in lb3), 'a newcomer makes the board rank by pace: %r' % [(r['uid'], r.get('ranked'), r.get('partial'), r.get('days')) for r in lb3])
+    check([r['uid'] for r in lb3][0] == M1, 'the old hand with a full week still leads on pace when the newcomer has nothing: %r' % [(r['uid'], r['pace']) for r in lb3])
+    check(sorted(r['pace'] for r in lb3) == [r['pace'] for r in lb3][::-1] or [r['pace'] for r in lb3] == sorted((r['pace'] for r in lb3), reverse=True), 'pace order: %r' % [(r['uid'], r['pace']) for r in lb3])
+    alltime = h.ctx(page, 'M.points.leaderboard(ctx, "all", new Date())')
+    check(len(alltime) == 3 and all(r['ranked'] == 'pace' for r in alltime) and all(r['days'] >= 1 for r in alltime), 'the since-joining board: %r' % [(r['uid'], r.get('days'), r.get('pace')) for r in alltime])
+    del team['members']['u_m3']
+    h.seed_doc(page, 'roster/team', team)
+    page.wait_for_function('() => M.lastCtx && !M.lastCtx.activeMembers.some(m => m.uid === "u_m3")')
+
     h.seed_doc(page, 'settings/app', dict(SETTINGS, leaderboardIncludesFounder=True, updated=1))
     page.wait_for_function('() => M.lastCtx && M.lastCtx.settings.leaderboardIncludesFounder === true')
     lb2 = h.ctx(page, 'M.points.leaderboard(ctx, "week", new Date())')

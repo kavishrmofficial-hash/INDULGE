@@ -259,6 +259,11 @@
   function boardRange(ctx, period, now) {
     const d = nowDate(ctx, now);
     const p = period || 'week';
+    /* since joining: from the earliest join on the roster to today; each person is then measured from their own day */
+    if (p === 'all') {
+      const joins = ((ctx && ctx.activeMembers) || []).map(m => m && m.joined).filter(j => /^\d{4}-\d{2}-\d{2}$/.test(j || '')).sort();
+      return {from: joins[0] || U.ymd(U.addDays(d, -365)), to: U.ymd(d), label: ''};
+    }
     const range = U.periodRange(p, d);
     if (p !== 'week') return {from: range.from, to: range.to, label: ''};
     const today = U.ymd(d);
@@ -276,9 +281,16 @@
   /* ---------- leaderboard ---------- */
   /* [{uid, total, output, discipline, badges, parts, counts}] ranked by total, then output.
      The founder is left out unless settings.leaderboardIncludesFounder. The range comes from boardRange. */
+  /* Fair to whoever joined last: each row carries the working days the person actually had in the range
+     (from their join date when it falls inside it, up to today) and their pace, points per working day.
+     A board where someone joined mid range, and the "since joining" board, rank by pace, so a newcomer
+     with two good days stands beside an old hand with twenty; every other board ranks by total. The
+     totals are always kept and shown; nothing resets, the bracket is the period. */
   function leaderboard(ctx, period, now) {
     if (!ctx) return [];
-    const range = boardRange(ctx, period || 'week', now);
+    const p0 = period || 'week';
+    const range = boardRange(ctx, p0, now);
+    const today = U.ymd(nowDate(ctx, now));
     const withFounder = !!settingOf(ctx, 'leaderboardIncludesFounder');
     const members = Array.isArray(ctx.activeMembers) ? ctx.activeMembers : [];
     const rows = [];
@@ -286,12 +298,20 @@
       if (!m || !m.uid) continue;
       const founder = m.role === 'founder' || m.uid === ctx.founderUid;
       if (founder && !withFounder) continue;
-      const p = pointsFor(ctx, m.uid, range.from, range.to);
-      rows.push({uid: m.uid, total: p.total, output: p.output, discipline: p.discipline, badges: p.badges, parts: p.parts, counts: p.counts});
+      const joined = /^\d{4}-\d{2}-\d{2}$/.test(m.joined || '') ? m.joined : '';
+      const from = joined && joined > range.from ? joined : range.from;
+      const to = range.to < today ? range.to : today;
+      const p = pointsFor(ctx, m.uid, from, range.to);
+      const days = Math.max(1, workingDays(ctx, m.uid, from, to).length);
+      const pace = Math.round(p.total / days * 10) / 10;
+      rows.push({uid: m.uid, total: p.total, output: p.output, discipline: p.discipline, badges: p.badges, parts: p.parts, counts: p.counts,
+        days, pace, partial: !!(joined && joined > range.from), joined, from});
     }
+    const byPace = p0 === 'all' || rows.some(r => r.partial);
     const order = {};
     members.forEach((m, i) => { if (m && m.uid) order[m.uid] = i; });
-    rows.sort((a, b) => (b.total - a.total) || (b.output - a.output) || (order[a.uid] - order[b.uid]));
+    rows.sort((a, b) => (byPace ? (b.pace - a.pace) || (b.total - a.total) : (b.total - a.total)) || (b.output - a.output) || (order[a.uid] - order[b.uid]));
+    for (const r of rows) r.ranked = byPace ? 'pace' : 'total';
     return rows;
   }
 

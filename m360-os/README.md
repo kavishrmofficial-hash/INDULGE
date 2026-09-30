@@ -253,6 +253,10 @@ Kaavish's notes on v16, answered.
   - A security log (Admin > Super > Security): every sign-in, wrong password, lock, wrong code, throttle, two-step change, with the device and a masked address; who has two-step on.
   - Requests over the platform's 6 MB are refused early; sessions record the address they started from.
 
+## What is in v17.1: a fair board for whoever joined last
+
+Points were never a lifetime total; every board is a bracket (this week, this month, this quarter). What was unfair was a newcomer inside a bracket: someone who joined on the 20th was measured against a full month. Now every row carries the working days the person actually had in the range (from their join date when it falls inside it, up to today) and their pace, points per working day. A board where someone joined part way through ranks by pace, says so, and shows the pace beside the total; every other board ranks by total as before. A fourth board, "Since joining", measures everyone from their own first day (pace, with the career total beside it), so time at the agency is never the advantage. Nothing resets and nothing is lost: the totals stay, the bracket is the period.
+
 ## Launch day
 
 1. Admin > Team: invite each person by email. They get a link, type their email and pick a password. Without an email key the invite shows a link to copy instead.

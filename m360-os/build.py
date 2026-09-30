@@ -25,7 +25,10 @@ CDN = [
 VENDOR = {CDN[0]: 'react.js', CDN[1]: 'react-dom.js', CDN[2]: 'htm.js'}
 def integrity(url):
     import hashlib, base64
+    # the harness copy on a developer machine, the committed copy under edgeone/public/vendor on a runner
     path = os.path.join(ROOT, 'harness', 'vendor', VENDOR[url])
+    if not os.path.exists(path):
+        path = os.path.join(ROOT, 'edgeone', 'public', 'vendor', VENDOR[url])
     with open(path, 'rb') as f:
         return 'sha384-' + base64.b64encode(hashlib.sha384(f.read()).digest()).decode('ascii')
 def script_tag(url):
