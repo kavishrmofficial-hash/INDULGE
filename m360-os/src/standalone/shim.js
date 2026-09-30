@@ -298,17 +298,40 @@
   }
 
   /* ---------- sample: a model turn per call, tools run here ---------- */
+  const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+  const IMAGE_MAX = 1600000;   /* bytes per image; the page shrinks photos before they get here */
+  const toB64 = blob => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.onerror = () => rej({code: 'image_rejected', message: 'unreadable image'}); r.readAsDataURL(blob); });
+  async function imageBlocks(images) {
+    const list = images ? (images instanceof Blob ? [images] : Array.from(images)) : [];
+    if (list.length > 4) throw {code: 'image_rejected', message: 'at most four images'};
+    const out = [];
+    for (const b of list) {
+      if (!(b instanceof Blob) || IMAGE_TYPES.indexOf(b.type) < 0) throw {code: 'image_rejected', message: 'not an image'};
+      if (b.size > IMAGE_MAX) throw {code: 'image_rejected', message: 'image too large'};
+      out.push({type: 'image', source: {type: 'base64', media_type: b.type, data: await toB64(b)}});
+    }
+    return out;
+  }
   function makeSample() {
     async function run(input, opts) {
       opts = opts || {};
       let messages = typeof input === 'string' ? [{role: 'user', content: input}]
         : (Array.isArray(input) ? input.map(t => ({role: t.role, content: t.content})) : []);
+      if (!messages.length) throw {code: 'invalid_request', message: 'empty input'};
+      /* images ride with the last user turn, before its text */
+      const imgs = await imageBlocks(opts.images);
+      if (imgs.length) {
+        const last = messages[messages.length - 1];
+        last.content = imgs.concat([{type: 'text', text: typeof last.content === 'string' ? last.content : ''}]);
+      }
       const tools = Array.isArray(opts.tools) ? opts.tools : [];
       const toolDefs = tools.map(t => ({name: t.name, description: t.description || '', input_schema: t.inputSchema || {type: 'object', properties: {}}}));
       let text = '';
-      for (let round = 0; round < 6; round++) {
+      const ROUNDS = 10;
+      for (let round = 0; round < ROUNDS; round++) {
         if (opts.signal && opts.signal.aborted) throw {code: 'cancelled', message: 'cancelled'};
-        const r = await call('ai', {messages, tools: toolDefs, tier: opts.modelTier || 'default', max_tokens: opts.maxTokens || 2048});
+        /* the last round must answer: the tools stay defined (earlier turns refer to them) but none may be called */
+        const r = await call('ai', {messages, tools: toolDefs, noTools: round === ROUNDS - 1, tier: opts.modelTier || 'default', max_tokens: opts.maxTokens || 4096});
         const blocks = r.content || [];
         const said = blocks.filter(b => b.type === 'text').map(b => b.text).join('');
         if (said) { text += (text ? '\n' : '') + said; if (opts.onText) opts.onText({text, delta: said}); }
@@ -317,10 +340,12 @@
         messages = messages.concat([{role: 'assistant', content: blocks}]);
         const results = [];
         for (const u of uses) {
+          if (opts.signal && opts.signal.aborted) throw {code: 'cancelled', message: 'cancelled'};
           const t = tools.find(x => x.name === u.name);
           let out, isErr = false;
-          try { out = t ? await t.execute(u.input || {}) : {error: 'unknown tool'}; } catch (e) { out = {error: String((e && e.message) || e)}; isErr = true; }
-          results.push({type: 'tool_result', tool_use_id: u.id, content: JSON.stringify(out === undefined ? null : out), is_error: isErr});
+          try { out = t ? await t.execute(u.input || {}, {signal: opts.signal}) : {error: 'unknown tool'}; } catch (e) { out = {error: String((e && e.message) || e)}; isErr = true; }
+          const body = JSON.stringify(out === undefined ? null : out);
+          results.push({type: 'tool_result', tool_use_id: u.id, content: body.length > 20000 ? body.slice(0, 20000) + '"... (cut)' : body, is_error: isErr});
         }
         messages = messages.concat([{role: 'user', content: results}]);
       }
@@ -336,7 +361,7 @@
       try { return JSON.parse(a >= 0 && b > a ? t.slice(a, b + 1) : t); }
       catch (e) { throw {code: 'invalid_output', message: 'The model did not return JSON.', text: r.text}; }
     };
-    sample.limits = () => Promise.resolve({tools: true, images: false});
+    sample.limits = () => Promise.resolve({maxPromptBytes: 400000, tools: {maxCount: 32}, images: {maxCount: 4, maxBytes: IMAGE_MAX, mediaTypes: IMAGE_TYPES.slice()}});
     return sample;
   }
 

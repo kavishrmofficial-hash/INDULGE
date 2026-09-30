@@ -327,12 +327,28 @@
   const sample = function (input, opts) {
     opts = opts || {};
     const text = flat(input);
-    window.__sampleCalls.push({kind: 'text', text, tools: (opts.tools || []).map(t => t.name)});
+    const nImg = opts.images ? (opts.images instanceof Blob ? 1 : opts.images.length) : 0;
+    window.__sampleCalls.push({kind: 'text', text, tools: (opts.tools || []).map(t => t.name), images: nImg});
     if (sampleErr) return new Promise((res, rej) => setTimeout(() => rej({code: sampleErr, message: 'mock'}), 30));
     return new Promise(async (res) => {
       await new Promise(r => setTimeout(r, 60));
       const tools = opts.tools || [];
       const last = typeof input === 'string' ? (input.split('THEY SAID: ')[1] || input) : input[input.length - 1].content;
+      /* the brain: look_up reads an area, act changes something; a canned line reads back what the tool returned */
+      const actT = tools.find(x => x.name === 'act'), lookT = tools.find(x => x.name === 'look_up');
+      const sig = {signal: new AbortController().signal};
+      const done = (out, tier) => { if (opts.onText) opts.onText({text: out, delta: out}); return res({text: out, truncated: false, modelTierApplied: tier || 'default'}); };
+      let m;
+      if (nImg) return done('I see ' + nImg + (nImg === 1 ? ' image' : ' images') + '. Looks like a screenshot of a task list.');
+      if (actT && (m = /remember that (.+)/i.exec(last))) { await actT.execute({action: 'remember', input: {fact: m[1].replace(/[.?!]$/, '')}}, sig); return done('Noted. I will keep that in mind.'); }
+      if (actT && (m = /post to the feed[:\s]+(.+)/i.exec(last))) { const r = await actT.execute({action: 'post_to_feed', input: {kind: 'update', text: m[1]}}, sig); return done(r && r.ok ? 'Posted to Vibe.' : 'That did not post.'); }
+      if (actT && (m = /^approve (.+)/i.exec(last.trim()))) { const r = await actT.execute({action: 'approve_task', input: {task: m[1].replace(/[.?!]$/, '')}}, sig); return done(r && r.waiting ? 'Ready. Tap ' + r.label + ' here and it is done.' : 'Approved.'); }
+      if (actT && /check me in/i.test(last)) { let r; try { r = await actT.execute({action: 'check_in', input: {mode: 'office'}}, sig); } catch (e) { return done('Could not: ' + e.message); } return done('Checked you in at ' + r.at + '.'); }
+      if (actT && (m = /remind me to (.+?) on (\d{4}-\d{2}-\d{2})/i.exec(last))) { await actT.execute({action: 'remind_me', input: {text: m[1], when: m[2]}}, sig); return done('Reminder set for ' + m[2] + '.'); }
+      if (lookT && /calendar/i.test(last)) { const r = await lookT.execute({what: 'calendar', q: '7'}, sig); return done('Your calendar: ' + String(r).split('\n').slice(1, 4).join(' ')); }
+      if (lookT && (m = /who is (\w+)\??$/i.exec(last.trim()))) { const r = await lookT.execute({what: 'who', q: m[1]}, sig); return done(String(r).split('\n')[0]); }
+      if (/what can you do/i.test(last)) return done('I can look anything up and do most things here: tasks, notes, posts, kudos, messages, leave, check in, EOD, the week, pitches, clients, reminders, and mail or meetings on the team site.');
+      if (actT && /add a task/i.test(last)) { await actT.execute({action: 'create_task', input: {title: 'Follow up with the client', owner: 'me', due: tomorrow}}, sig); return done('Done. Added a follow up for tomorrow.'); }
       const pointAt = tools.find(x => x.name === 'point_at');
       if (pointAt && !/add a task/i.test(last)) {
         const sig = {signal: new AbortController().signal};
@@ -383,13 +399,13 @@
       }
       /* the Base: "who do we know at <company>" goes through the who_do_we_know_at tool and answers with the names it returns */
       const wdwk = tools.find(x => x.name === 'who_do_we_know_at');
-      const m = /who do we know at\s+(.+?)\s*[?.]?\s*$/i.exec(String(last).trim());
-      if (wdwk && m) {
-        const r = await wdwk.execute({company: m[1]}, {signal: new AbortController().signal});
+      const mw = /who do we know at\s+(.+?)\s*[?.]?\s*$/i.exec(String(last).trim());
+      if (wdwk && mw) {
+        const r = await wdwk.execute({company: mw[1]}, {signal: new AbortController().signal});
         const people = (r && r.people) || [];
         const out = people.length
-          ? 'At ' + m[1] + ' we know ' + people.length + (people.length === 1 ? ' person' : ' people') + ':\n' + people.map(p => '- ' + p.name + (p.title ? ', ' + p.title : '') + (p.stage ? ' (' + p.stage + ')' : '')).join('\n')
-          : 'Nobody at ' + m[1] + ' in the Base yet.';
+          ? 'At ' + mw[1] + ' we know ' + people.length + (people.length === 1 ? ' person' : ' people') + ':\n' + people.map(p => '- ' + p.name + (p.title ? ', ' + p.title : '') + (p.stage ? ' (' + p.stage + ')' : '')).join('\n')
+          : 'Nobody at ' + mw[1] + ' in the Base yet.';
         if (opts.onText) opts.onText({text: out, delta: out});
         return res({text: out, truncated: false, modelTierApplied: 'default'});
       }
@@ -419,7 +435,7 @@
     if (sampleErr) return new Promise((res, rej) => setTimeout(() => rej({code: sampleErr, message: 'mock'}), 30));
     return new Promise(res => setTimeout(() => res(jsonFor(text)), 60));
   };
-  sample.limits = () => Promise.resolve({maxPromptBytes: 65536, tools: {maxCount: 8}});
+  sample.limits = () => Promise.resolve({maxPromptBytes: 65536, tools: {maxCount: 8}, ...(q.get('img') ? {images: {maxCount: 4, maxBytes: 5000000, mediaTypes: ['image/jpeg', 'image/png', 'image/webp']}} : {})});
 
   /* ---------------- room: who else is online ---------------- */
   const others = (q.get('online') || '').split(',').filter(Boolean);

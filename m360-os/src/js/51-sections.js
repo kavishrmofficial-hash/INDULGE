@@ -242,6 +242,7 @@
       ${t === 'leave' ? html`<${Embed} page="Leave"/>` : t === 'handbook' ? html`<${Embed} page="Handbook" id=${id}/>` : t === 'notes' ? html`<${Embed} page="Notes" id=${id}/>`
         : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>` : t === 'trophies' ? (M.parts.Trophies ? html`<${M.parts.Trophies}/>` : null) : html`<${Embed} page="People" id=${ctx.uid}/>`}
       ${t === 'profile' ? html`<${UI.Fold} title="Your m360" summary="look, sounds, notices, shortcuts" id="fold-prefs"><${Prefs}/><//>` : null}
+      ${t === 'profile' && M.parts.BuddyPrefs ? html`<${M.parts.BuddyPrefs}/>` : null}
       ${t === 'profile' && M.parts.EmailCard ? html`<${UI.Fold} title="Your email" summary="for sign-in links" id="fold-email"><${M.parts.EmailCard}/><//>` : null}
       ${t === 'profile' && M.parts.DeviceCard ? html`<${UI.Fold} title="Your devices" summary="where you are signed in" id="fold-devices"><${M.parts.DeviceCard}/><//>` : null}
       ${t === 'profile' ? (M.meCards || []).map((C, i) => html`<${C} key=${i}/>`) : null}

@@ -303,6 +303,28 @@
     return tools;
   };
 
+  /* ---------- an image for the model: shrunk to fit the host's cap, as a JPEG ---------- */
+  ai.shrinkImage = function (file, max) {
+    max = max || 1600;
+    return new Promise((res, rej) => {
+      if (!file || !/^image\//.test(file.type)) { rej(new Error('not an image')); return; }
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const k = Math.min(1, max / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+          const w = Math.max(1, Math.round((img.naturalWidth || 1) * k)), h = Math.max(1, Math.round((img.naturalHeight || 1) * k));
+          const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+          cv.getContext('2d').drawImage(img, 0, 0, w, h);
+          URL.revokeObjectURL(url);
+          cv.toBlob(b => b ? res(b) : rej(new Error('could not read the image')), 'image/jpeg', 0.86);
+        } catch (e) { rej(e); }
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('could not read the image')); };
+      img.src = url;
+    });
+  };
+
   /* ---------- cached personal brief in the viewer's private space ---------- */
   ai.cachePath = ctx => 'data/users/' + ctx.uid + '/ai';
   ai.useCache = function (ctx) {

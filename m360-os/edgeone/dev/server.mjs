@@ -167,12 +167,27 @@ async function fakeFetch(url, init) {
     return new Response(JSON.stringify({id: 'm' + globalThis.__mails.length}), {status: 200, headers: {'content-type': 'application/json'}});
   }
   const last = body.messages[body.messages.length - 1];
-  const text = typeof last.content === 'string' ? last.content : '';
+  const text = typeof last.content === 'string' ? last.content : (Array.isArray(last.content) ? last.content.filter(c => c.type === 'text').map(c => c.text).join('\n') : '');
+  const images = Array.isArray(last.content) ? last.content.filter(c => c.type === 'image').map(c => ({type: c.source && c.source.media_type, bytes: c.source && c.source.data ? c.source.data.length : 0})) : [];
+  globalThis.__aiReqs = (globalThis.__aiReqs || []).concat([{model: body.model, fallbacks: body.fallbacks || null, beta: (init.headers || {})['anthropic-beta'] || '', effort: body.output_config ? body.output_config.effort : null, tools: (body.tools || []).map(t => t.name), images, system: String(body.system || '').slice(0, 40), max_tokens: body.max_tokens}]).slice(-40);
+  const toolNames = (body.tools || []).map(t => t.name);
+  const said = text.split('THEY SAID: ').pop();   /* the question itself, not the chat carried in the prompt */
   let content;
   if (/^BOOKS MINE/.test(body.system || '')) content = [{type: 'text', text: JSON.stringify({legalName: 'Swisse Wellness Middle East FZ LLC', address: 'Office 1204, Dubai Science Park\nDubai', country: 'United Arab Emirates', taxId: '100234567800003', contactName: 'Omar Haddad', contactEmail: 'ap@swisse.example', currency: 'AED', termsDays: 30, po: '4471', note: 'From the vendor registration mail and PO 4471.'})}];
   else if (/^BOOKS STATEMENT/.test(body.system || '')) content = [{type: 'text', text: JSON.stringify({rows: [{date: '2026-09-03', vendor: 'Adobe', desc: 'POS ADOBE SYSTEMS', amount: 4999, credit: 0, method: 'card', ref: 'P1'}, {date: '2026-09-05', vendor: 'Titan Company', desc: 'NEFT CR TITAN COMPANY LTD', amount: 0, credit: 295000, method: 'bank', ref: 'N2'}, {date: '2026-09-09', vendor: 'Uber', desc: 'UPI/UBER INDIA/9091', amount: 640, credit: 0, method: 'upi', ref: 'U3'}]})}];
   else if (/^BOOKS CATEGORIES/.test(body.system || '')) { const n = ((text.match(/^\d+\. /gm) || []).length) || 1; content = [{type: 'text', text: JSON.stringify({categories: Array.from({length: n}, (_, i) => /uber|ola|indigo/i.test((text.split('\n')[i + 1] || '')) ? 'Travel' : /adobe|figma|notion/i.test((text.split('\n')[i + 1] || '')) ? 'Software and tools' : 'Other')})}]; }
-  else if (Array.isArray(last.content)) content = [{type: 'text', text: 'Done. I took care of it.'}];
+  else if (Array.isArray(last.content) && last.content.some(c => c.type === 'tool_result')) {
+    /* the round after a tool: read what came back and say it */
+    const res = last.content.filter(c => c.type === 'tool_result').map(c => String(c.content || '')).join('\n');
+    const i = res.indexOf('CALENDAR');
+    content = [{type: 'text', text: i >= 0 ? 'Your calendar: ' + res.slice(i, i + 300).replace(/\\n/g, ' ') : 'Done. I took care of it.'}];
+  }
+  else if (images.length) content = [{type: 'text', text: 'I see ' + images.length + (images.length === 1 ? ' image' : ' images') + ', ' + images.map(i => i.type).join(', ') + '. Looks like a screenshot of a task list.'}];
+  else if (toolNames.includes('act') && /remember that (.+)/i.test(said)) content = [{type: 'tool_use', id: 'tu_rem', name: 'act', input: {action: 'remember', input: {fact: /remember that (.+)/i.exec(said)[1].replace(/[.?!]$/, '')}}}];
+  else if (toolNames.includes('act') && /post (?:to the feed|on vibe)[:\s]+(.+)/i.test(said)) content = [{type: 'tool_use', id: 'tu_post', name: 'act', input: {action: 'post_to_feed', input: {kind: 'update', text: /post (?:to the feed|on vibe)[:\s]+(.+)/i.exec(said)[1]}}}];
+  else if (toolNames.includes('act') && /check me in/i.test(said)) content = [{type: 'tool_use', id: 'tu_ci', name: 'act', input: {action: 'check_in', input: {mode: 'office'}}}];
+  else if (toolNames.includes('look_up') && /calendar/i.test(said)) content = [{type: 'tool_use', id: 'tu_cal', name: 'look_up', input: {what: 'calendar', q: '7'}}];
+  else if (toolNames.includes('act') && /add a task/i.test(said)) content = [{type: 'tool_use', id: 'tu1', name: 'act', input: {action: 'create_task', input: {title: 'Cut the teaser', owner: 'me'}}}];
   else if (/company brain/i.test(text) && /Reply with JSON only/.test(text)) {
     /* the client brain: what the fake model "read" on the site decides the about line, so a test can tell site text from guesswork */
     const site = /SITE TEXT \(read from/.test(text);
@@ -186,7 +201,7 @@ async function fakeFetch(url, init) {
     content = [{type: 'text', text: JSON.stringify(brain)}];
   }
   else if (/Reply with JSON only/.test(text)) content = [{type: 'text', text: '{"summary":"All calm today.","items":[]}'}];
-  else if (body.tools && body.tools.some(t => t.name === 'create_task') && /add a task/i.test(text))
+  else if (body.tools && body.tools.some(t => t.name === 'create_task') && /add a task/i.test(said))
     content = [{type: 'tool_use', id: 'tu1', name: 'create_task', input: {title: 'Cut the teaser', owner: 'me'}}];
   else content = [{type: 'text', text: 'Here is your day: finish the hero reel script first.'}];
   const stop = content.some(c => c.type === 'tool_use') ? 'tool_use' : 'end_turn';
@@ -212,6 +227,7 @@ http.createServer(async (req, res) => {
     return;
   }
   if (url.pathname === '/__spotify') { res.writeHead(200, {'content-type': 'application/json'}); res.end(JSON.stringify(globalThis.__spotifyChecks || [])); return; }
+  if (url.pathname === '/__ai') { res.writeHead(200, {'content-type': 'application/json'}); res.end(JSON.stringify(globalThis.__aiReqs || [])); return; }
   if (url.pathname === '/api/google') {
     const request = new Request(url, {method: req.method, headers: req.headers});
     const out = await app.google(request);

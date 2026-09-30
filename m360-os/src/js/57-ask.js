@@ -1,6 +1,9 @@
 /* module: ask. "Ask m360": a chat with Claude that knows your work and can act on it.
-   It can create tasks, move them, and for the founder reassign them. Each answer is built
-   from the data this viewer may see, so members never get teammates' private detail. */
+   It looks anything up and does anything through the brain (56-brain.js): tasks, projects, notes,
+   posts, kudos, messages, leave, check-in, EOD, the week, pitches, clients, mail and meetings, with the
+   outward and deciding acts waiting on one tap. It keeps what you ask it to remember, reads a photo
+   or screenshot you attach where the host allows images, and folds a long chat into a summary so
+   the thread never runs out of room. Each answer is built from the data this viewer may see. */
 'use strict';
 (function () {
   const {html, React, U, UI} = M;
@@ -11,15 +14,19 @@
 
   function instructions(ctx, nmMe) {
     return 'INSTRUCTIONS: You are chatting inside m360 with ' + nmMe + (ctx.isFounder ? ', the founder' : ', a team member') + '. ' +
-      'Answer from the data below only. Be brief: under 120 words unless asked for more, use short bullets when listing. ' +
-      'You can act with your tools: create tasks and assign them, move a task\'s status' + (ctx.isFounder ? ', and reassign tasks' : ' (their own tasks)') + '. ' +
-      'When asked to do something, do it with a tool, then confirm in one line. When the data does not say, say so plainly.';
+      'Answer from the data below and from look_up. Be brief: under 120 words unless asked for more, use short bullets when listing. ' +
+      'When the data below does not say, call look_up for that area before answering; never guess a number or a name. ' +
+      'When asked to do something, do it with act, then confirm in one line; when act comes back waiting, say it is ready for their tap. ' +
+      'When they ask you to remember something, act remember. When a photo or screenshot is attached, read it and use it. ' +
+      'Never use ids; use names and titles. When the data does not say, say so plainly.\n' +
+      (M.brain ? M.brain.catalog(ctx) : '');
   }
 
   /* one thread per person, kept in their private doc, so the buddy and the full chat share it and it survives a reload */
   const chat = M.chat = {
     path: ctx => 'data/users/' + ctx.uid + '/chat',
     turns: [],
+    summary: '',
     ready: false,
     subs: new Set(),
     watched: '',
@@ -29,18 +36,18 @@
       const p = ctx.viewAs ? '' : chat.path(ctx);
       if (chat.watched === p || !ctx.db) return;
       if (chat.un) { try { chat.un(); } catch (e) { /* gone */ } chat.un = null; }
-      chat.watched = p; chat.turns = []; chat.ready = !p;
+      chat.watched = p; chat.turns = []; chat.summary = ''; chat.ready = !p;
       if (!p) { chat.subs.forEach(f => f()); return; }
       try {
-        chat.un = ctx.db.doc(p).onSnapshot(d => { if (chat.watched !== p) return; chat.turns = (d.exists && Array.isArray(d.data().turns)) ? d.data().turns : []; chat.ready = true; chat.subs.forEach(f => f()); },
+        chat.un = ctx.db.doc(p).onSnapshot(d => { if (chat.watched !== p) return; chat.turns = (d.exists && Array.isArray(d.data().turns)) ? d.data().turns : []; chat.summary = d.exists ? String(d.data().summary || '') : ''; chat.ready = true; chat.subs.forEach(f => f()); },
           () => { if (chat.watched === p) { chat.ready = true; chat.subs.forEach(f => f()); } });
       } catch (e) { chat.ready = true; }
     },
-    save(ctx, turns) {
-      const keep = turns.slice(-40).map(t => ({role: t.role, content: String(t.content || '').slice(0, 4000), ...(t.act ? {act: true} : {})}));
+    save(ctx, turns, extra) {
+      const keep = turns.slice(-40).map(t => ({role: t.role, content: String(t.content || '').slice(0, 4000), ...(t.act ? {act: true} : {}), ...(t.img ? {img: true} : {})}));
       chat.turns = keep; chat.subs.forEach(f => f());
       if (ctx.viewAs) return Promise.resolve();
-      return ctx.W.merge(chat.path(ctx), {turns: keep, at: Date.now()}).catch(() => {});
+      return ctx.W.merge(chat.path(ctx), {turns: keep, at: Date.now(), ...(extra || {})}).catch(() => {});
     },
     append: (ctx, more) => chat.save(ctx, chat.turns.concat(more)),
     /* the recent exchange, for a prompt */
@@ -59,9 +66,20 @@
     const [q, setQ] = useState('');
     const [busy, setBusy] = useState(false);
     const [live, setLive] = useState('');
+    const [imgs, setImgs] = useState([]);           /* {blob, url} attached to the next message */
+    const [canImg, setCanImg] = useState(false);
     const ctl = useRef(null);
     const endRef = useRef(null);
     const sentInitial = useRef(false);
+    const fileRef = useRef(null);
+    useEffect(() => { let on = true; if (ctx.sample && ctx.sample.limits) ctx.sample.limits().then(l => { if (on) setCanImg(!!(l && l.images)); }).catch(() => {}); return () => { on = false; }; }, [ctx.sample]);
+    const attach = async files => {
+      const out = [];
+      for (const f of Array.from(files || []).slice(0, 4 - imgs.length)) {
+        try { const blob = await M.ai.shrinkImage(f); out.push({blob, url: URL.createObjectURL(blob)}); } catch (e) { M.toast('That file is not an image', true); }
+      }
+      if (out.length) setImgs(xs => xs.concat(out));
+    };
 
     useEffect(() => () => { if (ctl.current) ctl.current.abort(); }, []);
     useEffect(() => { if (endRef.current && endRef.current.scrollIntoView) endRef.current.scrollIntoView({block: 'nearest'}); }, [turns, live]);
@@ -69,10 +87,12 @@
 
     async function send(text) {
       const msg = String(text || q).trim();
-      if (!msg || busy) return;
-      setQ('');
+      const pics = imgs.slice();
+      if ((!msg && !pics.length) || busy) return;
+      setQ(''); setImgs([]);
       const history = turns.filter(t => !t.act);
-      const next = [...turns, {role: 'user', content: msg}];
+      const shown = msg || 'Look at this.';
+      const next = [...turns, {role: 'user', content: shown, ...(pics.length ? {img: true} : {})}];
       setTurns(next); setBusy(true); setLive('');
       M.chat.save(ctx, next);
       const c = new AbortController(); ctl.current = c;
@@ -81,17 +101,20 @@
         const data = ctx.isFounder ? await M.ai.teamSlice(ctx) : (await M.ai.meSlice(ctx)) + '\n\n' + (await M.ai.teamSlice(ctx));
         const lim = ctx.sample.limits ? await ctx.sample.limits().catch(() => null) : null;
         const actions = [];
-        const toolsAll = lim && lim.tools ? M.ai.tools(ctx, nm, a => { actions.push(a); M.chat.save(ctx, [...M.chat.turns, {role: 'assistant', content: a, act: true}]); }) : undefined;
+        const toolsAll = lim && lim.tools && M.brain ? M.brain.tools(ctx, nm, a => { actions.push(a); M.chat.save(ctx, [...M.chat.turns, {role: 'assistant', content: a, act: true}]); }) : undefined;
         const tools = toolsAll ? toolsAll.slice(0, (lim.tools.maxCount && lim.tools.maxCount > 0) ? lim.tools.maxCount : toolsAll.length) : undefined;
-        const lead = M.ai.VOICE + instructions(ctx, nm[ctx.uid] || 'a teammate') + '\n\nDATA:\n' + data.slice(0, 40000);
+        const mem = M.brain ? M.brain.memoryLines(M.brain.memoryOf(await M.brain.readAi(ctx))) : '';
+        const lead = M.ai.VOICE + instructions(ctx, nm[ctx.uid] || 'a teammate') + (mem ? '\n\n' + mem : '') +
+          (M.chat.summary ? '\n\nEARLIER IN THIS CHAT, IN SHORT:\n' + M.chat.summary : '') + '\n\nDATA:\n' + data.slice(0, 30000);
         /* the page keeps the chat; Claude sees the lead turn, the recent turns and the new message */
         const convo = [{role: 'user', content: lead}];
         history.slice(-8).forEach(t => convo.push({role: t.role, content: t.content}));
-        convo.push({role: 'user', content: msg});
-        const out = await ctx.sample(convo, {signal: c.signal, tools, onText: ({text: t}) => setLive(t), ...(tools ? {} : {cache: false})});
+        convo.push({role: 'user', content: pics.length ? (msg || 'Look at what is attached and tell me what matters.') + ' (' + pics.length + (pics.length === 1 ? ' image attached)' : ' images attached)') : msg});
+        const out = await ctx.sample(convo, {signal: c.signal, tools, onText: ({text: t}) => setLive(t), ...(pics.length ? {images: pics.map(p => p.blob)} : {}), ...(tools ? {} : {cache: false})});
         const answer = {role: 'assistant', content: out.text.replace(/\u2014|\u2013/g, ', ')};
         const all = [...M.chat.turns, answer];
-        M.chat.save(ctx, all);
+        await M.chat.save(ctx, all);
+        if (M.brain) M.brain.compact(ctx).catch(() => {});
       } catch (e) {
         const code = (e && e.code) || 'upstream_error';
         if (code !== 'cancelled') setTurns(ts => [...ts, {role: 'assistant', content: (e && e.text ? e.text + '\n\n' : '') + M.ai.errCopy(code), err: true}]);
@@ -110,24 +133,28 @@
         ${turns.map((t, i) => t.act
           ? html`<div key=${i} class="bubble act">${t.content}</div>`
           : html`<div key=${i} class=${'bubble ' + (t.role === 'user' ? 'me' : 'ai')} style=${t.err ? {borderColor: 'var(--flame)'} : null}>
-              ${t.role === 'user' ? t.content : html`<${M.AIText} text=${t.content}/>`}</div>`)}
+              ${t.role === 'user' ? html`${t.img ? html`<span class="tiny ink62">[image] </span>` : null}${t.content}` : html`<${M.AIText} text=${t.content}/>`}</div>`)}
         ${busy ? html`<div class="bubble ai">${live ? html`<${M.AIText} text=${live}/>` : html`<${M.Thinking}/>`}</div>` : null}
+        ${M.parts.PendingActs ? html`<${M.parts.PendingActs}/>` : null}
         <div ref=${endRef}/>
       </div>
+      ${imgs.length ? html`<div class="row" style=${{gap: '8px'}} id=${inline ? 'ask-attached-inline' : 'ask-attached'}>${imgs.map((im, i) => html`<span key=${i} class="ask-thumb"><img src=${im.url} alt="attached"/><button type="button" class="iconbtn" aria-label="Remove image" onClick=${() => setImgs(xs => xs.filter((_, j) => j !== i))}><${M.icons.x}/></button></span>`)}</div>` : null}
       <div class="ask-in">
+        ${canImg ? html`<input ref=${fileRef} type="file" accept="image/*" multiple=${true} style=${{display: 'none'}} id=${inline ? 'ask-file-inline' : 'ask-file'} onChange=${e => { attach(e.target.files); e.target.value = ''; }}/>
+          <button type="button" class="iconbtn" aria-label="Attach an image" title="A photo or a screenshot" onClick=${() => fileRef.current && fileRef.current.click()}><${M.icons.plus}/></button>` : null}
         <input id=${inline ? 'ask-inline' : 'ask-input'} class="input" value=${q} placeholder=${ctx.isFounder ? 'Ask HQ anything…' : 'Ask m360 anything…'}
-          onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') send(); }} aria-label="Ask m360"/>
+          onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') send(); }} onPaste=${e => { const fs = Array.from((e.clipboardData && e.clipboardData.files) || []).filter(f => /^image\//.test(f.type)); if (fs.length && canImg) { e.preventDefault(); attach(fs); } }} aria-label="Ask m360"/>
         ${busy ? html`<${UI.Btn} kind="sec" onClick=${() => ctl.current && ctl.current.abort()}>Stop<//>`
-          : html`<button type="button" class="btn" disabled=${!q.trim()} onClick=${() => send()}>Ask</button>`}
+          : html`<button type="button" class="btn" disabled=${!q.trim() && !imgs.length} onClick=${() => send()}>Ask</button>`}
       </div>
-      ${turns.length ? html`<button type="button" class="linky tiny" style=${{alignSelf: 'flex-start'}} onClick=${() => { setTurns([]); M.chat.save(ctx, []); }}>Clear chat</button>` : null}
+      ${turns.length || M.chat.summary ? html`<button type="button" class="linky tiny" style=${{alignSelf: 'flex-start'}} onClick=${() => { setTurns([]); M.chat.summary = ''; M.chat.save(ctx, [], {summary: ''}); }}>Clear chat</button>` : null}
     </div>`;
   }
 
   function Ask({onClose, initial}) {
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Ask m360">
       <${AskPanel} initial=${initial || ''}/>
-      <div class="hint">Runs on your own Claude account. It sees what you can see in m360, and nothing else.</div>
+      <div class="hint">Runs on your own Claude account. It sees what you can see in m360, and nothing else. Ask "what can you do" for the list.</div>
     <//>`;
   }
 

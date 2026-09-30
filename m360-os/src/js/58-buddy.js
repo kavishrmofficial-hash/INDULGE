@@ -3,7 +3,10 @@
    type. Claude reads a map of what is on screen plus your work data, answers in a bubble (out loud when
    you spoke), flies the pointer to the exact control, and, when you ask it to, clicks or types for you.
    It never presses anything risky (delete, offboard, restore, sign out): those it points at.
-   It also gives the onboarding tour (57-tour.js): spoken, pointed, section by section. */
+   Through the brain (56-brain.js) it looks anything up and does anything a hand could: tasks, notes,
+   posts, kudos, messages, leave, check-in, EOD, the week, pitches, clients, mail and meetings, with
+   the outward and deciding acts waiting on one tap in the bubble. It remembers what you tell it to,
+   says hello once a day with your numbers, and gives the onboarding tour (57-tour.js). */
 'use strict';
 (function () {
   const {html, React, U, UI} = M;
@@ -20,9 +23,11 @@
   const SR = () => window.SpeechRecognition || window.webkitSpeechRecognition || null;
   const wait = ms => new Promise(r => setTimeout(r, ms));
 
-  const SECTIONS = ['home', 'tasks', 'projects', 'calendar', 'reviews', 'week', 'clients', 'pitches', 'feed', 'people', 'voice', 'scores',
-    'base', 'companies', 'import', 'radar', 'awards', 'watch', 'me', 'trophies', 'leave', 'handbook', 'hiring', 'hq', 'command', 'admin'];
-  const FOUNDER_ONLY = ['hq', 'command', 'admin'];
+  const SECTIONS = ['home', 'tasks', 'projects', 'calendar', 'reviews', 'week', 'clients', 'pitches', 'crm', 'feed', 'people', 'voice', 'scores', 'music',
+    'chat', 'mail', 'gcal', 'drive', 'web', 'notes', 'base', 'companies', 'import', 'radar', 'awards', 'watch', 'me', 'trophies', 'leave', 'handbook', 'hiring',
+    'hq', 'command', 'admin', 'books', 'invoices', 'expenses', 'payroll', 'letters', 'billing'];
+  const FOUNDER_ONLY = ['hq', 'command', 'admin', 'hiring'];
+  const OWNER_ONLY = ['books', 'invoices', 'expenses', 'payroll', 'letters', 'billing'];
   /* controls the buddy will point at but never press */
   const RISKY = /delete|remove|erase|wipe|trash|offboard|lock|unlock|restore|overwrite|revoke|sign out|log out|approve|reject|decline|pay|revert|clear|withdraw|cancel|send back|reset/i;
 
@@ -293,6 +298,25 @@
       return () => window.removeEventListener('m360:tour', startTour);
     }, [startTour]);
 
+    /* once a day, the first time m360 is open: a hello with their numbers, no model call */
+    useEffect(() => {
+      if (!ctx.ready || !ctx.member || hidden || mode !== 'idle' || !on) return;
+      if (M.prefs.get('buddyHello', '1') === '0' || store.get('buddyHelloDay') === U.todayStr()) return;
+      if (!M.tour.ready(ctx) || !M.tour.seen(ctx)) return;    /* the welcome comes first, the hello from the next day */
+      if (window.M360_WELCOME_OFF && store.get('forceHello') !== '1') return;
+      const t = setTimeout(async () => {
+        if (modeRef.current !== 'idle') return;
+        store.set('buddyHelloDay', U.todayStr());
+        const nm = await M.ai.names(ctx).catch(() => ({}));
+        const line = M.brain ? M.brain.hello(ctx, nm) : '';
+        if (!line || modeRef.current !== 'idle') return;
+        const r = homeRef.current ? homeRef.current.getBoundingClientRect() : {left: window.innerWidth - 200, top: window.innerHeight - 80};
+        setAnchor({x: r.left, y: r.top - 10}); setMode('hello'); setAnswer(line);
+        if (voiceOn()) speak(line);
+      }, 1500);
+      return () => clearTimeout(t);
+    }, [ctx.ready, ctx.member, hidden, mode, on]);
+
     /* a new person gets offered the tour once, on their first sign in */
     useEffect(() => {
       if (!ctx.ready || !ctx.member || hidden || mode !== 'idle') return;
@@ -383,7 +407,8 @@
           execute: async input => {
             const s = String(input.section || '');
             if (SECTIONS.indexOf(s) < 0) throw new Error('unknown section');
-            if (!ctx.isFounder && FOUNDER_ONLY.indexOf(s) >= 0) throw new Error('that section is for Kaavish only');
+            if (!ctx.isFounder && FOUNDER_ONLY.indexOf(s) >= 0) throw new Error('that section is for the founder only');
+            if (!ctx.isOwner && OWNER_ONLY.indexOf(s) >= 0) throw new Error('the books are the owner\'s alone');
             M.nav('#' + s); log('opened ' + s);
             await wait(450);
             screen = scan();
@@ -461,19 +486,19 @@
             return 'walking';
           }
         }];
-        const aiTools = M.ai.tools(ctx, nm, log);
+        const aiTools = M.brain ? M.brain.tools(ctx, nm, log) : M.ai.tools(ctx, nm, log);
         /* what they want decides which tools ride along first (hosts cap the count) and how hard the model thinks */
         const q = question.toLowerCase();
         const intent = /show me how|how do i|how to|walk me|teach me/.test(q) ? 'how'
-          : /\b(task|assign|give .* to|move .* to|mark .* done|reassign)\b/.test(q) ? 'task'
+          : /\b(task|assign|give .* to|move .* to|mark .* done|reassign|remind|remember|forget|note|post|kudos|message|tell |dm |send|check me in|check in|check out|eod|leave|outcome|pitch|client|meeting|mail|email|bookmark|subtask|comment|approve|send back)\b/.test(q) ? 'task'
           : /\b(open|close|dismiss|escape|create|start|switch|fill|type|make|add|do it|set|choose|select|pick|take me|go to|turn on|turn off)\b/.test(q) ? 'do'
-          : /\b(who|how many|what is|what's|whats|overdue|pipeline|know at|find|search|slipping|late|points|score|balance|client|contact|company)\b/.test(q) ? 'look' : 'where';
+          : /\b(who|how many|what is|what's|whats|what are|what did|when|overdue|pipeline|know at|find|search|slipping|late|points|score|balance|contact|company|calendar|inbox|online|news|radar|notes|feed|chat|handbook|hiring|scores|books|invoice|drive|read|summar|what can you do|help)\b/.test(q) ? 'look' : 'where';
         const ORDER = {
-          how: ['point_at', 'go_to', 'walk_through', 'click', 'create_task', 'set_task_status', 'reassign_task'],
-          task: ['create_task', 'set_task_status', 'reassign_task', 'point_at', 'go_to', 'click', 'search_everything'],
-          do: ['point_at', 'go_to', 'click', 'type_into', 'select_option', 'press_key', 'walk_through', 'create_task', 'set_task_status'],
-          look: aiTools.map(t => t.name).concat(['point_at', 'go_to', 'walk_through']),
-          where: ['point_at', 'go_to', 'click', 'walk_through', 'create_task', 'search_everything', 'search_base', 'who_do_we_know_at']
+          how: ['point_at', 'go_to', 'walk_through', 'click', 'look_up', 'act'],
+          task: ['act', 'look_up', 'point_at', 'go_to', 'click', 'search_everything', 'search_base', 'who_do_we_know_at'],
+          do: ['point_at', 'go_to', 'click', 'type_into', 'select_option', 'press_key', 'walk_through', 'act', 'look_up'],
+          look: ['look_up', 'act', 'search_everything', 'search_base', 'who_do_we_know_at', 'pipeline_for', 'point_at', 'go_to'],
+          where: ['point_at', 'go_to', 'click', 'look_up', 'act', 'walk_through', 'search_everything', 'search_base']
         };
         const all = tools.concat(aiTools);
         const first = ORDER[intent].map(n => all.find(t => t.name === n)).filter(Boolean);
@@ -484,23 +509,29 @@
         /* the shared thread is the memory, so the full chat and the buddy always agree */
         const recent = (M.chat && M.chat.turns.length) ? M.chat.recent(6).map(t => ({role: t.role, content: String(t.content).slice(0, 300)})) : history.current.slice(-6);
         const past = recent.map(h => (h.role === 'user' ? 'They: ' : 'You: ') + h.content).join('\n');
+        const mem = M.brain ? M.brain.memoryLines(M.brain.memoryOf(await M.brain.readAi(ctx))) : '';
+        const summary = M.chat && M.chat.summary ? 'EARLIER, IN SHORT:\n' + M.chat.summary + '\n\n' : '';
         const prompt = M.ai.VOICE +
           'You are the m360 cursor buddy. You live next to the person\'s mouse cursor inside the m360 OS and help them use it. ' +
           'They are ' + (nm[ctx.uid] || 'a teammate') + (ctx.isFounder ? ', the founder' : '') + '. They are on the ' + (here.s || 'home') + ' section.\n' +
           'Rules: answer the way a sharp, warm colleague would say it out loud: one to three short sentences, contractions, plain words, a little warmth, no lists, no headings, no markdown. ' +
           'When the answer lives on screen, or they ask where or how, call point_at FIRST with the best element id, then answer. If it lives in another section, call go_to, then point_at. ' +
-          'When they ask you to do something (open, create, start, switch, fill, choose), do it: click, type_into, select_option and press_key, step by step, reading the SCREEN each tool returns, then tell them in one line what you did. ' +
+          'When they ask you to do something on screen (open, close, switch, fill, choose), do it: click, type_into, select_option and press_key, step by step, reading the SCREEN each tool returns, then tell them in one line what you did. ' +
+          'When they ask you to make or change something (a task, a note, a post, kudos, a message, leave, check-in, EOD, the week, a pitch, a client, a reminder, mail, a meeting) use act; when act comes back waiting, say it is ready for their tap in this bubble. ' +
+          'When they ask about anything THEIR DATA does not say (a project, a client, the calendar, notes, the feed, chat, the handbook, hiring, scores, Radar, the books, mail, meetings, Drive, a web page, who someone is), call look_up first; never guess a number or a name. ' +
+          'When they say remember, act remember; the things you remember are below, use them. ' +
           'When they ask how to do something with more than one step, go_to the right section if needed, then call walk_through with the steps, then answer in one line. ' +
           'Read the [state] tags on screen (selected, value, checked, on) before answering about what is set. ' +
-          'Never press a risky control; point at it and say so. Never invent ids. ' +
-          'When they ask you to create or move a task, use those tools and confirm in one line.\n\n' +
+          'Never press a risky control; point at it and say so. Never invent ids. When they ask what you can do, say it in two sentences from the list below.\n' +
+          (M.brain ? M.brain.catalog(ctx) : '') + '\n\n' +
+          (mem ? mem + '\n\n' : '') + summary +
           (past ? 'EARLIER IN THIS CHAT:\n' + past + '\n\n' : '') +
-          'SCREEN (id | kind | label | area):\n' + screen.slice(0, 9000) + '\n\nTHEIR DATA:\n' + data.slice(0, 16000) + '\n\nTHEY SAID: ' + question;
+          'SCREEN (id | kind | label | area):\n' + screen.slice(0, 9000) + '\n\nTHEIR DATA:\n' + data.slice(0, 14000) + '\n\nTHEY SAID: ' + question;
         const out = await ctx.sample(prompt, {signal: c.signal, modelTier: doing ? 'default' : 'quick', tools: lim && lim.tools ? ordered.slice(0, (lim.tools.maxCount && lim.tools.maxCount > 0) ? lim.tools.maxCount : ordered.length) : undefined,
           onText: ({text: t}) => setAnswer(t.replace(/\u2014|\u2013/g, ', '))});
         const final = out.text.replace(/\u2014|\u2013/g, ', ');
         history.current.push({role: 'user', content: question}, {role: 'assistant', content: final.slice(0, 300)});
-        if (M.chat) M.chat.append(ctx, [{role: 'user', content: question}, {role: 'assistant', content: final}]);
+        if (M.chat) M.chat.append(ctx, [{role: 'user', content: question}, {role: 'assistant', content: final}]).then(() => { if (M.brain) M.brain.compact(ctx).catch(() => {}); });
         if (walk.current) {
           /* a how-to: the answer becomes a short pointed walk, one step per Next */
           const list = walk.current; walk.current = null;
@@ -603,7 +634,7 @@
       ${ring ? html`<div class="buddy-ring" style=${{left: ring.left + 'px', top: ring.top + 'px', width: ring.width + 'px', height: ring.height + 'px'}}/>` : null}
       ${mode !== 'idle' ? html`<div class=${'buddy-bubble' + (mode === 'tour' ? ' tour' : '')} role="dialog" aria-label="Ask m360" style=${{left: left + 'px', top: top + 'px'}}>
         <div class="row between" style=${{marginBottom: '8px'}}>
-          <span class="micro">${mode === 'listening' ? 'listening, let go to send' : mode === 'thinking' ? 'thinking' : mode === 'tour' ? (stopHere ? stopHere.title : 'the tour') : mode === 'welcome' ? 'hello' : followUp ? 'listening for a follow up' : 'ask m360'}</span>
+          <span class="micro">${mode === 'listening' ? 'listening, let go to send' : mode === 'thinking' ? 'thinking' : mode === 'tour' ? (stopHere ? stopHere.title : 'the tour') : mode === 'welcome' || mode === 'hello' ? 'hello' : followUp ? 'listening for a follow up' : 'ask m360'}</span>
           <button type="button" class="iconbtn" style=${{color: '#fff', width: '26px', height: '26px'}} aria-label="Close" onClick=${mode === 'tour' ? () => finishTour('skipped') : mode === 'welcome' ? () => { M.tour.mark(ctx, 'asked'); reset(); } : reset}><${M.icons.x}/></button>
         </div>
         ${mode === 'listening' ? html`<div style=${{fontWeight: 500, minHeight: '22px'}}>${heard || 'Go ahead, I\'m listening.'}</div>` : null}
@@ -616,12 +647,17 @@
               <button type="button" class="btn on-dark sm" disabled=${!q.trim()} onClick=${() => ask(q)}>Ask</button>
             </span></div>
           <div class="row" style=${{gap: '6px', flexWrap: 'wrap'}}>
-            ${['Where do I check in?', 'Open a new task for me', 'Show me how to request leave', ctx.isFounder ? 'Who is slipping this week?' : 'What is overdue on me?'].map(t => html`<button key=${t} type="button" class="pill ghost-dark" onClick=${() => { spoke.current = false; ask(t); }}>${t}</button>`)}
+            ${['What can you do?', 'What is on my calendar this week?', 'Open a new task for me', ctx.isFounder ? 'Who is slipping this week?' : 'What is overdue on me?'].map(t => html`<button key=${t} type="button" class="pill ghost-dark" onClick=${() => { spoke.current = false; ask(t); }}>${t}</button>`)}
           </div>
           <button type="button" class="linky tiny" style=${{alignSelf: 'flex-start'}} onClick=${startTour}>Show me around</button>
         </div>` : null}
         ${mode === 'thinking' && !answer ? html`<${M.Thinking} label="Looking at your screen"/>` : null}
-        ${answer && mode !== 'listening' ? html`<${M.AIText} text=${answer}/>` : null}
+        ${answer && mode !== 'listening' ? (mode === 'hello' ? html`<div class="buddy-hello" id="buddy-hello">${answer}</div>` : html`<${M.AIText} text=${answer}/>`) : null}
+        ${M.parts.PendingActs && (mode === 'answer' || mode === 'thinking') ? html`<${M.parts.PendingActs}/>` : null}
+        ${mode === 'hello' ? html`<div class="row" style=${{marginTop: '10px', gap: '8px'}}>
+          <button type="button" class="btn on-dark sm" id="hello-plan" onClick=${() => { spoke.current = false; ask('Plan my day in three lines from my open tasks and the calendar.'); }}>Plan my day</button>
+          <button type="button" class="linky tiny" id="hello-later" onClick=${reset}>Thanks</button>
+        </div>` : null}
         ${mode === 'tour' ? html`<div class="row between" style=${{marginTop: '10px'}}>
           <span class="tiny" style=${{color: 'rgba(255,255,255,.6)'}}>${step + 1} of ${stops.length}</span>
           <span class="row nowrap" style=${{gap: '6px'}}>

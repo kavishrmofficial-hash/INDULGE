@@ -1,0 +1,12 @@
+/* ---------- the buddy's brain: acts waiting on a tap, attached images, memory rows ---------- */
+.pending-acts{display:flex; flex-direction:column; gap:8px; margin-top:6px}
+.pending-act{border:1px solid var(--line2); border-radius:12px; padding:8px 10px; background:var(--paper); color:var(--ink)}
+.buddy-bubble .pending-act{background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.3); color:#fff}
+.buddy-bubble .pending-act .btn{background:#fff; color:#0E0E0E}
+.clamp3{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; white-space:pre-wrap}
+.ask-thumb{position:relative; display:inline-block}
+.ask-thumb img{width:56px; height:56px; object-fit:cover; border-radius:10px; border:1px solid var(--line); display:block}
+.ask-thumb .iconbtn{position:absolute; top:-8px; right:-8px; width:22px; height:22px; background:var(--paper); border:1px solid var(--line2)}
+.memory-row{gap:10px; align-items:baseline; padding:4px 0; border-bottom:1px solid var(--line)}
+.memory-row:last-child{border-bottom:0}
+.buddy-hello{font-size:15px; font-weight:500; line-height:1.4}

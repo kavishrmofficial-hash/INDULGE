@@ -48,6 +48,10 @@ const CODE_TRIES = 5;
 const WEAK = new Set(['password', '12345678']);
 const LAST_SEEN_MS = 3600000;   /* a session's last-seen stamp moves at most once an hour */
 const BODY_MAX = 6 * 1024 * 1024; /* the platform's own limit, refused early with a clear code */
+/* the model behind the page's AI: quick answers on Haiku, everything else on the current Opus */
+const AI_MODELS = {quick: 'claude-haiku-4-5-20251001', default: 'claude-opus-5-5', complex: 'claude-opus-5-5'};
+const AI_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+const AI_IMAGE_MAX = 2200000;   /* base64 characters per image, about 1.6 MB */
 const AUTH_ACTIONS = new Set(['setup', 'signup', 'login', 'accept', 'invited', 'magic', 'pw', 'pw2', 'reset', 'resetpw']);
 /* the caller's address, from the edge's headers; empty when none is present */
 function clientIp(request) {
@@ -1049,30 +1053,52 @@ export function createApp({store, env = {}}) {
       return {on: true};
     },
 
-    /* one model turn; the page runs its own tools and calls again */
+    /* one model turn; the page runs its own tools and calls again. Text and images come in as the page
+       shaped them (a string, or content blocks); tool results and the model's own blocks ride back the
+       same way, so a multi round call keeps its thinking intact on the same model. */
     async ai(v, body) {
       if (!v || (await levelOf(v.uid)) < LEVEL.interact) throw new HttpError(403, 'not_granted');
       const key = await aiKey();
       if (!key) throw new HttpError(403, 'not_granted', 'AI is off');
-      const MODELS = {quick: 'claude-haiku-4-5-20251001', default: 'claude-sonnet-5', complex: 'claude-sonnet-5'};
-      const req = {
-        model: MODELS[body.tier] || MODELS.default,
-        max_tokens: Math.min(Number(body.max_tokens) || 2048, 4096),
-        messages: Array.isArray(body.messages) ? body.messages.slice(-40) : []
-      };
-      if (typeof body.system === 'string' && body.system) req.system = body.system.slice(0, 60000);
-      if (Array.isArray(body.tools) && body.tools.length) req.tools = body.tools.slice(0, 20);
-      const r = await (env.fetch || fetch)('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01'},
-        body: JSON.stringify(req)
-      });
+      const tier = body.tier === 'quick' || body.tier === 'complex' ? body.tier : 'default';
+      const model = AI_MODELS[tier];
+      const messages = Array.isArray(body.messages) ? body.messages.slice(-60).map(cleanTurn).filter(Boolean) : [];
+      if (!messages.length) throw new HttpError(400, 'invalid_argument', 'no messages');
+      const req = {model, max_tokens: Math.min(Number(body.max_tokens) || 4096, 8192), messages};
+      if (typeof body.system === 'string' && body.system) req.system = body.system.slice(0, 160000);
+      if (Array.isArray(body.tools) && body.tools.length) req.tools = body.tools.slice(0, 32).map(t => ({name: String(t.name || '').slice(0, 64), description: String(t.description || '').slice(0, 4000), input_schema: isObj(t.input_schema) ? t.input_schema : {type: 'object', properties: {}}}));
+      if (req.tools && body.noTools === true) req.tool_choice = {type: 'none'};
+      const headers = {'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01'};
+      if (tier !== 'quick') {
+        /* the current models think by themselves; effort sets how hard. A safety refusal is routed to a
+           fallback model on the server side, so a plain question never dies on a classifier. */
+        req.output_config = {effort: tier === 'complex' ? 'high' : 'medium'};
+        req.fallbacks = 'default';
+        headers['anthropic-beta'] = 'server-side-fallback-2026-07-01';
+      }
+      const r = await (env.fetch || fetch)('https://api.anthropic.com/v1/messages', {method: 'POST', headers, body: JSON.stringify(req)});
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new HttpError(r.status === 429 ? 429 : 502, r.status === 429 ? 'rate_limited' : 'unavailable',
         (j && j.error && j.error.message) || 'model error');
-      return {content: j.content || [], stop_reason: j.stop_reason || ''};
+      if (j.stop_reason === 'refusal') throw new HttpError(400, 'refused', (j.stop_details && j.stop_details.explanation) || 'The model passed on that one.');
+      return {content: j.content || [], stop_reason: j.stop_reason || '', model: j.model || model};
     }
   };
+  /* what a page may send the model: a string, or text, image and tool blocks; anything else is dropped */
+  function cleanTurn(t) {
+    if (!isObj(t) || (t.role !== 'user' && t.role !== 'assistant')) return null;
+    if (typeof t.content === 'string') return {role: t.role, content: t.content.slice(0, 200000)};
+    if (!Array.isArray(t.content)) return null;
+    const out = [];
+    for (const b of t.content.slice(0, 40)) {
+      if (!isObj(b)) continue;
+      if (b.type === 'text' && typeof b.text === 'string') out.push({type: 'text', text: b.text.slice(0, 200000)});
+      else if (b.type === 'image' && isObj(b.source) && b.source.type === 'base64' && AI_IMAGE_TYPES.has(b.source.media_type) && typeof b.source.data === 'string' && b.source.data.length <= AI_IMAGE_MAX)
+        out.push({type: 'image', source: {type: 'base64', media_type: b.source.media_type, data: b.source.data}});
+      else if (b.type === 'tool_use' || b.type === 'tool_result' || b.type === 'thinking' || b.type === 'redacted_thinking') out.push(b);
+    }
+    return out.length ? {role: t.role, content: out} : null;
+  }
   /* a document written by the server in someone's name: the same version keeping, marker and log as a write from a page */
   async function writeAs(uid, path, doc, what) {
     const key = docKey(path), s = segs(path), str = JSON.stringify(doc);
