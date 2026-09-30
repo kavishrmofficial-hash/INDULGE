@@ -114,6 +114,32 @@ async function fakeGoogle(url, init) {
 
 /* a canned model: plain answers, JSON when asked, and one tool call when a tool fits */
 globalThis.__mails = [];
+/* the DM desk's writer: a bucket from the headline, a message in five beats that passes the copy rules */
+function handshakeWrite(prompt) {
+  const people = [];
+  const re = /PERSON \d+: (.+)\nHEADLINE: (.+)\nCOMPANY: (.+)\nCONNECTION: (\w+)([\s\S]*?)(?=\n\nPERSON |\n\nReply with JSON)/g;
+  let m, i = 0;
+  while ((m = re.exec(prompt))) {
+    const [, name, headline, company, , rest] = m;
+    const first = name.split(' ')[0];
+    const hasNews = /news:/.test(rest);
+    const senior = /SENIOR: ([^(\n]+)/.exec(rest);
+    const opener = i % 2 ? 'Good to connect' : 'Thanks for connecting';
+    let bucket = /founder|ceo|cmo|cbo|head of|managing director|\bmd\b/i.test(headline) ? 'decision' : /brand manager|social|comms|marketing/i.test(headline) ? 'marketer' : /agency|studio|pr /i.test(headline) ? 'partner' : /talent acquisition|recruit/i.test(headline) ? 'skip' : 'marketer';
+    let message = '';
+    if (bucket !== 'skip') {
+      const hook = hasNews ? 'the Wipro deal puts DERMATOUCH in every chemist by Diwali' : 'your run at ' + company.replace(/\(none\)/, 'the brand') + ' stood out on the headline';
+      const ask = bucket === 'decision' ? 'Worth 20 minutes next week?' : bucket === 'marketer' ? 'Up for a quick call this week?' : 'Coffee some time?';
+      message = opener + ', ' + first + '. ' + hook.replace(/^./, c => c.toUpperCase()) + ' — that is a lot of shelf to feed with content. ' +
+        'Mask360 runs creator and content engines for premium brands across India and UAE, so the feed keeps pace with the distribution. ' +
+        (senior ? 'I have reached out to ' + senior[1].trim() + ' on the founder side too. ' : 'DRINK BUBZ and THE WHOLE TRUTH run on the same engine. ') + ask;
+    }
+    people.push({name, bucket, why: bucket === 'skip' ? 'a recruiter' : 'from the headline', hookKind: hasNews ? 'news' : 'company', hookLine: hasNews ? 'the Wipro deal' : 'their run at ' + company, proof: bucket === 'skip' ? '' : 'FMCG', message, flags: /quaffine/i.test(company) ? ['possible IONIQ investor'] : [], skip: bucket === 'skip' ? 'a recruiter, no fit' : ''});
+    i++;
+  }
+  return {people};
+}
+
 async function fakeFetch(url, init) {
   if (String(url).startsWith('https://api.pwnedpasswords.com/range/')) {
     const prefix = String(url).slice(-5).toUpperCase();
@@ -182,6 +208,12 @@ async function fakeFetch(url, init) {
     const i = res.indexOf('CALENDAR');
     content = [{type: 'text', text: i >= 0 ? 'Your calendar: ' + res.slice(i, i + 300).replace(/\\n/g, ' ') : 'Done. I took care of it.'}];
   }
+  else if (/^HANDSHAKE READ/.test(said)) content = [{type: 'text', text: JSON.stringify({people: [
+    {name: 'Priya Mehta', headline: 'Brand Manager at DERMATOUCH', company: 'Dermatouch', status: '1st'},
+    {name: 'Arjun Rao', headline: 'Founder & CEO, Dermatouch', company: 'Dermatouch', status: '1st'},
+    {name: 'Neha Kapoor', headline: 'Talent Acquisition Partner', company: 'Hirewell', status: '1st'},
+    {name: 'Rohit Shah', headline: 'Head of Marketing, QUAFFINE', company: 'Quaffine', status: 'pending'}]})}];
+  else if (/^HANDSHAKE WRITE/.test(said)) content = [{type: 'text', text: JSON.stringify(handshakeWrite(said))}];
   else if (images.length) content = [{type: 'text', text: 'I see ' + images.length + (images.length === 1 ? ' image' : ' images') + ', ' + images.map(i => i.type).join(', ') + '. Looks like a screenshot of a task list.'}];
   else if (toolNames.includes('act') && /remember that (.+)/i.test(said)) content = [{type: 'tool_use', id: 'tu_rem', name: 'act', input: {action: 'remember', input: {fact: /remember that (.+)/i.exec(said)[1].replace(/[.?!]$/, '')}}}];
   else if (toolNames.includes('act') && /post (?:to the feed|on vibe)[:\s]+(.+)/i.test(said)) content = [{type: 'tool_use', id: 'tu_post', name: 'act', input: {action: 'post_to_feed', input: {kind: 'update', text: /post (?:to the feed|on vibe)[:\s]+(.+)/i.exec(said)[1]}}}];

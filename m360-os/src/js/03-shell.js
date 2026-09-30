@@ -33,7 +33,7 @@
       {k: 'calendar', label: 'Calendar', route: 'calendar'}, {k: 'reviews', label: 'Reviews', route: 'reviews'},
       {k: 'week', label: 'The week', route: 'week'}]},
     accounts: {label: 'Accounts', icon: 'clients', page: 'Accounts', tabs: [
-      {k: 'clients', label: 'Clients', route: 'clients'}, {k: 'pipeline', label: 'Pipeline', route: 'pitches'}, {k: 'crm', label: 'CRM', route: 'crm'}]},
+      {k: 'clients', label: 'Clients', route: 'clients'}, {k: 'pipeline', label: 'Pipeline', route: 'pitches'}, {k: 'crm', label: 'CRM', route: 'crm'}, {k: 'handshake', label: 'Handshake', route: 'handshake', founder: true}]},
     vibe: {label: 'Vibe', icon: 'feed', page: 'Vibe', tabs: [
       {k: 'feed', label: 'Feed', route: 'feed'}, {k: 'crew', label: 'Crew', route: 'people'},
       {k: 'pulse', label: 'Pulse and ideas', route: 'voice'}, {k: 'scores', label: 'Leaderboard', route: 'scores'}, {k: 'music', label: 'Music', route: 'music'}]},
@@ -78,6 +78,7 @@
       case 'accounts': case 'clients': return {s: 'accounts', t: 'clients'};
       case 'pitches': case 'pipeline': return {s: 'accounts', t: 'pipeline'};
       case 'crm': return {s: 'accounts', t: 'crm'};
+      case 'handshake': case 'dm': case 'dms': return isFounder ? {s: 'accounts', t: 'handshake', id} : {s: 'home'};
       case 'web': case 'browser': return {s: 'web'};
       case 'chat': case 'dm': return {s: 'chat', id};
       case 'mail': case 'gmail': case 'workspace': return {s: 'workspace', t: 'mail'};
@@ -144,6 +145,7 @@
   function visibleTabs(ctx, section, b) {
     return (SECTIONS[section].tabs || []).filter(t => {
       if (section === 'me' && t.k === 'hiring') return !ctx.isFounder && ((b.hiring || 0) > 0 || Object.keys(ctx.coll.candidates.map).some(id => (ctx.coll.candidates.map[id].evaluators || []).includes(ctx.uid)));
+      if (t.founder) return !!ctx.isFounder;
       return true;
     });
   }

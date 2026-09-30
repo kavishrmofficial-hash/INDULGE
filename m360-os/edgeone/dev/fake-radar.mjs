@@ -71,6 +71,7 @@ export async function fakeRadar(url, init) {
   if (u.startsWith('https://digiday.com/feed')) return new Response('upstream broke', {status: 500});
   if (u.startsWith('https://news.google.com/rss/search')) {
     const q = decodeURIComponent(u);
+    if (/q="Dermatouch"/i.test(q)) return xml('<?xml version="1.0"?><rss><channel><item><title>Dermatouch signs a distribution deal with Wipro Consumer Care - Economic Times</title><link>https://news.google.com/rss/articles/CBMiDerma</link><pubDate>' + new Date(now() - 3 * 24 * H).toUTCString() + '</pubDate><source>Economic Times</source><description>Dermatouch signs a distribution deal with Wipro Consumer Care</description></item></channel></rss>');
     return xml(q.includes('advertising agency India') ? GOOGLE_NEWS() : q.includes('q=Cannes Lions&') ? CANNES_NEWS() : EMPTY_RSS);
   }
   if (u.startsWith('https://www.youtube.com/feeds/videos.xml?channel_id=')) {

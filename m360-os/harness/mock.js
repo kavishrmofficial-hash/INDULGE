@@ -312,7 +312,31 @@
     if (/Wrapped/.test(text)) return '**Week 39, wrapped**\n- Thirty scripts approved in one pass\n- Kudos to Durvesh for the shoot schedule\n- Most shipped: Aanya\nNext week we go again.';
     return 'Here is the short version:\n- Two tasks are overdue\n- One client brain needs approvals filled';
   }
+  function handshakeWrite(prompt) {
+    const people = [];
+    const re = /PERSON \d+: (.+)\nHEADLINE: (.+)\nCOMPANY: (.+)\nCONNECTION: (\w+)([\s\S]*?)(?=\n\nPERSON |\n\nReply with JSON)/g;
+    let m, i = 0;
+    while ((m = re.exec(prompt))) {
+      const [, name, headline, company, , rest] = m;
+      const first = name.split(' ')[0];
+      const senior = /SENIOR: ([^(\n]+)/.exec(rest);
+      const opener = i % 2 ? 'Good to connect' : 'Thanks for connecting';
+      const bucket = /founder|ceo|cmo|cbo|head of|managing director/i.test(headline) ? 'decision' : /brand manager|social|comms|marketing/i.test(headline) ? 'marketer' : /agency|studio/i.test(headline) ? 'partner' : /talent acquisition|recruit/i.test(headline) ? 'skip' : 'marketer';
+      let message = '';
+      if (bucket !== 'skip') {
+        const ask = bucket === 'decision' ? 'Worth 20 minutes next week?' : bucket === 'marketer' ? 'Up for a quick call this week?' : 'Coffee some time?';
+        message = opener + ', ' + first + '. Your run at ' + company + ' stood out on the headline, and the launch calendar looks packed. ' +
+          'Mask360 runs creator and content engines for premium brands across India and UAE, so the feed keeps pace with the distribution. ' +
+          (senior ? 'I have reached out to ' + senior[1].trim() + ' on the founder side too. ' : 'DRINK BUBZ and THE WHOLE TRUTH run on the same engine. ') + ask;
+      }
+      people.push({name, bucket, why: bucket === 'skip' ? 'a recruiter' : 'from the headline', hookKind: 'company', hookLine: 'their run at ' + company, proof: bucket === 'skip' ? '' : 'FMCG', message, flags: /quaffine/i.test(company) ? ['possible IONIQ investor'] : [], skip: bucket === 'skip' ? 'a recruiter, no fit' : ''});
+      i++;
+    }
+    return {people};
+  }
   function jsonFor(text) {
+    if (/^HANDSHAKE READ/.test(text)) return {people: [{name: 'Priya Mehta', headline: 'Brand Manager at DERMATOUCH', company: 'Dermatouch', status: '1st'}, {name: 'Arjun Rao', headline: 'Founder & CEO, Dermatouch', company: 'Dermatouch', status: '1st'}]};
+    if (/^HANDSHAKE WRITE/.test(text)) return handshakeWrite(text);
     if (/"headline"/.test(text)) return {headline: 'Swisse is on track but the shot list is the bottleneck.', pulse: '2 of 4 in, one late, mood 4 of 5.',
       risks: [{title: 'Hero reel script 4 days late', detail: 'Durvesh owns it and flagged a blocker twice.'}], wins: ['Thirty scripts approved in one pass'],
       people: [{name: 'Aanya', note: 'Creator brief is overdue, check if she needs help.'}], money: ['Aurelia proposal is 3 days past its next step.'],

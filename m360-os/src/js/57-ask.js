@@ -90,6 +90,17 @@
       const pics = imgs.slice();
       if ((!msg && !pics.length) || busy) return;
       setQ(''); setImgs([]);
+      /* "DM:" with screenshots: the Handshake desk reads the names and writes the messages */
+      if (/^dm:/i.test(msg) && pics.length && M.handshake && ctx.isFounder) {
+        const shown = [...turns, {role: 'user', content: msg, img: true}];
+        setTurns(shown); setBusy(true);
+        try {
+          const r = await M.handshake.fromAsk(ctx, pics.map(p => p.blob), msg);
+          M.chat.save(ctx, [...shown, {role: 'assistant', content: 'Handshake has ' + r.added.length + (r.added.length === 1 ? ' new person' : ' new people') + (r.dupes.length ? ' (already in: ' + r.dupes.join(', ') + ')' : '') + '. Writing now; the messages land under Accounts, Handshake.'}]);
+        } catch (e) { setTurns(ts => [...ts, {role: 'assistant', content: 'The desk could not read that: ' + ((e && e.message) || 'unknown'), err: true}]); }
+        setBusy(false);
+        return;
+      }
       const history = turns.filter(t => !t.act);
       const shown = msg || 'Look at this.';
       const next = [...turns, {role: 'user', content: shown, ...(pics.length ? {img: true} : {})}];

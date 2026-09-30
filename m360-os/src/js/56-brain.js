@@ -135,6 +135,7 @@
     ['scores', 'the leaderboard for a period (week, month, quarter, all) and the points behind it'],
     ['radar', 'the latest trade press on Radar, by lane (people, accounts, launches, campaigns, awards) (team site)'],
     ['books', 'invoices due and overdue, this month\'s expenses, compliance dates (owner)'],
+    ['handshake', 'the LinkedIn DM desk: who is ready, held, waiting on an accept, sent, skipped, flagged (founder)'],
     ['inbox', 'what is waiting in the inbox'],
     ['online', 'who has m360 open right now and where they are'],
     ['base', 'the Base, the contacts database, for a name, company, city or stage'],
@@ -146,7 +147,7 @@
     ['memory', 'what you have been asked to remember'],
     ['help', 'this list']
   ];
-  const AREA_WHO = {hiring: 'founder', books: 'owner', radar: 'site', web: 'site'};
+  const AREA_WHO = {hiring: 'founder', handshake: 'founder', books: 'owner', radar: 'site', web: 'site'};
   function areasFor(ctx) {
     return AREAS.filter(([k]) => {
       const w = AREA_WHO[k];
@@ -385,6 +386,15 @@
         L.push('EXPENSES THIS MONTH: ' + ex.length + ' rows, ' + b.money(ex.reduce((n, e) => n + (Number(e.amount) || 0), 0), 'INR'));
         const nd = b.nextDates ? b.nextDates(ctx, td) : [];
         if (nd && nd.length) L.push('COMPLIANCE NEXT: ' + list(nd, 6).map(x => x.what + ' on ' + x.date).join('; '));
+        return L.join('\n');
+      }
+      case 'handshake': case 'dm': case 'dms': {
+        if (!ctx.isFounder || !M.handshake) return 'The DM desk is the founder\'s.';
+        const ps = M.handshake.people(ctx).filter(p => !q || has(p.name + ' ' + p.company + ' ' + p.headline + ' ' + p.state, q));
+        const st = {};
+        ps.forEach(p => { st[p.state] = (st[p.state] || 0) + 1; });
+        L.push('HANDSHAKE: ' + ps.length + ' people, ' + Object.keys(st).map(k => st[k] + ' ' + k).join(', '));
+        list(ps.filter(p => p.state !== 'sent').sort((a, b) => (b.updated || 0) - (a.updated || 0)), 25).forEach(p => L.push('- ' + p.name + ', ' + (p.headline || '') + (p.company ? ' at ' + p.company : '') + ', ' + (p.bucket || 'unsorted') + ', ' + p.state + (p.hook && p.hook.line ? ', hook: ' + cut(p.hook.line, 100) : '') + (p.flags && p.flags.length ? ', FLAGS: ' + p.flags.join('; ') : '')));
         return L.join('\n');
       }
       case 'inbox': {

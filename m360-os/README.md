@@ -27,6 +27,7 @@ src/js/        the app, concatenated in filename order:
                73-log      the activity log tab and client side logging
                74-super    founder super controls
                75-radar    news, awards and watch channels
+               49-handshake the LinkedIn DM desk
                76-base     the contacts and companies database, Apollo import
                77-safety   export and import a backup (both builds)
                78-search   master search, connections, the intelligence layer
@@ -278,6 +279,21 @@ Points were never a lifetime total; every board is a bracket (this week, this mo
 - **The hello.** Once a day, the first time m360 is open after the tour is behind them: "Morning, Kaavish. 5 open, 2 overdue, not checked in yet. Aanya: birthday today." with Plan my day. Off in Prefs.
 - **Everywhere else:** go_to knows every route now (books for the owner, chat, mail, Drive, music, notes, the web); "What can you do?" is the first chip; the Ask panel's lead carries the catalog, the memory and the summary; a member never sees the founder's areas or actions in the catalog and cannot run them.
 - Tests: `harness/tests/test_brain.py` (memory in and out through the buddy and Prefs, a post, a reminder, the calendar through look_up, an approval that waits for the tap and runs on it, the chat fold, no attach without images, attach with images, the hello once a day, the member catalog and a refused founder action; on the site: the model and fallback on the wire, the brain tools, the image block, a look_up round). The dev stand-in logs every model request at `/__ai`.
+
+## What is in v21: Handshake, the LinkedIn DM desk
+
+Accounts, Handshake (founder only, route `#handshake`, `49-handshake.js`, `edgeone/server/handshake.js`). The flow the founder wrote, run end to end:
+
+- **Intake.** Drop the LinkedIn screenshots (or paste lines: Name | headline | company | pending or 1st, on a build without images). The model reads every name with its headline, company and connection state; anyone already in the desk is refused with a note, so nobody gets two DMs. Ask m360 takes it too: "DM: lead with the Wipro deal" with screenshots attached runs the whole thing and lands the batch on the desk, the note riding along to the writer.
+- **Triage.** One bucket each: decision maker (founders, MDs, CMOs, CBOs, brand heads), brand-side marketer, partner (agencies, PR, production, NPD), creator, talent, skip (recruiters, no fit, same service, no headline). The bucket sets the ask: 20 minutes, a quick call, a coffee, a media kit, a CV.
+- **Verify.** On the team site every company is looked up before a line is written about it: Google News for the last ninety days and the company's site when the Base knows its address (`dmverify`, cached twelve hours). A fact from the headline can be used as is; anything else must come from what was found, or the message asks a question in its place. Conflicts come back as flags (a possible IONIQ investor, a competitor, someone on their way out).
+- **One hook,** strongest first: fresh news, a true line about the company, the career run, the role, a question.
+- **Proof matched to the category** from the proof bank (FMCG and beverage, jewellery, real estate, luxury and alcobev and wealth, Unilever and big FMCG), always India & UAE, only work that exists; the bank is editable at the foot of the page.
+- **Five beats:** opener (thanks for connecting, good to connect, alternating across the batch), hook, bridge, proof if it fits, one ask.
+- **Sequence.** The senior at a company goes first and the rest are held 48 hours (editable) with a Release now; the junior message names the senior; a pending connection waits under "Waiting on the accept" until They accepted is tapped.
+- **QC by code,** after the model: 3 to 5 sentences, 40 to 70 words, no dashes, no contrast pairs, no links, no pricing, no decks, no Open to Work, no exclamation marks, one question, no template talk; "and" becomes "&" and a dash becomes a comma before the check; anything left shows as a QC line on the card.
+- **Ship.** Each person is the name in bold with the message in a copy block, Copy, Sent (to the log), Edit, Rewrite, Skip; then the skip list with reasons and the flags card. Nothing is sent from m360: paste into LinkedIn.
+- The buddy reads the desk (look_up handshake) and go_to knows it. Tests: `harness/tests/test_handshake.py` on both builds.
 
 ## Launch day
 
