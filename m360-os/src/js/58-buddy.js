@@ -25,7 +25,7 @@
 
   const SECTIONS = ['home', 'tasks', 'projects', 'calendar', 'reviews', 'week', 'clients', 'pitches', 'crm', 'feed', 'people', 'voice', 'scores', 'music',
     'chat', 'mail', 'gcal', 'drive', 'web', 'notes', 'base', 'companies', 'import', 'radar', 'awards', 'watch', 'me', 'trophies', 'leave', 'handbook', 'hiring',
-    'handshake', 'hq', 'command', 'admin', 'books', 'invoices', 'expenses', 'payroll', 'letters', 'billing'];
+    'handshake', 'map', 'hq', 'command', 'admin', 'books', 'invoices', 'expenses', 'payroll', 'letters', 'billing'];
   const FOUNDER_ONLY = ['hq', 'command', 'admin', 'hiring', 'handshake'];
   const OWNER_ONLY = ['books', 'invoices', 'expenses', 'payroll', 'letters', 'billing'];
   /* controls the buddy will point at but never press */

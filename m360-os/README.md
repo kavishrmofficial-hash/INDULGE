@@ -295,6 +295,13 @@ Accounts, Handshake (founder only, route `#handshake`, `49-handshake.js`, `edgeo
 - **Ship.** Each person is the name in bold with the message in a copy block, Copy, Sent (to the log), Edit, Rewrite, Skip; then the skip list with reasons and the flags card. Nothing is sent from m360: paste into LinkedIn.
 - The buddy reads the desk (look_up handshake) and go_to knows it. Tests: `harness/tests/test_handshake.py` on both builds.
 
+## What is in v22: the map, so a newcomer can see what is here
+
+- **What's here** (`61-map.js`, route `#map`): every section and every tab on one page, in one plain line each, with who it is for (founder, owner) and a live number where one is cheap (open on you, live projects, waiting on your review, pitches in play, posts this week, unread rooms, contacts, leave waiting, unread handbook, candidates open, invoices open, DMs ready). Tap a name to go there. Above the grid: the things that are always around from anywhere (Ask m360, search, the inbox, New, focus, breathe, the tour, the shortcuts sheet) with their keys, and, for anyone in their first month, the day-one list in order (check in, the week's outcomes, a hello on Vibe, the handbook, the EOD line, the tour).
+- **Reachable from everywhere:** "What's here" at the foot of the sidebar and in the More sheet on a phone; "What's in m360" in the palette; a "What's in Work" link under every section title that opens the map with that section marked; the same lines as tooltips on the tab strips, the sidebar and its sub-items.
+- **The way in on Home:** for the first two weeks after joining, a card that opens the map, the tour or the buddy; close it once and it stays closed.
+- Tests: `harness/tests/test_map.py` (the page for the founder and for a member, the numbers, the hero link, the tooltip, the palette, the More sheet, the phone, the Home card and its close).
+
 ## Launch day
 
 1. Admin > Team: invite each person by email. They get a link, type their email and pick a password. Without an email key the invite shows a link to copy instead.

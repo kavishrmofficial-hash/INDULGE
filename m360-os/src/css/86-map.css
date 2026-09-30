@@ -1,0 +1,12 @@
+/* ---------- the map: what's in m360 ---------- */
+.map-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:16px; align-items:start}
+.map-card.open{outline:2px solid var(--flame); outline-offset:2px}
+.map-tabs{display:flex; flex-direction:column; gap:6px}
+.map-tab{display:flex; flex-direction:column; gap:2px; text-align:left; border:1px solid var(--line); border-radius:12px; padding:9px 12px; background:var(--paper); color:var(--ink); cursor:pointer; min-width:0; font:inherit}
+.map-tab:hover{border-color:var(--line2); background:var(--warm)}
+.map-tab b{font-weight:600}
+.hero-map{margin-top:8px; padding:0}
+.side-map{margin-top:6px; opacity:.85}
+@media (max-width:600px){ .map-grid{grid-template-columns:1fr} }
+.map-card .card-title svg{width:20px; height:20px; flex:none; vertical-align:-4px}
+.map-card .card-title .pill{margin-left:4px}

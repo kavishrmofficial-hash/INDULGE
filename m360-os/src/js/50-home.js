@@ -682,6 +682,7 @@
       <${Hero} onStatus=${() => setStatus(true)}/>
       ${M.parts.NoticePermit ? html`<${M.parts.NoticePermit}/>` : null}
       ${M.parts.JoinBanner ? html`<${M.parts.JoinBanner}/>` : null}
+      ${M.parts.FindYourWay ? html`<${M.parts.FindYourWay}/>` : null}
       <${Announcement}/>
       ${Celebrate ? html`<${Celebrate}/>` : null}
       <${Quick} onTask=${() => setTask('new')}/>

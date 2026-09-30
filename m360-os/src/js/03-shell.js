@@ -55,7 +55,8 @@
     books: {label: 'Books', icon: 'log', page: 'Books', founder: true, owner: true, tabs: [
       {k: 'overview', label: 'Overview', route: 'books'}, {k: 'invoices', label: 'Invoices', route: 'invoices'},
       {k: 'expenses', label: 'Expenses', route: 'expenses'}, {k: 'payroll', label: 'Payroll', route: 'payroll'},
-      {k: 'letters', label: 'Letters', route: 'letters'}, {k: 'billing', label: 'Setup', route: 'billing'}]}
+      {k: 'letters', label: 'Letters', route: 'letters'}, {k: 'billing', label: 'Setup', route: 'billing'}]},
+    map: {label: 'What\'s here', icon: 'map', page: 'Map'}
   };
   M.SECTIONS = SECTIONS;
 
@@ -69,6 +70,7 @@
       case 'letters': case 'letter': return isOwner ? {s: 'books', t: 'letters', id} : {s: 'home'};
       case 'billing': return isOwner ? {s: 'books', t: 'billing', id} : {s: 'home'};
       case 'home': case 'today': return {s: 'home'};
+      case 'map': case 'explore': case 'whats-here': case 'help': return {s: 'map', id};
       case 'work': return {s: 'work', t: 'tasks'};
       case 'projects': return {s: 'work', t: 'projects', id};
       case 'week': return {s: 'work', t: 'week'};
@@ -157,7 +159,7 @@
     const tabs = visibleTabs(ctx, section, b);
     if (tabs.length < 2) return null;
     return html`<nav class="tabs section-tabs" aria-label=${SECTIONS[section].label}>
-      ${tabs.map(t => html`<button key=${t.k} type="button" class=${'tab' + (t.k === active ? ' active' : '')}
+      ${tabs.map(t => html`<button key=${t.k} type="button" class=${'tab' + (t.k === active ? ' active' : '')} title=${M.map ? M.map.blurbOf(section, t.k) : ''}
         onClick=${() => M.nav('#' + t.route)}>${t.label}<${Badge} n=${b[t.k] || 0}/></button>`)}
     </nav>`;
   };
@@ -313,11 +315,11 @@
       const subs = (r.s === k || (k === 'me' && !ctx.isFounder)) ? visibleTabs(ctx, k, b) : [];
       return html`<${React.Fragment} key=${k}>
         <button type="button"
-          class=${'side-item' + (r.s === k ? ' active' : '') + (s.founder ? ' founder' : '')} onClick=${() => go(k)}>
+          class=${'side-item' + (r.s === k ? ' active' : '') + (s.founder ? ' founder' : '')} title=${M.map ? M.map.blurbOf(k) : ''} onClick=${() => go(k)}>
           <${M.icons[s.icon]}/><span class="grow">${s.label}</span><${Badge} n=${b[k] || 0}/>
         </button>
         ${subs.length > 1 ? html`<div class="side-subs">
-          ${subs.map(t => html`<button key=${t.k} type="button" class=${'side-sub' + (r.t === t.k ? ' active' : '')}
+          ${subs.map(t => html`<button key=${t.k} type="button" class=${'side-sub' + (r.t === t.k ? ' active' : '')} title=${M.map ? M.map.blurbOf(k, t.k) : ''}
             onClick=${() => { setMoreOpen(false); M.nav('#' + t.route); }}>
             <span class="grow">${t.label}</span><${Badge} n=${b[t.k] || 0}/></button>`)}
         </div>` : null}
@@ -327,7 +329,7 @@
       onTask=${() => setNewTask(true)} onAsk=${() => setAskOpen(true)}/>` : null;
 
     const tabKeys = ctx.isFounder ? ['home', 'chat', 'hq', 'work'] : ['home', 'chat', 'work', 'accounts', 'me'];
-    const moreKeys = ctx.isFounder ? (ctx.isOwner ? ['accounts', 'workspace', 'base', 'radar', 'web', 'me', 'books', 'admin'] : ['accounts', 'workspace', 'base', 'radar', 'web', 'me', 'admin']) : ['workspace', 'base', 'radar', 'web'];
+    const moreKeys = (ctx.isFounder ? (ctx.isOwner ? ['accounts', 'workspace', 'base', 'radar', 'web', 'me', 'books', 'admin'] : ['accounts', 'workspace', 'base', 'radar', 'web', 'me', 'admin']) : ['workspace', 'base', 'radar', 'web']).concat(['map']);
     const moreBadge = moreKeys.reduce((n, k) => n + (b[k] || 0), 0);
 
     return html`<div class="app">
@@ -354,6 +356,9 @@
           ${mainKeys.map(item)}
           ${founderKeys.length ? html`<div class="side-group micro plain">founder</div>` : null}
           ${founderKeys.map(item)}
+          <button type="button" class=${'side-item side-map' + (r.s === 'map' ? ' active' : '')} id="side-map" title="Every place in m360, in one line each" onClick=${() => go('map')}>
+            <${M.icons.map}/><span class="grow">What's here</span>
+          </button>
         </nav>
         <button type="button" class="side-foot rowbtn" style=${{borderRadius: 0}} onClick=${() => go('me')}>
           <${UI.Avatar} id=${ctx.uid} size=${36}/>
@@ -437,12 +442,14 @@
 
   /* shared hero for section pages */
   M.SectionHero = function SectionHero({color, micro, title, sub, children, right}) {
+    const mk = M.map && title !== 'What\'s in m360' ? M.map.keyFor(title) : '';
     return html`<header class=${'hero' + (color === 'ink' ? ' ink' : '')} style=${{padding: '24px 26px 22px'}}>
       <div class="row between" style=${{alignItems: 'flex-start'}}>
         <div class="grow">
           ${micro ? html`<${UI.Micro}>${micro}<//>` : null}
           <h1 class="hi" style=${{fontSize: 'clamp(30px,4vw,46px)'}}>${title}</h1>
           ${sub ? html`<div class="sub" style=${{marginTop: '10px', maxWidth: '60ch'}}>${sub}</div>` : null}
+          ${mk ? html`<button type="button" class="linky tiny hero-map" onClick=${() => M.nav('#map/' + mk)}>What's in ${title}</button>` : null}
         </div>
         ${right || null}
       </div>
