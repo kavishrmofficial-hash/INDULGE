@@ -5,6 +5,7 @@
 .doc-band{height:4px; background:var(--flame); flex:none}
 .doc-head{display:grid; grid-template-columns:1fr 1fr; gap:20px; padding:32px 44px 24px; border-bottom:1.5px solid #EFEDE7}
 .doc-head-right{display:flex; flex-direction:column; align-items:flex-end; justify-content:space-between; gap:10px; text-align:right}
+.doc-head .mark{width:118px; color:#0E0E0E; display:block; margin-bottom:6px}
 .doc-brand{font-size:22px; font-weight:800; letter-spacing:-.03em; line-height:1}
 .doc-brand b{color:var(--flame); font-weight:800}
 .doc-micro{font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:rgba(14,14,14,.5); margin-top:4px}

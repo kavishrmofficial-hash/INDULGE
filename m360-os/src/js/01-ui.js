@@ -239,7 +239,9 @@
       if (!t || !/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || window.innerWidth > 860) return;
       setTimeout(() => { try { t.scrollIntoView({block: 'center', behavior: M.reduced() ? 'auto' : 'smooth'}); } catch (err) { /* fine */ } }, 320);
     };
-    return html`<div>
+    /* the drawer always lives on the body: an ancestor with a transform (a card mid animation) would
+       otherwise trap a fixed drawer inside its own box */
+    const node = html`<div>
       <div class="scrim" onClick=${onClose}/>
       <div class="drawer" role="dialog" aria-modal="true" aria-label=${title} ref=${ref}>
         <div class="sheet-handle" aria-hidden="true" onPointerDown=${onDown} onPointerMove=${onMove} onPointerUp=${onUp} onPointerCancel=${onUp}><i/></div>
@@ -252,6 +254,8 @@
         ${footer ? html`<div class="drawer-foot">${footer}</div>` : null}
       </div>
     </div>`;
+    const RD = window.ReactDOM;
+    return RD && RD.createPortal && typeof document !== 'undefined' ? RD.createPortal(node, document.body) : node;
   };
 
   /* phones: the section tabs scroll sideways, so the active one is brought into view whenever

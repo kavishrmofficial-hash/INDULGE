@@ -279,9 +279,11 @@
       <${FixCard}/>
       <${OffboardCard}/>
       <${ExportCard}/>
+      ${(M.superCards || []).map((C, i) => html`<${C} key=${i}/>`)}
       <${DangerZone}/>
     </div>`;
   }
+  M.superCards = M.superCards || [];
 
   M.deskTabs.push({v: 'super', label: 'Super', render: SuperTab});
   M.superctl = {openTasksFor};

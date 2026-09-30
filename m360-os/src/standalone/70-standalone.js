@@ -36,7 +36,8 @@
     const [email, setEmail] = useState('');
     const [pw, setPw] = useState('');
     const [code, setCode] = useState('');
-    const [mode, setMode] = useState('pw');            /* pw, magic, reset, join */
+    const [mode, setMode] = useState(window.M360_CODE_TMP ? 'code' : 'pw');   /* pw, magic, reset, join, code (the second step) */
+    const [tmp, setTmp] = useState(window.M360_CODE_TMP || '');            /* the sign-in waiting for its authenticator code */
     const [step, setStep] = useState('ask');           /* reset: ask, then code */
     const [nomail, setNomail] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -72,8 +73,23 @@
     async function signin() {
       if (!em || !pw) return;
       setBusy(true); setErr('');
-      try { await api('pw', {email: em, password: pw}); location.reload(); }
+      try {
+        const r = await api('pw', {email: em, password: pw});
+        if (r && r.needCode) { setTmp(r.tmp); setCode(''); setErr(''); setMode('code'); setBusy(false); return; }
+        location.reload();
+      }
       catch (e) { setErr(said(e, ['bad_login', 'slow_down'])); setBusy(false); }
+    }
+    /* the second step: the six digits from the authenticator, or a recovery code */
+    async function signinCode() {
+      if (!tmp || !code.trim()) return;
+      setBusy(true); setErr('');
+      try { await api('pw2', {tmp, code: code.trim()}); window.M360_CODE_TMP = ''; location.reload(); }
+      catch (e) {
+        if (e && e.code === 'expired') { setTmp(''); window.M360_CODE_TMP = ''; setMode('pw'); setErr(e.message); }
+        else setErr(said(e, ['bad_code', 'slow_down', 'invalid_argument']));
+        setBusy(false);
+      }
     }
     /* the invited person confirms the email the invite went to and picks a password; only then are they on the team */
     async function accept() {
@@ -111,7 +127,11 @@
     async function finishReset() {
       if (!em || !code.trim() || !pw) return;
       setBusy(true); setErr('');
-      try { await api('resetpw', {email: em, code: code.trim(), password: pw}); location.reload(); }
+      try {
+        const r = await api('resetpw', {email: em, code: code.trim(), password: pw});
+        if (r && r.needCode) { setTmp(r.tmp); setCode(''); setErr(''); setMode('code'); setBusy(false); return; }
+        location.reload();
+      }
       catch (e) { setErr(said(e, ['expired', 'bad_code', 'weak', 'invalid_argument'])); setBusy(false); }
     }
     const errLine = err ? html`<div class="small flame-t" role="alert">${err}</div>` : null;
@@ -168,6 +188,14 @@
         <${UI.Btn} onClick=${go} disabled=${busy || !(name.trim() && em && pw)}>${busy ? 'One moment' : 'Continue'}<//>
         ${errLine}
         <button type="button" class="linky small" style=${{alignSelf: 'flex-start'}} onClick=${() => swap('pw')}>Already on the team? Sign in</button>
+      </div>
+    <//>`;
+    if (mode === 'code') return html`<${M.Gate} title="One more step" line="Your account asks for a code. Open your authenticator app and type the six digits, or use one of your recovery codes.">
+      <div class="join-box stack tight" id="signin-code-box">
+        <${UI.Input} id="signin-code" label="the code" value=${code} placeholder="123 456" onChange=${setCode} onEnter=${signinCode}/>
+        <${UI.Btn} id="signin-code-go" onClick=${signinCode} disabled=${busy || !code.trim()}>${busy ? 'One moment' : 'Sign in'}<//>
+        ${errLine}
+        <button type="button" class="linky small" style=${{alignSelf: 'flex-start'}} onClick=${() => { setTmp(''); window.M360_CODE_TMP = ''; swap('pw'); }}>Start again</button>
       </div>
     <//>`;
     if (mode === 'magic') return html`<${M.Gate} title="Sign in to m360" line="Your work email gets you a one-time sign-in link.">
@@ -290,6 +318,111 @@
     <//>`;
   }
   M.meCards.push(PwCard);
+
+  /* the second factor: an authenticator app (Google Authenticator, Authy, 1Password, Apple Passwords), and recovery codes */
+  function TwoStepCard() {
+    const [st, setSt] = useState(null);          /* {on, since, recovery} */
+    const [setup, setSetup] = useState(null);    /* {secret, uri} while turning on */
+    const [code, setCode] = useState('');
+    const [codes, setCodes] = useState(null);    /* recovery codes, shown once */
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState('');
+    const [off, setOff] = useState(false);
+    const load = () => api('totpstate').then(setSt, () => setSt({on: false}));
+    useEffect(() => { load(); }, []);
+    if (!st) return null;
+    const start = async () => {
+      setBusy(true); setErr('');
+      try { setSetup(await api('totpstart')); setCode(''); } catch (e) { setErr(said(e, ['failed_precondition'])); }
+      setBusy(false);
+    };
+    const turnOn = async () => {
+      if (!code.trim()) return;
+      setBusy(true); setErr('');
+      try { const r = await api('totpon', {code: code.trim()}); setCodes(r.recovery || []); setSetup(null); setCode(''); M.toast('Two-step sign-in is on'); load(); }
+      catch (e) { setErr(said(e, ['bad_code', 'failed_precondition'])); }
+      setBusy(false);
+    };
+    const turnOff = async () => {
+      if (!code.trim()) return;
+      setBusy(true); setErr('');
+      try { await api('totpoff', {code: code.trim()}); setOff(false); setCode(''); setCodes(null); M.toast('Two-step sign-in is off'); load(); }
+      catch (e) { setErr(said(e, ['bad_code'])); }
+      setBusy(false);
+    };
+    const fresh = async () => {
+      if (!code.trim()) return;
+      setBusy(true); setErr('');
+      try { const r = await api('totprecovery', {code: code.trim()}); setCodes(r.recovery || []); setCode(''); M.toast('New recovery codes. The old ones are gone.'); load(); }
+      catch (e) { setErr(said(e, ['bad_code', 'failed_precondition'])); }
+      setBusy(false);
+    };
+    const copy = t => { try { navigator.clipboard.writeText(t); M.toast('Copied'); } catch (e) { /* select it by hand */ } };
+    const secretPretty = s => String(s || '').replace(/(.{4})/g, '$1 ').trim();
+    return html`<${UI.Card} id="twostep-card" title="Two-step sign-in" action=${st.on ? html`<${UI.Pill} kind="ink">on<//>` : html`<${UI.Pill}>off<//>`}>
+      <p class="small ink62" style=${{marginTop: 0}}>${st.on
+        ? 'Every sign-in asks for the six digit code from your authenticator app after the password. ' + st.recovery + (st.recovery === 1 ? ' recovery code' : ' recovery codes') + ' left for a day without your phone.'
+        : 'A code from your phone after the password, so a stolen password alone opens nothing. Works with Google Authenticator, Authy, 1Password and Apple Passwords.'}</p>
+      ${codes ? html`<div class="stack tight" id="twostep-codes" style=${{marginBottom: '12px'}}>
+        <div class="small"><b>Your recovery codes.</b> Each works once when your phone is not at hand. Keep them somewhere safe; they are shown only now.</div>
+        <div class="invite-link num" style=${{whiteSpace: 'pre-wrap', lineHeight: 1.8}}>${codes.join('\n')}</div>
+        <div class="row"><${UI.Btn} sm=${true} kind="sec" onClick=${() => copy(codes.join('\n'))}>Copy the codes<//><${UI.Btn} sm=${true} kind="ghost" onClick=${() => setCodes(null)}>I have kept them<//></div>
+      </div>` : null}
+      ${setup ? html`<div class="stack tight" id="twostep-setup">
+        <div class="small">1. Open your authenticator app and add an account. Scan is not needed: tap "enter a key" and type this one, or open the link on this phone.</div>
+        <div class="invite-link num" id="twostep-secret">${secretPretty(setup.secret)}</div>
+        <div class="row"><${UI.Btn} sm=${true} kind="sec" onClick=${() => copy(setup.secret)}>Copy the key<//><a class="btn sec sm" href=${setup.uri}>Open in the authenticator app</a></div>
+        <div class="small">2. Type the six digits the app shows now.</div>
+        <div class="row" style=${{alignItems: 'flex-end'}}>
+          <div style=${{maxWidth: '200px'}}><${UI.Input} id="twostep-code" label="the code" value=${code} placeholder="123 456" onChange=${setCode} onEnter=${turnOn}/></div>
+          <${UI.Btn} id="twostep-on" sm=${true} disabled=${busy || !code.trim()} onClick=${turnOn}>Turn it on<//>
+          <button type="button" class="linky small" onClick=${() => { setSetup(null); setErr(''); }}>Not now</button>
+        </div>
+      </div>` : st.on ? html`<div class="stack tight">
+        ${off ? html`<div class="row" style=${{alignItems: 'flex-end'}}>
+          <div style=${{maxWidth: '200px'}}><${UI.Input} id="twostep-code" label="the current code" value=${code} placeholder="123 456" onChange=${setCode} onEnter=${turnOff}/></div>
+          <${UI.Btn} id="twostep-off" sm=${true} kind="sec" disabled=${busy || !code.trim()} onClick=${turnOff}>Turn it off<//>
+          <${UI.Btn} sm=${true} kind="ghost" disabled=${busy || !code.trim()} onClick=${fresh}>New recovery codes<//>
+          <button type="button" class="linky small" onClick=${() => { setOff(false); setErr(''); setCode(''); }}>Cancel</button>
+        </div>` : html`<div class="row"><${UI.Btn} sm=${true} kind="sec" id="twostep-manage" onClick=${() => setOff(true)}>Turn off, or new recovery codes<//></div>`}
+      </div>` : html`<div class="row"><${UI.Btn} sm=${true} id="twostep-start" disabled=${busy} onClick=${start}>Turn on two-step sign-in<//></div>`}
+      ${err ? html`<div class="small flame-t" role="alert" style=${{marginTop: '8px'}}>${err}</div>` : null}
+    <//>`;
+  }
+  M.meCards.push(TwoStepCard);
+
+  /* Admin > Super: the security log and who has two-step sign-in */
+  function SecurityCard() {
+    const ctx = M.useCtx();
+    const [info, setInfo] = useState(null);
+    const [err, setErr] = useState('');
+    const load = () => api('securityinfo').then(r => { setInfo(r); setErr(''); }, () => setErr('The security log could not load.'));
+    useEffect(() => { load(); }, []);
+    const KIND = {signin: 'signed in', pw_fail: 'wrong password', locked: 'locked for 15 minutes', code_fail: 'wrong code', throttled: 'too many tries from one address', totp_on: 'two-step on', totp_off: 'two-step off', totp_reset: 'two-step reset', recovery_new: 'new recovery codes', pw_reset: 'password reset', signout_all: 'signed out everywhere'};
+    const reset = uid => api('totpreset', {uid}).then(() => { M.toast('Their two-step sign-in is off'); load(); }, e => M.toast((e && e.message) || 'That did not work.', true));
+    const hot = k => ['pw_fail', 'locked', 'code_fail', 'throttled', 'totp_off', 'totp_reset'].includes(k);
+    return html`<${UI.Card} id="super-security" title="Security">
+      <p class="small ink62" style=${{marginTop: 0}}>Every sign-in, every wrong password, every lock, and who has two-step sign-in. A new device mails the person a note the moment it signs in.</p>
+      ${err ? html`<div class="small flame-t">${err}</div>` : !info ? html`<${UI.Empty} text="Reading the log."/>` : html`<div class="stack" style=${{gap: '14px'}}>
+        <div>
+          <${UI.Micro}>two-step sign-in<//>
+          <div class="stack tight" id="security-people">${Object.keys(info.people || {}).map(uid => html`<div class="listrow" key=${uid}>
+            <${UI.Avatar} id=${uid} size=${26}/><span class="grow"><${UI.Name} id=${uid}/></span>
+            ${info.people[uid].totp ? html`<${UI.Pill} kind="ink">on<//>` : html`<${UI.Pill}>off<//>`}
+            ${info.people[uid].totp && ctx.me && ctx.me.isOwner && uid !== ctx.uid ? html`<${UI.ConfirmBtn} kind="ghost" onConfirm=${() => reset(uid)} label="Tap again to turn it off">Phone lost<//>` : null}
+          </div>`)}</div>
+        </div>
+        <div>
+          <${UI.Micro}>the last events<//>
+          ${(info.events || []).length ? html`<div class="stack tight" id="security-events">${info.events.slice(0, 40).map((e, i) => html`<div class="listrow" key=${i}>
+            <span class="grow"><span class=${hot(e.kind) ? 'flame-t' : ''}>${KIND[e.kind] || e.kind}</span>${e.uid ? html`<span class="small"> · <${UI.Name} id=${e.uid}/></span>` : null}<div class="tiny ink62">${[e.ua, e.ip, e.note].filter(Boolean).join(' · ')}</div></span>
+            <span class="tiny ink62 num">${U.timeAgo(e.at)}</span>
+          </div>`)}</div>` : html`<${UI.Empty} text="Nothing yet."/>`}
+        </div>
+      </div>`}
+    <//>`;
+  }
+  if (M.superCards) M.superCards.push(SecurityCard);
 
   /* the sessions of one person, from the server: a short device label, when it signed in, when it was last seen */
   function useDevices(uid) {

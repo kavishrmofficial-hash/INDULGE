@@ -51,6 +51,9 @@ const GMSGS = {
   gm1: {id: 'gm1', threadId: 'gt1', labelIds: ['UNREAD', 'INBOX'], snippet: 'Can we lock the shoot dates for next week?', internalDate: String(Date.now() - 3600000),
     payload: {mimeType: 'multipart/alternative', headers: [{name: 'From', value: 'Priya Nair <priya@swisse.example>'}, {name: 'To', value: 'kaavish@mask360.agency'}, {name: 'Subject', value: 'Shoot dates'}, {name: 'Date', value: new Date(Date.now() - 3600000).toUTCString()}, {name: 'Message-ID', value: '<abc123@swisse.example>'}],
       parts: [{mimeType: 'text/plain', body: {data: GB64('Hi Kaavish,\n\nCan we lock the shoot dates for next week?\n\nPriya')}}, {mimeType: 'text/html', body: {data: GB64('<p>Hi Kaavish,</p><p>Can we lock the shoot dates for next week?</p><p>Priya</p>')}}]}},
+  gm3: {id: 'gm3', threadId: 'gt3', labelIds: ['CATEGORY_UPDATES'], snippet: 'Vendor registration for Swisse Wellness UAE', internalDate: String(Date.now() - 3 * 86400000),
+    payload: {mimeType: 'multipart/mixed', headers: [{name: 'From', value: 'Omar Haddad <ap@swisse.example>'}, {name: 'To', value: 'kaavish@mask360.agency'}, {name: 'Subject', value: 'Swisse Wellness UAE: billing details and PO 4471'}, {name: 'Date', value: new Date(Date.now() - 3 * 86400000).toUTCString()}, {name: 'Message-ID', value: '<po4471@swisse.example>'}],
+      parts: [{mimeType: 'text/plain', body: {data: GB64('Hi Kaavish,\n\nPlease invoice Swisse Wellness Middle East FZ LLC, Office 1204, Dubai Science Park, Dubai, United Arab Emirates. TRN 100234567800003. Payment terms 30 days. Invoices go to ap@swisse.example (Omar Haddad, accounts payable). PO 4471 attached.\n\nOmar')}}, {mimeType: 'application/pdf', filename: 'PO-4471.pdf', body: {attachmentId: 'attpo', size: 1200}}]}},
   gm2: {id: 'gm2', threadId: 'gt2', labelIds: ['INBOX'], snippet: 'Invoice 118 attached', internalDate: String(Date.now() - 86400000),
     payload: {mimeType: 'multipart/mixed', headers: [{name: 'From', value: 'accounts@marina.example'}, {name: 'To', value: 'kaavish@mask360.agency'}, {name: 'Subject', value: 'Invoice 118'}, {name: 'Date', value: new Date(Date.now() - 86400000).toUTCString()}, {name: 'Message-ID', value: '<inv118@marina.example>'}],
       parts: [{mimeType: 'text/plain', body: {data: GB64('Invoice 118 attached.')}}, {mimeType: 'application/pdf', filename: 'invoice-118.pdf', body: {attachmentId: 'att1', size: 48213}}]}}
@@ -78,17 +81,24 @@ async function fakeGoogle(url, init) {
   if (url.includes('gmail.googleapis.com')) {
     const m = /\/messages\/([^/?]+)(?:\/(modify))?/.exec(u.pathname);
     if (u.pathname.endsWith('/messages/send')) { const b = JSON.parse(init.body); globalThis.__google.sent.push({raw: Buffer.from(b.raw.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'), threadId: b.threadId || ''}); return j({id: 'sent' + globalThis.__google.sent.length, threadId: b.threadId || 'gtn'}); }
+    if (m && /\/attachments\//.test(u.pathname)) { return j({size: 1200, data: GB64('%PDF-1.4 fake purchase order 4471 for Swisse Wellness Middle East FZ LLC, TRN 100234567800003')}); }
     if (m && m[2] === 'modify') { const b = JSON.parse(init.body); const msg = GMSGS[m[1]]; if (msg) { msg.labelIds = msg.labelIds.filter(l => !(b.removeLabelIds || []).includes(l)).concat((b.addLabelIds || []).filter(l => !msg.labelIds.includes(l))); } globalThis.__google.modified.push({id: m[1], ...b}); return j({id: m[1], labelIds: msg ? msg.labelIds : []}); }
     if (m) { const msg = GMSGS[m[1]]; return msg ? j(msg) : j({error: {code: 404, message: 'Not Found'}}, 404); }
     const qs = u.searchParams.get('q') || '';
-    const terms = qs.toLowerCase().split(/\s+/).filter(t => t && !/^(in|is|label):/.test(t));
-    const box = (qs.match(/\b(in|is):([a-z]+)/) || [])[2] || 'inbox';
+    /* a small reading of Gmail's query language: words outside parentheses must all appear, words inside an
+       (a OR b) group need one, from: names the sender, quotes and newer_than are ignored */
+    const groups = []; const plain = qs.toLowerCase().replace(/\([^)]*\)/g, g => { groups.push(g.slice(1, -1).split(/\s+or\s+/).map(x => x.replace(/["()]/g, '').trim()).filter(Boolean)); return ' '; });
+    const terms = plain.replace(/"/g, '').split(/\s+/).filter(t => t && !/^(in|is|label|newer_than|older_than|has):/.test(t));
+    const box = (qs.match(/\b(in|is):([a-z]+)/) || [])[2] || '';
     const ids = Object.keys(GMSGS).filter(id => {
       const m = GMSGS[id];
+      if (box === 'inbox' && !m.labelIds.includes('INBOX')) return false;
       if (box === 'unread' && !m.labelIds.includes('UNREAD')) return false;
       if (box === 'starred' && !m.labelIds.includes('STARRED')) return false;
       if (box === 'sent') return false;
-      return terms.every(t => JSON.stringify(m).toLowerCase().includes(t));
+      const blob = JSON.stringify(m).toLowerCase();
+      const from = ((m.payload.headers.find(h => h.name === 'From') || {}).value || '').toLowerCase();
+      return terms.every(t => t.startsWith('from:') ? from.includes(t.slice(5)) : blob.includes(t)) && groups.every(g => g.some(t => blob.includes(t)));
     });
     return j({messages: ids.map(id => ({id, threadId: GMSGS[id].threadId})), resultSizeEstimate: ids.length});
   }
@@ -106,6 +116,12 @@ async function fakeGoogle(url, init) {
 /* a canned model: plain answers, JSON when asked, and one tool call when a tool fits */
 globalThis.__mails = [];
 async function fakeFetch(url, init) {
+  if (String(url).startsWith('https://api.pwnedpasswords.com/range/')) {
+    const prefix = String(url).slice(-5).toUpperCase();
+    const known = ['password1234', 'Passw0rd2026'].map(p => crypto.createHash('sha1').update(p).digest('hex').toUpperCase());
+    const lines = known.filter(h => h.startsWith(prefix)).map(h => h.slice(5) + ':1203');
+    return new Response(lines.join('\r\n'), {status: 200, headers: {'content-type': 'text/plain'}});
+  }
   const fr = await fakeRadar(String(url), init || {});
   if (fr) return fr;
   const fa = await fakeApollo(String(url), init || {});
@@ -156,7 +172,10 @@ async function fakeFetch(url, init) {
   const last = body.messages[body.messages.length - 1];
   const text = typeof last.content === 'string' ? last.content : '';
   let content;
-  if (Array.isArray(last.content)) content = [{type: 'text', text: 'Done. I took care of it.'}];
+  if (/^BOOKS MINE/.test(body.system || '')) content = [{type: 'text', text: JSON.stringify({legalName: 'Swisse Wellness Middle East FZ LLC', address: 'Office 1204, Dubai Science Park\nDubai', country: 'United Arab Emirates', taxId: '100234567800003', contactName: 'Omar Haddad', contactEmail: 'ap@swisse.example', currency: 'AED', termsDays: 30, po: '4471', note: 'From the vendor registration mail and PO 4471.'})}];
+  else if (/^BOOKS STATEMENT/.test(body.system || '')) content = [{type: 'text', text: JSON.stringify({rows: [{date: '2026-09-03', vendor: 'Adobe', desc: 'POS ADOBE SYSTEMS', amount: 4999, credit: 0, method: 'card', ref: 'P1'}, {date: '2026-09-05', vendor: 'Titan Company', desc: 'NEFT CR TITAN COMPANY LTD', amount: 0, credit: 295000, method: 'bank', ref: 'N2'}, {date: '2026-09-09', vendor: 'Uber', desc: 'UPI/UBER INDIA/9091', amount: 640, credit: 0, method: 'upi', ref: 'U3'}]})}];
+  else if (/^BOOKS CATEGORIES/.test(body.system || '')) { const n = ((text.match(/^\d+\. /gm) || []).length) || 1; content = [{type: 'text', text: JSON.stringify({categories: Array.from({length: n}, (_, i) => /uber|ola|indigo/i.test((text.split('\n')[i + 1] || '')) ? 'Travel' : /adobe|figma|notion/i.test((text.split('\n')[i + 1] || '')) ? 'Software and tools' : 'Other')})}]; }
+  else if (Array.isArray(last.content)) content = [{type: 'text', text: 'Done. I took care of it.'}];
   else if (/company brain/i.test(text) && /Reply with JSON only/.test(text)) {
     /* the client brain: what the fake model "read" on the site decides the about line, so a test can tell site text from guesswork */
     const site = /SITE TEXT \(read from/.test(text);
@@ -180,6 +199,7 @@ async function fakeFetch(url, init) {
 
 const env = {...process.env};
 if (process.env.MOCK_AI === '1') { env.ANTHROPIC_API_KEY = 'sk-ant-local-test-key-000000000000'; env.fetch = fakeFetch; }
+const CFG_HEADERS = (() => { try { return JSON.parse(fs.readFileSync(path.join(PUB, '..', 'edgeone.json'), 'utf8')).headers || []; } catch (e) { return []; } })();
 const app = createApp({store, env});
 const TYPES = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json'};
 
@@ -240,6 +260,9 @@ http.createServer(async (req, res) => {
   const rel = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
   const f = path.join(PUB, path.normalize(rel));
   if (!f.startsWith(PUB) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); res.end('not found'); return; }
-  res.writeHead(200, {'content-type': TYPES[path.extname(f)] || 'application/octet-stream'});
+  /* the same headers the platform answers with (edgeone.json), so the browser under test enforces the site's CSP */
+  const hdrs = {'content-type': TYPES[path.extname(f)] || 'application/octet-stream'};
+  for (const h of CFG_HEADERS) if (h.source === url.pathname || (h.source === '/*' && url.pathname !== '/') || (h.source === '/' && rel === 'index.html')) for (const x of h.headers || []) hdrs[x.key.toLowerCase()] = x.value;
+  res.writeHead(200, hdrs);
   fs.createReadStream(f).pipe(res);
 }).listen(port, '127.0.0.1', () => console.log('m360 local edge on http://localhost:' + port));

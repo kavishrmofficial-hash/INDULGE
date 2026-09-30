@@ -20,6 +20,17 @@ CDN = [
     'https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js',
 ]
 
+# the pinned copies under harness/vendor are byte for byte what the CDNs serve; their SHA-384 goes on the
+# script tags (subresource integrity), so a CDN that served anything else would be refused by the browser
+VENDOR = {CDN[0]: 'react.js', CDN[1]: 'react-dom.js', CDN[2]: 'htm.js'}
+def integrity(url):
+    import hashlib, base64
+    path = os.path.join(ROOT, 'harness', 'vendor', VENDOR[url])
+    with open(path, 'rb') as f:
+        return 'sha384-' + base64.b64encode(hashlib.sha384(f.read()).digest()).decode('ascii')
+def script_tag(url):
+    return '<script src="%s" integrity="%s" crossorigin="anonymous"></script>' % (url, integrity(url))
+
 CORE_FILES = ('00-core.js', '01-ui.js', '02-state.js', '03-shell.js', '04-ai.js', '99-app.js')
 
 LATIN_RANGE = ('U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, '
@@ -82,7 +93,7 @@ def build(extra=(), out_path=None):
         '<meta name="color-scheme" content="light">',
         '<style>' + fonts + '\n' + css + '</style>',
         '<div id="root">' + gate + '</div>',
-    ] + ['<script src="%s"></script>' % u for u in CDN] + [
+    ] + [script_tag(u) for u in CDN] + [
         '<script>\n' + app_js + '\n</script>',
         '',
     ])

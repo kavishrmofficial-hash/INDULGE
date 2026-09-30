@@ -80,7 +80,9 @@
       notes: 'Retainer billed 50% in advance and 50% on delivery per the Master Services Agreement.\nThis is a computer-generated invoice.',
       exportNote: 'Export of services from India, no Indian GST charged. VAT to be accounted for by the recipient under reverse charge.'},
     chase: {auto: false, days: '3,7,14', cc: ''},
-    compliance: {gst: true, tds: true, pf: false}
+    compliance: {gst: true, tds: true, pf: false},
+    /* what the agency gives: each switch shows or hides its line on pay, the run and the payslip */
+    payroll: {pf: false, esi: false, pt: true, gratuity: false, insurance: false, insurancePremium: 0, payday: 1, employerCost: false}
   });
   const deep = (a, b) => {
     const out = {...a};
@@ -220,7 +222,7 @@
     const c = s.company;
     return html`<div class="doc-head">
       <div>
-        <div class="doc-brand"><span>${c.brand.replace(/360$/, '')}</span><b>${/360$/.test(c.brand) ? '360' : ''}</b></div>
+        <${M.Mark} width="118px"/>
         <div class="doc-micro">${c.tagline}</div>
         <div class="doc-addr">${String(c.address || '').split('\n').map((l, i) => html`<div key=${i}>${l}</div>`)}
           <div>${c.pan ? 'PAN: ' + c.pan : ''}${c.pan && c.gstin ? ' · ' : ''}${c.gstin ? 'GSTIN: ' + c.gstin : ''}</div>
@@ -282,7 +284,7 @@
         </div>
       </header>
       <${M.SectionTabs} section="books" active=${t}/>
-      ${t === 'overview' ? html`<${Overview}/>` : t === 'billing' ? html`<${Setup} id=${id}/>` : Page ? html`<${Page} id=${id}/>` : html`<${UI.Empty} text="This part of the books is not in this build."/>`}
+      ${t === 'overview' ? html`<${Overview}/>` : t === 'billing' ? (id && ctx.coll.clients.map[id] ? html`<${BillingPage} clientId=${id}/>` : html`<${Setup}/>`) : Page ? html`<${Page} id=${id}/>` : html`<${UI.Empty} text="This part of the books is not in this build."/>`}
     </div>`;
   }
 
@@ -395,6 +397,7 @@
     };
     const In = ({k, label, type, hint}) => html`<${UI.Input} label=${label} type=${type} hint=${hint} value=${String(k.split('.').reduce((o, x) => (o || {})[x], f) == null ? '' : k.split('.').reduce((o, x) => (o || {})[x], f))} onChange=${v => set(k, type === 'number' ? num(v) : v)}/>`;
     return html`<div class="stack" style=${{gap: '18px'}}>
+      <${ClientBilling}/>
       <div class="row between">
         <div class="sub small">The company block, the bank and the signatory print on every invoice, payslip and letter.</div>
         <${UI.Btn} id="books-save" disabled=${!dirty || busy} onClick=${save}>Save setup<//>
@@ -464,6 +467,16 @@
               <div class="tiny ink62">Advance tax dates (15 June, September, December, March) always show.</div>
             </div>
           <//>
+          <${UI.Card} title="Payroll, what the agency gives" id="books-payroll">
+            <div class="stack tight">
+              ${[['pf', 'Provident fund', '12 percent of basic from the person, capped at 1,800, and the same from the agency'], ['esi', 'ESI', '0.75 percent from the person and 3.25 from the agency, for gross up to 21,000'], ['pt', 'Professional tax, Maharashtra', '200 a month, 300 in February, for gross over 10,000'], ['gratuity', 'Gratuity', 'no deduction; 4.81 percent of basic in the cost to company'], ['insurance', 'Health insurance', 'a premium the agency pays each month']].map(([k, l, h]) => html`<div class="row between" key=${k}><span><span class="small">${l}</span><div class="tiny ink62">${h}</div></span>
+                <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${f.payroll[k] ? 'on' : 'off'} ariaLabel=${'Payroll ' + k} onChange=${v => set('payroll.' + k, v === 'on')}/></div>`)}
+              ${f.payroll.insurance ? html`<${In} k="payroll.insurancePremium" label="insurance premium a month per person, INR" type="number"/>` : null}
+              <div class="grid2"><${In} k="payroll.payday" label="payday, day of the month" type="number"/>
+                <${UI.Select} label="cost to company on the payslip" value=${f.payroll.employerCost ? 'on' : 'off'} options=${[{v: 'off', label: 'Hidden'}, {v: 'on', label: 'Shown'}]} onChange=${v => set('payroll.employerCost', v === 'on')}/></div>
+              <div class="tiny ink62">A switch that is off hides its line from pay, the month and every payslip.</div>
+            </div>
+          <//>
         </div>
       </div>
       <${ClientBilling} id=${id}/>
@@ -471,68 +484,177 @@
   }
 
   /* ---------- each client's billing profile ---------- */
-  const blankBilling = () => ({code: '', legalName: '', address: '', country: 'India', taxId: '', currency: 'INR', termsDays: 15, contactName: '', contactEmail: '',
+  const blankBilling = () => ({code: '', legalName: '', address: '', country: 'India', taxId: '', currency: 'INR', termsDays: 15, contactName: '', contactEmail: '', cc: '', po: '',
     retainer: {active: false, amount: 0, day: 1, desc: 'Monthly retainer', sac: '998361', gst: 'intra'}});
-  function ClientBilling({id}) {
+  const MINE_FIELDS = [['legalName', 'legal name'], ['address', 'billing address'], ['country', 'country'], ['taxId', 'GSTIN or tax id'], ['contactName', 'who receives invoices'], ['contactEmail', 'accounts email'], ['currency', 'currency'], ['termsDays', 'due in days'], ['po', 'PO number']];
+  /* a billing profile from what m360 already knows: the client record, the Base's people at that company */
+  function draftBilling(ctx, clientId) {
+    const c = ctx.coll.clients.map[clientId] || {};
+    const b = blankBilling();
+    b.legalName = c.name || '';
+    b.code = codeOf(ctx, clientId);
+    const orgs = (ctx.coll.orgs && ctx.coll.orgs.map) || {};
+    const org = Object.keys(orgs).map(k => orgs[k]).find(o => o && o.client === clientId && !o.archived);
+    if (org) {
+      if (org.legalName) b.legalName = org.legalName;
+      if (org.country) b.country = org.country;
+      if (org.city || org.hq) b.address = [org.address, org.city || org.hq, org.country].filter(Boolean).join('\n');
+    }
+    const people = (ctx.coll.contacts && ctx.coll.contacts.map) || {};
+    const at = Object.keys(people).map(k => people[k]).filter(x => x && !x.archived && ((org && x.org === org.id) || x.client === clientId));
+    const mailOf = x => String(x.mail || x['email'] || '').trim();
+    const acct = at.find(x => /account|finance|payable|billing/i.test(x.title || '')) || at.find(x => mailOf(x));
+    if (acct) { b.contactName = [acct.first, acct.last].filter(Boolean).join(' ') || acct.name || ''; b.contactEmail = mailOf(acct); }
+    if (b.country && b.country !== 'India') { b.currency = /UAE|Emirates|Dubai/i.test(b.country) ? 'AED' : /Saudi/i.test(b.country) ? 'SAR' : /United Kingdom|UK|England/i.test(b.country) ? 'GBP' : /Europe|Germany|France|Netherlands|Italy|Spain/i.test(b.country) ? 'EUR' : 'USD'; b.retainer.gst = 'none'; }
+    return b;
+  }
+  const cleanBilling = f => ({...f, code: String(f.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4), termsDays: num(f.termsDays) || 15,
+    retainer: {...f.retainer, amount: num(f.retainer.amount), day: Math.min(28, Math.max(1, num(f.retainer.day) || 1))}});
+  const siteApi = () => typeof window.M360_API === 'function';
+  /* the mail scan for one client: the found fields and where each came from */
+  const mine = clientId => window.M360_API('booksmine', {clientId});
+  const missing = (cur, found) => MINE_FIELDS.map(([k]) => k).filter(k => found && found[k] && !(cur && String(cur[k] || '').trim()));
+
+  function ClientBilling() {
     const ctx = M.useCtx();
     const book = clientBook(ctx);
-    const clients = Object.keys(ctx.coll.clients.map).map(k => ({id: k, ...ctx.coll.clients.map[k]})).sort((a, b) => String(a.name).localeCompare(String(b.name)));
-    const [open, setOpen] = useState(id && ctx.coll.clients.map[id] ? id : null);
-    return html`<${UI.Card} title="Clients, billing" id="billing-clients">
-      <p class="small ink62" style=${{marginTop: 0}}>Legal name, address, tax id, currency and the retainer. A retainer with a billing day drafts its invoice on that day each month.</p>
-      ${clients.length ? html`<div class="stack tight">${clients.map(c => {
-        const b = book[c.id];
-        return html`<div class="listrow" key=${c.id}>
-          <span class="grow"><b>${c.name}</b>${b ? html`<span class="tiny ink62"> · ${b.code || 'no code'} · ${b.currency || 'INR'}${b.retainer && b.retainer.active ? ' · retainer ' + money(b.retainer.amount, b.currency) + ' on day ' + b.retainer.day : ''}</span>` : html`<span class="tiny ink62"> · no billing profile yet</span>`}</span>
-          <${UI.Btn} kind="sec" sm=${true} onClick=${() => setOpen(c.id)}>${b ? 'Edit billing' : 'Set up billing'}<//>
-        </div>`;
-      })}</div>` : html`<${UI.Empty} text="No clients yet. Add one under Accounts."/>`}
-      ${open ? html`<${BillingDrawer} clientId=${open} onClose=${() => setOpen(null)}/>` : null}
-    <//>`;
-  }
-  function BillingDrawer({clientId, onClose}) {
-    const ctx = M.useCtx();
-    const c = ctx.coll.clients.map[clientId] || {};
-    const [f, setF] = useState(() => { const cur = clientBook(ctx)[clientId]; const b = deep(blankBilling(), cur || {}); if (!cur) { b.legalName = c.name || ''; b.code = codeOf(ctx, clientId); } return b; });
-    const [busy, setBusy] = useState(false);
-    const set = (k, v) => setF(x => ({...x, [k]: v}));
-    const setR = (k, v) => setF(x => ({...x, retainer: {...x.retainer, [k]: v}}));
-    const save = async () => {
-      setBusy(true);
-      const clean = {...f, code: String(f.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4), termsDays: num(f.termsDays) || 15, retainer: {...f.retainer, amount: num(f.retainer.amount), day: Math.min(28, Math.max(1, num(f.retainer.day) || 1))}};
-      try { await ctx.W.merge('books/clients', {map: {[clientId]: clean}, updated: Date.now()}); M.toast('Saved'); onClose(); } catch (e) { M.toast('Could not save', true); setBusy(false); }
+    const clients = Object.keys(ctx.coll.clients.map).map(k => ({id: k, ...ctx.coll.clients.map[k]})).filter(c => c.status !== 'lost' && !c.archived).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    const [scan, setScan] = useState(null);   /* {at: clientId, done: n, filled: n, total: n, log: []} */
+    const scanAll = async () => {
+      if (!siteApi() || scan) return;
+      const st = {at: '', done: 0, filled: 0, total: clients.length, log: []};
+      setScan({...st});
+      for (const c of clients) {
+        st.at = c.id; setScan({...st});
+        try {
+          const r = await mine(c.id);
+          const cur = book[c.id] || draftBilling(ctx, c.id);
+          /* a saved profile keeps what it has; a client without one takes everything the mail says */
+          const take = book[c.id] ? missing(cur, r.found) : MINE_FIELDS.map(([k]) => k).filter(k => r.found && r.found[k]);
+          if (take.length) {
+            const next = {...cur};
+            for (const k of take) next[k] = k === 'termsDays' ? num(r.found[k]) || cur.termsDays : String(r.found[k]).slice(0, 400);
+            await ctx.W.merge('books/clients', {map: {[c.id]: cleanBilling(next)}, updated: Date.now()});
+            st.filled++;
+            st.log.push(c.name + ': ' + take.map(k => (MINE_FIELDS.find(x => x[0] === k) || [k, k])[1]).join(', '));
+          } else st.log.push(c.name + ': ' + (r.sources && r.sources.length ? 'nothing new' : 'no mail about billing'));
+        } catch (e) { st.log.push(c.name + ': ' + ((e && e.message) || 'could not read the mail')); }
+        st.done++; setScan({...st});
+      }
+      st.at = ''; setScan({...st});
+      M.toast(st.filled ? 'Filled ' + st.filled + (st.filled === 1 ? ' profile' : ' profiles') + ' from your mail' : 'Nothing new in the mail');
     };
-    return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${'Billing, ' + (c.name || 'client')}
-      footer=${html`<${UI.Btn} id="billing-save" disabled=${busy || !f.legalName.trim()} onClick=${save}>Save billing<//>`}>
-      <div class="stack" id="billing-drawer">
-        <div class="grid2"><${UI.Input} id="billing-code" label="client code in the number" value=${f.code} onChange=${v => set('code', v.toUpperCase().slice(0, 4))} hint="HH gives MM/2026-27/HH-001"/>
-          <${UI.Select} label="currency" value=${f.currency} options=${CUR_OPTS} onChange=${v => set('currency', v)}/></div>
-        <${UI.Input} id="billing-legal" label="legal name on the invoice" value=${f.legalName} onChange=${v => set('legalName', v)}/>
-        <${UI.TextArea} label="billing address, one line per row" rows=${3} value=${f.address} onChange=${v => set('address', v)}/>
-        <div class="grid2"><${UI.Select} label="country" value=${f.country} options=${COUNTRIES.map(x => ({v: x, label: x}))} onChange=${v => set('country', v)}/>
-          <${UI.Input} label=${f.country === 'India' ? 'GSTIN' : 'tax registration, TRN'} value=${f.taxId} onChange=${v => set('taxId', v)}/></div>
-        <div class="grid2"><${UI.Input} label="due in days" type="number" value=${String(f.termsDays)} onChange=${v => set('termsDays', v)}/>
-          <${UI.Input} label="who receives invoices" value=${f.contactName} onChange=${v => set('contactName', v)}/></div>
-        <${UI.Input} id="billing-mail" label="their accounts email" value=${f.contactEmail} onChange=${v => set('contactEmail', v)}/>
-        <${UI.Field} label="retainer">
-          <div class="row between"><span class="small">Bill a fixed amount every month</span>
-            <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${f.retainer.active ? 'on' : 'off'} ariaLabel="Retainer" onChange=${v => setR('active', v === 'on')}/></div>
-        <//>
-        ${f.retainer.active ? html`<div class="stack tight">
-          <div class="grid2"><${UI.Input} id="billing-retainer" label=${'amount, ' + f.currency} type="number" value=${String(f.retainer.amount || '')} onChange=${v => setR('amount', v)}/>
-            <${UI.Input} label="billing day of the month" type="number" value=${String(f.retainer.day)} onChange=${v => setR('day', v)}/></div>
-          <div class="grid2"><${UI.Input} label="line on the invoice" value=${f.retainer.desc} onChange=${v => setR('desc', v)}/><${UI.Input} label="SAC" value=${f.retainer.sac} onChange=${v => setR('sac', v)}/></div>
-          <${UI.Select} label="tax" value=${f.retainer.gst} options=${[{v: 'intra', label: 'CGST and SGST, same state'}, {v: 'inter', label: 'IGST, another state'}, {v: 'none', label: 'No GST, export or unregistered'}]} onChange=${v => setR('gst', v)}/>
-        </div>` : null}
-      </div>
+    return html`<${UI.Card} title="Clients, billing" id="billing-clients" action=${siteApi() && clients.length ? html`<${UI.Btn} sm=${true} kind="sec" id="billing-scan" disabled=${!!(scan && scan.at)} onClick=${scanAll}>${scan && scan.at ? 'Reading your mail, ' + scan.done + ' of ' + scan.total : 'Fill from Gmail, every client'}<//>` : null}>
+      <p class="small ink62" style=${{marginTop: 0}}>What prints on each client's invoice, and the retainer that drafts itself every month. Open a client to fill it in, by hand or from your mail.</p>
+      ${clients.length ? html`<div class="tbl-wrap"><table class="tbl" id="billing-table">
+        <thead><tr><th>client</th><th>legal name</th><th>tax id</th><th>accounts email</th><th>retainer</th><th></th></tr></thead>
+        <tbody>${clients.map(c => {
+          const b = book[c.id];
+          const full = b && b.legalName && b.contactEmail && (b.country !== 'India' || b.taxId);
+          return html`<tr key=${c.id} class="billing-row" style=${{cursor: 'pointer'}} onClick=${() => M.nav('#billing/' + c.id)}>
+            <td data-label="client"><b>${c.name}</b>${b && b.code ? html`<span class="tiny ink62"> · ${b.code}</span>` : null}</td>
+            <td data-label="legal name">${b && b.legalName ? b.legalName : html`<span class="tiny ink62">not set</span>`}</td>
+            <td data-label="tax id">${b && b.taxId ? html`<span class="num">${b.taxId}</span>` : html`<span class="tiny ink62">${b && b.country && b.country !== 'India' ? 'export' : 'not set'}</span>`}</td>
+            <td data-label="accounts email">${b && b.contactEmail ? b.contactEmail : html`<span class="tiny ink62">not set</span>`}</td>
+            <td data-label="retainer">${b && b.retainer && b.retainer.active ? html`<span class="num">${money(b.retainer.amount, b.currency)}</span><span class="tiny ink62"> on day ${b.retainer.day}</span>` : html`<span class="tiny ink62">none</span>`}</td>
+            <td data-label="">${full ? html`<${UI.Pill} kind="ink">ready<//>` : b ? html`<${UI.Pill} kind="flame-o">incomplete<//>` : html`<${UI.Pill}>new<//>`}</td>
+          </tr>`;
+        })}</tbody>
+      </table></div>` : html`<${UI.Empty} text="No clients yet. Add one under Accounts and its billing appears here."/>`}
+      ${scan && scan.log.length ? html`<div class="stack tight" style=${{marginTop: '12px'}} id="billing-scan-log">${scan.log.map((l, i) => html`<div class="tiny ink62" key=${i}>${l}</div>`)}</div>` : null}
     <//>`;
   }
 
-  M.books = {CUR, CUR_OPTS, num, fmt, money, words, fyOf, fyRange, settings, clientBook, totals, status, STATUS_PILL, STATUS_TEXT, invoices, expenses, nextNumber, codeOf, ageOf, nextDates, print, shrinkImage, deep, blankBilling};
+  /* the full page for one client's billing */
+  function BillingPage({clientId}) {
+    const ctx = M.useCtx();
+    const c = ctx.coll.clients.map[clientId] || {};
+    const saved = clientBook(ctx)[clientId];
+    const [f, setF] = useState(() => saved ? deep(blankBilling(), saved) : draftBilling(ctx, clientId));
+    const [dirty, setDirty] = useState(!saved);
+    const [busy, setBusy] = useState(false);
+    const [found, setFound] = useState(null);   /* {found, sources, note, at} */
+    const [reading, setReading] = useState(false);
+    useEffect(() => { if (!dirty && saved) setF(deep(blankBilling(), saved)); }, [saved]);
+    const set = (k, v) => { setDirty(true); setF(x => ({...x, [k]: v})); };
+    const setR = (k, v) => { setDirty(true); setF(x => ({...x, retainer: {...x.retainer, [k]: v}})); };
+    const save = async () => {
+      if (!f.legalName.trim() || busy) return;
+      setBusy(true);
+      try { await ctx.W.merge('books/clients', {map: {[clientId]: cleanBilling(f)}, updated: Date.now()}); setDirty(false); M.toast('Saved'); }
+      catch (e) { M.toast('Could not save', true); }
+      setBusy(false);
+    };
+    const read = async () => {
+      if (!siteApi() || reading) return;
+      setReading(true);
+      try { const r = await mine(clientId); setFound({...r, at: Date.now()}); if (!r.sources || !r.sources.length) M.toast('No mail about billing for ' + (c.name || 'this client')); }
+      catch (e) { M.toast(e && e.code === 'google_off' ? 'Connect Google under Workspace first' : (e && e.message) || 'Could not read the mail', true); }
+      setReading(false);
+    };
+    const use = k => { const v = found.found[k]; set(k, k === 'termsDays' ? num(v) || f.termsDays : String(v).slice(0, 400)); };
+    const useAll = () => { for (const [k] of MINE_FIELDS) if (found.found[k]) use(k); };
+    const abroad = f.country && f.country !== 'India';
+    return html`<div class="stack" style=${{gap: '16px'}} id="billing-page">
+      <div class="row between">
+        <button type="button" class="linky nowrap" id="billing-back" onClick=${() => M.nav('#billing')}><${icons.chevL}/>All clients</button>
+        <${UI.Btn} id="billing-save" disabled=${busy || !dirty || !f.legalName.trim()} onClick=${save}>${dirty ? 'Save billing' : 'Saved'}<//>
+      </div>
+      <${UI.PageHead} micro=${saved ? 'billing profile' : 'a new billing profile, drafted from what m360 knows'} title=${c.name || 'Client'}/>
+      <div class="split">
+        <div class="stack" style=${{gap: '16px'}}>
+          <${UI.Card} title="On the invoice" id="billing-drawer">
+            <div class="stack tight">
+              <div class="grid2"><${UI.Input} id="billing-code" label="client code in the number" value=${f.code} onChange=${v => set('code', v.toUpperCase().slice(0, 4))} hint="HH gives MM/2026-27/HH-001"/>
+                <${UI.Select} id="billing-currency" label="currency" value=${f.currency} options=${CUR_OPTS} onChange=${v => set('currency', v)}/></div>
+              <${UI.Input} id="billing-legal" label="legal name on the invoice" value=${f.legalName} onChange=${v => set('legalName', v)}/>
+              <${UI.TextArea} id="billing-address" label="billing address, one line per row" rows=${3} value=${f.address} onChange=${v => set('address', v)}/>
+              <div class="grid2"><${UI.Select} id="billing-country" label="country" value=${f.country} options=${COUNTRIES.map(x => ({v: x, label: x}))} onChange=${v => set('country', v)}/>
+                <${UI.Input} id="billing-taxid" label=${abroad ? 'tax registration, TRN' : 'GSTIN'} value=${f.taxId} onChange=${v => set('taxId', v)}/></div>
+              <div class="grid2"><${UI.Input} id="billing-terms" label="due in days" type="number" value=${String(f.termsDays)} onChange=${v => set('termsDays', v)}/>
+                <${UI.Input} id="billing-po" label="PO number, printed when set" value=${f.po || ''} onChange=${v => set('po', v)}/></div>
+              <div class="grid2"><${UI.Input} id="billing-contact" label="who receives invoices" value=${f.contactName} onChange=${v => set('contactName', v)}/>
+                <${UI.Input} id="billing-mail" label="their accounts email" value=${f.contactEmail} onChange=${v => set('contactEmail', v)}/></div>
+              <${UI.Input} id="billing-cc" label="copy their invoices to, optional" value=${f.cc || ''} onChange=${v => set('cc', v)}/>
+            </div>
+          <//>
+          <${UI.Card} title="Retainer" id="billing-retainer-card">
+            <div class="stack tight">
+              <div class="row between"><span class="small">Bill a fixed amount every month. The invoice drafts itself on the billing day.</span>
+                <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${f.retainer.active ? 'on' : 'off'} ariaLabel="Retainer" onChange=${v => setR('active', v === 'on')}/></div>
+              ${f.retainer.active ? html`<div class="stack tight">
+                <div class="grid2"><${UI.Input} id="billing-retainer" label=${'amount, ' + f.currency} type="number" value=${String(f.retainer.amount || '')} onChange=${v => setR('amount', v)}/>
+                  <${UI.Input} id="billing-day" label="billing day of the month" type="number" value=${String(f.retainer.day)} onChange=${v => setR('day', v)}/></div>
+                <div class="grid2"><${UI.Input} label="line on the invoice" value=${f.retainer.desc} onChange=${v => setR('desc', v)}/><${UI.Input} label="SAC" value=${f.retainer.sac} onChange=${v => setR('sac', v)}/></div>
+                <${UI.Select} label="tax" value=${f.retainer.gst} options=${[{v: 'intra', label: 'CGST and SGST, same state'}, {v: 'inter', label: 'IGST, another state'}, {v: 'none', label: 'No GST, export or unregistered'}]} onChange=${v => setR('gst', v)}/>
+              </div>` : null}
+            </div>
+          <//>
+        </div>
+        <${UI.Card} title="From your mail" id="billing-mine">
+          ${siteApi() ? html`<div class="stack tight">
+            <p class="small ink62" style=${{marginTop: 0}}>m360 reads the mail about ${c.name || 'this client'} in your Gmail (invoices, POs, GST certificates, bank letters, their attachments) and picks out the billing details. You choose what to keep.</p>
+            <div><${UI.Btn} kind=${found ? 'sec' : undefined} sm=${true} id="billing-read" disabled=${reading} onClick=${read}>${reading ? 'Reading' : found ? 'Read again' : 'Find billing details in Gmail'}<//></div>
+            ${found ? html`<div class="stack tight" id="billing-found">
+              ${MINE_FIELDS.filter(([k]) => found.found && found.found[k]).map(([k, l]) => html`<div class="listrow" key=${k}>
+                <span class="grow"><div class="tiny ink62">${l}</div><div class="small">${String(found.found[k])}</div></span>
+                ${String(f[k] || '') === String(found.found[k]) ? html`<span class="tiny ink62">in use</span>` : html`<${UI.Btn} sm=${true} kind="sec" onClick=${() => use(k)}>Use<//>`}
+              </div>`)}
+              ${found.found && MINE_FIELDS.some(([k]) => found.found[k]) ? html`<div><${UI.Btn} sm=${true} id="billing-use-all" onClick=${useAll}>Use everything found<//></div>` : html`<div class="small ink62">Nothing about billing turned up.</div>`}
+              ${found.note ? html`<div class="tiny ink62">${found.note}</div>` : null}
+              ${found.sources && found.sources.length ? html`<div class="tiny ink62" style=${{marginTop: '6px'}}>Read: ${found.sources.slice(0, 6).map(x => x.subject + (x.file ? ' (' + x.file + ')' : '')).join(' · ')}</div>` : null}
+            </div>` : null}
+          </div>` : html`<div class="small ink62">On the team site, m360 reads your Gmail and fills this in for you.</div>`}
+        <//>
+      </div>
+    </div>`;
+  }
+
+  M.books = {CUR, CUR_OPTS, num, fmt, money, words, fyOf, fyRange, settings, clientBook, totals, status, STATUS_PILL, STATUS_TEXT, invoices, expenses, nextNumber, codeOf, ageOf, nextDates, print, shrinkImage, deep, blankBilling, draftBilling, cleanBilling};
   M.parts.DocFrame = DocFrame;
   M.parts.DocHead = DocHead;
   M.parts.DocSign = DocSign;
   M.parts.DocFoot = DocFoot;
-  M.parts.BillingDrawer = BillingDrawer;
+  M.parts.BillingPage = BillingPage;
   M.pages.Books = Books;
 })();

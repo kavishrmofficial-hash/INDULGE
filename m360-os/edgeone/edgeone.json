@@ -1,17 +1,157 @@
 {
   "outputDirectory": "public",
   "headers": [
-    {"source": "/", "headers": [{"key": "Cache-Control", "value": "no-cache, must-revalidate"}]},
-    {"source": "/index.html", "headers": [{"key": "Cache-Control", "value": "no-cache, must-revalidate"}]},
-    {"source": "/sw.js", "headers": [{"key": "Cache-Control", "value": "no-cache, must-revalidate"}]},
-    {"source": "/version.json", "headers": [{"key": "Cache-Control", "value": "no-store"}]},
-    {"source": "/manifest.json", "headers": [{"key": "Cache-Control", "value": "no-cache, must-revalidate"}]}
+    {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, must-revalidate"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'sha256-ZecqfzbrXXQQ2eQ8nXUr+CHivKNQXbZzbBksRAbGS2M=' 'sha256-lKuGPTfuog9uLxLONnd1vgYqj8IUJumSd3zscwRx7L0=' 'sha256-Zf/Oaf1d82p/pyuW9NHAD/40atjJOHuHr0vktim6aAE=' https://sdk.scdn.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' data: blob: https:; connect-src 'self' https://api.spotify.com https://accounts.spotify.com https://*.spotify.com wss://*.spotify.com https://*.scdn.co https://*.spotifycdn.com; frame-src https:; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=31536000; includeSubDomains"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "geolocation=(self), microphone=(self), camera=(self), payment=(), usb=(), interest-cohort=()"
+        },
+        {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin-allow-popups"
+        }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, must-revalidate"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'sha256-ZecqfzbrXXQQ2eQ8nXUr+CHivKNQXbZzbBksRAbGS2M=' 'sha256-lKuGPTfuog9uLxLONnd1vgYqj8IUJumSd3zscwRx7L0=' 'sha256-Zf/Oaf1d82p/pyuW9NHAD/40atjJOHuHr0vktim6aAE=' https://sdk.scdn.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' data: blob: https:; connect-src 'self' https://api.spotify.com https://accounts.spotify.com https://*.spotify.com wss://*.spotify.com https://*.scdn.co https://*.spotifycdn.com; frame-src https:; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=31536000; includeSubDomains"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "geolocation=(self), microphone=(self), camera=(self), payment=(), usb=(), interest-cohort=()"
+        },
+        {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin-allow-popups"
+        }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/version.json",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
+    {
+      "source": "/manifest.json",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/*",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=31536000; includeSubDomains"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "geolocation=(self), microphone=(self), camera=(self), payment=(), usb=(), interest-cohort=()"
+        },
+        {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin-allow-popups"
+        }
+      ]
+    }
   ],
   "caches": [
-    {"source": "/", "cacheTtl": 0},
-    {"source": "/index.html", "cacheTtl": 0},
-    {"source": "/sw.js", "cacheTtl": 0},
-    {"source": "/version.json", "cacheTtl": 0},
-    {"source": "/manifest.json", "cacheTtl": 0}
+    {
+      "source": "/",
+      "cacheTtl": 0
+    },
+    {
+      "source": "/index.html",
+      "cacheTtl": 0
+    },
+    {
+      "source": "/sw.js",
+      "cacheTtl": 0
+    },
+    {
+      "source": "/version.json",
+      "cacheTtl": 0
+    },
+    {
+      "source": "/manifest.json",
+      "cacheTtl": 0
+    }
   ]
 }

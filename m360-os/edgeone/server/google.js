@@ -10,7 +10,7 @@ const SCOPES = [
   'https://www.googleapis.com/auth/gmail.modify',
   'https://www.googleapis.com/auth/calendar.events',
   'https://www.googleapis.com/auth/calendar.readonly',
-  'https://www.googleapis.com/auth/drive.metadata.readonly'
+  'https://www.googleapis.com/auth/drive.readonly'
 ];
 const STATE_MS = 10 * 60000;
 const TZ = 'Asia/Kolkata';
@@ -117,7 +117,10 @@ export function googleActions(h) {
   /* one Google API call as this person */
   async function gapi(uid, url, init) {
     const tok = await accessToken(uid);
-    const r = await doFetch(url, {...(init || {}), headers: {...((init || {}).headers || {}), authorization: 'Bearer ' + tok}});
+    const {raw, ...rest} = init || {};
+    const r = await doFetch(url, {...rest, headers: {...(rest.headers || {}), authorization: 'Bearer ' + tok}});
+    /* raw: the bytes of a file, base64 (a Drive download for the books) */
+    if (raw && r.ok) { const u8 = new Uint8Array(await r.arrayBuffer()); let b = ''; for (let i = 0; i < u8.length; i += 0x8000) b += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(b); }
     const text = await r.text();
     let j = {};
     try { j = text ? JSON.parse(text) : {}; } catch (e) { j = {raw: text}; }
@@ -336,5 +339,6 @@ export function googleActions(h) {
     return back(rec.back, true);
   }
 
-  return {actions, googleCallback};
+  /* gapi and the endpoints are shared with the books (mail mining) */
+  return {actions, googleCallback, gapi, GM, DRIVE};
 }

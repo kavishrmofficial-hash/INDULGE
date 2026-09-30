@@ -8,6 +8,7 @@
   edgeone/cloud-functions/api/m360.js   the one API function (hand-written, not generated)
 """
 import json
+import re
 import os
 import shutil
 
@@ -67,6 +68,61 @@ def build_stamp():
     return '%s%s.%s' % (sha, '+' if dirty else '', t.strftime('%y%m%d-%H%M'))
 
 
+# the security headers the site answers with. The Content-Security-Policy names every inline script by its
+# hash (the build stamp, the shim and the app), so nothing injected into the page can run; scripts and the
+# worker come from the site itself and Spotify's player; styles are inline by design; images, media and
+# frames (reading mode) may come from any https address; the site is never framed by another.
+SEC_HEADERS = [
+    {'key': 'X-Content-Type-Options', 'value': 'nosniff'},
+    {'key': 'X-Frame-Options', 'value': 'DENY'},
+    {'key': 'Referrer-Policy', 'value': 'strict-origin-when-cross-origin'},
+    {'key': 'Strict-Transport-Security', 'value': 'max-age=31536000; includeSubDomains'},
+    {'key': 'Permissions-Policy', 'value': 'geolocation=(self), microphone=(self), camera=(self), payment=(), usb=(), interest-cohort=()'},
+    {'key': 'Cross-Origin-Opener-Policy', 'value': 'same-origin-allow-popups'},
+]
+def csp_for(doc):
+    import hashlib, base64
+    hashes = []
+    for m in re.finditer(r'<script>([\s\S]*?)</script>', doc):
+        h = base64.b64encode(hashlib.sha256(m.group(1).encode('utf-8')).digest()).decode('ascii')
+        if "'sha256-%s'" % h not in hashes:
+            hashes.append("'sha256-%s'" % h)
+    return '; '.join([
+        "default-src 'self'",
+        "script-src 'self' %s https://sdk.scdn.co" % ' '.join(hashes),
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: blob: https:",
+        "font-src 'self' data:",
+        "media-src 'self' data: blob: https:",
+        "connect-src 'self' https://api.spotify.com https://accounts.spotify.com https://*.spotify.com wss://*.spotify.com https://*.scdn.co https://*.spotifycdn.com",
+        "frame-src https:",
+        "worker-src 'self'",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
+        "upgrade-insecure-requests",
+    ])
+def write_headers(doc):
+    """edgeone.json carries the headers the platform answers with; the page's CSP hashes come from this build."""
+    cfg_path = os.path.join(ROOT, 'edgeone', 'edgeone.json')
+    cfg = json.load(open(cfg_path, encoding='utf-8'))
+    csp = csp_for(doc)
+    out = []
+    for h in cfg.get('headers', []):
+        keep = [x for x in h.get('headers', []) if x['key'] not in ('Content-Security-Policy',) and x['key'] not in [y['key'] for y in SEC_HEADERS]]
+        if h['source'] in ('/', '/index.html'):
+            keep = keep + [{'key': 'Content-Security-Policy', 'value': csp}] + SEC_HEADERS
+        elif h['source'] == '/*':
+            keep = keep + SEC_HEADERS
+        out.append({'source': h['source'], 'headers': keep})
+    if not any(h['source'] == '/*' for h in out):
+        out.append({'source': '/*', 'headers': list(SEC_HEADERS)})
+    cfg['headers'] = out
+    with open(cfg_path, 'w', encoding='utf-8') as f:
+        json.dump(cfg, f, indent=2)
+        f.write('\n')
+
 def main():
     os.makedirs(os.path.join(PUB, 'vendor'), exist_ok=True)
     tmp = os.path.join(builder.DIST, 'index.edgeone.html')
@@ -76,7 +132,8 @@ def main():
     page = open(tmp, encoding='utf-8').read()
     for url, local in LOCAL.items():
         assert url in page, 'CDN tag missing: ' + url
-        page = page.replace('<script src="%s"></script>' % url, '<script src="%s"></script>' % local)
+        page = page.replace(builder.script_tag(url), '<script src="%s"></script>' % local)
+        assert url not in page, 'CDN tag not replaced: ' + url
     shim = open(os.path.join(ROOT, 'src', 'standalone', 'shim.js'), encoding='utf-8').read()
     # the title and viewport lines the artifact page opens with move into the head
     first_script = page.index('<script')
@@ -97,6 +154,7 @@ def main():
                 if name.endswith(('.json', '.js', '.md')): z.write(os.path.join(ext, name), 'm360-frame-helper/' + name)
     with open(os.path.join(PUB, 'index.html'), 'w', encoding='utf-8') as f:
         f.write(doc)
+    write_headers(doc)
     # a phone can install it: manifest, icons and a small service worker for the shell
     # the agency mark, black on white: the same mark the app shows, as the icon everywhere
     mark = open(os.path.join(ROOT, 'src', 'mark.svg'), encoding='utf-8').read().strip()

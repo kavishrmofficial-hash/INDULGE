@@ -31,6 +31,7 @@ import {spotifyActions} from './spotify.js';
 import {webActions, browseHandler} from './web.js';
 import {holidayNotice} from './holiday.js';
 import {booksDesk} from './books.js';
+import {securityActions} from './security.js';
 import {fileActions} from './files.js';
 import {baseActions} from './base.js';
 
@@ -47,6 +48,14 @@ const CODE_MINUTES = 15;        /* a reset code's life */
 const CODE_TRIES = 5;
 const WEAK = new Set(['password', '12345678']);
 const LAST_SEEN_MS = 3600000;   /* a session's last-seen stamp moves at most once an hour */
+const BODY_MAX = 6 * 1024 * 1024; /* the platform's own limit, refused early with a clear code */
+const AUTH_ACTIONS = new Set(['setup', 'signup', 'login', 'accept', 'invited', 'magic', 'pw', 'pw2', 'reset', 'resetpw']);
+/* the caller's address, from the edge's headers; empty when none is present */
+function clientIp(request) {
+  const h = k => String(request.headers.get(k) || '').trim();
+  const raw = h('eo-connecting-ip') || h('eo-client-ip') || h('cf-connecting-ip') || h('x-real-ip') || h('x-forwarded-for').split(',')[0].trim();
+  return /^[0-9a-fA-F.:]{3,45}$/.test(raw) ? raw : '';
+}
 const PRESENCE_MS = 45000;
 const MAX_DOC = 256 * 1024;
 const LOG_SOFT_MAX = 200 * 1024; /* a day's log for one person drops its oldest entries past this */
@@ -254,10 +263,10 @@ export function createApp({store, env = {}}) {
 
   /* ---------- sessions ---------- */
   /* ua is the short device label the request handler already derived */
-  async function startSession(uid, ua) {
+  async function startSession(uid, ua, ip) {
     const token = rand(32).replace(/[^a-z0-9]/g, '').slice(0, 40);
     const now = Date.now();
-    await putJ('s/' + token, {uid, at: now, last: now, ua: String(ua || 'Browser').slice(0, 40)});
+    await putJ('s/' + token, {uid, at: now, last: now, ua: String(ua || 'Browser').slice(0, 40), ip: String(ip || '').slice(0, 45)});
     return token;
   }
   const cookie = token => 'm360s=' + token + '; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=' + (SESSION_DAYS * 86400);
@@ -532,6 +541,7 @@ export function createApp({store, env = {}}) {
       const email = cleanEmail(body.email);
       if (!email) throw new HttpError(400, 'invalid_argument', 'That email does not look right.');
       const password = checkPassword(body.password, email);
+      await sec.checkBreach(password);
       if (await ownerUid()) throw new HttpError(409, 'taken', 'already set up');
       const uid = newId();
       await putJ('w/' + uid, {...(await hashSecret(password)), at: Date.now()});
@@ -539,8 +549,9 @@ export function createApp({store, env = {}}) {
       await putJ(emailKey(email), {uid});
       await putJ('o/owner', {uid});
       await Promise.all(Object.keys(SEED).map(async path => { await putJ(docKey(path), SEED[path]); await stampKey(docKey(path), JSON.stringify(SEED[path])).catch(() => {}); }));
-      const token = await startSession(uid, req.ua);
+      const token = await startSession(uid, req.ua, req.ip);
       await log(uid, 'setup', '', req.ua);
+      await sec.noteSignin(uid, req, 'setup', req.site);
       return {__cookie: cookie(token), uid};
     },
 
@@ -551,6 +562,7 @@ export function createApp({store, env = {}}) {
       const email = cleanEmail(body.email);
       if (!email) throw new HttpError(400, 'invalid_argument', 'That email does not look right.');
       const password = checkPassword(body.password, email);
+      await sec.checkBreach(password);
       if (!(await ownerUid())) throw new HttpError(409, 'not_setup', 'set up first');
       if ((await appSettings()).joinPolicy === 'invite') throw new HttpError(409, 'closed', 'm360 is invite only right now. Ask Kaavish for an invite.');
       const taken = await getJ(emailKey(email));
@@ -559,8 +571,9 @@ export function createApp({store, env = {}}) {
       await putJ('w/' + uid, {...(await hashSecret(password)), at: Date.now()});
       await putJ('p/' + uid, {name, email, at: Date.now()});
       await putJ(emailKey(email), {uid});
-      const token = await startSession(uid, req.ua);
+      const token = await startSession(uid, req.ua, req.ip);
       await log(uid, 'signup', '', req.ua);
+      await sec.noteSignin(uid, req, 'signup', req.site);
       return {__cookie: cookie(token), uid};
     },
 
@@ -570,8 +583,11 @@ export function createApp({store, env = {}}) {
       const k = await getJ('k/' + code);
       if (!k || !k.uid || k.until < Date.now()) throw new HttpError(410, 'expired', 'link expired');
       await store.delete('k/' + code).catch(() => {});
-      const token = await startSession(k.uid, req.ua);
+      const challenge = await sec.gate(k.uid, req, 'link');
+      if (challenge) return challenge;
+      const token = await startSession(k.uid, req.ua, req.ip);
       await log(k.uid, 'login', '', req.ua);
+      await sec.noteSignin(k.uid, req, 'link', req.site);
       return {__cookie: cookie(token), uid: k.uid};
     },
 
@@ -625,6 +641,7 @@ export function createApp({store, env = {}}) {
       const keep = target === v.uid && body.keepThis ? v.token : null;
       const removed = await endSessions(target, keep);
       await log(v.uid, 'signoutall', '', (target === v.uid ? '' : target + ': ') + removed + (removed === 1 ? ' device' : ' devices'));
+      await sec.event('signout_all', target, body && body.__req, target === v.uid ? '' : 'by ' + v.uid);
       return target === v.uid && !keep ? {removed, __cookie: CLEAR_COOKIE} : {removed};
     },
 
@@ -861,6 +878,7 @@ export function createApp({store, env = {}}) {
       if (!email) throw new HttpError(400, 'invalid_argument', 'Type the email your invite went to.');
       if (email !== inv.email) throw new HttpError(403, 'mismatch', 'That email does not match this invite.');
       const password = checkPassword(body.password, email);
+      await sec.checkBreach(password);
       const known = await getJ(emailKey(inv.email));
       let uid = known && known.uid;
       if (uid && !(await getJ('p/' + uid))) uid = null;
@@ -887,8 +905,9 @@ export function createApp({store, env = {}}) {
         await bumpMarker('roster', 'team', digest([JSON.stringify(team)])).catch(() => {});
       }
       await store.delete('i/' + code).catch(() => {});
-      const token = await startSession(uid, req.ua);
+      const token = await startSession(uid, req.ua, req.ip);
       await log(uid, 'accept', '', (inv.role || 'member') + ', ' + req.ua);
+      await sec.noteSignin(uid, req, 'invite', req.site);
       return {__cookie: cookie(token), uid};
     },
     /* a sign-in link by email for anyone already on the team, good for 20 minutes */
@@ -916,11 +935,24 @@ export function createApp({store, env = {}}) {
       const known = email ? await getJ(emailKey(email)) : null;
       const uid = known && known.uid;
       const rec = uid ? await getJ('w/' + uid) : null;
-      const ok = await verifyPassword(uid, rec, password);
-      if (!ok || !(await getJ('p/' + uid))) throw new HttpError(401, 'bad_login', 'That email and password do not match.');
-      const token = await startSession(uid, req.ua);
+      let ok = false;
+      try { ok = await verifyPassword(uid, rec, password); }
+      catch (e) { if (uid) await sec.event('locked', uid, req, 'too many wrong passwords'); throw e; }
+      if (!ok || !(await getJ('p/' + uid))) { if (uid) await sec.event('pw_fail', uid, req, ''); throw new HttpError(401, 'bad_login', 'That email and password do not match.'); }
+      const challenge = await sec.gate(uid, req, 'pw');
+      if (challenge) return challenge;
+      const token = await startSession(uid, req.ua, req.ip);
       await log(uid, 'pw', '', req.ua);
+      await sec.noteSignin(uid, req, 'password', req.site);
       return {__cookie: cookie(token), uid};
+    },
+    /* the second step of a sign-in: the code from the authenticator, or a recovery code */
+    async pw2(v, body, req) {
+      const a = await sec.answer(body, req);
+      const token = await startSession(a.uid, req.ua, req.ip);
+      await log(a.uid, 'pw', '', req.ua + ', with a code');
+      await sec.noteSignin(a.uid, req, a.via + ' and a code', req.site);
+      return {__cookie: cookie(token), uid: a.uid};
     },
     /* your own password (the current one when you have one), or the founder setting one for anyone but themselves,
        which ends that person's sessions everywhere */
@@ -933,6 +965,7 @@ export function createApp({store, env = {}}) {
       }
       const p = (await getJ('p/' + target)) || {};
       const password = checkPassword(body.password, p.email || '');
+      await sec.checkBreach(password);
       if (target === v.uid) {
         const rec = await getJ('w/' + v.uid);
         if (rec && rec.hash) {
@@ -969,6 +1002,7 @@ export function createApp({store, env = {}}) {
       const email = cleanEmail(body.email), code = String(body.code || '').replace(/\s+/g, '');
       if (!/^\d{6}$/.test(code)) throw new HttpError(400, 'invalid_argument', 'The code is 6 digits.');
       const password = checkPassword(body.password, email);
+      await sec.checkBreach(password);
       const known = email ? await getJ(emailKey(email)) : null;
       const uid = known && known.uid;
       const rec = uid ? await getJ('c/' + uid) : null;
@@ -984,8 +1018,12 @@ export function createApp({store, env = {}}) {
       await putJ('w/' + uid, {...(await hashSecret(password)), at: now});
       await store.delete('c/' + uid).catch(() => {});
       await endSessions(uid, null);
-      const token = await startSession(uid, req.ua);
+      await sec.event('pw_reset', uid, req, '');
+      const challenge = await sec.gate(uid, req, 'reset');
+      if (challenge) return challenge;
+      const token = await startSession(uid, req.ua, req.ip);
       await log(uid, 'resetpw', '', req.ua);
+      await sec.noteSignin(uid, req, 'reset', req.site);
       return {__cookie: cookie(token), uid};
     },
     /* admin+ makes a reset code for anyone but the founder and hands it over in person; shown once, never stored in the clear */
@@ -1046,13 +1084,16 @@ export function createApp({store, env = {}}) {
     await log(uid, 'set', path, what || '');
   }
   const holiday = holidayNotice({getJ, docKey, appSettings, ownerUid, sendMail, writeAs, ymdIST, env});
-  /* the books: invoice mail from the owner's page, retainer drafts and auto-chase on a ten minute pass */
-  const books = booksDesk({getJ, docKey, listAll, ownerUid, sendMail, writeAs, ymdIST, levelOf, LEVEL, HttpError, env});
-  Object.assign(actions, books.actions);
   /* radar actions (news, awards, watch) live in radar.js and share the store helpers */
   Object.assign(actions, radarActions({store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, isObj, stampKey}));
   const google = googleActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError, log, rand, docKey});
   Object.assign(actions, google.actions);
+  /* security: the second factor, the throttle, the breach check, the new-device mail, the log */
+  const sec = securityActions({store, env, getJ, putJ, ownerUid, levelOf, LEVEL, HttpError, log, sendMail, rand});
+  Object.assign(actions, sec.actions);
+  /* the books: invoice mail from the owner's page, mail mining, statements, retainer drafts and auto-chase on a ten minute pass */
+  const books = booksDesk({getJ, docKey, listAll, ownerUid, sendMail, writeAs, ymdIST, levelOf, LEVEL, HttpError, env, aiKey, google});
+  Object.assign(actions, books.actions);
   const hunt = huntActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError, log});
   Object.assign(actions, hunt.actions);
   Object.assign(actions, spotifyActions({levelOf, LEVEL, HttpError}).actions);
@@ -1074,6 +1115,8 @@ export function createApp({store, env = {}}) {
     if (request.method !== 'POST') return json({error: {code: 'invalid_argument', message: 'POST only'}}, 405);
     /* JSON only: a cross-site form or text/plain post cannot reach an action */
     if (!/^application\/json\b/i.test(request.headers.get('content-type') || '')) return json({error: {code: 'invalid_argument', message: 'JSON only'}}, 415);
+    const len = Number(request.headers.get('content-length') || 0);
+    if (len > BODY_MAX) return json({error: {code: 'invalid_argument', message: 'too large'}}, 413);
     let body;
     try { body = await request.json(); } catch (e) { return json({error: {code: 'invalid_argument', message: 'bad json'}}, 400); }
     const a = body && typeof body.a === 'string' ? body.a : '';
@@ -1084,7 +1127,10 @@ export function createApp({store, env = {}}) {
     try { site = new URL(request.url).origin; } catch (e) { site = ''; }
     const org = request.headers.get('origin');
     if (org && /^https?:\/\//.test(org)) site = org;
+    const ip = clientIp(request);
     try {
+      /* sign-in shaped calls are counted per address before anything else */
+      if (AUTH_ACTIONS.has(a)) await sec.throttle({ip, ua: deviceLabel(request.headers.get('user-agent'))});
       const v = await viewer(request);
       /* once a day: the backup and the trash and backup pruning (safety.js); never fails a request */
       if (hooks.upkeep) await hooks.upkeep().catch(() => {});
@@ -1095,7 +1141,7 @@ export function createApp({store, env = {}}) {
       /* once a day per instance, off the request's path: old log days go */
       const today = ymdIST(Date.now());
       if (logPruneDay !== today) { logPruneDay = today; pruneOldLogs(LOG_DAYS).catch(() => {}); }
-      const out = await fn(v, body, {ua: deviceLabel(request.headers.get('user-agent')), site});
+      const out = await fn(v, body, {ua: deviceLabel(request.headers.get('user-agent')), site, ip});
       const extra = {};
       if (out && out.__cookie) { extra['set-cookie'] = out.__cookie; delete out.__cookie; }
       return json(out || {}, 200, extra);

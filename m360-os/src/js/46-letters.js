@@ -1,8 +1,11 @@
 /* module: letters. The HR desk inside the books: offer, appointment, increment, experience, relieving,
-   non-disclosure and warning letters for every active member and for candidates at the offer or hired
-   stage. Each letter is a set of variables, a body the owner drafts from a template (or has the model
-   rewrite), and a status: a draft stays editable, an issued letter carries a reference number and is
-   read only. Letters live in hr/<uid>, the owner's alone. */
+   non-disclosure, warning and blank letters for every active member and for candidates at the offer or
+   hired stage. Every piece of a letter is a field the owner can edit by hand: the recipient and the
+   address, the date, the place and the reference, the subject, the salutation and the closing, the
+   signatory, the kind's own details and the body itself. "Write it" drafts the body from the template;
+   after a manual edit it asks before overwriting. An issued letter carries its reference and stays
+   editable; a withdrawn one stays in the list and counts for nothing. Letters live in hr/<uid>, the
+   owner's alone: hr/<uid>.letters[id] = {kind, at, ref, vars, body, status, issuedAt, editedAt, hand}. */
 'use strict';
 (function () {
   const {html, React, U, UI} = M;
@@ -16,18 +19,39 @@
     {v: 'experience', label: 'Experience letter'},
     {v: 'relieving', label: 'Relieving letter'},
     {v: 'nda', label: 'Non-disclosure agreement'},
-    {v: 'warning', label: 'Warning letter'}
+    {v: 'warning', label: 'Warning letter'},
+    {v: 'custom', label: 'Letter, blank'}
   ];
   const LABEL = Object.fromEntries(KINDS.map(k => [k.v, k.label]));
+  const SUBJECT = {
+    offer: 'Offer of employment', appointment: 'Letter of appointment', increment: 'Revision of your compensation',
+    experience: 'Experience certificate', relieving: 'Relieving letter', nda: 'Non-disclosure agreement',
+    warning: 'Formal warning', custom: ''
+  };
   const ACCEPTS = ['offer', 'appointment', 'nda'];
   const YESNO = [{v: 'yes', label: 'Yes'}, {v: 'no', label: 'No'}];
   const DUES = [{v: 'settled', label: 'Settled'}, {v: 'to be settled', label: 'To be settled'}];
-  /* the variables of each kind, after the three every letter carries: who, role, date */
-  const COMMON = [
+  /* the fields every kind carries, in three groups: who, letter, signature */
+  const WHO = [
     {k: 'who', label: 'to'},
-    {k: 'role', label: 'role'},
-    {k: 'date', label: 'letter date', type: 'date'}
+    {k: 'address', label: 'address, one line per row', area: true},
+    {k: 'role', label: 'role'}
   ];
+  const LETTER = [
+    {k: 'date', label: 'letter date', type: 'date'},
+    {k: 'place', label: 'place'},
+    {k: 'ref', label: 'reference'},
+    {k: 'subject', label: 'subject'}
+  ];
+  const LETTER_END = [
+    {k: 'salutation', label: 'salutation'},
+    {k: 'closing', label: 'closing line'}
+  ];
+  const SIGN = [
+    {k: 'signWho', label: 'signed by'},
+    {k: 'signTitle', label: 'title'}
+  ];
+  const COMMON = WHO.concat(LETTER, LETTER_END, SIGN);
   const FIELDS = {
     offer: [
       {k: 'ctc', label: 'annual CTC, INR', type: 'number'},
@@ -72,7 +96,8 @@
       {k: 'what', label: 'what happened, one line'},
       {k: 'when', label: 'when', type: 'date'},
       {k: 'expected', label: 'what we expect from here, one line'}
-    ]
+    ],
+    custom: []
   };
   const fieldsOf = kind => COMMON.concat(FIELDS[kind] || []);
 
@@ -86,15 +111,16 @@
     return Object.keys(m).filter(id => m[id] && typeof m[id] === 'object').map(id => ({...m[id], id}))
       .sort((a, b) => (b.at || 0) - (a.at || 0));
   };
-  const allIssued = ctx => {
+  const allLetters = ctx => {
     const out = [];
     const map = hrMap(ctx);
     for (const uid of Object.keys(map)) {
       const ls = (map[uid] || {}).letters || {};
-      for (const id of Object.keys(ls)) if (ls[id] && ls[id].status === 'issued') out.push({...ls[id], id, uid});
+      for (const id of Object.keys(ls)) if (ls[id] && typeof ls[id] === 'object') out.push({...ls[id], id, uid});
     }
     return out;
   };
+  const allIssued = ctx => allLetters(ctx).filter(l => l.status === 'issued');
   const issuedCount = (ctx, uid) => lettersOf(ctx, uid).filter(l => l.status === 'issued').length;
   const okDate = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
   const day = s => okDate(s) ? U.fmtDate(s) : (s ? String(s) : '');
@@ -106,6 +132,7 @@
   const plural = (n, one, many) => n0(n) === 1 ? one : many;
   const clean = s => String(s || '').trim();
   const endStop = s => { const t = clean(s).replace(/[.\s]+$/, ''); return t ? t + '.' : ''; };
+  const lines = s => String(s || '').split('\n').map(l => l.trim()).filter(Boolean);
   /* a display name for the roster or a candidate: the profile, then the me doc, then the title */
   const nameOf = (ctx, uid, profiles) => {
     const c = candOf(ctx, uid);
@@ -117,6 +144,18 @@
     const m = (ctx.members || {})[uid];
     return (m && m.title) || 'Teammate';
   };
+  /* the company's city: the line of the address that carries the PIN code, else the first of its cities */
+  const cityOf = s => {
+    const c = s.company || {};
+    for (const l of lines(c.address)) {
+      const m = /([A-Za-z][A-Za-z .]*?)\s*[-]?\s*\d{6}\b/.exec(l);
+      if (m) { const parts = clean(m[1]).split(',').map(clean).filter(Boolean); if (parts.length) return parts[parts.length - 1]; }
+    }
+    const first = clean(String(c.cities || '').split(String.fromCharCode(183))[0]);
+    return first || 'Mumbai';
+  };
+  const company = ctx => { const s = M.books.settings(ctx); return {name: s.company.name || 'Mask Management', brand: s.company.brand || 'Mask360'}; };
+  const salutationFor = (kind, who) => kind === 'experience' ? 'To whom it may concern,' : 'Dear ' + (U.firstName(who) || 'there') + ',';
 
   /* ---------- the variables, prefilled ---------- */
   function vars(kind, ctx, uid, who) {
@@ -125,10 +164,19 @@
     const c = candOf(ctx, uid);
     const sal = ((((ctx.coll.payroll || {}).map || {}).salaries || {}).map || {})[uid] || {};
     const s = M.books.settings(ctx);
+    const name = who || (c ? clean(c.name) : nameOf(ctx, uid));
     const v = {
-      who: who || (c ? clean(c.name) : nameOf(ctx, uid)),
+      who: name,
+      address: '',
       role: c ? clean(c.role) : (m.title || ''),
-      date: today
+      date: today,
+      place: cityOf(s),
+      ref: '',
+      subject: SUBJECT[kind] || '',
+      salutation: salutationFor(kind, name),
+      closing: 'Warm regards,',
+      signWho: s.signatory.who || '',
+      signTitle: s.signatory.title || ''
     };
     const joined = okDate(m.joined) ? m.joined : (okDate(m.start) ? m.start : '');
     const ctc = sal.ctc ? n0(sal.ctc) : '';
@@ -138,7 +186,7 @@
       v.probationMonths = 3;
       v.noticeDays = 30;
       v.reportsTo = s.signatory.who;
-      v.location = 'Mumbai';
+      v.location = cityOf(s);
       if (kind === 'offer') { v.hours = '10:30 to 19:30, Monday to Saturday'; v.acceptBy = plusDays(today, 7); }
       else v.empId = m.empId || '';
     } else if (kind === 'increment') {
@@ -154,12 +202,26 @@
     }
     return v;
   }
+  /* the shared fields of an older letter, filled so the document still reads whole */
+  function withDefaults(letter, ctx) {
+    const v = {...(letter.vars || {})};
+    const s = M.books.settings(ctx);
+    const first = (String(letter.body || '').split(/\n\s*\n/)[0] || '').trim();
+    const opens = /^(Dear\b|To whom)/i.test(first);
+    if (v.subject == null) v.subject = SUBJECT[letter.kind] || '';
+    if (v.salutation == null) v.salutation = opens ? '' : salutationFor(letter.kind, v.who);
+    if (v.closing == null) v.closing = opens ? '' : 'Warm regards,';
+    if (v.signWho == null) v.signWho = s.signatory.who || '';
+    if (v.signTitle == null) v.signTitle = s.signatory.title || '';
+    if (v.place == null) v.place = '';
+    if (v.address == null) v.address = '';
+    return v;
+  }
 
-  /* ---------- the templates: plain letters in our voice ---------- */
+  /* ---------- the templates: the body alone, in our voice. The salutation and the closing are fields. ---------- */
   const T = {};
-  T.offer = v => [
-    'Dear ' + v.who + ',',
-    'We are glad to offer you the role of ' + v.role + ' at Mask360. You met the team, you did the work, and we want you with us.',
+  T.offer = (v, co) => [
+    'We are glad to offer you the role of ' + v.role + ' at ' + co.brand + '. You met the team, you did the work, and we want you with us.',
     'You will report to ' + v.reportsTo + '. The work you own will sit close to our clients, and you will have the room to run it.',
     'Your annual cost to company will be ' + inr(v.ctc) + ' (' + inWords(v.ctc) + '), which comes to ' + monthly(v.ctc) + ' a month before statutory deductions. The full break up follows in your appointment letter.',
     'Your start date is ' + day(v.start) + ', at our ' + v.location + ' office.',
@@ -169,9 +231,8 @@
     'Sign and return this letter by ' + day(v.acceptBy) + ' to accept. After that date the offer lapses.',
     'We are looking forward to building with you.'
   ];
-  T.appointment = v => [
-    'Dear ' + v.who + ',',
-    'This letter confirms your appointment as ' + v.role + ' with Mask Management, effective ' + day(v.start) + '.' + (v.empId ? ' Your employee id is ' + v.empId + '.' : ''),
+  T.appointment = (v, co) => [
+    'This letter confirms your appointment as ' + v.role + ' with ' + co.name + ', effective ' + day(v.start) + '.' + (v.empId ? ' Your employee id is ' + v.empId + '.' : ''),
     'You will report to ' + v.reportsTo + ' and work from our ' + v.location + ' office.',
     'Your annual cost to company is ' + inr(v.ctc) + ' (' + inWords(v.ctc) + '), paid monthly as ' + monthly(v.ctc) + ' less statutory deductions. The salary structure is set out in your salary annexure.',
     'The first ' + n0(v.probationMonths) + ' ' + plural(v.probationMonths, 'month', 'months') + ' of your employment are probation. On confirmation, you become a permanent member of the team.',
@@ -182,73 +243,91 @@
     'We are glad to have you with us.'
   ];
   T.increment = v => [
-    'Dear ' + v.who + ',',
     'Thank you for the work you have put in as ' + v.role + '. It shows in what we ship and in how the team runs.',
     'We are revising your annual cost to company from ' + inr(v.oldCtc) + ' to ' + inr(v.newCtc) + ' (' + inWords(v.newCtc) + '), effective ' + day(v.effective) + '. That comes to ' + monthly(v.newCtc) + ' a month before statutory deductions.',
     clean(v.reason) ? 'This revision recognises ' + clean(v.reason).replace(/[.\s]+$/, '') + '.' : '',
     'All other terms of your employment stay the same. Your revised salary annexure follows.',
     'Keep going. We are glad you are here.'
   ];
-  T.experience = v => [
-    'To whom it may concern,',
-    'This is to certify that ' + v.who + ' was employed with Mask Management from ' + day(v.from) + ' to ' + day(v.to) + '. At the time of leaving, ' + v.who + ' held the role of ' + v.lastRole + '.',
+  T.experience = (v, co) => [
+    'This is to certify that ' + v.who + ' was employed with ' + co.name + ' from ' + day(v.from) + ' to ' + day(v.to) + '. At the time of leaving, ' + v.who + ' held the role of ' + v.lastRole + '.',
     'During this period ' + v.who + ' handled the work with care and ownership, and was a valued member of the team.',
     'We wish ' + v.who + ' every success in what comes next.'
   ];
-  T.relieving = v => [
-    'Dear ' + v.who + ',',
-    'This letter confirms that you have been relieved from your duties as ' + v.role + ' at Mask Management at the close of business on ' + day(v.lastDay) + '.',
+  T.relieving = (v, co) => [
+    'This letter confirms that you have been relieved from your duties as ' + v.role + ' at ' + co.name + ' at the close of business on ' + day(v.lastDay) + '.',
     v.noticeServed === 'yes' ? 'You served your notice period in full.' : 'The shortfall in your notice period is adjusted in your final settlement.',
     v.dues === 'settled' ? 'Your full and final settlement has been made, and no dues remain on either side.' : 'Your full and final settlement will be processed within 30 days of your last working day.',
-    'Client work, client data and internal material you came across at Mask360 stay confidential after you leave.',
+    'Client work, client data and internal material you came across at ' + co.brand + ' stay confidential after you leave.',
     'Thank you for your time with us. We wish you well.'
   ];
-  T.nda = v => [
-    'This agreement is between Mask Management (Mask360) and ' + v.who + ', ' + v.role + ', and takes effect on ' + day(v.effective) + '.',
+  T.nda = (v, co) => [
+    'This agreement is between ' + co.name + ' (' + co.brand + ') and ' + v.who + ', ' + v.role + ', and takes effect on ' + day(v.effective) + '.',
     'In your work with us you will come across confidential information: client briefs, strategies, pricing, creative work before release, internal numbers, access details, and anything marked or clearly meant as private.',
-    'You agree to use confidential information only for Mask360\'s work, to share it only with people inside the company who need it, and to keep it out of personal accounts, devices and conversations.',
-    'Work you produce for Mask360 or its clients belongs to Mask Management, or to the client the work was made for.',
-    'These obligations run for ' + n0(v.years) + ' ' + plural(v.years, 'year', 'years') + ' after your engagement with Mask360 ends, or for as long as the information stays confidential, whichever is longer.',
+    'You agree to use confidential information only for ' + co.brand + '\'s work, to share it only with people inside the company who need it, and to keep it out of personal accounts, devices and conversations.',
+    'Work you produce for ' + co.brand + ' or its clients belongs to ' + co.name + ', or to the client the work was made for.',
+    'These obligations run for ' + n0(v.years) + ' ' + plural(v.years, 'year', 'years') + ' after your engagement with ' + co.brand + ' ends, or for as long as the information stays confidential, whichever is longer.',
     'If any confidential information is lost or exposed, you will tell us the same day.',
     'Both parties sign below to confirm the agreement.'
   ];
-  T.warning = v => [
-    'Dear ' + v.who + ',',
+  T.warning = (v, co) => [
     'This letter is a formal warning, and it goes on your record.',
     'On ' + day(v.when) + ', ' + (clean(v.what) ? clean(v.what).replace(/[.\s]+$/, '') + '.' : 'the matter discussed with you took place.'),
-    'This falls short of what we expect from a ' + v.role + ' at Mask360.' + (clean(v.expected) ? ' From here we expect ' + endStop(v.expected) : ''),
+    'This falls short of what we expect from a ' + v.role + ' at ' + co.brand + '.' + (clean(v.expected) ? ' From here we expect ' + endStop(v.expected) : ''),
     'We will review this over the next 30 days. A repeat may lead to further action under the handbook, up to and including termination.',
     'Please sign the copy of this letter to confirm you have received it. If you want to talk it through, come and find me.'
   ];
-  const template = (kind, v) => (T[kind] || T.offer)(v || {}).filter(p => clean(p)).join('\n\n');
+  T.custom = () => [];
+  const template = (kind, v, co) => (T[kind] || T.offer)(v || {}, co || {name: 'Mask Management', brand: 'Mask360'}).filter(p => clean(p)).join('\n\n');
 
-  /* ---------- the reference number: MM/HR/2026-27/001, over every issued letter that year ---------- */
+  /* ---------- the reference number: MM/HR/2026-27/001, past every reference already carried that year ---------- */
+  const refUsed = (ctx, ref, exceptId) => !!clean(ref) && allLetters(ctx).some(l => l.id !== exceptId && l.status !== 'draft' && clean(l.ref) === clean(ref));
   function nextRef(ctx, fy) {
     const head = M.books.settings(ctx).numbering.prefix + '/HR/' + fy + '/';
     let max = 0;
-    for (const l of allIssued(ctx)) {
-      if (!String(l.ref || '').startsWith(head)) continue;
+    for (const l of allLetters(ctx)) {
+      if (l.status === 'draft' || !String(l.ref || '').startsWith(head)) continue;
       const n = Number(String(l.ref).slice(head.length)) || 0;
       if (n > max) max = n;
     }
     return head + String(max + 1).padStart(3, '0');
   }
+  const fyFor = v => M.books.fyOf(okDate((v || {}).date) ? v.date : U.todayStr());
 
   const paragraphs = body => String(body || '').split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  const STATUS_PILL = {issued: 'ink', withdrawn: 'flame-o'};
 
   /* ---------- the document ---------- */
-  function LetterDoc({letter, who}) {
+  function LetterDoc({letter, who, actions}) {
     const ctx = M.useCtx();
-    const Frame = M.parts.DocFrame, Head = M.parts.DocHead, Sign = M.parts.DocSign, Foot = M.parts.DocFoot;
-    const v = letter.vars || {};
+    const Frame = M.parts.DocFrame, Head = M.parts.DocHead, Foot = M.parts.DocFoot;
+    const s = M.books.settings(ctx);
+    const v = withDefaults(letter, ctx);
     const label = LABEL[letter.kind] || 'Letter';
     const accept = ACCEPTS.includes(letter.kind);
-    return html`<${Frame} id="letter-doc" title=${label}>
-      <${Head} ctx=${ctx} right=${html`<span class="doc-pill">${label}</span>`}/>
-      <div class="doc-ref"><span>${letter.ref || 'draft'}</span><span>${day(v.date)}</span></div>
+    const withdrawn = letter.status === 'withdrawn';
+    const addr = lines(v.address);
+    const sign = html`<div class="doc-sign">
+      ${s.sig ? html`<img class="doc-sig" src=${s.sig} alt=""/>` : html`<div class="doc-sig-space"/>`}
+      ${s.seal ? html`<img class="doc-seal" src=${s.seal} alt=""/>` : null}
+      <div class="doc-micro">For ${s.company.name}</div>
+      <div class="doc-sign-who">${v.signWho}</div>
+      <div class="doc-sub">${v.signTitle}</div>
+    </div>`;
+    return html`<${Frame} id="letter-doc" title=${label + (withdrawn ? ', withdrawn' : '')} actions=${actions}>
+      <${Head} ctx=${ctx} right=${html`<span class="row nowrap" style=${{gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap'}}>
+        ${withdrawn ? html`<span class="doc-pill">Withdrawn</span>` : null}<span class="doc-pill">${label}</span></span>`}/>
+      <div class="doc-ref"><span>${letter.ref || clean(v.ref) || 'draft'}</span><span>${(clean(v.place) ? clean(v.place) + ', ' : '') + day(v.date)}</span></div>
       <div class="doc-body">
-        <div class="doc-h">${label}</div>
+        <div style=${{marginBottom: '18px', lineHeight: 1.6}}>
+          <div style=${{fontWeight: 700}}>${v.who || who || ''}</div>
+          ${clean(v.role) ? html`<div>${v.role}</div>` : null}
+          ${addr.map((l, i) => html`<div key=${i}>${l}</div>`)}
+        </div>
+        ${clean(v.subject) ? html`<p style=${{fontWeight: 700}}>Subject: ${v.subject}</p>` : null}
+        ${clean(v.salutation) ? html`<p>${v.salutation}</p>` : null}
         ${paragraphs(letter.body).map((p, i) => html`<p key=${i}>${p}</p>`)}
+        ${clean(v.closing) ? html`<p style=${{marginTop: '18px'}}>${v.closing}</p>` : null}
         ${accept ? html`<div style=${{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginTop: 'auto'}}>
           <div class="doc-sign" style=${{alignItems: 'flex-start', textAlign: 'left'}}>
             <div class="doc-sig-space"/>
@@ -256,14 +335,14 @@
             <div class="doc-sign-who">${v.who || who || ''}</div>
             <div class="doc-sub">Accepted on: ____________</div>
           </div>
-          <${Sign} ctx=${ctx} label="For Mask Management"/>
-        </div>` : html`<${Sign} ctx=${ctx} label="For Mask Management"/>`}
+          ${sign}
+        </div>` : sign}
       </div>
       <${Foot} ctx=${ctx}/>
     <//>`;
   }
 
-  /* ---------- the drawer: variables, the body, save or issue ---------- */
+  /* ---------- the drawer: every field, the body, save or issue ---------- */
   function LetterDrawer({uid, letter, onClose, onChange}) {
     const ctx = M.useCtx();
     const [busy, setBusy] = useState(false);
@@ -271,22 +350,34 @@
     const ctrl = useRef(null);
     useEffect(() => () => { if (ctrl.current) ctrl.current.abort(); }, []);
     const f = letter;
+    const issued = f.status === 'issued';
+    const co = company(ctx);
     const setVar = (k, val) => onChange({...f, vars: {...f.vars, [k]: val}});
-    const setBody = b => onChange({...f, body: b});
-    const writeIt = () => setBody(template(f.kind, f.vars));
-    const stored = () => ({kind: f.kind, at: f.at || Date.now(), ref: f.ref || '', vars: {...f.vars}, body: String(f.body || ''), status: f.status || 'draft', issuedAt: f.issuedAt || 0});
-    const save = async () => {
+    const typeBody = b => onChange({...f, body: b, hand: true});
+    const writeIt = () => onChange({...f, body: template(f.kind, f.vars, co), hand: false});
+    const stored = () => ({kind: f.kind, at: f.at || Date.now(), ref: f.ref || '', vars: {...f.vars}, body: String(f.body || ''),
+      status: f.status || 'draft', issuedAt: f.issuedAt || 0, editedAt: f.editedAt || 0, hand: !!f.hand});
+    const write = async (doc, said) => {
       setBusy(true);
-      try { await ctx.W.merge('hr/' + uid, {letters: {[f.id]: stored()}, updated: Date.now()}); M.toast('Saved'); onClose(); }
+      try { await ctx.W.merge('hr/' + uid, {letters: {[f.id]: doc}, updated: Date.now()}); onChange({...f, ...doc}); M.toast(said); onClose(); }
       catch (e) { M.toast('Could not save', true); setBusy(false); }
     };
-    const issue = async () => {
+    const save = () => {
+      const doc = stored();
+      if (issued) {
+        const ref = clean(f.vars.ref) || f.ref;
+        if (refUsed(ctx, ref, f.id)) { M.toast('Reference ' + ref + ' is on another letter.', true); return; }
+        doc.ref = ref; doc.vars.ref = ref; doc.editedAt = Date.now();
+      }
+      write(doc, 'Saved');
+    };
+    const issue = () => {
       if (!clean(f.body)) { M.toast('Write the letter first.', true); return; }
-      setBusy(true);
-      const ref = nextRef(ctx, M.books.fyOf(okDate(f.vars.date) ? f.vars.date : U.todayStr()));
+      let ref = clean(f.vars.ref) || nextRef(ctx, fyFor(f.vars));
+      if (refUsed(ctx, ref, f.id)) ref = nextRef(ctx, fyFor(f.vars));
       const doc = {...stored(), ref, status: 'issued', issuedAt: Date.now()};
-      try { await ctx.W.merge('hr/' + uid, {letters: {[f.id]: doc}, updated: Date.now()}); onChange({...f, ...doc}); M.toast('Issued ' + ref); onClose(); }
-      catch (e) { M.toast('Could not issue', true); setBusy(false); }
+      doc.vars.ref = ref;
+      write(doc, 'Issued ' + ref);
     };
     const rewrite = async () => {
       if (!clean(f.body)) { M.toast('Write the letter first.', true); return; }
@@ -295,37 +386,55 @@
       setLive(true);
       const before = f.body;
       const tidy = t => String(t || '').replace(new RegExp('[' + String.fromCharCode(8212, 8211) + ']', 'g'), ', ').replace(/!/g, '.');
+      const put = b => onChange({...f, body: b, hand: true});
       try {
         const out = await M.ai.text(ctx,
           'Rewrite this letter in our voice. Keep every fact, figure, date and name exactly as written. Short paragraphs, plain words, warm and direct, sentence case. No dashes, no exclamation marks, no legal filler. Return only the letter body, paragraphs separated by a blank line.\n\n' + before,
-          {signal: c.signal, cache: false, onText: r => { if (r && r.text) setBody(tidy(r.text)); }});
-        if (clean(out)) setBody(tidy(out)); else setBody(before);
+          {signal: c.signal, cache: false, onText: r => { if (r && r.text) put(tidy(r.text)); }});
+        if (clean(out)) put(tidy(out)); else onChange({...f, body: before});
       } catch (e) {
-        if (!(e && e.code === 'cancelled')) { M.toast(M.ai.errCopy(e && e.code), true); setBody(before); }
+        if (!(e && e.code === 'cancelled')) { M.toast(M.ai.errCopy(e && e.code), true); onChange({...f, body: before}); }
       }
       setLive(false);
     };
-    const fields = fieldsOf(f.kind);
-    return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${(LABEL[f.kind] || 'Letter') + ', draft'}
+    const val = k => String(f.vars[k] == null ? '' : f.vars[k]);
+    const control = fd => fd.options
+      ? html`<${UI.Select} key=${fd.k} id=${'letter-var-' + fd.k} label=${fd.label} value=${val(fd.k)} options=${fd.options} onChange=${v => setVar(fd.k, v)}/>`
+      : fd.area
+        ? html`<${UI.TextArea} key=${fd.k} id=${'letter-var-' + fd.k} label=${fd.label} rows=${3} value=${val(fd.k)} onChange=${v => setVar(fd.k, v)}/>`
+        : html`<${UI.Input} key=${fd.k} id=${'letter-var-' + fd.k} label=${fd.label} type=${fd.type || 'text'} value=${val(fd.k)}
+            onChange=${v => setVar(fd.k, fd.type === 'number' ? (v === '' ? '' : n0(v)) : v)}/>`;
+    const own = FIELDS[f.kind] || [];
+    const hand = !!f.hand && clean(f.body);
+    const canWrite = f.kind !== 'custom';
+    const title = (LABEL[f.kind] || 'Letter') + ', ' + (issued ? 'issued' : f.status === 'withdrawn' ? 'withdrawn' : 'draft');
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${title}
       footer=${html`<span class="row nowrap" style=${{gap: '8px'}}>
-          <${UI.Btn} kind="sec" id="letter-save" disabled=${busy || live} onClick=${save}>Save draft<//>
-          <span id="letter-issue"><${UI.ConfirmBtn} kind="flame" sm=${false} onConfirm=${issue}>Issue the letter<//></span>
+          <${UI.Btn} kind=${issued ? undefined : 'sec'} id="letter-save" disabled=${busy || live} onClick=${save}>${issued ? 'Save the changes' : 'Save draft'}<//>
+          ${issued ? null : html`<span id="letter-issue"><${UI.ConfirmBtn} kind="flame" sm=${false} onConfirm=${issue}>Issue the letter<//></span>`}
         </span>`}>
       <div class="stack" id="letter-drawer">
-        <div class="grid2">
-          ${fields.map(fd => fd.options
-            ? html`<${UI.Select} key=${fd.k} id=${'letter-var-' + fd.k} label=${fd.label} value=${String(f.vars[fd.k] == null ? '' : f.vars[fd.k])} options=${fd.options} onChange=${val => setVar(fd.k, val)}/>`
-            : html`<${UI.Input} key=${fd.k} id=${'letter-var-' + fd.k} label=${fd.label} type=${fd.type || 'text'}
-                value=${String(f.vars[fd.k] == null ? '' : f.vars[fd.k])} onChange=${val => setVar(fd.k, fd.type === 'number' ? (val === '' ? '' : n0(val)) : val)}/>`)}
-        </div>
+        <${UI.Micro}>who<//>
+        <div class="grid2">${WHO.map(control)}</div>
+        <${UI.Micro}>letter<//>
+        <div class="grid2">${LETTER.concat(own, LETTER_END).map(control)}</div>
+        <${UI.Micro}>signature<//>
+        <div class="grid2">${SIGN.map(control)}</div>
+        <hr class="hair"/>
         <div class="row between">
-          <span class="sub small">Fill the fields, then write the body from the template. Edit it as you like.</span>
+          <span class="row nowrap" style=${{gap: '8px', minWidth: 0}}>
+            <span class="sub small">${canWrite ? 'Write the body from the fields, then edit it as you like.' : 'Write the body yourself.'}</span>
+            ${hand ? html`<${UI.Pill} kind="warm">edited by hand<//>` : null}
+          </span>
           <span class="row nowrap" style=${{gap: '8px'}}>
-            <${UI.Btn} kind="sec" sm=${true} id="letter-write" disabled=${live} onClick=${writeIt}>Write it<//>
+            ${!canWrite ? null : hand
+              ? html`<span id="letter-write"><${UI.ConfirmBtn} kind="sec" label="Tap again to overwrite" onConfirm=${writeIt}>Write it<//></span>`
+              : html`<${UI.Btn} kind="sec" sm=${true} id="letter-write" disabled=${live} onClick=${writeIt}>Write it<//>`}
             ${M.ai.on(ctx) ? html`<${UI.Btn} kind="ghost" sm=${true} id="letter-rewrite" disabled=${live || !clean(f.body)} onClick=${rewrite}>${live ? 'Rewriting' : 'Rewrite in our voice'}<//>` : null}
           </span>
         </div>
-        <${UI.TextArea} id="letter-body" label="the letter" rows=${18} value=${f.body || ''} onChange=${setBody} placeholder="Tap Write it to draft the body from the template."/>
+        <${UI.TextArea} id="letter-body" label="the letter" rows=${18} value=${f.body || ''} onChange=${typeBody}
+          placeholder=${canWrite ? 'Tap Write it to draft the body from the fields, or type it here.' : 'Type the letter here, paragraphs separated by a blank line.'}/>
       </div>
     <//>`;
   }
@@ -353,13 +462,39 @@
     const stored = openId ? list.find(l => l.id === openId) : null;
     const shown = draft && draft.id === openId ? draft : stored;
     const pick = uid => { setSel(uid); setOpenId(null); setDraft(null); M.nav('#letters/' + encodeURIComponent(uid)); };
+    const fresh = (k, v, body) => ({id: U.uid(), kind: k, at: Date.now(), ref: '', vars: {...v, ref: nextRef(ctx, fyFor(v))}, body: body || '', status: 'draft', issuedAt: 0, editedAt: 0, hand: false});
     const startDraft = () => {
       if (!person) return;
-      const l = {id: U.uid(), kind, at: Date.now(), ref: '', vars: vars(kind, ctx, person.uid, person.who), body: '', status: 'draft', issuedAt: 0};
+      const l = fresh(kind, vars(kind, ctx, person.uid, person.who), '');
       setDraft(l); setOpenId(l.id);
     };
-    const openLetter = l => { setOpenId(l.id); setDraft(l.status === 'issued' ? null : {...l, vars: {...(l.vars || {})}}); };
+    /* the drawer: a draft opens straight away, an issued letter through Edit */
+    const edit = l => {
+      const v = {...withDefaults(l, ctx)};
+      if (l.status === 'draft' && !clean(v.ref)) v.ref = nextRef(ctx, fyFor(v));
+      if (l.status !== 'draft' && !clean(v.ref)) v.ref = l.ref || '';
+      setOpenId(l.id); setDraft({...l, vars: v});
+    };
+    const openLetter = l => { if (l.status === 'draft') edit(l); else { setDraft(null); setOpenId(l.id); } };
+    const duplicate = l => {
+      if (!person) return;
+      const v = {...withDefaults(l, ctx)};
+      v.ref = '';
+      const d = fresh(l.kind, v, l.body);
+      d.hand = !!l.hand;
+      setDraft(d); setOpenId(d.id);
+    };
+    const withdraw = async l => {
+      try { await ctx.W.merge('hr/' + person.uid, {letters: {[l.id]: {status: 'withdrawn', withdrawnAt: Date.now()}}, updated: Date.now()}); M.toast('Withdrawn'); }
+      catch (e) { M.toast('Could not withdraw', true); }
+    };
     const editing = draft && draft.id === openId;
+    const actionsFor = l => html`<span class="row nowrap" style=${{gap: '8px', flexWrap: 'wrap'}}>
+      ${l.status === 'draft' ? html`<${UI.Btn} kind="sec" sm=${true} id="letter-edit" onClick=${() => edit(l)}>Edit the draft<//>` : null}
+      ${l.status === 'issued' ? html`<${UI.Btn} kind="sec" sm=${true} id="letter-edit-issued" onClick=${() => edit(l)}>Edit<//>` : null}
+      <${UI.Btn} kind="ghost" sm=${true} id="letter-dup" onClick=${() => duplicate(l)}>Duplicate<//>
+      ${l.status === 'issued' ? html`<span id="letter-withdraw"><${UI.ConfirmBtn} kind="ghost" onConfirm=${() => withdraw(l)}>Withdraw<//></span>` : null}
+    </span>`;
     return html`<div class="split" id="letters-page">
       <div class="stack" style=${{gap: '18px'}}>
         <${UI.Card} title="Who" id="letters-people">
@@ -376,7 +511,7 @@
         ${person ? html`<${UI.Card} title=${'Letters, ' + person.who} id="letters-list">
           ${list.length ? list.map(l => html`<div class="listrow" key=${l.id}>
               <span class="grow" style=${{minWidth: 0}}><b>${LABEL[l.kind] || 'Letter'}</b><span class="tiny ink62"> · ${l.ref || 'no ref'} · ${day((l.vars || {}).date) || day(U.ymd(new Date(l.at || Date.now())))}</span></span>
-              <${UI.Pill} kind=${l.status === 'issued' ? 'ink' : undefined}>${l.status === 'issued' ? 'issued' : 'draft'}<//>
+              <${UI.Pill} kind=${STATUS_PILL[l.status]}>${l.status === 'issued' ? 'issued' : l.status === 'withdrawn' ? 'withdrawn' : 'draft'}<//>
               <${UI.Btn} kind="ghost" sm=${true} onClick=${() => openLetter(l)}>Open<//>
             </div>`) : html`<${UI.Empty} text="No letters yet."/>`}
           <div class="row between" style=${{marginTop: '12px', alignItems: 'flex-end'}}>
@@ -386,13 +521,13 @@
         <//>` : html`<${UI.Card} title="Letters"><${UI.Empty} text="Pick a person on the left."/><//>`}
       </div>
       ${person && shown ? html`<div style=${{gridColumn: '1 / -1'}}>
-        ${editing || shown.status === 'issued' ? null : html`<div class="row" style=${{marginBottom: '10px'}}><${UI.Btn} kind="sec" sm=${true} onClick=${() => openLetter(shown)}>Edit the draft<//></div>`}
-        <${LetterDoc} letter=${shown} who=${person.who}/>
+        ${shown.editedAt ? html`<div class="tiny ink62" style=${{marginBottom: '8px'}}>Edited ${U.timeAgo(shown.editedAt)}</div>` : null}
+        <${LetterDoc} letter=${shown} who=${person.who} actions=${editing ? null : actionsFor(shown)}/>
       </div>` : null}
       ${person && editing ? html`<${LetterDrawer} uid=${person.uid} letter=${draft} onClose=${() => setDraft(null)} onChange=${setDraft}/>` : null}
     </div>`;
   }
 
-  M.letters = {KINDS, LABEL, FIELDS, template, vars, nextRef, lettersOf, allIssued};
+  M.letters = {KINDS, LABEL, FIELDS, SUBJECT, template, vars, withDefaults, nextRef, refUsed, lettersOf, allIssued, allLetters};
   M.pages.Letters = Letters;
 })();

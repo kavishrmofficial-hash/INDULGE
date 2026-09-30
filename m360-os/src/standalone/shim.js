@@ -10,7 +10,7 @@
   const QS = (() => { try { const p = new URLSearchParams(location.search || ''); p.delete('code'); p.delete('state'); p.delete('error'); const s = p.toString(); return s ? '?' + s : ''; } catch (e) { return location.search || ''; } })();
   const API = '/api/m360' + QS;
   /* actions the sign-in screen calls before anyone is signed in: a 401 from these is an answer, never a lost session */
-  const OPEN = new Set(['me', 'setup', 'signup', 'login', 'accept', 'invited', 'magic', 'pw', 'reset', 'resetpw']);
+  const OPEN = new Set(['me', 'setup', 'signup', 'login', 'accept', 'invited', 'magic', 'pw', 'pw2', 'reset', 'resetpw']);
   async function call(a, body) {
     let r;
     try {
@@ -54,7 +54,7 @@
   window.addEventListener('hashchange', () => { if (/^#(login|invite)=[a-z0-9]{10,64}$/.test(location.hash || '')) location.reload(); });
   const clearHash = () => { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* keep going */ } };
   const signedIn = loginCode
-    ? call('login', {code: loginCode}).catch(() => { window.M360_LOGIN_ERR = 'That sign-in link has expired or was already used. Ask for a new one.'; }).then(clearHash)
+    ? call('login', {code: loginCode}).then(r => { if (r && r.needCode) window.M360_CODE_TMP = r.tmp; }).catch(() => { window.M360_LOGIN_ERR = 'That sign-in link has expired or was already used. Ask for a new one.'; }).then(clearHash)
     : Promise.resolve();
   const meReady = signedIn.then(() => call('me')).then(m => { meInfo = m; if (inviteCode) clearHash(); return m; }).catch(() => { meInfo = {uid: null, down: true}; return meInfo; });
 

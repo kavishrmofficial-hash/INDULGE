@@ -1418,6 +1418,7 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
 .doc-band{height:4px; background:var(--flame); flex:none}
 .doc-head{display:grid; grid-template-columns:1fr 1fr; gap:20px; padding:32px 44px 24px; border-bottom:1.5px solid #EFEDE7}
 .doc-head-right{display:flex; flex-direction:column; align-items:flex-end; justify-content:space-between; gap:10px; text-align:right}
+.doc-head .mark{width:118px; color:#0E0E0E; display:block; margin-bottom:6px}
 .doc-brand{font-size:22px; font-weight:800; letter-spacing:-.03em; line-height:1}
 .doc-brand b{color:var(--flame); font-weight:800}
 .doc-micro{font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:rgba(14,14,14,.5); margin-top:4px}
@@ -1503,7 +1504,7 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
   .doc-table th,.doc-table td{padding-left:6px; padding-right:6px}
 }
 </style>
-<script>window.M360_BUILD = "cc2a157.260929-2212";</script><script>
+<script>window.M360_BUILD = "933c74e+.260930-0217";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -1516,7 +1517,7 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
   const QS = (() => { try { const p = new URLSearchParams(location.search || ''); p.delete('code'); p.delete('state'); p.delete('error'); const s = p.toString(); return s ? '?' + s : ''; } catch (e) { return location.search || ''; } })();
   const API = '/api/m360' + QS;
   /* actions the sign-in screen calls before anyone is signed in: a 401 from these is an answer, never a lost session */
-  const OPEN = new Set(['me', 'setup', 'signup', 'login', 'accept', 'invited', 'magic', 'pw', 'reset', 'resetpw']);
+  const OPEN = new Set(['me', 'setup', 'signup', 'login', 'accept', 'invited', 'magic', 'pw', 'pw2', 'reset', 'resetpw']);
   async function call(a, body) {
     let r;
     try {
@@ -1560,7 +1561,7 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
   window.addEventListener('hashchange', () => { if (/^#(login|invite)=[a-z0-9]{10,64}$/.test(location.hash || '')) location.reload(); });
   const clearHash = () => { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* keep going */ } };
   const signedIn = loginCode
-    ? call('login', {code: loginCode}).catch(() => { window.M360_LOGIN_ERR = 'That sign-in link has expired or was already used. Ask for a new one.'; }).then(clearHash)
+    ? call('login', {code: loginCode}).then(r => { if (r && r.needCode) window.M360_CODE_TMP = r.tmp; }).catch(() => { window.M360_LOGIN_ERR = 'That sign-in link has expired or was already used. Ask for a new one.'; }).then(clearHash)
     : Promise.resolve();
   const meReady = signedIn.then(() => call('me')).then(m => { meInfo = m; if (inviteCode) clearHash(); return m; }).catch(() => { meInfo = {uid: null, down: true}; return meInfo; });
 
@@ -2649,7 +2650,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       if (!t || !/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || window.innerWidth > 860) return;
       setTimeout(() => { try { t.scrollIntoView({block: 'center', behavior: M.reduced() ? 'auto' : 'smooth'}); } catch (err) { /* fine */ } }, 320);
     };
-    return html`<div>
+    /* the drawer always lives on the body: an ancestor with a transform (a card mid animation) would
+       otherwise trap a fixed drawer inside its own box */
+    const node = html`<div>
       <div class="scrim" onClick=${onClose}/>
       <div class="drawer" role="dialog" aria-modal="true" aria-label=${title} ref=${ref}>
         <div class="sheet-handle" aria-hidden="true" onPointerDown=${onDown} onPointerMove=${onMove} onPointerUp=${onUp} onPointerCancel=${onUp}><i/></div>
@@ -2662,6 +2665,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         ${footer ? html`<div class="drawer-foot">${footer}</div>` : null}
       </div>
     </div>`;
+    const RD = window.ReactDOM;
+    return RD && RD.createPortal && typeof document !== 'undefined' ? RD.createPortal(node, document.body) : node;
   };
 
   /* phones: the section tabs scroll sideways, so the active one is brought into view whenever
@@ -12503,7 +12508,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       notes: 'Retainer billed 50% in advance and 50% on delivery per the Master Services Agreement.\nThis is a computer-generated invoice.',
       exportNote: 'Export of services from India, no Indian GST charged. VAT to be accounted for by the recipient under reverse charge.'},
     chase: {auto: false, days: '3,7,14', cc: ''},
-    compliance: {gst: true, tds: true, pf: false}
+    compliance: {gst: true, tds: true, pf: false},
+    /* what the agency gives: each switch shows or hides its line on pay, the run and the payslip */
+    payroll: {pf: false, esi: false, pt: true, gratuity: false, insurance: false, insurancePremium: 0, payday: 1, employerCost: false}
   });
   const deep = (a, b) => {
     const out = {...a};
@@ -12643,7 +12650,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const c = s.company;
     return html`<div class="doc-head">
       <div>
-        <div class="doc-brand"><span>${c.brand.replace(/360$/, '')}</span><b>${/360$/.test(c.brand) ? '360' : ''}</b></div>
+        <${M.Mark} width="118px"/>
         <div class="doc-micro">${c.tagline}</div>
         <div class="doc-addr">${String(c.address || '').split('\n').map((l, i) => html`<div key=${i}>${l}</div>`)}
           <div>${c.pan ? 'PAN: ' + c.pan : ''}${c.pan && c.gstin ? ' · ' : ''}${c.gstin ? 'GSTIN: ' + c.gstin : ''}</div>
@@ -12705,7 +12712,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         </div>
       </header>
       <${M.SectionTabs} section="books" active=${t}/>
-      ${t === 'overview' ? html`<${Overview}/>` : t === 'billing' ? html`<${Setup} id=${id}/>` : Page ? html`<${Page} id=${id}/>` : html`<${UI.Empty} text="This part of the books is not in this build."/>`}
+      ${t === 'overview' ? html`<${Overview}/>` : t === 'billing' ? (id && ctx.coll.clients.map[id] ? html`<${BillingPage} clientId=${id}/>` : html`<${Setup}/>`) : Page ? html`<${Page} id=${id}/>` : html`<${UI.Empty} text="This part of the books is not in this build."/>`}
     </div>`;
   }
 
@@ -12818,6 +12825,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     };
     const In = ({k, label, type, hint}) => html`<${UI.Input} label=${label} type=${type} hint=${hint} value=${String(k.split('.').reduce((o, x) => (o || {})[x], f) == null ? '' : k.split('.').reduce((o, x) => (o || {})[x], f))} onChange=${v => set(k, type === 'number' ? num(v) : v)}/>`;
     return html`<div class="stack" style=${{gap: '18px'}}>
+      <${ClientBilling}/>
       <div class="row between">
         <div class="sub small">The company block, the bank and the signatory print on every invoice, payslip and letter.</div>
         <${UI.Btn} id="books-save" disabled=${!dirty || busy} onClick=${save}>Save setup<//>
@@ -12887,6 +12895,16 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
               <div class="tiny ink62">Advance tax dates (15 June, September, December, March) always show.</div>
             </div>
           <//>
+          <${UI.Card} title="Payroll, what the agency gives" id="books-payroll">
+            <div class="stack tight">
+              ${[['pf', 'Provident fund', '12 percent of basic from the person, capped at 1,800, and the same from the agency'], ['esi', 'ESI', '0.75 percent from the person and 3.25 from the agency, for gross up to 21,000'], ['pt', 'Professional tax, Maharashtra', '200 a month, 300 in February, for gross over 10,000'], ['gratuity', 'Gratuity', 'no deduction; 4.81 percent of basic in the cost to company'], ['insurance', 'Health insurance', 'a premium the agency pays each month']].map(([k, l, h]) => html`<div class="row between" key=${k}><span><span class="small">${l}</span><div class="tiny ink62">${h}</div></span>
+                <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${f.payroll[k] ? 'on' : 'off'} ariaLabel=${'Payroll ' + k} onChange=${v => set('payroll.' + k, v === 'on')}/></div>`)}
+              ${f.payroll.insurance ? html`<${In} k="payroll.insurancePremium" label="insurance premium a month per person, INR" type="number"/>` : null}
+              <div class="grid2"><${In} k="payroll.payday" label="payday, day of the month" type="number"/>
+                <${UI.Select} label="cost to company on the payslip" value=${f.payroll.employerCost ? 'on' : 'off'} options=${[{v: 'off', label: 'Hidden'}, {v: 'on', label: 'Shown'}]} onChange=${v => set('payroll.employerCost', v === 'on')}/></div>
+              <div class="tiny ink62">A switch that is off hides its line from pay, the month and every payslip.</div>
+            </div>
+          <//>
         </div>
       </div>
       <${ClientBilling} id=${id}/>
@@ -12894,69 +12912,178 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   }
 
   /* ---------- each client's billing profile ---------- */
-  const blankBilling = () => ({code: '', legalName: '', address: '', country: 'India', taxId: '', currency: 'INR', termsDays: 15, contactName: '', contactEmail: '',
+  const blankBilling = () => ({code: '', legalName: '', address: '', country: 'India', taxId: '', currency: 'INR', termsDays: 15, contactName: '', contactEmail: '', cc: '', po: '',
     retainer: {active: false, amount: 0, day: 1, desc: 'Monthly retainer', sac: '998361', gst: 'intra'}});
-  function ClientBilling({id}) {
+  const MINE_FIELDS = [['legalName', 'legal name'], ['address', 'billing address'], ['country', 'country'], ['taxId', 'GSTIN or tax id'], ['contactName', 'who receives invoices'], ['contactEmail', 'accounts email'], ['currency', 'currency'], ['termsDays', 'due in days'], ['po', 'PO number']];
+  /* a billing profile from what m360 already knows: the client record, the Base's people at that company */
+  function draftBilling(ctx, clientId) {
+    const c = ctx.coll.clients.map[clientId] || {};
+    const b = blankBilling();
+    b.legalName = c.name || '';
+    b.code = codeOf(ctx, clientId);
+    const orgs = (ctx.coll.orgs && ctx.coll.orgs.map) || {};
+    const org = Object.keys(orgs).map(k => orgs[k]).find(o => o && o.client === clientId && !o.archived);
+    if (org) {
+      if (org.legalName) b.legalName = org.legalName;
+      if (org.country) b.country = org.country;
+      if (org.city || org.hq) b.address = [org.address, org.city || org.hq, org.country].filter(Boolean).join('\n');
+    }
+    const people = (ctx.coll.contacts && ctx.coll.contacts.map) || {};
+    const at = Object.keys(people).map(k => people[k]).filter(x => x && !x.archived && ((org && x.org === org.id) || x.client === clientId));
+    const mailOf = x => String(x.mail || x['email'] || '').trim();
+    const acct = at.find(x => /account|finance|payable|billing/i.test(x.title || '')) || at.find(x => mailOf(x));
+    if (acct) { b.contactName = [acct.first, acct.last].filter(Boolean).join(' ') || acct.name || ''; b.contactEmail = mailOf(acct); }
+    if (b.country && b.country !== 'India') { b.currency = /UAE|Emirates|Dubai/i.test(b.country) ? 'AED' : /Saudi/i.test(b.country) ? 'SAR' : /United Kingdom|UK|England/i.test(b.country) ? 'GBP' : /Europe|Germany|France|Netherlands|Italy|Spain/i.test(b.country) ? 'EUR' : 'USD'; b.retainer.gst = 'none'; }
+    return b;
+  }
+  const cleanBilling = f => ({...f, code: String(f.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4), termsDays: num(f.termsDays) || 15,
+    retainer: {...f.retainer, amount: num(f.retainer.amount), day: Math.min(28, Math.max(1, num(f.retainer.day) || 1))}});
+  const siteApi = () => typeof window.M360_API === 'function';
+  /* the mail scan for one client: the found fields and where each came from */
+  const mine = clientId => window.M360_API('booksmine', {clientId});
+  const missing = (cur, found) => MINE_FIELDS.map(([k]) => k).filter(k => found && found[k] && !(cur && String(cur[k] || '').trim()));
+
+  function ClientBilling() {
     const ctx = M.useCtx();
     const book = clientBook(ctx);
-    const clients = Object.keys(ctx.coll.clients.map).map(k => ({id: k, ...ctx.coll.clients.map[k]})).sort((a, b) => String(a.name).localeCompare(String(b.name)));
-    const [open, setOpen] = useState(id && ctx.coll.clients.map[id] ? id : null);
-    return html`<${UI.Card} title="Clients, billing" id="billing-clients">
-      <p class="small ink62" style=${{marginTop: 0}}>Legal name, address, tax id, currency and the retainer. A retainer with a billing day drafts its invoice on that day each month.</p>
-      ${clients.length ? html`<div class="stack tight">${clients.map(c => {
-        const b = book[c.id];
-        return html`<div class="listrow" key=${c.id}>
-          <span class="grow"><b>${c.name}</b>${b ? html`<span class="tiny ink62"> · ${b.code || 'no code'} · ${b.currency || 'INR'}${b.retainer && b.retainer.active ? ' · retainer ' + money(b.retainer.amount, b.currency) + ' on day ' + b.retainer.day : ''}</span>` : html`<span class="tiny ink62"> · no billing profile yet</span>`}</span>
-          <${UI.Btn} kind="sec" sm=${true} onClick=${() => setOpen(c.id)}>${b ? 'Edit billing' : 'Set up billing'}<//>
-        </div>`;
-      })}</div>` : html`<${UI.Empty} text="No clients yet. Add one under Accounts."/>`}
-      ${open ? html`<${BillingDrawer} clientId=${open} onClose=${() => setOpen(null)}/>` : null}
-    <//>`;
-  }
-  function BillingDrawer({clientId, onClose}) {
-    const ctx = M.useCtx();
-    const c = ctx.coll.clients.map[clientId] || {};
-    const [f, setF] = useState(() => { const cur = clientBook(ctx)[clientId]; const b = deep(blankBilling(), cur || {}); if (!cur) { b.legalName = c.name || ''; b.code = codeOf(ctx, clientId); } return b; });
-    const [busy, setBusy] = useState(false);
-    const set = (k, v) => setF(x => ({...x, [k]: v}));
-    const setR = (k, v) => setF(x => ({...x, retainer: {...x.retainer, [k]: v}}));
-    const save = async () => {
-      setBusy(true);
-      const clean = {...f, code: String(f.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4), termsDays: num(f.termsDays) || 15, retainer: {...f.retainer, amount: num(f.retainer.amount), day: Math.min(28, Math.max(1, num(f.retainer.day) || 1))}};
-      try { await ctx.W.merge('books/clients', {map: {[clientId]: clean}, updated: Date.now()}); M.toast('Saved'); onClose(); } catch (e) { M.toast('Could not save', true); setBusy(false); }
+    const clients = Object.keys(ctx.coll.clients.map).map(k => ({id: k, ...ctx.coll.clients.map[k]})).filter(c => c.status !== 'lost' && !c.archived).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    const [scan, setScan] = useState(null);   /* {at: clientId, done: n, filled: n, total: n, log: []} */
+    const scanAll = async () => {
+      if (!siteApi() || scan) return;
+      const st = {at: '', done: 0, filled: 0, total: clients.length, log: []};
+      setScan({...st});
+      for (const c of clients) {
+        st.at = c.id; setScan({...st});
+        try {
+          const r = await mine(c.id);
+          const cur = book[c.id] || draftBilling(ctx, c.id);
+          /* a saved profile keeps what it has; a client without one takes everything the mail says */
+          const take = book[c.id] ? missing(cur, r.found) : MINE_FIELDS.map(([k]) => k).filter(k => r.found && r.found[k]);
+          if (take.length) {
+            const next = {...cur};
+            for (const k of take) next[k] = k === 'termsDays' ? num(r.found[k]) || cur.termsDays : String(r.found[k]).slice(0, 400);
+            await ctx.W.merge('books/clients', {map: {[c.id]: cleanBilling(next)}, updated: Date.now()});
+            st.filled++;
+            st.log.push(c.name + ': ' + take.map(k => (MINE_FIELDS.find(x => x[0] === k) || [k, k])[1]).join(', '));
+          } else st.log.push(c.name + ': ' + (r.sources && r.sources.length ? 'nothing new' : 'no mail about billing'));
+        } catch (e) { st.log.push(c.name + ': ' + ((e && e.message) || 'could not read the mail')); }
+        st.done++; setScan({...st});
+      }
+      st.at = ''; setScan({...st});
+      M.toast(st.filled ? 'Filled ' + st.filled + (st.filled === 1 ? ' profile' : ' profiles') + ' from your mail' : 'Nothing new in the mail');
     };
-    return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${'Billing, ' + (c.name || 'client')}
-      footer=${html`<${UI.Btn} id="billing-save" disabled=${busy || !f.legalName.trim()} onClick=${save}>Save billing<//>`}>
-      <div class="stack" id="billing-drawer">
-        <div class="grid2"><${UI.Input} id="billing-code" label="client code in the number" value=${f.code} onChange=${v => set('code', v.toUpperCase().slice(0, 4))} hint="HH gives MM/2026-27/HH-001"/>
-          <${UI.Select} label="currency" value=${f.currency} options=${CUR_OPTS} onChange=${v => set('currency', v)}/></div>
-        <${UI.Input} id="billing-legal" label="legal name on the invoice" value=${f.legalName} onChange=${v => set('legalName', v)}/>
-        <${UI.TextArea} label="billing address, one line per row" rows=${3} value=${f.address} onChange=${v => set('address', v)}/>
-        <div class="grid2"><${UI.Select} label="country" value=${f.country} options=${COUNTRIES.map(x => ({v: x, label: x}))} onChange=${v => set('country', v)}/>
-          <${UI.Input} label=${f.country === 'India' ? 'GSTIN' : 'tax registration, TRN'} value=${f.taxId} onChange=${v => set('taxId', v)}/></div>
-        <div class="grid2"><${UI.Input} label="due in days" type="number" value=${String(f.termsDays)} onChange=${v => set('termsDays', v)}/>
-          <${UI.Input} label="who receives invoices" value=${f.contactName} onChange=${v => set('contactName', v)}/></div>
-        <${UI.Input} id="billing-mail" label="their accounts email" value=${f.contactEmail} onChange=${v => set('contactEmail', v)}/>
-        <${UI.Field} label="retainer">
-          <div class="row between"><span class="small">Bill a fixed amount every month</span>
-            <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${f.retainer.active ? 'on' : 'off'} ariaLabel="Retainer" onChange=${v => setR('active', v === 'on')}/></div>
-        <//>
-        ${f.retainer.active ? html`<div class="stack tight">
-          <div class="grid2"><${UI.Input} id="billing-retainer" label=${'amount, ' + f.currency} type="number" value=${String(f.retainer.amount || '')} onChange=${v => setR('amount', v)}/>
-            <${UI.Input} label="billing day of the month" type="number" value=${String(f.retainer.day)} onChange=${v => setR('day', v)}/></div>
-          <div class="grid2"><${UI.Input} label="line on the invoice" value=${f.retainer.desc} onChange=${v => setR('desc', v)}/><${UI.Input} label="SAC" value=${f.retainer.sac} onChange=${v => setR('sac', v)}/></div>
-          <${UI.Select} label="tax" value=${f.retainer.gst} options=${[{v: 'intra', label: 'CGST and SGST, same state'}, {v: 'inter', label: 'IGST, another state'}, {v: 'none', label: 'No GST, export or unregistered'}]} onChange=${v => setR('gst', v)}/>
-        </div>` : null}
-      </div>
+    return html`<${UI.Card} title="Clients, billing" id="billing-clients" action=${siteApi() && clients.length ? html`<${UI.Btn} sm=${true} kind="sec" id="billing-scan" disabled=${!!(scan && scan.at)} onClick=${scanAll}>${scan && scan.at ? 'Reading your mail, ' + scan.done + ' of ' + scan.total : 'Fill from Gmail, every client'}<//>` : null}>
+      <p class="small ink62" style=${{marginTop: 0}}>What prints on each client's invoice, and the retainer that drafts itself every month. Open a client to fill it in, by hand or from your mail.</p>
+      ${clients.length ? html`<div class="tbl-wrap"><table class="tbl" id="billing-table">
+        <thead><tr><th>client</th><th>legal name</th><th>tax id</th><th>accounts email</th><th>retainer</th><th></th></tr></thead>
+        <tbody>${clients.map(c => {
+          const b = book[c.id];
+          const full = b && b.legalName && b.contactEmail && (b.country !== 'India' || b.taxId);
+          return html`<tr key=${c.id} class="billing-row" style=${{cursor: 'pointer'}} onClick=${() => M.nav('#billing/' + c.id)}>
+            <td data-label="client"><b>${c.name}</b>${b && b.code ? html`<span class="tiny ink62"> · ${b.code}</span>` : null}</td>
+            <td data-label="legal name">${b && b.legalName ? b.legalName : html`<span class="tiny ink62">not set</span>`}</td>
+            <td data-label="tax id">${b && b.taxId ? html`<span class="num">${b.taxId}</span>` : html`<span class="tiny ink62">${b && b.country && b.country !== 'India' ? 'export' : 'not set'}</span>`}</td>
+            <td data-label="accounts email">${b && b.contactEmail ? b.contactEmail : html`<span class="tiny ink62">not set</span>`}</td>
+            <td data-label="retainer">${b && b.retainer && b.retainer.active ? html`<span class="num">${money(b.retainer.amount, b.currency)}</span><span class="tiny ink62"> on day ${b.retainer.day}</span>` : html`<span class="tiny ink62">none</span>`}</td>
+            <td data-label="">${full ? html`<${UI.Pill} kind="ink">ready<//>` : b ? html`<${UI.Pill} kind="flame-o">incomplete<//>` : html`<${UI.Pill}>new<//>`}</td>
+          </tr>`;
+        })}</tbody>
+      </table></div>` : html`<${UI.Empty} text="No clients yet. Add one under Accounts and its billing appears here."/>`}
+      ${scan && scan.log.length ? html`<div class="stack tight" style=${{marginTop: '12px'}} id="billing-scan-log">${scan.log.map((l, i) => html`<div class="tiny ink62" key=${i}>${l}</div>`)}</div>` : null}
     <//>`;
   }
 
-  M.books = {CUR, CUR_OPTS, num, fmt, money, words, fyOf, fyRange, settings, clientBook, totals, status, STATUS_PILL, STATUS_TEXT, invoices, expenses, nextNumber, codeOf, ageOf, nextDates, print, shrinkImage, deep, blankBilling};
+  /* the full page for one client's billing */
+  function BillingPage({clientId}) {
+    const ctx = M.useCtx();
+    const c = ctx.coll.clients.map[clientId] || {};
+    const saved = clientBook(ctx)[clientId];
+    const [f, setF] = useState(() => saved ? deep(blankBilling(), saved) : draftBilling(ctx, clientId));
+    const [dirty, setDirty] = useState(!saved);
+    const [busy, setBusy] = useState(false);
+    const [found, setFound] = useState(null);   /* {found, sources, note, at} */
+    const [reading, setReading] = useState(false);
+    useEffect(() => { if (!dirty && saved) setF(deep(blankBilling(), saved)); }, [saved]);
+    const set = (k, v) => { setDirty(true); setF(x => ({...x, [k]: v})); };
+    const setR = (k, v) => { setDirty(true); setF(x => ({...x, retainer: {...x.retainer, [k]: v}})); };
+    const save = async () => {
+      if (!f.legalName.trim() || busy) return;
+      setBusy(true);
+      try { await ctx.W.merge('books/clients', {map: {[clientId]: cleanBilling(f)}, updated: Date.now()}); setDirty(false); M.toast('Saved'); }
+      catch (e) { M.toast('Could not save', true); }
+      setBusy(false);
+    };
+    const read = async () => {
+      if (!siteApi() || reading) return;
+      setReading(true);
+      try { const r = await mine(clientId); setFound({...r, at: Date.now()}); if (!r.sources || !r.sources.length) M.toast('No mail about billing for ' + (c.name || 'this client')); }
+      catch (e) { M.toast(e && e.code === 'google_off' ? 'Connect Google under Workspace first' : (e && e.message) || 'Could not read the mail', true); }
+      setReading(false);
+    };
+    const use = k => { const v = found.found[k]; set(k, k === 'termsDays' ? num(v) || f.termsDays : String(v).slice(0, 400)); };
+    const useAll = () => { for (const [k] of MINE_FIELDS) if (found.found[k]) use(k); };
+    const abroad = f.country && f.country !== 'India';
+    return html`<div class="stack" style=${{gap: '16px'}} id="billing-page">
+      <div class="row between">
+        <button type="button" class="linky nowrap" id="billing-back" onClick=${() => M.nav('#billing')}><${icons.chevL}/>All clients</button>
+        <${UI.Btn} id="billing-save" disabled=${busy || !dirty || !f.legalName.trim()} onClick=${save}>${dirty ? 'Save billing' : 'Saved'}<//>
+      </div>
+      <${UI.PageHead} micro=${saved ? 'billing profile' : 'a new billing profile, drafted from what m360 knows'} title=${c.name || 'Client'}/>
+      <div class="split">
+        <div class="stack" style=${{gap: '16px'}}>
+          <${UI.Card} title="On the invoice" id="billing-drawer">
+            <div class="stack tight">
+              <div class="grid2"><${UI.Input} id="billing-code" label="client code in the number" value=${f.code} onChange=${v => set('code', v.toUpperCase().slice(0, 4))} hint="HH gives MM/2026-27/HH-001"/>
+                <${UI.Select} id="billing-currency" label="currency" value=${f.currency} options=${CUR_OPTS} onChange=${v => set('currency', v)}/></div>
+              <${UI.Input} id="billing-legal" label="legal name on the invoice" value=${f.legalName} onChange=${v => set('legalName', v)}/>
+              <${UI.TextArea} id="billing-address" label="billing address, one line per row" rows=${3} value=${f.address} onChange=${v => set('address', v)}/>
+              <div class="grid2"><${UI.Select} id="billing-country" label="country" value=${f.country} options=${COUNTRIES.map(x => ({v: x, label: x}))} onChange=${v => set('country', v)}/>
+                <${UI.Input} id="billing-taxid" label=${abroad ? 'tax registration, TRN' : 'GSTIN'} value=${f.taxId} onChange=${v => set('taxId', v)}/></div>
+              <div class="grid2"><${UI.Input} id="billing-terms" label="due in days" type="number" value=${String(f.termsDays)} onChange=${v => set('termsDays', v)}/>
+                <${UI.Input} id="billing-po" label="PO number, printed when set" value=${f.po || ''} onChange=${v => set('po', v)}/></div>
+              <div class="grid2"><${UI.Input} id="billing-contact" label="who receives invoices" value=${f.contactName} onChange=${v => set('contactName', v)}/>
+                <${UI.Input} id="billing-mail" label="their accounts email" value=${f.contactEmail} onChange=${v => set('contactEmail', v)}/></div>
+              <${UI.Input} id="billing-cc" label="copy their invoices to, optional" value=${f.cc || ''} onChange=${v => set('cc', v)}/>
+            </div>
+          <//>
+          <${UI.Card} title="Retainer" id="billing-retainer-card">
+            <div class="stack tight">
+              <div class="row between"><span class="small">Bill a fixed amount every month. The invoice drafts itself on the billing day.</span>
+                <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${f.retainer.active ? 'on' : 'off'} ariaLabel="Retainer" onChange=${v => setR('active', v === 'on')}/></div>
+              ${f.retainer.active ? html`<div class="stack tight">
+                <div class="grid2"><${UI.Input} id="billing-retainer" label=${'amount, ' + f.currency} type="number" value=${String(f.retainer.amount || '')} onChange=${v => setR('amount', v)}/>
+                  <${UI.Input} id="billing-day" label="billing day of the month" type="number" value=${String(f.retainer.day)} onChange=${v => setR('day', v)}/></div>
+                <div class="grid2"><${UI.Input} label="line on the invoice" value=${f.retainer.desc} onChange=${v => setR('desc', v)}/><${UI.Input} label="SAC" value=${f.retainer.sac} onChange=${v => setR('sac', v)}/></div>
+                <${UI.Select} label="tax" value=${f.retainer.gst} options=${[{v: 'intra', label: 'CGST and SGST, same state'}, {v: 'inter', label: 'IGST, another state'}, {v: 'none', label: 'No GST, export or unregistered'}]} onChange=${v => setR('gst', v)}/>
+              </div>` : null}
+            </div>
+          <//>
+        </div>
+        <${UI.Card} title="From your mail" id="billing-mine">
+          ${siteApi() ? html`<div class="stack tight">
+            <p class="small ink62" style=${{marginTop: 0}}>m360 reads the mail about ${c.name || 'this client'} in your Gmail (invoices, POs, GST certificates, bank letters, their attachments) and picks out the billing details. You choose what to keep.</p>
+            <div><${UI.Btn} kind=${found ? 'sec' : undefined} sm=${true} id="billing-read" disabled=${reading} onClick=${read}>${reading ? 'Reading' : found ? 'Read again' : 'Find billing details in Gmail'}<//></div>
+            ${found ? html`<div class="stack tight" id="billing-found">
+              ${MINE_FIELDS.filter(([k]) => found.found && found.found[k]).map(([k, l]) => html`<div class="listrow" key=${k}>
+                <span class="grow"><div class="tiny ink62">${l}</div><div class="small">${String(found.found[k])}</div></span>
+                ${String(f[k] || '') === String(found.found[k]) ? html`<span class="tiny ink62">in use</span>` : html`<${UI.Btn} sm=${true} kind="sec" onClick=${() => use(k)}>Use<//>`}
+              </div>`)}
+              ${found.found && MINE_FIELDS.some(([k]) => found.found[k]) ? html`<div><${UI.Btn} sm=${true} id="billing-use-all" onClick=${useAll}>Use everything found<//></div>` : html`<div class="small ink62">Nothing about billing turned up.</div>`}
+              ${found.note ? html`<div class="tiny ink62">${found.note}</div>` : null}
+              ${found.sources && found.sources.length ? html`<div class="tiny ink62" style=${{marginTop: '6px'}}>Read: ${found.sources.slice(0, 6).map(x => x.subject + (x.file ? ' (' + x.file + ')' : '')).join(' · ')}</div>` : null}
+            </div>` : null}
+          </div>` : html`<div class="small ink62">On the team site, m360 reads your Gmail and fills this in for you.</div>`}
+        <//>
+      </div>
+    </div>`;
+  }
+
+  M.books = {CUR, CUR_OPTS, num, fmt, money, words, fyOf, fyRange, settings, clientBook, totals, status, STATUS_PILL, STATUS_TEXT, invoices, expenses, nextNumber, codeOf, ageOf, nextDates, print, shrinkImage, deep, blankBilling, draftBilling, cleanBilling};
   M.parts.DocFrame = DocFrame;
   M.parts.DocHead = DocHead;
   M.parts.DocSign = DocSign;
   M.parts.DocFoot = DocFoot;
-  M.parts.BillingDrawer = BillingDrawer;
+  M.parts.BillingPage = BillingPage;
   M.pages.Books = Books;
 })();
 
@@ -13407,24 +13534,455 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 })();
 
 /* ==== 44-expenses.js ==== */
-/* module: expenses. What the company spends: a row per expense (date, vendor, category, amount, GST
-   paid on it, how it was paid), recurring rows the first of the month copies forward, a receipt
-   attached on the team site, totals by month and category, and a CSV. Rows live in
+/* module: expenses. What the company spends, with three ways in: a sheet you type straight into
+   (Tab, Enter and the arrows move like a spreadsheet, a paste from Excel or Sheets fills across and
+   down), the single-row drawer for phones and receipts, and a bank statement (CSV, XLSX or PDF)
+   that the page reads, cleans, categorises and dedupes before it lands in the books. Rows live in
    expenses/<yyyy-mm>.rows. Owner only. */
 'use strict';
 (function () {
   const {html, React, U, UI, icons} = M;
-  const {useState, useMemo} = React;
+  const {useState, useEffect, useMemo, useRef} = React;
 
   const CATS = ['Salaries', 'Rent', 'Software and tools', 'Freelancers', 'Production', 'Travel', 'Meals and client', 'Marketing', 'Professional fees', 'Bank and taxes', 'Equipment', 'Other'];
   const METHODS = [{v: 'bank', label: 'Bank transfer'}, {v: 'card', label: 'Card'}, {v: 'upi', label: 'UPI'}, {v: 'cash', label: 'Cash'}, {v: 'due', label: 'Not paid yet'}];
+  const REPEATS = [{v: '', label: 'Once'}, {v: 'monthly', label: 'Every month'}];
   const B = () => M.books;
   const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const monthLabel = mid => { const [y, m] = mid.split('-').map(Number); return MON[m - 1] + ' ' + y; };
   const csvCell = v => { const s = String(v == null ? '' : v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const hasApi = () => typeof window.M360_API === 'function';
+  const num = v => B().num(v);
 
   const blank = () => ({date: U.todayStr(), vendor: '', category: 'Software and tools', desc: '', amount: '', gstInput: '', method: 'bank', recurring: '', receipt: null});
 
+  /* ---------- reading text: dates, amounts, categories ---------- */
+  const MONS = {jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, sept: 9, oct: 10, nov: 11, dec: 12};
+  const mk = (y, m, d) => {
+    y = Number(y); m = Number(m); d = Number(d);
+    if (y < 100) y += 2000;
+    if (!(y >= 1990 && y <= 2100 && m >= 1 && m <= 12 && d >= 1 && d <= 31)) return '';
+    return y + '-' + U.pad(m) + '-' + U.pad(d);
+  };
+  const serial = n => { const d = new Date(Date.UTC(1899, 11, 30) + Math.floor(n) * 86400000); return d.getUTCFullYear() + '-' + U.pad(d.getUTCMonth() + 1) + '-' + U.pad(d.getUTCDate()); };
+  function parseDate(v) {
+    if (v == null) return '';
+    if (typeof v === 'number') return v > 20000 && v < 80000 ? serial(v) : '';
+    const s = String(v).trim();
+    if (!s) return '';
+    let m;
+    if ((m = s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/))) return mk(m[1], m[2], m[3]);
+    if ((m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/))) return mk(m[3], m[2], m[1]);
+    if ((m = s.match(/^(\d{1,2})[\s\-\/]*([a-z]{3,9})[\s\-\/,]*(\d{2,4})/i)) && MONS[m[2].toLowerCase().slice(0, 3)]) return mk(m[3], MONS[m[2].toLowerCase().slice(0, 3)], m[1]);
+    if ((m = s.match(/^([a-z]{3,9})[\s\-\/]+(\d{1,2})[\s,\-\/]+(\d{2,4})/i)) && MONS[m[1].toLowerCase().slice(0, 3)]) return mk(m[3], MONS[m[1].toLowerCase().slice(0, 3)], m[2]);
+    if (/^\d{5}(\.\d+)?$/.test(s)) return serial(Number(s));
+    return '';
+  }
+  /* an amount cell from a statement: "1,23,456.78", "(1,234)", "1,234 Dr", "-1234" */
+  function amt(v) {
+    if (typeof v === 'number') return {v, tag: ''};
+    const s = String(v == null ? '' : v).trim();
+    if (!s) return {v: 0, tag: ''};
+    const tag = (s.match(/\b(dr|cr|debit|credit)\b\.?$/i) || [])[1] || '';
+    const neg = /^\(.*\)$/.test(s) || /^-|-\s*$/.test(s.replace(/[a-z.]/gi, '').trim());
+    const n = Number(s.replace(/[^0-9.]/g, ''));
+    return {v: Number.isFinite(n) ? (neg ? -n : n) : 0, tag: tag.toLowerCase().slice(0, 2)};
+  }
+  const cleanAmount = v => { const n = amt(v).v; return n ? String(Math.abs(n)) : ''; };
+  function snapCat(text) {
+    const t = String(text == null ? '' : text).trim().toLowerCase();
+    if (!t) return undefined;
+    return CATS.find(c => c.toLowerCase() === t) || CATS.find(c => c.toLowerCase().startsWith(t))
+      || CATS.find(c => c.toLowerCase().split(/\s+/).some(w => w !== 'and' && (w === t || w.startsWith(t) || t.startsWith(w)))) || 'Other';
+  }
+  function snapMethod(text) {
+    const t = String(text == null ? '' : text).trim().toLowerCase();
+    if (!t) return undefined;
+    const m = METHODS.find(x => x.v === t || x.label.toLowerCase() === t || x.label.toLowerCase().startsWith(t));
+    if (m) return m.v;
+    if (/neft|imps|rtgs|transfer|net ?bank|account/.test(t)) return 'bank';
+    if (/card|visa|master|amex|rupay|pos/.test(t)) return 'card';
+    if (/upi|gpay|phonepe|paytm/.test(t)) return 'upi';
+    if (/cash/.test(t)) return 'cash';
+    if (/due|unpaid|not paid|pending|later/.test(t)) return 'due';
+    return undefined;
+  }
+  function snapRepeat(text) {
+    const t = String(text == null ? '' : text).trim().toLowerCase();
+    if (!t) return undefined;
+    if (/month|yes|recur|repeat|every|true/.test(t)) return 'monthly';
+    if (/once|no|one|false|never/.test(t)) return '';
+    return undefined;
+  }
+  const guessMethod = s => { const t = String(s || '').toLowerCase(); return /\bupi\b|gpay|phonepe|paytm|bhim|@/.test(t) ? 'upi' : /\bpos\b|card|visa|master|rupay|amex|ecom|e-com/.test(t) ? 'card' : /\batm\b|cash wdl|cash withdrawal/.test(t) ? 'cash' : 'bank'; };
+
+  /* the merchant or the name out of a bank narration: prefixes, reference numbers and codes go */
+  const STOP = new Set(['upi', 'neft', 'imps', 'rtgs', 'pos', 'ach', 'nach', 'ecs', 'atm', 'bil', 'tpt', 'inf', 'mmt', 'ft', 'chq', 'emi', 'ib', 'mb', 'dr', 'cr', 'payment', 'payments', 'paid', 'transfer', 'to', 'from', 'by', 'ref', 'txn', 'utr', 'hdfc', 'icici', 'sbi', 'axis', 'kotak', 'yesb', 'yes', 'idfc', 'indb', 'bank', 'oth', 'p2m', 'p2a', 'okaxis', 'okhdfcbank', 'okicici', 'oksbi', 'ybl', 'ptaxis', 'ptyes', 'apl', 'fbl', 'in', 'ind', 'india', 'pvt', 'ltd', 'limited', 'private']);
+  const codeish = w => /^\d+$/.test(w) || /x{3,}/i.test(w) || (/\d/.test(w) && /[a-z]/i.test(w) && w.length >= 6) || w.includes('@');
+  function cleanVendor(raw) {
+    const s = String(raw || '').trim();
+    if (!s) return '';
+    const parts = s.split(/\s*[\/|\-:~]\s*/).map(p => p.trim()).filter(Boolean);
+    /* codes go anywhere; bank words and legal suffixes go only from the edges, so a name keeps its middle */
+    const stop = w => STOP.has(w.toLowerCase().replace(/[^a-z0-9]/g, ''));
+    const score = p => {
+      const words = p.split(/\s+/).filter(w => w && !codeish(w));
+      while (words.length && stop(words[0])) words.shift();
+      while (words.length && stop(words[words.length - 1])) words.pop();
+      return words.join(' ');
+    };
+    let best = '';
+    for (const p of parts) {
+      if (/@/.test(p) || /^\d+$/.test(p)) continue;
+      const w = score(p);
+      if (w && /[a-z]{2}/i.test(w) && w.length > best.length && best.length < 4) best = w;
+      if (best.length >= 4) break;
+    }
+    if (!best) best = score(s) || s;
+    best = best.replace(/[.,;]+$/, '').replace(/\s+/g, ' ').trim().slice(0, 48);
+    if (best && best === best.toUpperCase()) best = best.toLowerCase().replace(/(^|\s)([a-z])/g, (a, sp, ch) => sp + ch.toUpperCase());
+    return best || s.slice(0, 48);
+  }
+  const vendorKey = v => cleanVendor(v).toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  const KEYWORDS = [
+    [/google ads|meta ads|facebook ads|adwords|instagram ads|linkedin ads|sponsor|advert|promot/, 'Marketing'],
+    [/\brent\b|landlord|lease|coworking|wework|awfis/, 'Rent'],
+    [/adobe|figma|canva|google|notion|slack|zoom|microsoft|openai|anthropic|github|dropbox|apple\.com|chatgpt|midjourney|envato|godaddy|hostinger|namecheap|cloudflare|vercel|netlify|jiofiber|airtel|vodafone|broadband|aws|amazon web|hubspot|mailchimp|apollo|ahrefs|semrush|elevenlabs|runway|frame\.io|vimeo|wix|squarespace/, 'Software and tools'],
+    [/salary|salaries|payroll|wages|stipend/, 'Salaries'],
+    [/uber|\bola\b|indigo|air ?india|vistara|akasa|spicejet|irctc|hotel|\boyo\b|makemytrip|\bmmt\b|goibibo|cleartrip|redbus|rapido|ixigo|airport|taxi|\bcab\b|airline|flight/, 'Travel'],
+    [/zomato|swiggy|restaurant|cafe|coffee|starbucks|domino|pizza|\bfood\b|dine|kitchen|bakery|blinkit|zepto|bar\b|brewery|eatery/, 'Meals and client'],
+    [/\bgst\b|\btds\b|income tax|bank charge|bank chg|service charge|sms chg|annual fee|late fee|penalty|\binterest\b|cgst|sgst|igst|advance tax|\bchrg|\bcharges\b|professional tax|\bpt\b|\bepf|\besic|challan/, 'Bank and taxes'],
+    [/freelanc|upwork|fiverr|contractor|editor|photograph|videograph|voice ?over|writer|designer/, 'Freelancers'],
+    [/\bca\b|chartered|legal|advocate|lawyer|consult|audit|accountant|registrar|\bmca\b|trademark|notary/, 'Professional fees'],
+    [/croma|reliance digital|apple store|\bdell\b|\bhp\b|lenovo|laptop|monitor|macbook|iphone|electronics|amazon|flipkart|furniture|ikea/, 'Equipment'],
+    [/print|studio|shoot|rental|props|production|location|crew|makeup|stylist|talent|model/, 'Production'],
+  ];
+  const keywordCat = (vendor, desc) => { const t = (String(vendor || '') + ' ' + String(desc || '')).toLowerCase(); const hit = KEYWORDS.find(k => k[0].test(t)); return hit ? hit[1] : ''; };
+
+  /* ---------- delimited text: paste and CSV ---------- */
+  function parseDelimited(text, delim) {
+    const rows = []; let row = [], cell = '', q = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (q) { if (ch === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += ch; }
+      else if (ch === '"') q = true;
+      else if (ch === delim) { row.push(cell); cell = ''; }
+      else if (ch === '\n' || ch === '\r') { if (ch === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
+      else cell += ch;
+    }
+    if (cell || row.length) { row.push(cell); rows.push(row); }
+    return rows.filter(r => r.some(c => String(c).trim()));
+  }
+  function sniffDelim(text) {
+    const head = text.split(/\r?\n/).slice(0, 25).join('\n');
+    const n = ch => (head.match(new RegExp(ch === '\t' ? '\t' : '\\' + ch, 'g')) || []).length;
+    if (n('\t')) return '\t';
+    return n(';') > n(',') ? ';' : ',';
+  }
+  /* pasted text: null for a single value (the browser pastes it), else a grid */
+  function gridOf(text) {
+    const t = String(text || '').replace(/\r\n?/g, '\n').replace(/\n+$/, '');
+    if (!t) return null;
+    if (t.includes('\t')) return t.split('\n').map(l => l.split('\t'));
+    if (!t.includes('\n')) return null;
+    return parseDelimited(t, sniffDelim(t));
+  }
+
+  /* ---------- a statement table: which column is which ---------- */
+  const HEAD = [
+    ['drcr', /dr\s*\/\s*cr|cr\s*\/\s*dr|^type$|^dr\s*cr$|debit\s*\/\s*credit|^\s*d\s*\/\s*c\s*$/i],
+    ['balance', /balance|\bbal\b/i],
+    ['date', /\bdate\b|\bdt\b/i],
+    ['debit', /debit|withdraw|paid\s*out|money\s*out|outflow|\bdr\b/i],
+    ['credit', /credit|deposit|paid\s*in|money\s*in|inflow|\bcr\b/i],
+    ['amount', /amount|\bamt\b|\bvalue\b/i],
+    ['desc', /desc|narration|particular|detail|remark|memo|payee|merchant|transaction|beneficiary/i],
+    ['ref', /\bref|cheque|chq|\butr\b|txn\s*id|transaction\s*id|\bid\b/i],
+  ];
+  function findColumns(cells) {
+    const cols = {};
+    cells.forEach((c, i) => {
+      const t = String(c == null ? '' : c).trim();
+      if (!t) return;
+      for (const [k, re] of HEAD) {
+        if (!re.test(t)) continue;
+        if (k === 'date' && cols.date != null && !/txn|trans|posting/i.test(t)) return;
+        if (k === 'date' && cols.date != null) { cols.date = i; return; }
+        if (cols[k] == null) cols[k] = i;
+        return;
+      }
+    });
+    if (cols.date == null || cols.desc == null || (cols.debit == null && cols.amount == null)) return null;
+    return cols;
+  }
+  /* rows of cells (strings or numbers) to statement lines; null when the columns cannot be found */
+  function linesFromTable(rows) {
+    let head = -1, cols = null;
+    for (let i = 0; i < Math.min(rows.length, 40) && !cols; i++) { cols = findColumns(rows[i]); if (cols) head = i; }
+    if (!cols) return null;
+    const out = [];
+    let signed = false;
+    for (const cells of rows.slice(head + 1)) {
+      const date = parseDate(cells[cols.date]);
+      if (!date) continue;
+      const desc = String(cells[cols.desc] == null ? '' : cells[cols.desc]).replace(/\s+/g, ' ').trim();
+      let debit = 0, credit = 0, fromAmount = false;
+      if (cols.debit != null) debit = Math.abs(amt(cells[cols.debit]).v);
+      if (cols.credit != null) credit = Math.abs(amt(cells[cols.credit]).v);
+      if (!debit && !credit && cols.amount != null) {
+        const a = amt(cells[cols.amount]);
+        const tag = (cols.drcr != null ? String(cells[cols.drcr] == null ? '' : cells[cols.drcr]) : a.tag).trim().toLowerCase();
+        fromAmount = true;
+        if (/^(dr|debit|d|withdrawal|out|w)\b/.test(tag)) { debit = Math.abs(a.v); signed = true; }
+        else if (/^(cr|credit|c|deposit|in)\b/.test(tag)) { credit = Math.abs(a.v); signed = true; }
+        else if (a.v < 0) { debit = -a.v; signed = true; }
+        else credit = a.v;
+      }
+      if (!debit && !credit) continue;
+      out.push({date, desc, amount: debit, credit, fromAmount, ref: cols.ref != null ? String(cells[cols.ref] == null ? '' : cells[cols.ref]).trim() : ''});
+    }
+    /* an amount column with no sign anywhere is a card statement: every line is money out */
+    if (!signed) for (const l of out) if (l.fromAmount && l.credit && !l.amount) { l.amount = l.credit; l.credit = 0; }
+    return out.map(l => ({date: l.date, vendor: cleanVendor(l.desc), desc: l.desc, amount: l.amount, credit: l.credit, method: guessMethod(l.desc), ref: l.ref}));
+  }
+
+  /* ---------- XLSX on the page: the zip, the shared strings, the first sheet ---------- */
+  async function inflate(bytes, method) {
+    if (method === 0) return new TextDecoder().decode(bytes);
+    if (typeof DecompressionStream !== 'function') throw new Error('no inflate');
+    const ds = new DecompressionStream('deflate-raw');
+    return new Response(new Blob([bytes]).stream().pipeThrough(ds)).text();
+  }
+  async function unzip(buf, wanted) {
+    const b = new Uint8Array(buf), dv = new DataView(buf);
+    let eocd = -1;
+    for (let i = b.length - 22; i >= Math.max(0, b.length - 66000); i--) if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+    if (eocd < 0) throw new Error('not a zip');
+    const count = dv.getUint16(eocd + 10, true), cdOff = dv.getUint32(eocd + 16, true);
+    const entries = [];
+    let p = cdOff;
+    for (let i = 0; i < count && p + 46 <= b.length; i++) {
+      if (dv.getUint32(p, true) !== 0x02014b50) break;
+      const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true), nlen = dv.getUint16(p + 28, true), elen = dv.getUint16(p + 30, true), clen = dv.getUint16(p + 32, true), loc = dv.getUint32(p + 42, true);
+      const name = new TextDecoder().decode(b.subarray(p + 46, p + 46 + nlen));
+      entries.push({name, method, csize, loc});
+      p += 46 + nlen + elen + clen;
+    }
+    const out = {};
+    for (const e of entries) {
+      if (!wanted(e.name)) continue;
+      const ln = dv.getUint16(e.loc + 26, true), le = dv.getUint16(e.loc + 28, true), start = e.loc + 30 + ln + le;
+      out[e.name] = await inflate(b.subarray(start, start + e.csize), e.method);
+    }
+    return out;
+  }
+  const unxml = s => String(s || '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(\d+);/g, (a, n) => String.fromCharCode(Number(n))).replace(/&amp;/g, '&');
+  const colIndex = ref => { let n = 0; for (const ch of (ref.match(/^[A-Z]+/) || [''])[0]) n = n * 26 + (ch.charCodeAt(0) - 64); return Math.max(0, n - 1); };
+  async function parseXlsx(buf) {
+    const files = await unzip(buf, n => n === 'xl/sharedStrings.xml' || /^xl\/worksheets\/sheet\d+\.xml$/.test(n));
+    const sheetName = Object.keys(files).filter(n => n.startsWith('xl/worksheets/')).sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]))[0];
+    if (!sheetName) throw new Error('no sheet');
+    const shared = [];
+    for (const m of String(files['xl/sharedStrings.xml'] || '').matchAll(/<si>([\s\S]*?)<\/si>/g)) shared.push(unxml((m[1].match(/<t[^>]*>([\s\S]*?)<\/t>/g) || []).map(t => t.replace(/<[^>]+>/g, '')).join('')));
+    const rows = [];
+    for (const rm of files[sheetName].matchAll(/<row[^>]*>([\s\S]*?)<\/row>/g)) {
+      const cells = [];
+      for (const cm of rm[1].matchAll(/<c\s([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+        const at = cm[1], inner = cm[2] || '';
+        const ref = (at.match(/\br="([A-Z]+)\d+"/) || [])[1] || '';
+        const type = (at.match(/\bt="([^"]+)"/) || [])[1] || 'n';
+        let v = '';
+        if (type === 's') v = shared[Number((inner.match(/<v>([\s\S]*?)<\/v>/) || [])[1])] || '';
+        else if (type === 'inlineStr') v = unxml((inner.match(/<t[^>]*>([\s\S]*?)<\/t>/g) || []).map(t => t.replace(/<[^>]+>/g, '')).join(''));
+        else { const raw = unxml((inner.match(/<v>([\s\S]*?)<\/v>/) || [])[1] || ''); v = type === 'n' && raw !== '' && Number.isFinite(Number(raw)) ? Number(raw) : raw; }
+        cells[ref ? colIndex(ref) : cells.length] = v;
+      }
+      if (cells.some(c => c !== undefined && String(c).trim() !== '')) rows.push(Array.from(cells, c => c === undefined ? '' : c));
+    }
+    return rows;
+  }
+  const toBase64 = file => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.onerror = () => rej(new Error('read')); r.readAsDataURL(file); });
+
+  /* ---------- the sheet ---------- */
+  const COLS = ['date', 'vendor', 'category', 'desc', 'amount', 'gstInput', 'method', 'recurring'];
+  const COL_LABEL = {date: 'date', vendor: 'paid to', category: 'category', desc: 'what for', amount: 'amount', gstInput: 'GST paid', method: 'paid by', recurring: 'repeats'};
+  const COL_W = {date: '110px', category: '138px', amount: '96px', gstInput: '84px', method: '118px', recurring: '96px'};
+  const CELL = {padding: '6px 8px', minHeight: '34px', fontSize: '13px', borderRadius: '8px', fontWeight: 400};
+  const CELL_SEL = {...CELL, paddingRight: '24px', backgroundPosition: 'right 6px center'};
+  const CELL_NUM = {...CELL, textAlign: 'right'};
+  const norm = (f, v) => f === 'amount' || f === 'gstInput' ? num(v) : String(v == null ? '' : v).trim();
+  const coerce = (f, v) => f === 'date' ? (parseDate(v) || String(v).trim()) : f === 'category' ? snapCat(v) : f === 'method' ? snapMethod(v) : f === 'recurring' ? snapRepeat(v)
+    : (f === 'amount' || f === 'gstInput') ? cleanAmount(v) : String(v == null ? '' : v).trim();
+  const isBlank = r => !String(r.vendor || '').trim() && !num(r.amount);
+  const isValid = r => !!(String(r.vendor || '').trim() && num(r.amount) > 0 && /^\d{4}-\d{2}-\d{2}$/.test(String(r.date || '')));
+
+  function Sheet({month, saved, vendors, onDirty}) {
+    const ctx = M.useCtx();
+    const phone = M.usePhone();
+    const seq = useRef(0);
+    const root = useRef(null);
+    const pending = useRef(null);
+    const newKey = () => '+' + (++seq.current);
+    const [edits, setEdits] = useState({});
+    const [extra, setExtra] = useState(() => [newKey(), newKey(), newKey()]);
+    const [busy, setBusy] = useState(false);
+    const today = U.todayStr();
+    const defaultDate = today.slice(0, 7) === month ? today : month + '-01';
+    const savedMap = useMemo(() => { const m = {}; for (const r of saved) m[r.id] = r; return m; }, [saved]);
+    const keys = saved.map(r => r.id).concat(extra);
+    const rowOf = key => { const s = savedMap[key]; const e = edits[key] || {}; return s ? {...s, ...e} : {...blank(), date: defaultDate, ...e, id: null}; };
+    const changed = key => { const s = savedMap[key]; const e = edits[key] || {}; if (!s) return !isBlank(rowOf(key)); return Object.keys(e).some(f => norm(f, e[f]) !== norm(f, s[f])); };
+    const dirty = keys.filter(changed);
+    useEffect(() => { onDirty && onDirty(dirty.length); }, [dirty.length]);
+    /* always three blank rows waiting at the bottom; the updater counts against the latest state, so
+       a burst of keystrokes adds rows once */
+    const editsRef = useRef(edits); editsRef.current = edits;
+    useEffect(() => {
+      setExtra(x => { const e = editsRef.current; const empty = x.filter(k => isBlank(e[k] || {})).length; return empty >= 3 ? x : x.concat(Array.from({length: 3 - empty}, newKey)); });
+    }, [edits, extra]);
+    useEffect(() => { if (pending.current) { const p = pending.current; pending.current = null; focusCell(p.r, p.c); } });
+
+    const setCell = (key, f, v) => setEdits(prev => ({...prev, [key]: {...(prev[key] || {}), [f]: v}}));
+    const revert = (key, f) => setEdits(prev => { const cur = {...(prev[key] || {})}; delete cur[f]; return {...prev, [key]: cur}; });
+    const dropRow = key => { setEdits(prev => { const n = {...prev}; delete n[key]; return n; }); setExtra(x => x.filter(k => k !== key)); };
+    const focusCell = (r, c) => {
+      c = Math.max(0, Math.min(COLS.length - 1, c));
+      if (r < 0) return;
+      const el = root.current && root.current.querySelector('[data-r="' + r + '"][data-c="' + c + '"]');
+      if (el) { el.focus(); if (el.tagName === 'INPUT') el.select(); return; }
+      if (r >= keys.length) { pending.current = {r, c}; setExtra(x => x.concat(Array.from({length: r - keys.length + 1}, newKey))); }
+    };
+    const onKey = (e, r, c, key, f) => {
+      const t = e.target, sel = t.tagName === 'SELECT', k = e.key;
+      if (k === 'Tab') {
+        if (e.shiftKey) { if (c > 0) { e.preventDefault(); focusCell(r, c - 1); } else if (r > 0) { e.preventDefault(); focusCell(r - 1, COLS.length - 1); } }
+        else { e.preventDefault(); if (c < COLS.length - 1) focusCell(r, c + 1); else focusCell(r + 1, 0); }
+        return;
+      }
+      if (k === 'Enter') { e.preventDefault(); focusCell(r + 1, c); return; }
+      if (k === 'Escape') { e.preventDefault(); revert(key, f); return; }
+      if (k === 'ArrowDown' || k === 'ArrowUp') { e.preventDefault(); focusCell(r + (k === 'ArrowDown' ? 1 : -1), c); return; }
+      if (k === 'ArrowLeft' || k === 'ArrowRight') {
+        if (!sel) { const s = t.selectionStart, en = t.selectionEnd; if (s !== en) return; if (k === 'ArrowLeft' && s > 0) return; if (k === 'ArrowRight' && en < t.value.length) return; }
+        e.preventDefault(); focusCell(r, c + (k === 'ArrowRight' ? 1 : -1));
+      }
+    };
+    const fill = (r0, c0, grid) => {
+      const ks = keys.slice(), fresh = [];
+      while (ks.length < r0 + grid.length) { const k = newKey(); ks.push(k); fresh.push(k); }
+      setEdits(prev => {
+        const nx = {...prev};
+        grid.forEach((line, i) => {
+          const key = ks[r0 + i]; const cur = {...(nx[key] || {})};
+          line.forEach((v, j) => { const c = c0 + j; if (c >= COLS.length) return; const val = coerce(COLS[c], v); if (val !== undefined) cur[COLS[c]] = val; });
+          nx[key] = cur;
+        });
+        return nx;
+      });
+      if (fresh.length) setExtra(x => x.concat(fresh));
+    };
+    const onPaste = (e, r, c, key, f) => {
+      const text = e.clipboardData ? e.clipboardData.getData('text/plain') : '';
+      if (!text) return;
+      const grid = gridOf(text);
+      if (!grid) { if (e.target.tagName === 'SELECT' || f === 'date' || f === 'amount' || f === 'gstInput') { e.preventDefault(); const v = coerce(f, text); if (v !== undefined) setCell(key, f, v); } return; }
+      e.preventDefault(); fill(r, c, grid);
+    };
+    const save = async () => {
+      if (busy || !dirty.length) return;
+      const byMonth = {};
+      let n = 0, skipped = 0;
+      const now = Date.now();
+      const done = [];
+      for (const key of dirty) {
+        const r = rowOf(key);
+        if (isBlank(r)) continue;
+        if (!isValid(r)) { skipped++; continue; }
+        const s = savedMap[key];
+        const mid = r.date.slice(0, 7);
+        const id = s ? s.id : U.uid();
+        if (s && s.month !== mid) { byMonth[s.month] = byMonth[s.month] || {}; byMonth[s.month][id] = null; }
+        const doc = {date: r.date, vendor: String(r.vendor).trim(), category: CATS.includes(r.category) ? r.category : 'Other', desc: String(r.desc || '').trim(), amount: num(r.amount), gstInput: num(r.gstInput),
+          method: r.method || 'bank', paid: r.method !== 'due', recurring: r.recurring === 'monthly' ? 'monthly' : '', receipt: (s && s.receipt) || null, at: (s && s.at) || now, updatedAt: now};
+        if (s && s.recurFrom) doc.recurFrom = s.recurFrom;
+        if (s && s.source) doc.source = s.source;
+        if (s && s.ref) doc.ref = s.ref;
+        byMonth[mid] = byMonth[mid] || {}; byMonth[mid][id] = doc;
+        done.push(key); n++;
+      }
+      if (!n) { M.toast(skipped ? 'Each row needs a name in paid to and an amount' : 'Nothing to save', true); return; }
+      setBusy(true);
+      try {
+        for (const mid of Object.keys(byMonth)) await ctx.W.merge('expenses/' + mid, {rows: byMonth[mid], updated: now});
+        setEdits(prev => { const nx = {...prev}; for (const k of done) delete nx[k]; return nx; });
+        setExtra(x => x.filter(k => !done.includes(k)));
+        M.toast('Saved ' + n + (n === 1 ? ' row' : ' rows') + (skipped ? '. Skipped ' + skipped + (skipped === 1 ? ' row that needs' : ' rows that need') + ' a name and an amount' : ''), !!skipped);
+      } catch (e) { M.toast('Could not save', true); }
+      setBusy(false);
+    };
+    const remove = async key => { const s = savedMap[key]; if (!s) return; await ctx.W.merge('expenses/' + s.month, {rows: {[key]: null}, updated: Date.now()}).catch(() => {}); dropRow(key); M.toast('Removed'); };
+
+    const cellProps = (r, c, key, f) => ({'data-r': r, 'data-c': c, onKeyDown: e => onKey(e, r, c, key, f), onPaste: e => onPaste(e, r, c, key, f)});
+    const input = (r, c, key, row, f) => {
+      const p = cellProps(r, c, key, f);
+      const v = row[f];
+      if (f === 'category') return html`<select class="input" style=${CELL_SEL} value=${v} aria-label=${COL_LABEL[f]} ...${p} onChange=${e => setCell(key, f, e.target.value)}>${CATS.map(x => html`<option key=${x} value=${x}>${x}</option>`)}</select>`;
+      if (f === 'method') return html`<select class="input" style=${CELL_SEL} value=${v || 'bank'} aria-label=${COL_LABEL[f]} ...${p} onChange=${e => setCell(key, f, e.target.value)}>${METHODS.map(x => html`<option key=${x.v} value=${x.v}>${x.label}</option>`)}</select>`;
+      if (f === 'recurring') return html`<select class="input" style=${CELL_SEL} value=${v || ''} aria-label=${COL_LABEL[f]} ...${p} onChange=${e => setCell(key, f, e.target.value)}>${REPEATS.map(x => html`<option key=${x.v} value=${x.v}>${x.label}</option>`)}</select>`;
+      const money = f === 'amount' || f === 'gstInput';
+      const shown = v == null ? '' : (money && v === 0 ? '' : String(v));
+      return html`<input class=${'input' + (money ? ' num' : '')} style=${money ? CELL_NUM : CELL} type="text" inputMode=${money ? 'decimal' : undefined}
+        list=${f === 'vendor' ? 'exp-vendors' : undefined} placeholder=${f === 'date' ? 'yyyy-mm-dd' : f === 'vendor' ? 'paid to' : f === 'desc' ? 'what for' : ''} value=${shown} aria-label=${COL_LABEL[f]} ...${p}
+        onInput=${e => setCell(key, f, e.target.value)} onBlur=${f === 'date' ? e => { const d = parseDate(e.target.value); if (d && d !== e.target.value) setCell(key, f, d); } : undefined}/>`;
+    };
+    const rows = keys.map((key, r) => { const row = rowOf(key); const isDirty = changed(key); return {key, r, row, isDirty, bad: isDirty && !isBlank(row) && !isValid(row), saved: !!savedMap[key]}; });
+    const shownTotal = rows.reduce((s, x) => s + (isBlank(x.row) ? 0 : num(x.row.amount)), 0);
+    const shownGst = rows.reduce((s, x) => s + (isBlank(x.row) ? 0 : num(x.row.gstInput)), 0);
+    const count = rows.filter(x => !isBlank(x.row)).length;
+    const trash = x => x.saved ? html`<${UI.ConfirmBtn} kind="ghost" label="Sure?" onConfirm=${() => remove(x.key)}><${icons.trash}/><//>`
+      : x.isDirty ? html`<button type="button" class="iconbtn" tabIndex=${-1} title="Clear this row" aria-label="Clear this row" onClick=${() => dropRow(x.key)}><${icons.x}/></button>` : null;
+    const saveBtn = html`<${UI.Btn} sm=${true} id="exp-sheet-save" disabled=${!dirty.length || busy} onClick=${save}>${dirty.length ? 'Save ' + dirty.length + (dirty.length === 1 ? ' change' : ' changes') : 'Save changes'}<//>`;
+    const foot = html`<div class="row between" style=${{marginTop: '12px', gap: '8px'}}>
+      <span class="small">${count ? html`<span class="ink62">${count + (count === 1 ? ' row' : ' rows') + ' in ' + monthLabel(month) + ', total '}</span><b class="num">${U.inr(shownTotal)}</b>${shownGst ? html`<span class="ink62">, GST paid <span class="num">${U.inr(shownGst)}</span></span>` : null}` : html`<span class="ink62">Type into the blank rows, or paste rows from Excel or Google Sheets.</span>`}</span>
+      ${saveBtn}
+    </div>
+    <datalist id="exp-vendors">${vendors.map(v => html`<option key=${v} value=${v}/>`)}</datalist>`;
+
+    if (phone) return html`<div ref=${root} id="exp-sheet" class="stack">
+      ${rows.map(x => html`<div key=${x.key} class="stack tight" style=${{border: '1px solid var(--line)', borderLeft: x.bad ? '3px solid var(--flame)' : '1px solid var(--line)', borderRadius: '14px', padding: '12px'}}>
+        <div style=${{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px'}}>
+          <div class="field"><label>date</label>${input(x.r, 0, x.key, x.row, 'date')}</div>
+          <div class="field"><label>amount</label>${input(x.r, 4, x.key, x.row, 'amount')}</div>
+        </div>
+        <div class="field"><label>paid to</label>${input(x.r, 1, x.key, x.row, 'vendor')}</div>
+        <div style=${{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px'}}>
+          <div class="field"><label>category</label>${input(x.r, 2, x.key, x.row, 'category')}</div>
+          <div class="field"><label>paid by</label>${input(x.r, 6, x.key, x.row, 'method')}</div>
+        </div>
+        <div class="field"><label>what for</label>${input(x.r, 3, x.key, x.row, 'desc')}</div>
+        <div style=${{display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '8px', alignItems: 'end'}}>
+          <div class="field"><label>GST paid</label>${input(x.r, 5, x.key, x.row, 'gstInput')}</div>
+          <div class="field"><label>repeats</label>${input(x.r, 7, x.key, x.row, 'recurring')}</div>
+          <div>${trash(x)}</div>
+        </div>
+      </div>`)}
+      ${foot}
+    </div>`;
+
+    return html`<div ref=${root} id="exp-sheet">
+      <div class="tbl-wrap"><table class="tbl" style=${{minWidth: '860px', tableLayout: 'fixed'}}>
+        <thead><tr>${COLS.map(f => html`<th key=${f} class=${f === 'amount' || f === 'gstInput' ? 'num' : ''} style=${{width: COL_W[f], padding: '6px 4px', textAlign: f === 'amount' || f === 'gstInput' ? 'right' : 'left'}}>${COL_LABEL[f]}</th>`)}<th style=${{width: '46px', padding: '6px 4px'}}></th></tr></thead>
+        <tbody>${rows.map(x => html`<tr key=${x.key}>
+          ${COLS.map((f, c) => html`<td key=${f} data-label=${COL_LABEL[f]} style=${{padding: '4px 3px', borderLeft: c === 0 ? (x.bad ? '3px solid var(--flame)' : '3px solid transparent') : undefined}}>${input(x.r, c, x.key, x.row, f)}</td>`)}
+          <td style=${{padding: '4px 3px', textAlign: 'center'}}>${trash(x)}</td>
+        </tr>`)}</tbody>
+      </table></div>
+      ${foot}
+    </div>`;
+  }
+
+  /* ---------- the single-row drawer: phones and receipts ---------- */
   function ExpenseDrawer({row, onClose}) {
     const ctx = M.useCtx();
     const b = B();
@@ -13439,6 +13997,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const id = f.id || U.uid();
       const doc = {date: f.date, vendor: f.vendor.trim(), category: f.category, desc: String(f.desc || '').trim(), amount: b.num(f.amount), gstInput: b.num(f.gstInput),
         method: f.method, paid: f.method !== 'due', recurring: f.recurring || '', receipt: f.receipt || null, at: f.at || Date.now(), updatedAt: Date.now()};
+      if (f.recurFrom) doc.recurFrom = f.recurFrom;
       try {
         if (row && row.month && row.month !== month) await ctx.W.merge('expenses/' + row.month, {rows: {[id]: null}, updated: Date.now()});
         await ctx.W.merge('expenses/' + month, {rows: {[id]: doc}, updated: Date.now()});
@@ -13461,7 +14020,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           <${UI.Select} label="paid by" value=${f.method} options=${METHODS} onChange=${v => set('method', v)}/></div>
         <${UI.Input} label="what for, optional" value=${f.desc} onChange=${v => set('desc', v)}/>
         <div class="grid2"><${UI.Input} label="GST paid on it, INR" type="number" value=${String(f.gstInput || '')} onChange=${v => set('gstInput', v)} hint="Input credit, when the vendor charged GST"/>
-          <${UI.Select} label="repeats" value=${f.recurring} options=${[{v: '', label: 'Once'}, {v: 'monthly', label: 'Every month'}]} onChange=${v => set('recurring', v)}/></div>
+          <${UI.Select} label="repeats" value=${f.recurring} options=${REPEATS} onChange=${v => set('recurring', v)}/></div>
         <div class="row">
           <label class="btn sec sm">${f.receipt ? 'Change the receipt' : 'Attach a receipt'}<input type="file" accept="image/*,.pdf" style=${{display: 'none'}} onChange=${attach}/></label>
           ${f.receipt ? html`<span class="small">${f.receipt.filename || 'receipt'}</span><button type="button" class="linky small" onClick=${() => set('receipt', null)}>Remove</button>` : null}
@@ -13470,21 +14029,159 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     <//>`;
   }
 
+  /* ---------- a bank statement in ---------- */
+  const monthsText = mids => {
+    const byYear = {};
+    for (const m of Array.from(new Set(mids)).sort()) { const y = m.slice(0, 4); (byYear[y] = byYear[y] || []).push(MON[Number(m.slice(5, 7)) - 1]); }
+    const join = xs => xs.length <= 1 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1];
+    return join(Object.keys(byYear).map(y => join(byYear[y]) + ' ' + y));
+  };
+  function ImportDrawer({all, onClose}) {
+    const ctx = M.useCtx();
+    const [st, setSt] = useState('pick');
+    const [note, setNote] = useState('');
+    const [lines, setLines] = useState([]);
+    const [credits, setCredits] = useState([]);
+    const [summary, setSummary] = useState('');
+    const [busy, setBusy] = useState(false);
+    const known = useMemo(() => {
+      const m = {};
+      for (const e of all) { const k = vendorKey(e.vendor); if (k && !m[k] && CATS.includes(e.category)) m[k] = e.category; }
+      return m;
+    }, [all]);
+    const savedKeys = useMemo(() => new Set(all.map(e => e.date + '|' + num(e.amount) + '|' + vendorKey(e.vendor))), [all]);
+
+    const prepare = async rows => {
+      const debits = rows.filter(r => num(r.amount) > 0);
+      const ins = rows.filter(r => !(num(r.amount) > 0) && num(r.credit) > 0);
+      let unknown = [];
+      const out = debits.map((r, i) => {
+        const vendor = r.vendor || cleanVendor(r.desc) || 'Unknown';
+        const dup = savedKeys.has(r.date + '|' + num(r.amount) + '|' + vendorKey(vendor));
+        let category = known[vendorKey(vendor)] || keywordCat(vendor, r.desc);
+        if (!category) { unknown.push(i); category = 'Other'; }
+        return {i, date: r.date, vendor, desc: r.desc || '', amount: num(r.amount), method: r.method || guessMethod(r.desc), ref: r.ref || '', category, on: !dup, dup};
+      });
+      let line = '';
+      if (unknown.length && hasApi()) {
+        try {
+          const batch = unknown.slice(0, 200);
+          const res = await window.M360_API('bookscategorize', {rows: batch.map(i => ({vendor: out[i].vendor, desc: out[i].desc, amount: out[i].amount}))});
+          const cats = (res && res.categories) || [];
+          batch.forEach((i, j) => { if (CATS.includes(cats[j])) out[i].category = cats[j]; });
+          unknown = unknown.filter(i => out[i].category === 'Other');
+        } catch (e) { line = 'The categoriser did not answer, so ' + unknown.length + ' rows are filed under Other for now.'; }
+      } else if (unknown.length) line = unknown.length + (unknown.length === 1 ? ' row is' : ' rows are') + ' filed under Other. Pick a category here, or upload on the team site and AI names them.';
+      setLines(out); setCredits(ins); setNote(line); setSt('review');
+    };
+    const server = async file => {
+      if (!hasApi()) { setNote(file.name.toLowerCase().endsWith('.pdf') ? 'PDF statements read on the team site' : 'These columns are not ones the page can read. The team site reads it with AI.'); setSt('pick'); return; }
+      if (file.size > 4 * 1024 * 1024) { setNote('Statements up to 4 MB.'); setSt('pick'); return; }
+      const data = await toBase64(file);
+      const res = await window.M360_API('bookstatement', {name: file.name, type: file.type || '', data});
+      const rows = (res && res.rows) || [];
+      if (!rows.length) { setNote('Nothing readable in that file.'); setSt('pick'); return; }
+      await prepare(rows.map(r => ({date: parseDate(r.date) || '', vendor: r.vendor || '', desc: r.desc || '', amount: num(r.amount), credit: num(r.credit), method: r.method || '', ref: r.ref || ''})).filter(r => r.date));
+    };
+    const pick = async e => {
+      const file = e.target.files && e.target.files[0]; e.target.value = '';
+      if (!file) return;
+      setSt('busy'); setNote(''); setSummary('');
+      const lower = file.name.toLowerCase();
+      try {
+        let rows = null;
+        if (lower.endsWith('.csv') || lower.endsWith('.txt') || /csv|text\/plain/.test(file.type || '')) {
+          const text = await file.text();
+          rows = linesFromTable(parseDelimited(text.replace(/^﻿/, ''), sniffDelim(text)));
+        } else if (lower.endsWith('.xlsx') || lower.endsWith('.xlsm')) {
+          try { rows = linesFromTable(await parseXlsx(await file.arrayBuffer())); } catch (err) { rows = null; }
+        }
+        if (rows && rows.length) await prepare(rows);
+        else await server(file);
+      } catch (err) { setNote('Could not read that file.'); setSt('pick'); }
+    };
+    const setLine = (i, patch) => setLines(ls => ls.map(l => l.i === i ? {...l, ...patch} : l));
+    const picked = lines.filter(l => l.on);
+    const save = async () => {
+      if (busy || !picked.length) return;
+      setBusy(true);
+      const now = Date.now();
+      const byMonth = {};
+      for (const l of picked) {
+        const mid = l.date.slice(0, 7);
+        byMonth[mid] = byMonth[mid] || {};
+        byMonth[mid][U.uid()] = {date: l.date, vendor: String(l.vendor).trim() || 'Unknown', category: CATS.includes(l.category) ? l.category : 'Other', desc: l.desc, amount: l.amount, gstInput: 0, method: l.method, paid: true, recurring: '', receipt: null, source: 'statement', ref: l.ref, at: now, updatedAt: now};
+      }
+      try {
+        for (const mid of Object.keys(byMonth)) await ctx.W.merge('expenses/' + mid, {rows: byMonth[mid], updated: now});
+        const mids = Object.keys(byMonth);
+        setSummary('Added ' + picked.length + (picked.length === 1 ? ' expense' : ' expenses') + (mids.length === 1 ? ' to ' : ' across ') + monthsText(mids) + '.');
+        setSt('done'); M.toast('Added ' + picked.length + ' to the books');
+      } catch (e) { M.toast('Could not save', true); }
+      setBusy(false);
+    };
+    const total = picked.reduce((s, l) => s + l.amount, 0);
+    const pickBtn = html`<label class="btn sec sm">Choose a file<input type="file" id="exp-import-file" accept=".csv,.xlsx,.xlsm,.pdf,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style=${{display: 'none'}} onChange=${pick}/></label>`;
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Upload a bank statement"
+      footer=${st === 'review' ? html`<div class="row between grow"><span class="small ink62">${picked.length} ticked, <span class="num">${U.inr(total)}</span></span><${UI.Btn} id="exp-import-save" disabled=${!picked.length || busy} onClick=${save}>Add ${picked.length} ${picked.length === 1 ? 'expense' : 'expenses'}<//></div>` : html`<${UI.Btn} kind="sec" onClick=${onClose}>Close<//>`}>
+      <div class="stack" id="exp-import-drawer">
+        ${st === 'pick' ? html`<div class="stack tight">
+          <div class="small">A CSV or XLSX export from net banking is read right here. A PDF statement, or a CSV the page cannot follow, goes to the team site where AI reads it.</div>
+          <div class="row">${pickBtn}</div>
+          ${note ? html`<div class="small flame-t">${note}</div>` : null}
+          <div class="tiny ink62">Money out becomes expenses. Money in is listed apart and never added. A line already in the books stays unticked.</div>
+        </div>` : null}
+        ${st === 'busy' ? html`<div class="small ink62">Reading the statement</div>` : null}
+        ${st === 'review' ? html`<div class="stack tight">
+          <div class="row between"><span class="small">${lines.length} ${lines.length === 1 ? 'payment' : 'payments'} found. Untick what should stay out.</span>${pickBtn}</div>
+          ${note ? html`<div class="tiny ink62">${note}</div>` : null}
+          <div id="exp-import-rows">
+            ${lines.length ? lines.map(l => html`<div class="listrow" key=${l.i} data-key=${l.i} style=${{alignItems: 'flex-start', opacity: l.on ? 1 : 0.62}}>
+              <label class="checkline" style=${{paddingTop: '8px'}}><input type="checkbox" checked=${l.on} onChange=${e => setLine(l.i, {on: e.target.checked})}/><span class="tiny num ink62" style=${{minWidth: '84px'}}>${U.fmtDate(l.date)}</span></label>
+              <div class="grow stack tight" style=${{gap: '6px'}}>
+                <div class="row nowrap" style=${{gap: '8px'}}>
+                  <input class="input" style=${CELL} value=${l.vendor} aria-label="paid to" onInput=${e => setLine(l.i, {vendor: e.target.value})}/>
+                  <b class="num" style=${{whiteSpace: 'nowrap'}}>${U.inr(l.amount)}</b>
+                </div>
+                <div class="row nowrap" style=${{gap: '8px'}}>
+                  <select class="input" style=${CELL_SEL} value=${l.category} aria-label="category" onChange=${e => setLine(l.i, {category: e.target.value})}>${CATS.map(c => html`<option key=${c} value=${c}>${c}</option>`)}</select>
+                  <select class="input" style=${{...CELL_SEL, maxWidth: '140px'}} value=${l.method} aria-label="paid by" onChange=${e => setLine(l.i, {method: e.target.value})}>${METHODS.filter(m => m.v !== 'due').map(m => html`<option key=${m.v} value=${m.v}>${m.label}</option>`)}</select>
+                </div>
+                <div class="tiny ink62" style=${{overflowWrap: 'anywhere'}}>${l.desc}${l.dup ? html` <${UI.Pill} kind="flame-o">already in the books<//>` : null}</div>
+              </div>
+            </div>`) : html`<${UI.Empty} text="No money out in this statement."/>`}
+          </div>
+          ${credits.length ? html`<div class="stack tight" style=${{marginTop: '8px'}}>
+            <${UI.Micro} plain=${true}>money in, not expenses<//>
+            ${credits.map((c, i) => html`<div class="listrow" key=${i} style=${{padding: '6px 0'}}><span class="tiny num ink62" style=${{minWidth: '84px'}}>${U.fmtDate(c.date)}</span><span class="grow tiny" style=${{overflowWrap: 'anywhere'}}>${c.vendor || cleanVendor(c.desc)}</span><span class="num small">${U.inr(c.credit)}</span></div>`)}
+          </div>` : null}
+        </div>` : null}
+        ${st === 'done' ? html`<div class="stack tight"><div id="exp-import-summary" class="small">${summary}</div><div class="row">${pickBtn}</div></div>` : null}
+      </div>
+    <//>`;
+  }
+
+  /* ---------- the page ---------- */
   function Expenses({id}) {
     const ctx = M.useCtx();
     const b = B();
     const all = b.expenses(ctx);
     const [month, setMonth] = useState(() => U.monthId(new Date(ctx.now)));
-    const [cat, setCat] = useState('all');
     const [open, setOpen] = useState(null);
+    const [importing, setImporting] = useState(false);
+    const [dirtyN, setDirtyN] = useState(0);
+    const phone = M.usePhone();
     if (!ctx.isOwner) return html`<${UI.Empty} text="The books are the owner's alone."/>`;
-    const months = Array.from(new Set(all.map(e => e.month).concat([U.monthId(new Date(ctx.now))]))).sort().reverse();
-    const list = all.filter(e => e.month === month && (cat === 'all' || e.category === cat));
+    const nowMid = U.monthId(new Date(ctx.now));
+    const prev = new Date(ctx.now); prev.setDate(1); prev.setMonth(prev.getMonth() - 1);
+    const months = Array.from(new Set(all.map(e => e.month).concat([nowMid, U.monthId(prev)]))).sort().reverse();
+    const list = all.filter(e => e.month === month).sort((x, y) => String(x.date).localeCompare(String(y.date)) || (x.at || 0) - (y.at || 0));
     const total = list.reduce((s, e) => s + b.num(e.amount), 0);
     const gst = list.reduce((s, e) => s + b.num(e.gstInput), 0);
     const byCat = {};
-    for (const e of all.filter(x => x.month === month)) byCat[e.category] = (byCat[e.category] || 0) + b.num(e.amount);
+    for (const e of list) byCat[e.category] = (byCat[e.category] || 0) + b.num(e.amount);
     const cats = Object.keys(byCat).sort((x, y) => byCat[y] - byCat[x]);
+    const vendors = Array.from(new Set(all.map(e => String(e.vendor || '').trim()).filter(Boolean))).sort();
     const csv = async () => {
       const lines = [['date', 'paid to', 'category', 'what for', 'amount', 'gst paid', 'paid by', 'paid', 'repeats'].join(',')]
         .concat(list.map(e => [e.date, e.vendor, e.category, e.desc, e.amount, e.gstInput || 0, e.method, e.paid ? 'yes' : 'no', e.recurring || ''].map(csvCell).join(',')));
@@ -13493,67 +14190,86 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     };
     return html`<div class="stack" style=${{gap: '16px'}}>
       <${UI.PageHead} micro=${monthLabel(month) + ', ' + U.inr(total) + (gst ? ', GST paid ' + U.inr(gst) : '')} title="Expenses">
+        <${UI.Btn} kind="sec" id="exp-import" onClick=${() => setImporting(true)}><${icons.upload}/>Upload a bank statement<//>
         <${UI.Btn} id="exp-new" onClick=${() => setOpen({})}><${icons.plus}/>New expense<//>
       <//>
       <div class="row between">
         <${UI.Seg} sm=${true} options=${months.slice(0, 8).map(m => ({v: m, label: monthLabel(m)}))} value=${month} onChange=${setMonth} ariaLabel="Month"/>
         ${ctx.downloads && list.length ? html`<${UI.Btn} kind="sec" sm=${true} id="exp-csv" onClick=${csv}>Download the month<//>` : null}
       </div>
-      <div class="split">
-        <${UI.Card} id="exp-list">
-          ${cats.length > 1 ? html`<div style=${{marginBottom: '10px'}}><${UI.Seg} sm=${true} options=${[{v: 'all', label: 'All'}].concat(cats.map(c => ({v: c, label: c})))} value=${cat} onChange=${setCat} ariaLabel="Category"/></div>` : null}
-          ${list.length ? html`<div class="tbl-wrap"><table class="tbl">
-            <thead><tr><th>date</th><th>paid to</th><th>category</th><th class="num">amount</th><th>paid by</th></tr></thead>
-            <tbody>${list.map(e => html`<tr key=${e.id} style=${{cursor: 'pointer'}} onClick=${() => setOpen(e)}>
-              <td data-label="date" class="num">${U.fmtDate(e.date)}</td>
-              <td data-label="paid to"><b>${e.vendor}</b>${e.desc ? html`<span class="tiny ink62"> · ${e.desc}</span>` : null}${e.recurring ? html` <${UI.Pill}>monthly<//>` : null}${e.receipt ? html` <span class="tiny ink62">receipt</span>` : null}</td>
-              <td data-label="category">${e.category}</td>
-              <td data-label="amount" class="num">${U.inr(e.amount)}</td>
-              <td data-label="paid by">${e.paid ? (METHODS.find(m => m.v === e.method) || {}).label || e.method : html`<span class="flame-t">not paid</span>`}</td>
-            </tr>`)}</tbody>
-          </table></div>` : html`<${UI.Empty} text="Nothing logged this month. Salaries land here from a closed payroll run; rent and tools can repeat every month."/>`}
-        <//>
+      <${UI.Card} id="exp-list" title=${phone ? undefined : 'The sheet'} action=${phone ? undefined : html`<div class="row" style=${{gap: '8px'}}><span class="tiny ink62">Tab, Enter and the arrows move. Paste rows from Excel or Sheets.</span>${dirtyN ? html`<${UI.Pill} kind="flame-o">${dirtyN} unsaved<//>` : null}</div>`}>
+        <${Sheet} key=${month} month=${month} saved=${list} vendors=${vendors} onDirty=${setDirtyN}/>
+      <//>
+      <div class="grid2">
         <${UI.Card} title="By category" id="exp-cats">
-          ${cats.length ? cats.map(c => html`<div class="listrow" key=${c}><span class="grow">${c}</span><span class="num" style=${{fontWeight: 500}}>${U.inr(byCat[c])}</span></div>`) : html`<${UI.Empty} text="Nothing yet."/>`}
+          ${cats.length ? cats.map(c => html`<div class="listrow" key=${c}><span class="grow">${c}</span><span class="num" style=${{fontWeight: 500}}>${U.inr(byCat[c])}</span></div>`) : html`<${UI.Empty} text="Nothing saved this month yet. Salaries land here from a closed payroll run; rent and tools can repeat every month."/>`}
           ${cats.length ? html`<div class="listrow"><b class="grow">Total</b><b class="num">${U.inr(Object.values(byCat).reduce((s, v) => s + v, 0))}</b></div>` : null}
+        <//>
+        <${UI.Card} title="Three ways in">
+          <div class="listrow"><span class="grow small"><b>Type it.</b> The sheet above takes rows straight in. Tab moves right, Enter moves down, Escape puts a cell back.</span></div>
+          <div class="listrow"><span class="grow small"><b>Paste it.</b> Copy rows from Excel or Google Sheets and paste into any cell. Dates like 12/09/2026 and categories typed as words are read.</span></div>
+          <div class="listrow"><span class="grow small"><b>Upload the statement.</b> A CSV or XLSX from net banking is read here. A PDF goes to the team site, where AI names each line.</span></div>
         <//>
       </div>
       ${open ? html`<${ExpenseDrawer} row=${open.id ? open : null} onClose=${() => setOpen(null)}/>` : null}
+      ${importing ? html`<${ImportDrawer} all=${all} onClose=${() => setImporting(false)}/>` : null}
     </div>`;
   }
 
-  M.expenses = {CATS, METHODS, blank, monthLabel};
+  M.expenses = {CATS, METHODS, blank, monthLabel, parseDate, cleanVendor, snapCat, linesFromTable, parseDelimited, sniffDelim, gridOf};
   M.pages.Expenses = Expenses;
 })();
 
 /* ==== 45-payroll.js ==== */
-/* module: payroll. The owner's payroll desk under Books: each person's monthly pay (earnings,
-   deductions, bank, PAN, UAN), the monthly run prepared from the roster and attendance (working
-   days, loss of pay from days with no check-in and no leave), payslips on the letterhead, and a
-   CSV register. Everything is INR. Data lives in payroll/salaries and payroll/<yyyy-mm>, ids only. */
+/* module: payroll. The owner's payroll desk under Books: pay for the month (each active person with
+   pay set, working days, absences from the check-ins, an editable loss of pay count, gross, deductions,
+   net, paid or not, one button to mark a person paid and one to pay everyone), each person's pay
+   (earnings, deductions the policy in Setup allows, bank, PAN, UAN), payslips on the letterhead and
+   the bank CSV. The switches (PF, ESI, professional tax, gratuity, insurance, cost to company) come
+   from M.books.settings(ctx).payroll and a switch that is off hides its line everywhere. Everything is
+   INR. Data lives in payroll/salaries (map[uid]) and payroll/<yyyy-mm> ({at, by, closed, rows}), ids
+   only. When the last person is paid the month lands in expenses as one Salaries row. */
 'use strict';
 (function () {
   const {html, React, U, UI, icons} = M;
   const {useState} = React;
 
   const EARN = [['basic', 'Basic'], ['hra', 'House rent allowance'], ['special', 'Special allowance'], ['allowances', 'Other allowances']];
-  const DEDUCT = [['pf', 'Provident fund'], ['tds', 'Tax deducted at source'], ['esi', 'ESI'], ['other', 'Other deductions']];
-  const PF_CAP = 1800;
+  const DEDUCT = [['pf', 'Provident fund'], ['esi', 'ESI'], ['pt', 'Professional tax'], ['tds', 'Tax deducted at source'], ['other', 'Other deductions']];
+  const PF_CAP = 1800, PF_RATE = 0.12;
+  const ESI_LIMIT = 21000, ESI_EMPLOYEE = 0.0075, ESI_EMPLOYER = 0.0325;
+  const PT_LIMIT = 10000, PT = 200, PT_FEB = 300;
+  const GRATUITY = 0.0481;
   const NOTE_MAX = 200;
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const POLICY0 = Object.freeze({pf: false, esi: false, pt: true, gratuity: false, insurance: false, insurancePremium: 0, payday: 1, employerCost: false});
 
   /* ---------- pure helpers ---------- */
   const num = v => { const n = Number(String(v == null ? '' : v).replace(/[^0-9.-]/g, '')); return Number.isFinite(n) ? n : 0; };
   const okMonth = s => /^\d{4}-(0[1-9]|1[0-2])$/.test(String(s || ''));
   const monthName = month => { const [y, m] = String(month).split('-').map(Number); return U.cap(U.MONTHS[(m || 1) - 1] || '') + ' ' + y; };
+  const monthShort = month => { const [y, m] = String(month).split('-').map(Number); return (MON[(m || 1) - 1] || '') + ' ' + y; };
+  const isFeb = month => String(month || '').slice(5, 7) === '02';
   const daysIn = month => { const [y, m] = String(month).split('-').map(Number); return new Date(y, m, 0).getDate(); };
   const dateIn = (month, d) => month + '-' + U.pad(d);
   const isWorking = (ctx, ymd) => {
     if (U.parseYmd(ymd).getDay() === 0) return false;
     return !(ctx && ctx.holidays && typeof ctx.holidays.has === 'function' && ctx.holidays.has(ymd));
   };
+  const policyOf = ctx => {
+    let p = null;
+    try { p = M.books && typeof M.books.settings === 'function' ? M.books.settings(ctx).payroll : null; } catch (e) { p = null; }
+    return {...POLICY0, ...(p || {})};
+  };
   const salaryMap = ctx => (((ctx.coll.payroll && ctx.coll.payroll.map.salaries) || {}).map) || {};
   const runOf = (ctx, month) => ((ctx.coll.payroll && ctx.coll.payroll.map[month]) || {}).run || null;
   const hasPay = s => !!s && (num(s.basic) > 0 || num(s.hra) > 0 || num(s.special) > 0 || num(s.allowances) > 0 || num(s.ctc) > 0);
+  /* the deduction lines the policy allows: TDS and other always, the statutory ones by their switch */
+  const allowed = (k, policy) => (k === 'tds' || k === 'other') ? true : !!(policy || POLICY0)[k];
+  const lines = policy => DEDUCT.filter(([k]) => allowed(k, policy));
+  const pfOf = (basic, policy) => (policy && policy.pf) ? Math.min(PF_CAP, Math.round(num(basic) * PF_RATE)) : 0;
+  const esiOf = (gross, policy) => (policy && policy.esi && num(gross) <= ESI_LIMIT) ? Math.round(num(gross) * ESI_EMPLOYEE) : 0;
+  const ptOf = (gross, policy, month) => (policy && policy.pt && num(gross) > PT_LIMIT) ? (isFeb(month) ? PT_FEB : PT) : 0;
 
   /* Monday to Saturday, minus the holidays */
   function workingDays(ctx, month) {
@@ -13562,25 +14278,30 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     for (let d = 1; d <= daysIn(month); d++) if (isWorking(ctx, dateIn(month, d))) n++;
     return n;
   }
-  /* working days up to today with no check-in and no approved leave; a date after today never counts */
-  function absentDays(ctx, uid, month, today) {
-    if (!okMonth(month)) return 0;
+  /* the month so far: working days with no check-in and no approved leave, and the check-ins; a date after today never counts */
+  function attendance(ctx, uid, month, today) {
+    const out = {absent: 0, present: 0};
+    if (!okMonth(month)) return out;
     const t = today || U.todayStr();
     const att = M.att;
-    if (!att || typeof att.dayStatus !== 'function') return 0;
-    let n = 0;
+    if (!att || typeof att.dayStatus !== 'function') return out;
     for (let d = 1; d <= daysIn(month); d++) {
       const ymd = dateIn(month, d);
       if (ymd > t || !isWorking(ctx, ymd)) continue;
       let s = null;
       try { const r = att.dayStatus(ctx, uid, ymd); s = r ? r.status : null; } catch (e) { s = null; }
-      if (s === 'none') n++;
+      if (s === 'none') out.absent++;
+      else if (s === 'office' || s === 'wfh') out.present++;
     }
-    return n;
+    return out;
   }
-  /* the row numbers: each earning prorated by paid days over days, deductions as set */
-  function compute(salary, days, lop) {
+  const absentDays = (ctx, uid, month, today) => attendance(ctx, uid, month, today).absent;
+  /* the row numbers: each earning prorated by paid days over days, deductions as set on the pay and
+     allowed by the policy; a statutory PF or ESI left at its auto value follows the prorated basic or
+     gross, a typed one stays as typed; the professional tax of 200 becomes 300 in February */
+  function compute(salary, days, lop, policy, month) {
     const s = salary || {};
+    const p = policy || POLICY0;
     const dd = Math.max(0, Math.round(num(days)));
     const l = Math.min(dd, Math.max(0, Math.round(num(lop))));
     const paidDays = dd - l;
@@ -13589,34 +14310,64 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     let gross = 0;
     for (const [k] of EARN) { row[k] = Math.round(num(s[k]) * ratio); gross += row[k]; }
     let ded = 0;
-    for (const [k] of DEDUCT) { row[k] = Math.round(num(s[k])); ded += row[k]; }
+    for (const [k] of DEDUCT) {
+      row[k] = allowed(k, p) ? Math.round(num(s[k])) : 0;
+      if (k === 'pf' && p.pf && row.pf === pfOf(s.basic, p)) row.pf = pfOf(row.basic, p);
+      if (k === 'esi' && p.esi && row.esi === esiOf(EARN.reduce((t, [e]) => t + num(s[e]), 0), p)) row.esi = esiOf(gross, p);
+      if (k === 'pt' && row.pt === PT && isFeb(month)) row.pt = PT_FEB;
+      ded += row[k];
+    }
     row.gross = gross;
     row.net = gross - ded;
     return row;
   }
-  function monthly(salary) {
+  function monthly(salary, policy) {
     const s = salary || {};
     const gross = EARN.reduce((t, [k]) => t + num(s[k]), 0);
-    const deductions = DEDUCT.reduce((t, [k]) => t + num(s[k]), 0);
+    const deductions = lines(policy).reduce((t, [k]) => t + num(s[k]), 0);
     return {gross: Math.round(gross), deductions: Math.round(deductions), net: Math.round(gross - deductions)};
   }
   const deductionsOf = row => DEDUCT.reduce((t, [k]) => t + num((row || {})[k]), 0);
   const netOf = row => num((row || {}).gross) - deductionsOf(row);
-  /* a split of the CTC: basic half, HRA a fifth, the rest special, PF at 12 percent of basic capped */
-  function suggest(ctc) {
+  /* what the agency pays on top of the gross: PF employer the same as the employee's, ESI employer
+     3.25 percent of a gross within the limit, gratuity 4.81 percent of basic, the insurance premium */
+  function employerCost(row, policy) {
+    const r = row || {};
+    const p = policy || POLICY0;
+    const out = {pf: 0, esi: 0, gratuity: 0, insurance: 0, extra: 0, total: 0};
+    if (!p.employerCost) { out.total = num(r.gross); return out; }
+    out.pf = p.pf ? num(r.pf) : 0;
+    out.esi = p.esi && num(r.gross) <= ESI_LIMIT ? Math.round(num(r.gross) * ESI_EMPLOYER) : 0;
+    out.gratuity = p.gratuity ? Math.round(num(r.basic) * GRATUITY) : 0;
+    out.insurance = p.insurance ? Math.round(num(p.insurancePremium)) : 0;
+    out.extra = out.pf + out.esi + out.gratuity + out.insurance;
+    out.total = num(r.gross) + out.extra;
+    return out;
+  }
+  /* a split of the CTC: basic half, HRA a fifth, the rest special; the deductions the policy asks for */
+  function suggest(ctc, policy, month) {
+    const p = policy || POLICY0;
     const m = num(ctc) / 12;
     const basic = Math.round(m * 0.5), hra = Math.round(m * 0.2);
     const special = Math.max(0, Math.round(m) - basic - hra);
-    return {basic, hra, special, allowances: 0, pf: Math.min(PF_CAP, Math.round(basic * 0.12)), tds: 0, esi: 0, other: 0};
+    const gross = basic + hra + special;
+    return {basic, hra, special, allowances: 0, pf: pfOf(basic, p), esi: esiOf(gross, p), pt: ptOf(gross, p, month || U.monthId(new Date())), tds: 0, other: 0};
   }
   const mask = acct => { const a = String(acct || '').replace(/\s+/g, ''); return a ? 'xxxx ' + a.slice(-4) : ''; };
   const inr = n => M.books.money(n, 'INR');
   const csvCell = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const lastMonths = (now, n) => {
+    const out = [];
+    for (let k = n - 1; k >= 0; k--) { const d = new Date(now); d.setDate(1); d.setMonth(d.getMonth() - k); out.push(U.monthId(d)); }
+    return out;
+  };
+  const dayOf = ms => U.ymd(new Date(ms));
 
   /* ---------- the pay drawer ---------- */
-  const blank = () => ({ctc: '', basic: '', hra: '', special: '', allowances: '', pf: '', tds: '', esi: '', other: '',
+  const blank = () => ({ctc: '', basic: '', hra: '', special: '', allowances: '', pf: '', esi: '', pt: '', tds: '', other: '',
     bank: {holder: '', account: '', ifsc: ''}, pan: '', uan: '', effective: '', note: ''});
-  function PayDrawer({uid, onClose}) {
+  const AUTO = {pf: (f, p) => pfOf(f.basic, p), esi: (f, p) => esiOf(monthly(f, p).gross, p), pt: (f, p) => ptOf(monthly(f, p).gross, p, U.monthId(new Date()))};
+  function PayDrawer({uid, policy, onClose}) {
     const ctx = M.useCtx();
     const [f, setF] = useState(() => {
       const cur = salaryMap(ctx)[uid] || {};
@@ -13625,35 +14376,51 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       b.bank = {...b.bank, ...(cur.bank || {})};
       return b;
     });
+    /* a statutory line follows the earnings until the owner types into it */
+    const [auto, setAuto] = useState(() => {
+      const cur = salaryMap(ctx)[uid] || {};
+      const a = {};
+      for (const k of Object.keys(AUTO)) a[k] = cur[k] == null || num(cur[k]) === AUTO[k](cur, policy);
+      return a;
+    });
     const [busy, setBusy] = useState(false);
+    const withAuto = x => { const n = {...x}; for (const k of Object.keys(AUTO)) if (auto[k] && policy[k]) n[k] = String(AUTO[k](n, policy)); return n; };
     const set = (k, v) => setF(x => ({...x, [k]: v}));
+    const setEarn = (k, v) => setF(x => withAuto({...x, [k]: v}));
+    const setDed = (k, v) => { if (AUTO[k]) setAuto(a => ({...a, [k]: false})); set(k, v); };
     const setB = (k, v) => setF(x => ({...x, bank: {...x.bank, [k]: v}}));
-    const m = monthly(f);
-    const canSuggest = num(f.ctc) > 0 && !num(f.basic) && !num(f.hra) && !num(f.special);
-    const applySplit = () => { const s = suggest(f.ctc); setF(x => { const n = {...x}; for (const k of Object.keys(s)) n[k] = String(s[k]); return n; }); };
+    const m = monthly(f, policy);
+    const applySplit = () => {
+      const s = suggest(f.ctc, policy);
+      setF(x => { const n = {...x}; for (const k of Object.keys(s)) n[k] = String(s[k]); return n; });
+      setAuto({pf: true, esi: true, pt: true});
+    };
     const save = async () => {
       setBusy(true);
       const clean = {ctc: num(f.ctc), basic: num(f.basic), hra: num(f.hra), special: num(f.special), allowances: num(f.allowances),
-        pf: num(f.pf), tds: num(f.tds), esi: num(f.esi), other: num(f.other),
+        pf: num(f.pf), esi: num(f.esi), pt: num(f.pt), tds: num(f.tds), other: num(f.other),
         bank: {holder: String(f.bank.holder || '').trim().slice(0, 80), account: String(f.bank.account || '').trim().slice(0, 34), ifsc: String(f.bank.ifsc || '').trim().toUpperCase().slice(0, 11)},
         pan: String(f.pan || '').trim().toUpperCase().slice(0, 10), uan: String(f.uan || '').trim().slice(0, 12),
         effective: /^\d{4}-\d{2}-\d{2}$/.test(f.effective) ? f.effective : '', note: String(f.note || '').trim().slice(0, NOTE_MAX)};
-      try { await ctx.W.merge('payroll/salaries', {map: {[uid]: clean}, updated: Date.now()}); M.toast('Saved'); onClose(); }
+      try { await ctx.W.merge('payroll/salaries', {map: {[uid]: clean}, updated: Date.now()}); M.toast('Pay saved'); onClose(); }
       catch (e) { M.toast('Could not save', true); setBusy(false); }
     };
-    const numIn = (k, label) => html`<${UI.Input} id=${'pay-' + k} label=${label} type="number" min="0" step="1" value=${f[k]} onChange=${v => set(k, v)}/>`;
+    const HINT = {pf: '12 percent of basic, capped at ' + M.books.fmt(PF_CAP, 'INR'), esi: '0.75 percent of gross up to ' + M.books.fmt(ESI_LIMIT, 'INR'),
+      pt: M.books.fmt(PT, 'INR') + ' a month, ' + M.books.fmt(PT_FEB, 'INR') + ' in February, above ' + M.books.fmt(PT_LIMIT, 'INR')};
+    const earnIn = (k, label) => html`<${UI.Input} id=${'pay-' + k} label=${label} type="number" min="0" step="1" value=${f[k]} onChange=${v => setEarn(k, v)}/>`;
+    const dedIn = (k, label) => html`<${UI.Input} id=${'pay-' + k} label=${label} type="number" min="0" step="1" value=${f[k]} onChange=${v => setDed(k, v)} hint=${HINT[k] || null}/>`;
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Edit pay"
       footer=${html`<${UI.Btn} id="pay-save" disabled=${busy} onClick=${save}>Save pay<//>`}>
       <div class="stack" id="pay-drawer">
         <div class="row nowrap" style=${{gap: '10px'}}><${UI.Avatar} id=${uid} size=${30}/><b><${UI.Name} id=${uid}/></b></div>
         <${UI.Input} id="pay-ctc" label="cost to company, per year" type="number" min="0" step="1" value=${f.ctc} onChange=${v => set('ctc', v)}
-          hint=${num(f.ctc) > 0 ? inr(num(f.ctc) / 12) + ' a month' : 'Monthly parts below are what payroll uses'}/>
-        ${canSuggest ? html`<div class="row"><${UI.Btn} kind="sec" sm=${true} id="pay-suggest" onClick=${applySplit}>Suggest a split from the CTC<//></div>` : null}
+          hint=${num(f.ctc) > 0 ? inr(num(f.ctc) / 12) + ' a month' : 'The monthly parts below are what the pay uses'}/>
+        ${num(f.ctc) > 0 ? html`<div class="row"><${UI.Btn} kind="sec" sm=${true} id="pay-suggest" onClick=${applySplit}>Suggest a split from the CTC<//></div>` : null}
         <${UI.Field} label="monthly earnings">
-          <div class="grid2">${EARN.map(([k, l]) => html`<div key=${k}>${numIn(k, l.toLowerCase())}</div>`)}</div>
+          <div class="grid2">${EARN.map(([k, l]) => html`<div key=${k}>${earnIn(k, l.toLowerCase())}</div>`)}</div>
         <//>
-        <${UI.Field} label="monthly deductions">
-          <div class="grid2">${DEDUCT.map(([k, l]) => html`<div key=${k}>${numIn(k, l.toLowerCase())}</div>`)}</div>
+        <${UI.Field} label="monthly deductions" hint=${lines(policy).length < DEDUCT.length ? 'Lines switched off in Setup stay hidden and count as 0.' : null}>
+          <div class="grid2">${lines(policy).map(([k, l]) => html`<div key=${k}>${dedIn(k, k === 'esi' ? 'ESI' : l.toLowerCase())}</div>`)}</div>
         <//>
         <div class="listrow" style=${{borderBottom: 0}}>
           <span class="grow small">gross <span class="num">${inr(m.gross)}</span> · deductions <span class="num">${inr(m.deductions)}</span></span>
@@ -13670,7 +14437,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         <//>
         <div class="grid2">
           <${UI.Input} id="pay-pan" label="PAN" value=${f.pan} onChange=${v => set('pan', v.toUpperCase())}/>
-          <${UI.Input} id="pay-uan" label="UAN" value=${f.uan} onChange=${v => set('uan', v)}/>
+          ${policy.pf ? html`<${UI.Input} id="pay-uan" label="UAN" value=${f.uan} onChange=${v => set('uan', v)}/>` : null}
         </div>
         <${UI.Input} id="pay-effective" label="effective from" type="date" value=${f.effective} onChange=${v => set('effective', v)}/>
         <${UI.TextArea} id="pay-note" label="note" rows=${2} value=${f.note} onChange=${v => set('note', v.slice(0, NOTE_MAX))}/>
@@ -13678,17 +14445,152 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     <//>`;
   }
 
-  /* ---------- salaries ---------- */
-  function Salaries() {
+  /* ---------- pay for the month ---------- */
+  const COLS_A = ['month', 'employee_id', 'employee', 'title', 'days', 'paid_days', 'lop', 'basic', 'hra', 'special', 'allowances', 'gross'];
+  const COLS_B = ['net', 'account_holder', 'account', 'ifsc', 'pan'];
+  function BankFile({month, rows, policy}) {
+    const ctx = M.useCtx();
+    const [busy, setBusy] = useState(false);
+    const go = async () => {
+      setBusy(true);
+      try {
+        const uids = rows.map(r => r.uid);
+        const profs = (ctx.user && ctx.user.profiles) ? await ctx.user.profiles(uids) : {};
+        const sal = salaryMap(ctx);
+        const ded = lines(policy).map(([k]) => k);
+        const cols = COLS_A.concat(ded, COLS_B, policy.pf ? ['uan'] : [], ['paid_on', 'note']);
+        const out = [cols.map(csvCell).join(',')];
+        for (const x of rows) {
+          const r = x.row, s = sal[x.uid] || {}, mem = (ctx.members || {})[x.uid] || {};
+          const cells = [month, mem.empId || '', (profs[x.uid] && profs[x.uid].name) || '', mem.title || '', r.days, r.paidDays, r.lop,
+            r.basic, r.hra, r.special, r.allowances, r.gross].concat(ded.map(k => num(r[k])),
+            [netOf(r), (s.bank || {}).holder || '', (s.bank || {}).account || '', (s.bank || {}).ifsc || '', s.pan || ''],
+            policy.pf ? [s.uan || ''] : [], [r.paidAt ? dayOf(r.paidAt) : '', r.note || '']);
+          out.push(cells.map(csvCell).join(','));
+        }
+        const res = await ctx.downloads.save({filename: 'payroll-' + month + '.csv', data: out.join('\n')});
+        M.toast(res && res.status === 'delivered' ? 'Sent' : 'Downloaded');
+      } catch (e) {
+        M.toast(e && e.code === 'declined' ? 'Download cancelled' : 'That did not download. Try again in a moment.', true);
+      }
+      setBusy(false);
+    };
+    return html`<${UI.Btn} kind="sec" sm=${true} id="pay-csv" disabled=${busy} onClick=${go}><${icons.download || icons.upload}/>Download the bank file<//>`;
+  }
+
+  function MonthCard({month, setMonth, policy, onEdit}) {
+    const ctx = M.useCtx();
+    const today = U.todayStr();
+    const run = runOf(ctx, month);
+    const saved = (run && run.rows) || {};
+    const map = salaryMap(ctx);
+    const days = workingDays(ctx, month);
+    const [lops, setLops] = useState({});      /* {month:uid: the typed loss of pay days} until paid */
+    const [busy, setBusy] = useState(false);
+    const people = ctx.activeMembers || [];
+    const withPay = people.filter(p => hasPay(map[p.uid]));
+    const noPay = people.filter(p => !hasPay(map[p.uid]));
+    const rows = withPay.map(p => {
+      const paid = saved[p.uid] && saved[p.uid].paidAt ? saved[p.uid] : null;
+      const att = attendance(ctx, p.uid, month, today);
+      const key = month + ':' + p.uid;
+      const lopIn = lops[key] != null ? lops[key] : String(att.absent);
+      const row = paid || compute(map[p.uid], days, num(lopIn), policy, month);
+      return {uid: p.uid, paid, att, lopIn, row, cost: employerCost(row, policy)};
+    });
+    /* paid rows of people since gone from the roster still count for the month */
+    for (const uid of Object.keys(saved)) {
+      if (saved[uid] && saved[uid].paidAt && !withPay.some(p => p.uid === uid)) rows.push({uid, paid: saved[uid], att: {absent: 0, present: 0}, lopIn: '', row: saved[uid], cost: employerCost(saved[uid], policy)});
+    }
+    const unpaid = rows.filter(r => !r.paid);
+    const paidRows = rows.filter(r => r.paid);
+    const t = {gross: 0, deductions: 0, net: 0, pf: 0, esi: 0, gratuity: 0, insurance: 0, cost: 0};
+    for (const r of rows) {
+      t.gross += num(r.row.gross); t.deductions += deductionsOf(r.row); t.net += netOf(r.row);
+      t.pf += r.cost.pf; t.esi += r.cost.esi; t.gratuity += r.cost.gratuity; t.insurance += r.cost.insurance; t.cost += r.cost.total;
+    }
+    const unpaidNet = unpaid.reduce((s, r) => s + netOf(r.row), 0);
+    const logExpense = async (total) => {
+      const now = Date.now();
+      const ex = (((ctx.coll.expenses && ctx.coll.expenses.map[month]) || {}).rows) || {};
+      const prev = ex['payroll-' + month];
+      await ctx.W.merge('expenses/' + month, {rows: {['payroll-' + month]: {date: today, vendor: 'Salaries', category: 'Salaries', desc: 'Payroll for ' + monthName(month),
+        amount: total, gstInput: 0, method: 'bank', paid: true, recurring: '', receipt: null, source: 'payroll', at: (prev && prev.at) || now, updatedAt: now}}, updated: now});
+    };
+    const pay = async (uids) => {
+      if (!uids.length || busy) return;
+      setBusy(true);
+      const now = Date.now();
+      const patch = {};
+      for (const r of rows) if (uids.includes(r.uid)) patch[r.uid] = {...U.clone(r.row), note: String(r.row.note || '').slice(0, NOTE_MAX), paidAt: now};
+      const all = rows.every(r => r.paid || uids.includes(r.uid));
+      try {
+        await ctx.W.merge('payroll/' + month, {run: {at: (run && run.at) || now, by: (run && run.by) || ctx.uid, closed: all, rows: patch}, updated: now});
+        if (all) {
+          const total = rows.reduce((s, r) => s + netOf(patch[r.uid] || r.row), 0);
+          await logExpense(total);
+          M.toast('Everyone paid. Salaries are in expenses');
+        } else M.toast('Marked paid');
+        setLops(x => { const n = {...x}; for (const u of uids) delete n[month + ':' + u]; return n; });
+      } catch (e) { M.toast('Could not save', true); }
+      setBusy(false);
+    };
+    const undo = async (uid) => {
+      if (busy) return;
+      setBusy(true);
+      try { await ctx.W.merge('payroll/' + month, {run: {closed: false, rows: {[uid]: null}}, updated: Date.now()}); M.toast('Undone'); }
+      catch (e) { M.toast('Could not save', true); }
+      setBusy(false);
+    };
+    const opts = lastMonths(ctx.now, 6).map(mid => ({v: mid, label: monthShort(mid)}));
+    return html`<${UI.Card} title=${'Pay for ' + monthName(month)} id="pay-month-card"
+      action=${run && run.closed ? html`<${UI.Pill} kind="ink">everyone paid<//>` : paidRows.length ? html`<${UI.Pill}>${paidRows.length} of ${rows.length} paid<//>` : null}>
+      <p class="small ink62" style=${{marginTop: 0}}>Salaries from each person's pay, attendance from check-ins. Change the loss of pay days if a day was worked, then mark paid.</p>
+      <div id="pay-month"><${UI.Seg} sm=${true} options=${opts} value=${month} onChange=${setMonth} ariaLabel="Month"/></div>
+      <div class="tiny ink62" style=${{marginTop: '8px'}}><span class="num">${days}</span> working days, Monday to Saturday, minus holidays. Absences are the days so far with no check-in and no approved leave.</div>
+      ${rows.length ? html`<div class="tbl-wrap" style=${{marginTop: '12px'}}><table class="tbl" id="pay-rows">
+        <thead><tr><th>person</th><th class="num">days</th><th class="num">loss of pay</th><th class="num">gross</th><th class="num">deductions</th><th class="num">net</th><th>state</th><th></th></tr></thead>
+        <tbody>${rows.map(r => {
+          const sameDay = r.paid && dayOf(r.paid.paidAt) === today;
+          return html`<tr key=${r.uid}>
+            <td data-label="person" class="lead"><span class="row nowrap" style=${{gap: '8px'}}><${UI.Avatar} id=${r.uid} size=${22}/>
+              <span><${UI.Name} id=${r.uid}/>${r.att.absent ? html` <span class="tiny ink62 num" title=${r.att.present + ' check-ins this month'}>${r.att.absent} absent</span>` : null}</span></span></td>
+            <td data-label="days" class="num">${r.row.days}</td>
+            <td data-label="loss of pay" class="num">${r.paid ? r.row.lop : html`<input class="input" id=${'pay-lop-' + r.uid} type="number" min="0" max=${r.row.days} step="1" style=${{width: '72px', minHeight: '34px'}} aria-label="Loss of pay days"
+              value=${r.lopIn} onInput=${e => { const v = e.target.value; setLops(x => ({...x, [month + ':' + r.uid]: v})); }}/>`}</td>
+            <td data-label="gross" class="num">${inr(r.row.gross)}</td>
+            <td data-label="deductions" class="num">${inr(deductionsOf(r.row))}</td>
+            <td data-label="net" class="num"><b>${inr(netOf(r.row))}</b></td>
+            <td data-label="state">${r.paid ? html`<span class="num">paid ${U.fmtDate(dayOf(r.paid.paidAt))}</span>` : html`<span class="ink62">not paid</span>`}</td>
+            <td>${r.paid ? (sameDay ? html`<button type="button" class="linky small" id=${'pay-undo-' + r.uid} disabled=${busy} onClick=${() => undo(r.uid)}>Undo</button>` : null)
+              : html`<${UI.Btn} sm=${true} id=${'pay-paid-' + r.uid} disabled=${busy} onClick=${() => pay([r.uid])}>Mark paid<//>`}</td>
+          </tr>`;
+        })}</tbody>
+      </table></div>
+      <div class="small ink62" id="pay-totals" style=${{marginTop: '10px'}}>gross <span class="num">${inr(t.gross)}</span> · deductions <span class="num">${inr(t.deductions)}</span> · net <b class="num">${inr(t.net)}</b> · <span class="num">${rows.length}</span> people${paidRows.length ? html` · paid <span class="num">${inr(paidRows.reduce((s, r) => s + netOf(r.row), 0))}</span>` : null}</div>
+      ${policy.employerCost ? html`<div class="small ink62" id="pay-cost" style=${{marginTop: '4px'}}>cost to company this month <b class="num">${inr(t.cost)}</b>${policy.pf ? html` · PF employer <span class="num">${inr(t.pf)}</span>` : null}${policy.esi ? html` · ESI employer <span class="num">${inr(t.esi)}</span>` : null}${policy.gratuity ? html` · gratuity <span class="num">${inr(t.gratuity)}</span>` : null}${policy.insurance ? html` · insurance <span class="num">${inr(t.insurance)}</span>` : null}</div>` : null}
+      <div class="row" style=${{marginTop: '12px'}}>
+        ${unpaid.length ? html`<span id="pay-all"><${UI.ConfirmBtn} kind="flame" sm=${false} onConfirm=${() => pay(unpaid.map(r => r.uid))}>Pay everyone, ${inr(unpaidNet)}<//></span>` : null}
+        ${ctx.downloads && paidRows.length ? html`<${BankFile} month=${month} rows=${paidRows} policy=${policy}/>` : null}
+      </div>`
+      : html`<div style=${{marginTop: '12px'}}><${UI.Empty} text=${people.length ? 'Nobody has pay set yet. Add it below and this month fills in.' : 'Nobody on the roster yet.'}/></div>`}
+      ${noPay.length && rows.length ? html`<div class="stack tight" id="pay-nopay" style=${{marginTop: '12px'}}>${noPay.map(p => html`<div class="listrow" key=${p.uid}>
+        <${UI.Avatar} id=${p.uid} size=${22}/>
+        <span class="grow small"><${UI.Name} id=${p.uid}/><span class="ink62">, no pay set yet, </span><button type="button" class="linky" id=${'pay-add-' + p.uid} onClick=${() => onEdit(p.uid)}>add it below</button></span>
+      </div>`)}</div>` : null}
+    <//>`;
+  }
+
+  /* ---------- pay ---------- */
+  function PayCard({policy, onEdit}) {
     const ctx = M.useCtx();
     const map = salaryMap(ctx);
-    const [open, setOpen] = useState(null);
     const people = ctx.activeMembers || [];
-    return html`<${UI.Card} title="Salaries" id="pay-salaries">
-      <p class="small ink62" style=${{marginTop: 0}}>Monthly earnings and deductions for each person on the roster. The run below reads these.</p>
+    return html`<${UI.Card} title="Pay" id="pay-salaries">
+      <p class="small ink62" style=${{marginTop: 0}}>Monthly earnings and deductions for each person on the roster. The month above reads these.${lines(policy).length < DEDUCT.length ? ' Benefits and deductions are switched on in Setup.' : ''}</p>
       ${people.length ? html`<div class="stack tight">${people.map(p => {
         const s = map[p.uid];
-        const m = monthly(s);
+        const m = monthly(s, policy);
         return html`<div class="listrow" key=${p.uid}>
           <${UI.Avatar} id=${p.uid} size=${30}/>
           <span class="grow"><b><${UI.Name} id=${p.uid}/></b>
@@ -13696,244 +14598,124 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
             ${hasPay(s) ? html`<div class="small ink62">gross <span class="num">${inr(m.gross)}</span> · deductions <span class="num">${inr(m.deductions)}</span> · net <span class="num">${inr(m.net)}</span></div>`
               : html`<div class="small ink62">no pay set</div>`}
           </span>
-          <${UI.Btn} kind="sec" sm=${true} id=${'pay-edit-' + p.uid} onClick=${() => setOpen(p.uid)}><${icons.edit}/>Edit pay<//>
+          <${UI.Btn} kind="sec" sm=${true} id=${'pay-edit-' + p.uid} onClick=${() => onEdit(p.uid)}><${icons.edit}/>Edit pay<//>
         </div>`;
       })}</div>` : html`<${UI.Empty} text="Nobody on the roster yet."/>`}
-      ${open ? html`<${PayDrawer} uid=${open} onClose=${() => setOpen(null)}/>` : null}
-    <//>`;
-  }
-
-  /* ---------- the monthly run ---------- */
-  function totalsOf(rows) {
-    const t = {gross: 0, deductions: 0, net: 0, n: 0};
-    for (const uid of Object.keys(rows || {})) {
-      const r = rows[uid]; if (!r) continue;
-      t.n++; t.gross += num(r.gross); t.deductions += deductionsOf(r); t.net += netOf(r);
-    }
-    return t;
-  }
-  function Run({month, setMonth}) {
-    const ctx = M.useCtx();
-    const today = U.todayStr();
-    const run = runOf(ctx, month);
-    const closed = !!(run && run.closed);
-    const map = salaryMap(ctx);
-    const [draft, setDraft] = useState(null);      /* {month, rows} while edited */
-    const [busy, setBusy] = useState(false);
-    const dirty = !!(draft && draft.month === month);
-    const rows = dirty ? draft.rows : (run ? run.rows || {} : null);
-    const days = workingDays(ctx, month);
-    const people = (ctx.activeMembers || []).filter(p => rows && rows[p.uid]);
-    const orphans = rows ? Object.keys(rows).filter(u => rows[u] && !people.some(p => p.uid === u)) : [];
-    const list = people.map(p => p.uid).concat(orphans);
-    const prepare = () => {
-      const out = {};
-      for (const p of ctx.activeMembers || []) {
-        const s = map[p.uid];
-        if (!hasPay(s)) continue;
-        const lop = absentDays(ctx, p.uid, month, today);
-        out[p.uid] = {...compute(s, days, lop), note: '', paidAt: null};
-      }
-      if (!Object.keys(out).length) { M.toast('Nobody has a salary set yet', true); return; }
-      setDraft({month, rows: out});
-    };
-    const edit = (uid, patch) => setDraft(d => {
-      const cur = U.clone(d && d.month === month ? d.rows : (run ? run.rows || {} : {}));
-      const r = {...(cur[uid] || {}), ...patch};
-      if ('lop' in patch) {
-        const s = map[uid];
-        if (hasPay(s)) Object.assign(r, compute(s, r.days, patch.lop));
-        else { r.lop = Math.min(num(r.days), Math.max(0, Math.round(num(patch.lop)))); r.paidDays = num(r.days) - r.lop; }
-      }
-      cur[uid] = r;
-      return {month, rows: cur};
-    });
-    const write = async (close) => {
-      if (!rows) return;
-      setBusy(true);
-      const out = U.clone(rows);
-      const now = Date.now();
-      for (const uid of Object.keys(out)) {
-        const r = out[uid]; if (!r) { delete out[uid]; continue; }
-        r.note = String(r.note || '').slice(0, NOTE_MAX);
-        r.net = netOf(r);
-        r.paidAt = close ? now : (r.paidAt || null);
-      }
-      const doc = {run: {at: (run && run.at) || now, by: (run && run.by) || ctx.uid, closed: !!close, rows: out}, updated: now};
-      try { await ctx.W.set('payroll/' + month, doc); setDraft(null); M.toast(close ? 'Month closed' : 'Run saved'); }
-      catch (e) { M.toast('Could not save', true); }
-      setBusy(false);
-    };
-    const t = totalsOf(rows);
-    const paidRow = closed ? Object.values(run.rows || {}).find(x => x && x.paidAt) : null;
-    const paidOn = paidRow ? U.fmtDate(U.ymd(new Date(paidRow.paidAt))) : '';
-    return html`<${UI.Card} title="Monthly run" id="pay-run" action=${closed ? html`<${UI.Pill} kind="ink">closed<//>` : run ? html`<${UI.Pill}>saved<//>` : null}>
-      <div class="row" style=${{alignItems: 'flex-end'}}>
-        <div style=${{maxWidth: '200px'}}><${UI.Input} id="pay-month" label="month" type="month" value=${month} onChange=${v => { if (okMonth(v)) { setMonth(v); } }}/></div>
-        ${closed ? null : html`<${UI.Btn} id="pay-prepare" kind=${rows ? 'sec' : undefined} disabled=${busy} onClick=${prepare}>${rows ? 'Prepare again' : 'Prepare payroll'}<//>`}
-        ${rows && !closed ? html`<${UI.Btn} id="pay-save-run" disabled=${busy || !dirty} onClick=${() => write(false)}>Save the run<//>` : null}
-        ${rows && !closed ? html`<${UI.ConfirmBtn} kind="sec" onConfirm=${() => write(true)}>Close the month<//>` : null}
-      </div>
-      <div class="tiny ink62" style=${{marginTop: '6px'}}>${monthName(month)}: <span class="num">${days}</span> working days, Monday to Saturday, minus holidays. Loss of pay starts at the days so far with no check-in and no approved leave.</div>
-      ${rows ? html`<div class="tbl-wrap" style=${{marginTop: '12px'}}><table class="tbl" id="pay-rows">
-        <thead><tr><th>person</th><th class="num">days</th><th class="num">paid</th><th class="num">lop</th><th class="num">gross</th><th class="num">deductions</th><th class="num">net</th><th>note</th></tr></thead>
-        <tbody>${list.map(uid => {
-          const r = rows[uid];
-          return html`<tr key=${uid}>
-            <td data-label="person"><span class="row nowrap" style=${{gap: '8px'}}><${UI.Avatar} id=${uid} size=${22}/><${UI.Name} id=${uid}/></span></td>
-            <td data-label="days" class="num">${r.days}</td>
-            <td data-label="paid" class="num">${r.paidDays}</td>
-            <td data-label="lop" class="num">${closed ? r.lop : html`<input class="input" type="number" min="0" max=${r.days} step="1" style=${{width: '72px', minHeight: '34px'}} aria-label="Loss of pay days"
-              value=${String(r.lop)} onInput=${e => edit(uid, {lop: num(e.target.value)})}/>`}</td>
-            <td data-label="gross" class="num">${inr(r.gross)}</td>
-            <td data-label="deductions" class="num">${inr(deductionsOf(r))}</td>
-            <td data-label="net" class="num"><b>${inr(netOf(r))}</b></td>
-            <td data-label="note">${closed ? (r.note || '') : html`<input class="input" style=${{minWidth: '160px', minHeight: '34px'}} aria-label="Note" placeholder="Note on the payslip"
-              value=${r.note || ''} onInput=${e => edit(uid, {note: e.target.value.slice(0, NOTE_MAX)})}/>`}</td>
-          </tr>`;
-        })}
-        <tr class="dark"><td>${t.n} people</td><td/><td/><td/><td class="num">${inr(t.gross)}</td><td class="num">${inr(t.deductions)}</td><td class="num">${inr(t.net)}</td><td/></tr>
-        </tbody>
-      </table></div>
-      <div class="small ink62" id="pay-totals" style=${{marginTop: '8px'}}>gross <span class="num">${inr(t.gross)}</span> · deductions <span class="num">${inr(t.deductions)}</span> · net <span class="num">${inr(t.net)}</span> · headcount <span class="num">${t.n}</span>${dirty ? ' · unsaved changes' : ''}${paidOn ? ' · paid on ' + paidOn : ''}</div>`
-      : html`<div style=${{marginTop: '12px'}}><${UI.Empty} text="No run for this month yet. Prepare it from the salaries and attendance."/></div>`}
     <//>`;
   }
 
   /* ---------- payslips ---------- */
-  function Payslip({uid, month, row}) {
+  function Payslip({uid, month, row, policy}) {
     const ctx = M.useCtx();
+    const pol = policy || policyOf(ctx);
     const s = salaryMap(ctx)[uid] || {};
-    const m = (ctx.members || {})[uid] || {};
+    const mem = (ctx.members || {})[uid] || {};
     /* the name as plain text: the kv grid styles every odd span as a label */
     const profs = M.useProfiles([uid]);
     const who = (profs[uid] && profs[uid].name) || 'Someone';
-    const net = netOf(row);
-    const pairs = EARN.map(([k, l], i) => ({k, l, d: DEDUCT[i]}));
+    const r = row || {};
+    const net = netOf(r);
+    const earn = EARN.filter(([k]) => k === 'basic' || num(r[k]) > 0);
+    const ded = lines(pol).filter(([k]) => (k !== 'tds' && k !== 'other') || num(r[k]) > 0);
+    const n = Math.max(earn.length, ded.length, 1);
+    const pairs = [];
+    for (let i = 0; i < n; i++) pairs.push({e: earn[i] || null, d: ded[i] || null});
+    const cost = employerCost(r, pol);
     return html`<${M.parts.DocFrame} id="payslip-doc" title="payslip">
       <${M.parts.DocHead} ctx=${ctx} right=${html`<div><span class="doc-pill">Payslip</span></div><div class="doc-title">${monthName(month)}</div>`}/>
       <div class="doc-grid">
         <div class="doc-kv">
           <span>employee</span><span><b>${who}</b></span>
-          <span>employee id</span><span class="num">${m.empId || ''}</span>
-          <span>title</span><span>${m.title || ''}</span>
+          <span>employee id</span><span class="num">${mem.empId || ''}</span>
+          <span>title</span><span>${mem.title || ''}</span>
           <span>PAN</span><span class="num">${s.pan || ''}</span>
-          <span>UAN</span><span class="num">${s.uan || ''}</span>
+          ${pol.pf ? html`<span>UAN</span><span class="num">${s.uan || ''}</span>` : null}
           <span>bank account</span><span class="num">${mask((s.bank || {}).account)}</span>
           <span>IFSC</span><span class="num">${(s.bank || {}).ifsc || ''}</span>
         </div>
         <div class="doc-kv">
           <span>month</span><span>${monthName(month)}</span>
-          <span>days</span><span class="num">${row.days}</span>
-          <span>paid days</span><span class="num">${row.paidDays}</span>
-          <span>loss of pay</span><span class="num">${row.lop}</span>
-          <span>paid on</span><span class="num">${row.paidAt ? U.fmtDate(U.ymd(new Date(row.paidAt))) : 'pending'}</span>
+          <span>days</span><span class="num">${r.days}</span>
+          <span>paid days</span><span class="num">${r.paidDays}</span>
+          <span>loss of pay</span><span class="num">${r.lop}</span>
+          <span>paid on</span><span class="num">${r.paidAt ? U.fmtDate(dayOf(r.paidAt)) : 'pending'}</span>
         </div>
       </div>
       <table class="doc-table">
         <thead><tr><th>earnings</th><th class="n">amount</th><th>deductions</th><th class="n">amount</th></tr></thead>
-        <tbody>${pairs.map(p => html`<tr key=${p.k}>
-          <td><span class="doc-line">${p.l}</span></td><td class="n"><span class="num">${inr(row[p.k])}</span></td>
-          <td><span class="doc-line">${p.d[1]}</span></td><td class="n"><span class="num">${inr(row[p.d[0]])}</span></td>
+        <tbody>${pairs.map((p, i) => html`<tr key=${i}>
+          <td>${p.e ? html`<span class="doc-line">${p.e[1]}</span>` : null}</td><td class="n">${p.e ? html`<span class="num">${inr(r[p.e[0]])}</span>` : null}</td>
+          <td>${p.d ? html`<span class="doc-line">${p.d[1]}</span>` : null}</td><td class="n">${p.d ? html`<span class="num">${inr(r[p.d[0]])}</span>` : null}</td>
         </tr>`)}</tbody>
       </table>
       <div class="doc-lower">
         <div>
           <div class="doc-totals">
-            <div class="doc-total-row"><span>Gross earnings</span><span class="num">${inr(row.gross)}</span></div>
-            <div class="doc-total-row"><span>Deductions</span><span class="num">${inr(deductionsOf(row))}</span></div>
+            <div class="doc-total-row"><span>Gross earnings</span><span class="num">${inr(r.gross)}</span></div>
+            <div class="doc-total-row"><span>Deductions</span><span class="num">${inr(deductionsOf(r))}</span></div>
             <div class="doc-total-row grand"><span>Net pay</span><span class="num">${inr(net)}</span></div>
           </div>
           <div class="doc-block" style=${{marginTop: '14px'}}>
             <div class="doc-micro">Net pay in words</div>
             <div class="small"><b>${M.books.words(net, 'INR')}</b></div>
           </div>
-          ${row.note ? html`<div class="doc-block"><div class="doc-micro">Note</div><div class="small">${row.note}</div></div>` : null}
+          ${pol.employerCost ? html`<div class="doc-block"><div class="doc-micro">Cost to company</div>
+            <div class="small"><span class="num">${inr(cost.total)}</span> this month${cost.pf ? html`, PF employer <span class="num">${inr(cost.pf)}</span>` : null}${cost.esi ? html`, ESI employer <span class="num">${inr(cost.esi)}</span>` : null}${cost.gratuity ? html`, gratuity <span class="num">${inr(cost.gratuity)}</span>` : null}${cost.insurance ? html`, insurance <span class="num">${inr(cost.insurance)}</span>` : null}</div></div>` : null}
+          ${r.note ? html`<div class="doc-block"><div class="doc-micro">Note</div><div class="small">${r.note}</div></div>` : null}
         </div>
         <${M.parts.DocSign} ctx=${ctx}/>
       </div>
       <${M.parts.DocFoot} ctx=${ctx}/>
     <//>`;
   }
-  function Payslips({month, id}) {
+  function Payslips({month, policy, id}) {
     const ctx = M.useCtx();
     const run = runOf(ctx, month);
     const rows = (run && run.rows) || {};
-    const [pick, setPick] = useState(() => (id && rows[id] ? id : null));
-    const list = (ctx.activeMembers || []).map(p => p.uid).filter(u => rows[u])
-      .concat(Object.keys(rows).filter(u => rows[u] && !(ctx.activeMembers || []).some(p => p.uid === u)));
-    const uid = pick && rows[pick] ? pick : null;
-    if (!run) return null;
+    const isPaid = u => !!(rows[u] && rows[u].paidAt);
+    const [pick, setPick] = useState(() => (id && isPaid(id) ? id : null));
+    const list = (ctx.activeMembers || []).map(p => p.uid).filter(isPaid)
+      .concat(Object.keys(rows).filter(u => isPaid(u) && !(ctx.activeMembers || []).some(p => p.uid === u)));
+    const uid = pick && isPaid(pick) ? pick : null;
     return html`<${UI.Card} title="Payslips" id="pay-slips" action=${html`<${UI.Pill}>${monthName(month)}<//>`}>
       ${list.length ? html`<div class="stack tight">${list.map(u => html`<div class="listrow" key=${u}>
         <${UI.Avatar} id=${u} size=${28}/>
         <span class="grow"><b><${UI.Name} id=${u}/></b><span class="small ink62"> · net <span class="num">${inr(netOf(rows[u]))}</span>${rows[u].lop ? html` · <span class="num">${rows[u].lop}</span> days loss of pay` : ''}</span></span>
         <${UI.Btn} kind=${uid === u ? undefined : 'sec'} sm=${true} id=${'pay-slip-' + u} onClick=${() => setPick(u)}>Payslip<//>
-      </div>`)}</div>` : html`<${UI.Empty} text="The run has no rows."/>`}
-      ${uid ? html`<div style=${{marginTop: '16px'}}><${Payslip} uid=${uid} month=${month} row=${rows[uid]}/></div>` : null}
+      </div>`)}</div>` : html`<${UI.Empty} text="A payslip appears here for each person once they are marked paid."/>`}
+      ${uid ? html`<div style=${{marginTop: '16px'}}><${Payslip} uid=${uid} month=${month} row=${rows[uid]} policy=${policy}/></div>` : null}
     <//>`;
-  }
-
-  /* ---------- the register ---------- */
-  const COLS = ['month', 'employee_id', 'name', 'title', 'days', 'paid_days', 'lop', 'basic', 'hra', 'special', 'allowances', 'gross', 'pf', 'tds', 'esi', 'other', 'net', 'account_holder', 'account', 'ifsc', 'pan', 'uan', 'paid_on', 'note'];
-  function Register({month}) {
-    const ctx = M.useCtx();
-    const [busy, setBusy] = useState(false);
-    const run = runOf(ctx, month);
-    if (!ctx.downloads || !run) return null;
-    const go = async () => {
-      setBusy(true);
-      try {
-        const rows = run.rows || {};
-        const uids = Object.keys(rows).filter(u => rows[u]);
-        const profs = (ctx.user && ctx.user.profiles) ? await ctx.user.profiles(uids) : {};
-        const sal = salaryMap(ctx);
-        const lines = [COLS.map(csvCell).join(',')];
-        for (const u of uids) {
-          const r = rows[u], s = sal[u] || {}, m = (ctx.members || {})[u] || {};
-          lines.push([month, m.empId || '', (profs[u] && profs[u].name) || '', m.title || '', r.days, r.paidDays, r.lop,
-            r.basic, r.hra, r.special, r.allowances, r.gross, r.pf, r.tds, r.esi, r.other, netOf(r),
-            (s.bank || {}).holder || '', (s.bank || {}).account || '', (s.bank || {}).ifsc || '', s.pan || '', s.uan || '',
-            r.paidAt ? U.ymd(new Date(r.paidAt)) : '', r.note || ''].map(csvCell).join(','));
-        }
-        const res = await ctx.downloads.save({filename: 'payroll-' + month + '.csv', data: lines.join('\n')});
-        M.toast(res && res.status === 'delivered' ? 'Sent' : 'Downloaded');
-      } catch (e) {
-        M.toast(e && e.code === 'declined' ? 'Download cancelled' : 'That did not download. Try again in a moment.', true);
-      }
-      setBusy(false);
-    };
-    return html`<${UI.Btn} kind="sec" sm=${true} id="pay-csv" disabled=${busy} onClick=${go}><${icons.download || icons.upload}/>Download the register<//>`;
   }
 
   /* ---------- the page ---------- */
   function Payroll({id}) {
     const ctx = M.useCtx();
     const [month, setMonth] = useState(() => okMonth(id) ? id : U.monthId(new Date(ctx.now)));
+    const [edit, setEdit] = useState(null);
     if (!ctx.isOwner) return html`<${UI.Empty} text="Payroll is the owner's alone."/>`;
-    const run = runOf(ctx, month);
+    const policy = policyOf(ctx);
     return html`<div class="stack" style=${{gap: '18px'}} id="pay-page">
-      <${Salaries}/>
-      <${Run} month=${month} setMonth=${setMonth}/>
-      ${run ? html`<div class="row between">
-        <span class="small ink62">The register is the CSV for the bank upload and the accountant.</span>
-        <${Register} month=${month}/>
-      </div>` : null}
-      <${Payslips} month=${month} id=${okMonth(id) ? null : id}/>
+      <${MonthCard} month=${month} setMonth=${setMonth} policy=${policy} onEdit=${setEdit}/>
+      <${PayCard} policy=${policy} onEdit=${setEdit}/>
+      <${Payslips} month=${month} policy=${policy} id=${okMonth(id) ? null : id}/>
+      ${edit ? html`<${PayDrawer} uid=${edit} policy=${policy} onClose=${() => setEdit(null)}/>` : null}
     </div>`;
   }
 
   M.pages.Payroll = Payroll;
   M.parts.Payslip = Payslip;
-  M.payroll = {workingDays, absentDays, compute, monthly, netOf, suggest, monthName, EARN, DEDUCT};
+  M.payroll = {workingDays, absentDays, attendance, compute, monthly, netOf, suggest, monthName, EARN, DEDUCT, employerCost, lines};
 })();
 
 /* ==== 46-letters.js ==== */
 /* module: letters. The HR desk inside the books: offer, appointment, increment, experience, relieving,
-   non-disclosure and warning letters for every active member and for candidates at the offer or hired
-   stage. Each letter is a set of variables, a body the owner drafts from a template (or has the model
-   rewrite), and a status: a draft stays editable, an issued letter carries a reference number and is
-   read only. Letters live in hr/<uid>, the owner's alone. */
+   non-disclosure, warning and blank letters for every active member and for candidates at the offer or
+   hired stage. Every piece of a letter is a field the owner can edit by hand: the recipient and the
+   address, the date, the place and the reference, the subject, the salutation and the closing, the
+   signatory, the kind's own details and the body itself. "Write it" drafts the body from the template;
+   after a manual edit it asks before overwriting. An issued letter carries its reference and stays
+   editable; a withdrawn one stays in the list and counts for nothing. Letters live in hr/<uid>, the
+   owner's alone: hr/<uid>.letters[id] = {kind, at, ref, vars, body, status, issuedAt, editedAt, hand}. */
 'use strict';
 (function () {
   const {html, React, U, UI} = M;
@@ -13947,18 +14729,39 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     {v: 'experience', label: 'Experience letter'},
     {v: 'relieving', label: 'Relieving letter'},
     {v: 'nda', label: 'Non-disclosure agreement'},
-    {v: 'warning', label: 'Warning letter'}
+    {v: 'warning', label: 'Warning letter'},
+    {v: 'custom', label: 'Letter, blank'}
   ];
   const LABEL = Object.fromEntries(KINDS.map(k => [k.v, k.label]));
+  const SUBJECT = {
+    offer: 'Offer of employment', appointment: 'Letter of appointment', increment: 'Revision of your compensation',
+    experience: 'Experience certificate', relieving: 'Relieving letter', nda: 'Non-disclosure agreement',
+    warning: 'Formal warning', custom: ''
+  };
   const ACCEPTS = ['offer', 'appointment', 'nda'];
   const YESNO = [{v: 'yes', label: 'Yes'}, {v: 'no', label: 'No'}];
   const DUES = [{v: 'settled', label: 'Settled'}, {v: 'to be settled', label: 'To be settled'}];
-  /* the variables of each kind, after the three every letter carries: who, role, date */
-  const COMMON = [
+  /* the fields every kind carries, in three groups: who, letter, signature */
+  const WHO = [
     {k: 'who', label: 'to'},
-    {k: 'role', label: 'role'},
-    {k: 'date', label: 'letter date', type: 'date'}
+    {k: 'address', label: 'address, one line per row', area: true},
+    {k: 'role', label: 'role'}
   ];
+  const LETTER = [
+    {k: 'date', label: 'letter date', type: 'date'},
+    {k: 'place', label: 'place'},
+    {k: 'ref', label: 'reference'},
+    {k: 'subject', label: 'subject'}
+  ];
+  const LETTER_END = [
+    {k: 'salutation', label: 'salutation'},
+    {k: 'closing', label: 'closing line'}
+  ];
+  const SIGN = [
+    {k: 'signWho', label: 'signed by'},
+    {k: 'signTitle', label: 'title'}
+  ];
+  const COMMON = WHO.concat(LETTER, LETTER_END, SIGN);
   const FIELDS = {
     offer: [
       {k: 'ctc', label: 'annual CTC, INR', type: 'number'},
@@ -14003,7 +14806,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       {k: 'what', label: 'what happened, one line'},
       {k: 'when', label: 'when', type: 'date'},
       {k: 'expected', label: 'what we expect from here, one line'}
-    ]
+    ],
+    custom: []
   };
   const fieldsOf = kind => COMMON.concat(FIELDS[kind] || []);
 
@@ -14017,15 +14821,16 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     return Object.keys(m).filter(id => m[id] && typeof m[id] === 'object').map(id => ({...m[id], id}))
       .sort((a, b) => (b.at || 0) - (a.at || 0));
   };
-  const allIssued = ctx => {
+  const allLetters = ctx => {
     const out = [];
     const map = hrMap(ctx);
     for (const uid of Object.keys(map)) {
       const ls = (map[uid] || {}).letters || {};
-      for (const id of Object.keys(ls)) if (ls[id] && ls[id].status === 'issued') out.push({...ls[id], id, uid});
+      for (const id of Object.keys(ls)) if (ls[id] && typeof ls[id] === 'object') out.push({...ls[id], id, uid});
     }
     return out;
   };
+  const allIssued = ctx => allLetters(ctx).filter(l => l.status === 'issued');
   const issuedCount = (ctx, uid) => lettersOf(ctx, uid).filter(l => l.status === 'issued').length;
   const okDate = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
   const day = s => okDate(s) ? U.fmtDate(s) : (s ? String(s) : '');
@@ -14037,6 +14842,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   const plural = (n, one, many) => n0(n) === 1 ? one : many;
   const clean = s => String(s || '').trim();
   const endStop = s => { const t = clean(s).replace(/[.\s]+$/, ''); return t ? t + '.' : ''; };
+  const lines = s => String(s || '').split('\n').map(l => l.trim()).filter(Boolean);
   /* a display name for the roster or a candidate: the profile, then the me doc, then the title */
   const nameOf = (ctx, uid, profiles) => {
     const c = candOf(ctx, uid);
@@ -14048,6 +14854,18 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const m = (ctx.members || {})[uid];
     return (m && m.title) || 'Teammate';
   };
+  /* the company's city: the line of the address that carries the PIN code, else the first of its cities */
+  const cityOf = s => {
+    const c = s.company || {};
+    for (const l of lines(c.address)) {
+      const m = /([A-Za-z][A-Za-z .]*?)\s*[-]?\s*\d{6}\b/.exec(l);
+      if (m) { const parts = clean(m[1]).split(',').map(clean).filter(Boolean); if (parts.length) return parts[parts.length - 1]; }
+    }
+    const first = clean(String(c.cities || '').split(String.fromCharCode(183))[0]);
+    return first || 'Mumbai';
+  };
+  const company = ctx => { const s = M.books.settings(ctx); return {name: s.company.name || 'Mask Management', brand: s.company.brand || 'Mask360'}; };
+  const salutationFor = (kind, who) => kind === 'experience' ? 'To whom it may concern,' : 'Dear ' + (U.firstName(who) || 'there') + ',';
 
   /* ---------- the variables, prefilled ---------- */
   function vars(kind, ctx, uid, who) {
@@ -14056,10 +14874,19 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const c = candOf(ctx, uid);
     const sal = ((((ctx.coll.payroll || {}).map || {}).salaries || {}).map || {})[uid] || {};
     const s = M.books.settings(ctx);
+    const name = who || (c ? clean(c.name) : nameOf(ctx, uid));
     const v = {
-      who: who || (c ? clean(c.name) : nameOf(ctx, uid)),
+      who: name,
+      address: '',
       role: c ? clean(c.role) : (m.title || ''),
-      date: today
+      date: today,
+      place: cityOf(s),
+      ref: '',
+      subject: SUBJECT[kind] || '',
+      salutation: salutationFor(kind, name),
+      closing: 'Warm regards,',
+      signWho: s.signatory.who || '',
+      signTitle: s.signatory.title || ''
     };
     const joined = okDate(m.joined) ? m.joined : (okDate(m.start) ? m.start : '');
     const ctc = sal.ctc ? n0(sal.ctc) : '';
@@ -14069,7 +14896,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       v.probationMonths = 3;
       v.noticeDays = 30;
       v.reportsTo = s.signatory.who;
-      v.location = 'Mumbai';
+      v.location = cityOf(s);
       if (kind === 'offer') { v.hours = '10:30 to 19:30, Monday to Saturday'; v.acceptBy = plusDays(today, 7); }
       else v.empId = m.empId || '';
     } else if (kind === 'increment') {
@@ -14085,12 +14912,26 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     }
     return v;
   }
+  /* the shared fields of an older letter, filled so the document still reads whole */
+  function withDefaults(letter, ctx) {
+    const v = {...(letter.vars || {})};
+    const s = M.books.settings(ctx);
+    const first = (String(letter.body || '').split(/\n\s*\n/)[0] || '').trim();
+    const opens = /^(Dear\b|To whom)/i.test(first);
+    if (v.subject == null) v.subject = SUBJECT[letter.kind] || '';
+    if (v.salutation == null) v.salutation = opens ? '' : salutationFor(letter.kind, v.who);
+    if (v.closing == null) v.closing = opens ? '' : 'Warm regards,';
+    if (v.signWho == null) v.signWho = s.signatory.who || '';
+    if (v.signTitle == null) v.signTitle = s.signatory.title || '';
+    if (v.place == null) v.place = '';
+    if (v.address == null) v.address = '';
+    return v;
+  }
 
-  /* ---------- the templates: plain letters in our voice ---------- */
+  /* ---------- the templates: the body alone, in our voice. The salutation and the closing are fields. ---------- */
   const T = {};
-  T.offer = v => [
-    'Dear ' + v.who + ',',
-    'We are glad to offer you the role of ' + v.role + ' at Mask360. You met the team, you did the work, and we want you with us.',
+  T.offer = (v, co) => [
+    'We are glad to offer you the role of ' + v.role + ' at ' + co.brand + '. You met the team, you did the work, and we want you with us.',
     'You will report to ' + v.reportsTo + '. The work you own will sit close to our clients, and you will have the room to run it.',
     'Your annual cost to company will be ' + inr(v.ctc) + ' (' + inWords(v.ctc) + '), which comes to ' + monthly(v.ctc) + ' a month before statutory deductions. The full break up follows in your appointment letter.',
     'Your start date is ' + day(v.start) + ', at our ' + v.location + ' office.',
@@ -14100,9 +14941,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     'Sign and return this letter by ' + day(v.acceptBy) + ' to accept. After that date the offer lapses.',
     'We are looking forward to building with you.'
   ];
-  T.appointment = v => [
-    'Dear ' + v.who + ',',
-    'This letter confirms your appointment as ' + v.role + ' with Mask Management, effective ' + day(v.start) + '.' + (v.empId ? ' Your employee id is ' + v.empId + '.' : ''),
+  T.appointment = (v, co) => [
+    'This letter confirms your appointment as ' + v.role + ' with ' + co.name + ', effective ' + day(v.start) + '.' + (v.empId ? ' Your employee id is ' + v.empId + '.' : ''),
     'You will report to ' + v.reportsTo + ' and work from our ' + v.location + ' office.',
     'Your annual cost to company is ' + inr(v.ctc) + ' (' + inWords(v.ctc) + '), paid monthly as ' + monthly(v.ctc) + ' less statutory deductions. The salary structure is set out in your salary annexure.',
     'The first ' + n0(v.probationMonths) + ' ' + plural(v.probationMonths, 'month', 'months') + ' of your employment are probation. On confirmation, you become a permanent member of the team.',
@@ -14113,73 +14953,91 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     'We are glad to have you with us.'
   ];
   T.increment = v => [
-    'Dear ' + v.who + ',',
     'Thank you for the work you have put in as ' + v.role + '. It shows in what we ship and in how the team runs.',
     'We are revising your annual cost to company from ' + inr(v.oldCtc) + ' to ' + inr(v.newCtc) + ' (' + inWords(v.newCtc) + '), effective ' + day(v.effective) + '. That comes to ' + monthly(v.newCtc) + ' a month before statutory deductions.',
     clean(v.reason) ? 'This revision recognises ' + clean(v.reason).replace(/[.\s]+$/, '') + '.' : '',
     'All other terms of your employment stay the same. Your revised salary annexure follows.',
     'Keep going. We are glad you are here.'
   ];
-  T.experience = v => [
-    'To whom it may concern,',
-    'This is to certify that ' + v.who + ' was employed with Mask Management from ' + day(v.from) + ' to ' + day(v.to) + '. At the time of leaving, ' + v.who + ' held the role of ' + v.lastRole + '.',
+  T.experience = (v, co) => [
+    'This is to certify that ' + v.who + ' was employed with ' + co.name + ' from ' + day(v.from) + ' to ' + day(v.to) + '. At the time of leaving, ' + v.who + ' held the role of ' + v.lastRole + '.',
     'During this period ' + v.who + ' handled the work with care and ownership, and was a valued member of the team.',
     'We wish ' + v.who + ' every success in what comes next.'
   ];
-  T.relieving = v => [
-    'Dear ' + v.who + ',',
-    'This letter confirms that you have been relieved from your duties as ' + v.role + ' at Mask Management at the close of business on ' + day(v.lastDay) + '.',
+  T.relieving = (v, co) => [
+    'This letter confirms that you have been relieved from your duties as ' + v.role + ' at ' + co.name + ' at the close of business on ' + day(v.lastDay) + '.',
     v.noticeServed === 'yes' ? 'You served your notice period in full.' : 'The shortfall in your notice period is adjusted in your final settlement.',
     v.dues === 'settled' ? 'Your full and final settlement has been made, and no dues remain on either side.' : 'Your full and final settlement will be processed within 30 days of your last working day.',
-    'Client work, client data and internal material you came across at Mask360 stay confidential after you leave.',
+    'Client work, client data and internal material you came across at ' + co.brand + ' stay confidential after you leave.',
     'Thank you for your time with us. We wish you well.'
   ];
-  T.nda = v => [
-    'This agreement is between Mask Management (Mask360) and ' + v.who + ', ' + v.role + ', and takes effect on ' + day(v.effective) + '.',
+  T.nda = (v, co) => [
+    'This agreement is between ' + co.name + ' (' + co.brand + ') and ' + v.who + ', ' + v.role + ', and takes effect on ' + day(v.effective) + '.',
     'In your work with us you will come across confidential information: client briefs, strategies, pricing, creative work before release, internal numbers, access details, and anything marked or clearly meant as private.',
-    'You agree to use confidential information only for Mask360\'s work, to share it only with people inside the company who need it, and to keep it out of personal accounts, devices and conversations.',
-    'Work you produce for Mask360 or its clients belongs to Mask Management, or to the client the work was made for.',
-    'These obligations run for ' + n0(v.years) + ' ' + plural(v.years, 'year', 'years') + ' after your engagement with Mask360 ends, or for as long as the information stays confidential, whichever is longer.',
+    'You agree to use confidential information only for ' + co.brand + '\'s work, to share it only with people inside the company who need it, and to keep it out of personal accounts, devices and conversations.',
+    'Work you produce for ' + co.brand + ' or its clients belongs to ' + co.name + ', or to the client the work was made for.',
+    'These obligations run for ' + n0(v.years) + ' ' + plural(v.years, 'year', 'years') + ' after your engagement with ' + co.brand + ' ends, or for as long as the information stays confidential, whichever is longer.',
     'If any confidential information is lost or exposed, you will tell us the same day.',
     'Both parties sign below to confirm the agreement.'
   ];
-  T.warning = v => [
-    'Dear ' + v.who + ',',
+  T.warning = (v, co) => [
     'This letter is a formal warning, and it goes on your record.',
     'On ' + day(v.when) + ', ' + (clean(v.what) ? clean(v.what).replace(/[.\s]+$/, '') + '.' : 'the matter discussed with you took place.'),
-    'This falls short of what we expect from a ' + v.role + ' at Mask360.' + (clean(v.expected) ? ' From here we expect ' + endStop(v.expected) : ''),
+    'This falls short of what we expect from a ' + v.role + ' at ' + co.brand + '.' + (clean(v.expected) ? ' From here we expect ' + endStop(v.expected) : ''),
     'We will review this over the next 30 days. A repeat may lead to further action under the handbook, up to and including termination.',
     'Please sign the copy of this letter to confirm you have received it. If you want to talk it through, come and find me.'
   ];
-  const template = (kind, v) => (T[kind] || T.offer)(v || {}).filter(p => clean(p)).join('\n\n');
+  T.custom = () => [];
+  const template = (kind, v, co) => (T[kind] || T.offer)(v || {}, co || {name: 'Mask Management', brand: 'Mask360'}).filter(p => clean(p)).join('\n\n');
 
-  /* ---------- the reference number: MM/HR/2026-27/001, over every issued letter that year ---------- */
+  /* ---------- the reference number: MM/HR/2026-27/001, past every reference already carried that year ---------- */
+  const refUsed = (ctx, ref, exceptId) => !!clean(ref) && allLetters(ctx).some(l => l.id !== exceptId && l.status !== 'draft' && clean(l.ref) === clean(ref));
   function nextRef(ctx, fy) {
     const head = M.books.settings(ctx).numbering.prefix + '/HR/' + fy + '/';
     let max = 0;
-    for (const l of allIssued(ctx)) {
-      if (!String(l.ref || '').startsWith(head)) continue;
+    for (const l of allLetters(ctx)) {
+      if (l.status === 'draft' || !String(l.ref || '').startsWith(head)) continue;
       const n = Number(String(l.ref).slice(head.length)) || 0;
       if (n > max) max = n;
     }
     return head + String(max + 1).padStart(3, '0');
   }
+  const fyFor = v => M.books.fyOf(okDate((v || {}).date) ? v.date : U.todayStr());
 
   const paragraphs = body => String(body || '').split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  const STATUS_PILL = {issued: 'ink', withdrawn: 'flame-o'};
 
   /* ---------- the document ---------- */
-  function LetterDoc({letter, who}) {
+  function LetterDoc({letter, who, actions}) {
     const ctx = M.useCtx();
-    const Frame = M.parts.DocFrame, Head = M.parts.DocHead, Sign = M.parts.DocSign, Foot = M.parts.DocFoot;
-    const v = letter.vars || {};
+    const Frame = M.parts.DocFrame, Head = M.parts.DocHead, Foot = M.parts.DocFoot;
+    const s = M.books.settings(ctx);
+    const v = withDefaults(letter, ctx);
     const label = LABEL[letter.kind] || 'Letter';
     const accept = ACCEPTS.includes(letter.kind);
-    return html`<${Frame} id="letter-doc" title=${label}>
-      <${Head} ctx=${ctx} right=${html`<span class="doc-pill">${label}</span>`}/>
-      <div class="doc-ref"><span>${letter.ref || 'draft'}</span><span>${day(v.date)}</span></div>
+    const withdrawn = letter.status === 'withdrawn';
+    const addr = lines(v.address);
+    const sign = html`<div class="doc-sign">
+      ${s.sig ? html`<img class="doc-sig" src=${s.sig} alt=""/>` : html`<div class="doc-sig-space"/>`}
+      ${s.seal ? html`<img class="doc-seal" src=${s.seal} alt=""/>` : null}
+      <div class="doc-micro">For ${s.company.name}</div>
+      <div class="doc-sign-who">${v.signWho}</div>
+      <div class="doc-sub">${v.signTitle}</div>
+    </div>`;
+    return html`<${Frame} id="letter-doc" title=${label + (withdrawn ? ', withdrawn' : '')} actions=${actions}>
+      <${Head} ctx=${ctx} right=${html`<span class="row nowrap" style=${{gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap'}}>
+        ${withdrawn ? html`<span class="doc-pill">Withdrawn</span>` : null}<span class="doc-pill">${label}</span></span>`}/>
+      <div class="doc-ref"><span>${letter.ref || clean(v.ref) || 'draft'}</span><span>${(clean(v.place) ? clean(v.place) + ', ' : '') + day(v.date)}</span></div>
       <div class="doc-body">
-        <div class="doc-h">${label}</div>
+        <div style=${{marginBottom: '18px', lineHeight: 1.6}}>
+          <div style=${{fontWeight: 700}}>${v.who || who || ''}</div>
+          ${clean(v.role) ? html`<div>${v.role}</div>` : null}
+          ${addr.map((l, i) => html`<div key=${i}>${l}</div>`)}
+        </div>
+        ${clean(v.subject) ? html`<p style=${{fontWeight: 700}}>Subject: ${v.subject}</p>` : null}
+        ${clean(v.salutation) ? html`<p>${v.salutation}</p>` : null}
         ${paragraphs(letter.body).map((p, i) => html`<p key=${i}>${p}</p>`)}
+        ${clean(v.closing) ? html`<p style=${{marginTop: '18px'}}>${v.closing}</p>` : null}
         ${accept ? html`<div style=${{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginTop: 'auto'}}>
           <div class="doc-sign" style=${{alignItems: 'flex-start', textAlign: 'left'}}>
             <div class="doc-sig-space"/>
@@ -14187,14 +15045,14 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
             <div class="doc-sign-who">${v.who || who || ''}</div>
             <div class="doc-sub">Accepted on: ____________</div>
           </div>
-          <${Sign} ctx=${ctx} label="For Mask Management"/>
-        </div>` : html`<${Sign} ctx=${ctx} label="For Mask Management"/>`}
+          ${sign}
+        </div>` : sign}
       </div>
       <${Foot} ctx=${ctx}/>
     <//>`;
   }
 
-  /* ---------- the drawer: variables, the body, save or issue ---------- */
+  /* ---------- the drawer: every field, the body, save or issue ---------- */
   function LetterDrawer({uid, letter, onClose, onChange}) {
     const ctx = M.useCtx();
     const [busy, setBusy] = useState(false);
@@ -14202,22 +15060,34 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const ctrl = useRef(null);
     useEffect(() => () => { if (ctrl.current) ctrl.current.abort(); }, []);
     const f = letter;
+    const issued = f.status === 'issued';
+    const co = company(ctx);
     const setVar = (k, val) => onChange({...f, vars: {...f.vars, [k]: val}});
-    const setBody = b => onChange({...f, body: b});
-    const writeIt = () => setBody(template(f.kind, f.vars));
-    const stored = () => ({kind: f.kind, at: f.at || Date.now(), ref: f.ref || '', vars: {...f.vars}, body: String(f.body || ''), status: f.status || 'draft', issuedAt: f.issuedAt || 0});
-    const save = async () => {
+    const typeBody = b => onChange({...f, body: b, hand: true});
+    const writeIt = () => onChange({...f, body: template(f.kind, f.vars, co), hand: false});
+    const stored = () => ({kind: f.kind, at: f.at || Date.now(), ref: f.ref || '', vars: {...f.vars}, body: String(f.body || ''),
+      status: f.status || 'draft', issuedAt: f.issuedAt || 0, editedAt: f.editedAt || 0, hand: !!f.hand});
+    const write = async (doc, said) => {
       setBusy(true);
-      try { await ctx.W.merge('hr/' + uid, {letters: {[f.id]: stored()}, updated: Date.now()}); M.toast('Saved'); onClose(); }
+      try { await ctx.W.merge('hr/' + uid, {letters: {[f.id]: doc}, updated: Date.now()}); onChange({...f, ...doc}); M.toast(said); onClose(); }
       catch (e) { M.toast('Could not save', true); setBusy(false); }
     };
-    const issue = async () => {
+    const save = () => {
+      const doc = stored();
+      if (issued) {
+        const ref = clean(f.vars.ref) || f.ref;
+        if (refUsed(ctx, ref, f.id)) { M.toast('Reference ' + ref + ' is on another letter.', true); return; }
+        doc.ref = ref; doc.vars.ref = ref; doc.editedAt = Date.now();
+      }
+      write(doc, 'Saved');
+    };
+    const issue = () => {
       if (!clean(f.body)) { M.toast('Write the letter first.', true); return; }
-      setBusy(true);
-      const ref = nextRef(ctx, M.books.fyOf(okDate(f.vars.date) ? f.vars.date : U.todayStr()));
+      let ref = clean(f.vars.ref) || nextRef(ctx, fyFor(f.vars));
+      if (refUsed(ctx, ref, f.id)) ref = nextRef(ctx, fyFor(f.vars));
       const doc = {...stored(), ref, status: 'issued', issuedAt: Date.now()};
-      try { await ctx.W.merge('hr/' + uid, {letters: {[f.id]: doc}, updated: Date.now()}); onChange({...f, ...doc}); M.toast('Issued ' + ref); onClose(); }
-      catch (e) { M.toast('Could not issue', true); setBusy(false); }
+      doc.vars.ref = ref;
+      write(doc, 'Issued ' + ref);
     };
     const rewrite = async () => {
       if (!clean(f.body)) { M.toast('Write the letter first.', true); return; }
@@ -14226,37 +15096,55 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       setLive(true);
       const before = f.body;
       const tidy = t => String(t || '').replace(new RegExp('[' + String.fromCharCode(8212, 8211) + ']', 'g'), ', ').replace(/!/g, '.');
+      const put = b => onChange({...f, body: b, hand: true});
       try {
         const out = await M.ai.text(ctx,
           'Rewrite this letter in our voice. Keep every fact, figure, date and name exactly as written. Short paragraphs, plain words, warm and direct, sentence case. No dashes, no exclamation marks, no legal filler. Return only the letter body, paragraphs separated by a blank line.\n\n' + before,
-          {signal: c.signal, cache: false, onText: r => { if (r && r.text) setBody(tidy(r.text)); }});
-        if (clean(out)) setBody(tidy(out)); else setBody(before);
+          {signal: c.signal, cache: false, onText: r => { if (r && r.text) put(tidy(r.text)); }});
+        if (clean(out)) put(tidy(out)); else onChange({...f, body: before});
       } catch (e) {
-        if (!(e && e.code === 'cancelled')) { M.toast(M.ai.errCopy(e && e.code), true); setBody(before); }
+        if (!(e && e.code === 'cancelled')) { M.toast(M.ai.errCopy(e && e.code), true); onChange({...f, body: before}); }
       }
       setLive(false);
     };
-    const fields = fieldsOf(f.kind);
-    return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${(LABEL[f.kind] || 'Letter') + ', draft'}
+    const val = k => String(f.vars[k] == null ? '' : f.vars[k]);
+    const control = fd => fd.options
+      ? html`<${UI.Select} key=${fd.k} id=${'letter-var-' + fd.k} label=${fd.label} value=${val(fd.k)} options=${fd.options} onChange=${v => setVar(fd.k, v)}/>`
+      : fd.area
+        ? html`<${UI.TextArea} key=${fd.k} id=${'letter-var-' + fd.k} label=${fd.label} rows=${3} value=${val(fd.k)} onChange=${v => setVar(fd.k, v)}/>`
+        : html`<${UI.Input} key=${fd.k} id=${'letter-var-' + fd.k} label=${fd.label} type=${fd.type || 'text'} value=${val(fd.k)}
+            onChange=${v => setVar(fd.k, fd.type === 'number' ? (v === '' ? '' : n0(v)) : v)}/>`;
+    const own = FIELDS[f.kind] || [];
+    const hand = !!f.hand && clean(f.body);
+    const canWrite = f.kind !== 'custom';
+    const title = (LABEL[f.kind] || 'Letter') + ', ' + (issued ? 'issued' : f.status === 'withdrawn' ? 'withdrawn' : 'draft');
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${title}
       footer=${html`<span class="row nowrap" style=${{gap: '8px'}}>
-          <${UI.Btn} kind="sec" id="letter-save" disabled=${busy || live} onClick=${save}>Save draft<//>
-          <span id="letter-issue"><${UI.ConfirmBtn} kind="flame" sm=${false} onConfirm=${issue}>Issue the letter<//></span>
+          <${UI.Btn} kind=${issued ? undefined : 'sec'} id="letter-save" disabled=${busy || live} onClick=${save}>${issued ? 'Save the changes' : 'Save draft'}<//>
+          ${issued ? null : html`<span id="letter-issue"><${UI.ConfirmBtn} kind="flame" sm=${false} onConfirm=${issue}>Issue the letter<//></span>`}
         </span>`}>
       <div class="stack" id="letter-drawer">
-        <div class="grid2">
-          ${fields.map(fd => fd.options
-            ? html`<${UI.Select} key=${fd.k} id=${'letter-var-' + fd.k} label=${fd.label} value=${String(f.vars[fd.k] == null ? '' : f.vars[fd.k])} options=${fd.options} onChange=${val => setVar(fd.k, val)}/>`
-            : html`<${UI.Input} key=${fd.k} id=${'letter-var-' + fd.k} label=${fd.label} type=${fd.type || 'text'}
-                value=${String(f.vars[fd.k] == null ? '' : f.vars[fd.k])} onChange=${val => setVar(fd.k, fd.type === 'number' ? (val === '' ? '' : n0(val)) : val)}/>`)}
-        </div>
+        <${UI.Micro}>who<//>
+        <div class="grid2">${WHO.map(control)}</div>
+        <${UI.Micro}>letter<//>
+        <div class="grid2">${LETTER.concat(own, LETTER_END).map(control)}</div>
+        <${UI.Micro}>signature<//>
+        <div class="grid2">${SIGN.map(control)}</div>
+        <hr class="hair"/>
         <div class="row between">
-          <span class="sub small">Fill the fields, then write the body from the template. Edit it as you like.</span>
+          <span class="row nowrap" style=${{gap: '8px', minWidth: 0}}>
+            <span class="sub small">${canWrite ? 'Write the body from the fields, then edit it as you like.' : 'Write the body yourself.'}</span>
+            ${hand ? html`<${UI.Pill} kind="warm">edited by hand<//>` : null}
+          </span>
           <span class="row nowrap" style=${{gap: '8px'}}>
-            <${UI.Btn} kind="sec" sm=${true} id="letter-write" disabled=${live} onClick=${writeIt}>Write it<//>
+            ${!canWrite ? null : hand
+              ? html`<span id="letter-write"><${UI.ConfirmBtn} kind="sec" label="Tap again to overwrite" onConfirm=${writeIt}>Write it<//></span>`
+              : html`<${UI.Btn} kind="sec" sm=${true} id="letter-write" disabled=${live} onClick=${writeIt}>Write it<//>`}
             ${M.ai.on(ctx) ? html`<${UI.Btn} kind="ghost" sm=${true} id="letter-rewrite" disabled=${live || !clean(f.body)} onClick=${rewrite}>${live ? 'Rewriting' : 'Rewrite in our voice'}<//>` : null}
           </span>
         </div>
-        <${UI.TextArea} id="letter-body" label="the letter" rows=${18} value=${f.body || ''} onChange=${setBody} placeholder="Tap Write it to draft the body from the template."/>
+        <${UI.TextArea} id="letter-body" label="the letter" rows=${18} value=${f.body || ''} onChange=${typeBody}
+          placeholder=${canWrite ? 'Tap Write it to draft the body from the fields, or type it here.' : 'Type the letter here, paragraphs separated by a blank line.'}/>
       </div>
     <//>`;
   }
@@ -14284,13 +15172,39 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const stored = openId ? list.find(l => l.id === openId) : null;
     const shown = draft && draft.id === openId ? draft : stored;
     const pick = uid => { setSel(uid); setOpenId(null); setDraft(null); M.nav('#letters/' + encodeURIComponent(uid)); };
+    const fresh = (k, v, body) => ({id: U.uid(), kind: k, at: Date.now(), ref: '', vars: {...v, ref: nextRef(ctx, fyFor(v))}, body: body || '', status: 'draft', issuedAt: 0, editedAt: 0, hand: false});
     const startDraft = () => {
       if (!person) return;
-      const l = {id: U.uid(), kind, at: Date.now(), ref: '', vars: vars(kind, ctx, person.uid, person.who), body: '', status: 'draft', issuedAt: 0};
+      const l = fresh(kind, vars(kind, ctx, person.uid, person.who), '');
       setDraft(l); setOpenId(l.id);
     };
-    const openLetter = l => { setOpenId(l.id); setDraft(l.status === 'issued' ? null : {...l, vars: {...(l.vars || {})}}); };
+    /* the drawer: a draft opens straight away, an issued letter through Edit */
+    const edit = l => {
+      const v = {...withDefaults(l, ctx)};
+      if (l.status === 'draft' && !clean(v.ref)) v.ref = nextRef(ctx, fyFor(v));
+      if (l.status !== 'draft' && !clean(v.ref)) v.ref = l.ref || '';
+      setOpenId(l.id); setDraft({...l, vars: v});
+    };
+    const openLetter = l => { if (l.status === 'draft') edit(l); else { setDraft(null); setOpenId(l.id); } };
+    const duplicate = l => {
+      if (!person) return;
+      const v = {...withDefaults(l, ctx)};
+      v.ref = '';
+      const d = fresh(l.kind, v, l.body);
+      d.hand = !!l.hand;
+      setDraft(d); setOpenId(d.id);
+    };
+    const withdraw = async l => {
+      try { await ctx.W.merge('hr/' + person.uid, {letters: {[l.id]: {status: 'withdrawn', withdrawnAt: Date.now()}}, updated: Date.now()}); M.toast('Withdrawn'); }
+      catch (e) { M.toast('Could not withdraw', true); }
+    };
     const editing = draft && draft.id === openId;
+    const actionsFor = l => html`<span class="row nowrap" style=${{gap: '8px', flexWrap: 'wrap'}}>
+      ${l.status === 'draft' ? html`<${UI.Btn} kind="sec" sm=${true} id="letter-edit" onClick=${() => edit(l)}>Edit the draft<//>` : null}
+      ${l.status === 'issued' ? html`<${UI.Btn} kind="sec" sm=${true} id="letter-edit-issued" onClick=${() => edit(l)}>Edit<//>` : null}
+      <${UI.Btn} kind="ghost" sm=${true} id="letter-dup" onClick=${() => duplicate(l)}>Duplicate<//>
+      ${l.status === 'issued' ? html`<span id="letter-withdraw"><${UI.ConfirmBtn} kind="ghost" onConfirm=${() => withdraw(l)}>Withdraw<//></span>` : null}
+    </span>`;
     return html`<div class="split" id="letters-page">
       <div class="stack" style=${{gap: '18px'}}>
         <${UI.Card} title="Who" id="letters-people">
@@ -14307,7 +15221,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         ${person ? html`<${UI.Card} title=${'Letters, ' + person.who} id="letters-list">
           ${list.length ? list.map(l => html`<div class="listrow" key=${l.id}>
               <span class="grow" style=${{minWidth: 0}}><b>${LABEL[l.kind] || 'Letter'}</b><span class="tiny ink62"> · ${l.ref || 'no ref'} · ${day((l.vars || {}).date) || day(U.ymd(new Date(l.at || Date.now())))}</span></span>
-              <${UI.Pill} kind=${l.status === 'issued' ? 'ink' : undefined}>${l.status === 'issued' ? 'issued' : 'draft'}<//>
+              <${UI.Pill} kind=${STATUS_PILL[l.status]}>${l.status === 'issued' ? 'issued' : l.status === 'withdrawn' ? 'withdrawn' : 'draft'}<//>
               <${UI.Btn} kind="ghost" sm=${true} onClick=${() => openLetter(l)}>Open<//>
             </div>`) : html`<${UI.Empty} text="No letters yet."/>`}
           <div class="row between" style=${{marginTop: '12px', alignItems: 'flex-end'}}>
@@ -14317,14 +15231,14 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         <//>` : html`<${UI.Card} title="Letters"><${UI.Empty} text="Pick a person on the left."/><//>`}
       </div>
       ${person && shown ? html`<div style=${{gridColumn: '1 / -1'}}>
-        ${editing || shown.status === 'issued' ? null : html`<div class="row" style=${{marginBottom: '10px'}}><${UI.Btn} kind="sec" sm=${true} onClick=${() => openLetter(shown)}>Edit the draft<//></div>`}
-        <${LetterDoc} letter=${shown} who=${person.who}/>
+        ${shown.editedAt ? html`<div class="tiny ink62" style=${{marginBottom: '8px'}}>Edited ${U.timeAgo(shown.editedAt)}</div>` : null}
+        <${LetterDoc} letter=${shown} who=${person.who} actions=${editing ? null : actionsFor(shown)}/>
       </div>` : null}
       ${person && editing ? html`<${LetterDrawer} uid=${person.uid} letter=${draft} onClose=${() => setDraft(null)} onChange=${setDraft}/>` : null}
     </div>`;
   }
 
-  M.letters = {KINDS, LABEL, FIELDS, template, vars, nextRef, lettersOf, allIssued};
+  M.letters = {KINDS, LABEL, FIELDS, SUBJECT, template, vars, withDefaults, nextRef, refUsed, lettersOf, allIssued, allLetters};
   M.pages.Letters = Letters;
 })();
 
@@ -19073,9 +19987,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       <${FixCard}/>
       <${OffboardCard}/>
       <${ExportCard}/>
+      ${(M.superCards || []).map((C, i) => html`<${C} key=${i}/>`)}
       <${DangerZone}/>
     </div>`;
   }
+  M.superCards = M.superCards || [];
 
   M.deskTabs.push({v: 'super', label: 'Super', render: SuperTab});
   M.superctl = {openTasksFor};
@@ -22370,7 +23286,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const [email, setEmail] = useState('');
     const [pw, setPw] = useState('');
     const [code, setCode] = useState('');
-    const [mode, setMode] = useState('pw');            /* pw, magic, reset, join */
+    const [mode, setMode] = useState(window.M360_CODE_TMP ? 'code' : 'pw');   /* pw, magic, reset, join, code (the second step) */
+    const [tmp, setTmp] = useState(window.M360_CODE_TMP || '');            /* the sign-in waiting for its authenticator code */
     const [step, setStep] = useState('ask');           /* reset: ask, then code */
     const [nomail, setNomail] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -22406,8 +23323,23 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     async function signin() {
       if (!em || !pw) return;
       setBusy(true); setErr('');
-      try { await api('pw', {email: em, password: pw}); location.reload(); }
+      try {
+        const r = await api('pw', {email: em, password: pw});
+        if (r && r.needCode) { setTmp(r.tmp); setCode(''); setErr(''); setMode('code'); setBusy(false); return; }
+        location.reload();
+      }
       catch (e) { setErr(said(e, ['bad_login', 'slow_down'])); setBusy(false); }
+    }
+    /* the second step: the six digits from the authenticator, or a recovery code */
+    async function signinCode() {
+      if (!tmp || !code.trim()) return;
+      setBusy(true); setErr('');
+      try { await api('pw2', {tmp, code: code.trim()}); window.M360_CODE_TMP = ''; location.reload(); }
+      catch (e) {
+        if (e && e.code === 'expired') { setTmp(''); window.M360_CODE_TMP = ''; setMode('pw'); setErr(e.message); }
+        else setErr(said(e, ['bad_code', 'slow_down', 'invalid_argument']));
+        setBusy(false);
+      }
     }
     /* the invited person confirms the email the invite went to and picks a password; only then are they on the team */
     async function accept() {
@@ -22445,7 +23377,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     async function finishReset() {
       if (!em || !code.trim() || !pw) return;
       setBusy(true); setErr('');
-      try { await api('resetpw', {email: em, code: code.trim(), password: pw}); location.reload(); }
+      try {
+        const r = await api('resetpw', {email: em, code: code.trim(), password: pw});
+        if (r && r.needCode) { setTmp(r.tmp); setCode(''); setErr(''); setMode('code'); setBusy(false); return; }
+        location.reload();
+      }
       catch (e) { setErr(said(e, ['expired', 'bad_code', 'weak', 'invalid_argument'])); setBusy(false); }
     }
     const errLine = err ? html`<div class="small flame-t" role="alert">${err}</div>` : null;
@@ -22502,6 +23438,14 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         <${UI.Btn} onClick=${go} disabled=${busy || !(name.trim() && em && pw)}>${busy ? 'One moment' : 'Continue'}<//>
         ${errLine}
         <button type="button" class="linky small" style=${{alignSelf: 'flex-start'}} onClick=${() => swap('pw')}>Already on the team? Sign in</button>
+      </div>
+    <//>`;
+    if (mode === 'code') return html`<${M.Gate} title="One more step" line="Your account asks for a code. Open your authenticator app and type the six digits, or use one of your recovery codes.">
+      <div class="join-box stack tight" id="signin-code-box">
+        <${UI.Input} id="signin-code" label="the code" value=${code} placeholder="123 456" onChange=${setCode} onEnter=${signinCode}/>
+        <${UI.Btn} id="signin-code-go" onClick=${signinCode} disabled=${busy || !code.trim()}>${busy ? 'One moment' : 'Sign in'}<//>
+        ${errLine}
+        <button type="button" class="linky small" style=${{alignSelf: 'flex-start'}} onClick=${() => { setTmp(''); window.M360_CODE_TMP = ''; swap('pw'); }}>Start again</button>
       </div>
     <//>`;
     if (mode === 'magic') return html`<${M.Gate} title="Sign in to m360" line="Your work email gets you a one-time sign-in link.">
@@ -22624,6 +23568,111 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     <//>`;
   }
   M.meCards.push(PwCard);
+
+  /* the second factor: an authenticator app (Google Authenticator, Authy, 1Password, Apple Passwords), and recovery codes */
+  function TwoStepCard() {
+    const [st, setSt] = useState(null);          /* {on, since, recovery} */
+    const [setup, setSetup] = useState(null);    /* {secret, uri} while turning on */
+    const [code, setCode] = useState('');
+    const [codes, setCodes] = useState(null);    /* recovery codes, shown once */
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState('');
+    const [off, setOff] = useState(false);
+    const load = () => api('totpstate').then(setSt, () => setSt({on: false}));
+    useEffect(() => { load(); }, []);
+    if (!st) return null;
+    const start = async () => {
+      setBusy(true); setErr('');
+      try { setSetup(await api('totpstart')); setCode(''); } catch (e) { setErr(said(e, ['failed_precondition'])); }
+      setBusy(false);
+    };
+    const turnOn = async () => {
+      if (!code.trim()) return;
+      setBusy(true); setErr('');
+      try { const r = await api('totpon', {code: code.trim()}); setCodes(r.recovery || []); setSetup(null); setCode(''); M.toast('Two-step sign-in is on'); load(); }
+      catch (e) { setErr(said(e, ['bad_code', 'failed_precondition'])); }
+      setBusy(false);
+    };
+    const turnOff = async () => {
+      if (!code.trim()) return;
+      setBusy(true); setErr('');
+      try { await api('totpoff', {code: code.trim()}); setOff(false); setCode(''); setCodes(null); M.toast('Two-step sign-in is off'); load(); }
+      catch (e) { setErr(said(e, ['bad_code'])); }
+      setBusy(false);
+    };
+    const fresh = async () => {
+      if (!code.trim()) return;
+      setBusy(true); setErr('');
+      try { const r = await api('totprecovery', {code: code.trim()}); setCodes(r.recovery || []); setCode(''); M.toast('New recovery codes. The old ones are gone.'); load(); }
+      catch (e) { setErr(said(e, ['bad_code', 'failed_precondition'])); }
+      setBusy(false);
+    };
+    const copy = t => { try { navigator.clipboard.writeText(t); M.toast('Copied'); } catch (e) { /* select it by hand */ } };
+    const secretPretty = s => String(s || '').replace(/(.{4})/g, '$1 ').trim();
+    return html`<${UI.Card} id="twostep-card" title="Two-step sign-in" action=${st.on ? html`<${UI.Pill} kind="ink">on<//>` : html`<${UI.Pill}>off<//>`}>
+      <p class="small ink62" style=${{marginTop: 0}}>${st.on
+        ? 'Every sign-in asks for the six digit code from your authenticator app after the password. ' + st.recovery + (st.recovery === 1 ? ' recovery code' : ' recovery codes') + ' left for a day without your phone.'
+        : 'A code from your phone after the password, so a stolen password alone opens nothing. Works with Google Authenticator, Authy, 1Password and Apple Passwords.'}</p>
+      ${codes ? html`<div class="stack tight" id="twostep-codes" style=${{marginBottom: '12px'}}>
+        <div class="small"><b>Your recovery codes.</b> Each works once when your phone is not at hand. Keep them somewhere safe; they are shown only now.</div>
+        <div class="invite-link num" style=${{whiteSpace: 'pre-wrap', lineHeight: 1.8}}>${codes.join('\n')}</div>
+        <div class="row"><${UI.Btn} sm=${true} kind="sec" onClick=${() => copy(codes.join('\n'))}>Copy the codes<//><${UI.Btn} sm=${true} kind="ghost" onClick=${() => setCodes(null)}>I have kept them<//></div>
+      </div>` : null}
+      ${setup ? html`<div class="stack tight" id="twostep-setup">
+        <div class="small">1. Open your authenticator app and add an account. Scan is not needed: tap "enter a key" and type this one, or open the link on this phone.</div>
+        <div class="invite-link num" id="twostep-secret">${secretPretty(setup.secret)}</div>
+        <div class="row"><${UI.Btn} sm=${true} kind="sec" onClick=${() => copy(setup.secret)}>Copy the key<//><a class="btn sec sm" href=${setup.uri}>Open in the authenticator app</a></div>
+        <div class="small">2. Type the six digits the app shows now.</div>
+        <div class="row" style=${{alignItems: 'flex-end'}}>
+          <div style=${{maxWidth: '200px'}}><${UI.Input} id="twostep-code" label="the code" value=${code} placeholder="123 456" onChange=${setCode} onEnter=${turnOn}/></div>
+          <${UI.Btn} id="twostep-on" sm=${true} disabled=${busy || !code.trim()} onClick=${turnOn}>Turn it on<//>
+          <button type="button" class="linky small" onClick=${() => { setSetup(null); setErr(''); }}>Not now</button>
+        </div>
+      </div>` : st.on ? html`<div class="stack tight">
+        ${off ? html`<div class="row" style=${{alignItems: 'flex-end'}}>
+          <div style=${{maxWidth: '200px'}}><${UI.Input} id="twostep-code" label="the current code" value=${code} placeholder="123 456" onChange=${setCode} onEnter=${turnOff}/></div>
+          <${UI.Btn} id="twostep-off" sm=${true} kind="sec" disabled=${busy || !code.trim()} onClick=${turnOff}>Turn it off<//>
+          <${UI.Btn} sm=${true} kind="ghost" disabled=${busy || !code.trim()} onClick=${fresh}>New recovery codes<//>
+          <button type="button" class="linky small" onClick=${() => { setOff(false); setErr(''); setCode(''); }}>Cancel</button>
+        </div>` : html`<div class="row"><${UI.Btn} sm=${true} kind="sec" id="twostep-manage" onClick=${() => setOff(true)}>Turn off, or new recovery codes<//></div>`}
+      </div>` : html`<div class="row"><${UI.Btn} sm=${true} id="twostep-start" disabled=${busy} onClick=${start}>Turn on two-step sign-in<//></div>`}
+      ${err ? html`<div class="small flame-t" role="alert" style=${{marginTop: '8px'}}>${err}</div>` : null}
+    <//>`;
+  }
+  M.meCards.push(TwoStepCard);
+
+  /* Admin > Super: the security log and who has two-step sign-in */
+  function SecurityCard() {
+    const ctx = M.useCtx();
+    const [info, setInfo] = useState(null);
+    const [err, setErr] = useState('');
+    const load = () => api('securityinfo').then(r => { setInfo(r); setErr(''); }, () => setErr('The security log could not load.'));
+    useEffect(() => { load(); }, []);
+    const KIND = {signin: 'signed in', pw_fail: 'wrong password', locked: 'locked for 15 minutes', code_fail: 'wrong code', throttled: 'too many tries from one address', totp_on: 'two-step on', totp_off: 'two-step off', totp_reset: 'two-step reset', recovery_new: 'new recovery codes', pw_reset: 'password reset', signout_all: 'signed out everywhere'};
+    const reset = uid => api('totpreset', {uid}).then(() => { M.toast('Their two-step sign-in is off'); load(); }, e => M.toast((e && e.message) || 'That did not work.', true));
+    const hot = k => ['pw_fail', 'locked', 'code_fail', 'throttled', 'totp_off', 'totp_reset'].includes(k);
+    return html`<${UI.Card} id="super-security" title="Security">
+      <p class="small ink62" style=${{marginTop: 0}}>Every sign-in, every wrong password, every lock, and who has two-step sign-in. A new device mails the person a note the moment it signs in.</p>
+      ${err ? html`<div class="small flame-t">${err}</div>` : !info ? html`<${UI.Empty} text="Reading the log."/>` : html`<div class="stack" style=${{gap: '14px'}}>
+        <div>
+          <${UI.Micro}>two-step sign-in<//>
+          <div class="stack tight" id="security-people">${Object.keys(info.people || {}).map(uid => html`<div class="listrow" key=${uid}>
+            <${UI.Avatar} id=${uid} size=${26}/><span class="grow"><${UI.Name} id=${uid}/></span>
+            ${info.people[uid].totp ? html`<${UI.Pill} kind="ink">on<//>` : html`<${UI.Pill}>off<//>`}
+            ${info.people[uid].totp && ctx.me && ctx.me.isOwner && uid !== ctx.uid ? html`<${UI.ConfirmBtn} kind="ghost" onConfirm=${() => reset(uid)} label="Tap again to turn it off">Phone lost<//>` : null}
+          </div>`)}</div>
+        </div>
+        <div>
+          <${UI.Micro}>the last events<//>
+          ${(info.events || []).length ? html`<div class="stack tight" id="security-events">${info.events.slice(0, 40).map((e, i) => html`<div class="listrow" key=${i}>
+            <span class="grow"><span class=${hot(e.kind) ? 'flame-t' : ''}>${KIND[e.kind] || e.kind}</span>${e.uid ? html`<span class="small"> · <${UI.Name} id=${e.uid}/></span>` : null}<div class="tiny ink62">${[e.ua, e.ip, e.note].filter(Boolean).join(' · ')}</div></span>
+            <span class="tiny ink62 num">${U.timeAgo(e.at)}</span>
+          </div>`)}</div>` : html`<${UI.Empty} text="Nothing yet."/>`}
+        </div>
+      </div>`}
+    <//>`;
+  }
+  if (M.superCards) M.superCards.push(SecurityCard);
 
   /* the sessions of one person, from the server: a short device label, when it signed in, when it was last seen */
   function useDevices(uid) {

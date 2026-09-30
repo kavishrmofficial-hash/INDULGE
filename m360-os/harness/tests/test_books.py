@@ -24,6 +24,7 @@ from harness.lib import run  # noqa: E402
 from harness.qa import seed  # noqa: E402
 
 CLIENT = 'swisse-wellness-uae'
+GOOGLE_CLIENT = '1234567890-abcdefg.apps.googleusercontent.com'
 
 
 def artifact_part(h):
@@ -53,18 +54,25 @@ def artifact_part(h):
     gstin.fill('27DGFPR0438M1ZV')
     p.click('#books-save')
     p.wait_for_function('() => { const d = window.__db.get("books/settings"); return d && d.company && d.company.gstin === "27DGFPR0438M1ZV"; }')
-    # the client's billing profile with a retainer
-    p.wait_for_selector('#billing-clients')
-    p.click('#billing-clients .listrow:has-text("Swisse Wellness UAE") button')
-    p.wait_for_selector('#billing-drawer')
+    # the clients' billing table sits at the top of Setup; a client opens as a full page, drafted from what m360 knows
+    p.wait_for_selector('#billing-table')
+    check('new' in p.inner_text('#billing-table .billing-row').lower(), 'a client without a profile should read as new')
+    p.click('#billing-table .billing-row:has-text("Swisse Wellness UAE")')
+    p.wait_for_selector('#billing-page')
+    check(p.input_value('#billing-legal') == 'Swisse Wellness UAE' and p.input_value('#billing-code') == 'SWU', 'the draft profile: %r %r' % (p.input_value('#billing-legal'), p.input_value('#billing-code')))
+    check(p.locator('#billing-mine:has-text("team site")').count() == 1, 'the mail reader should say it works on the team site')
     p.fill('#billing-code', 'SW')
     p.fill('#billing-legal', 'Swisse Wellness Middle East FZ LLC')
-    p.get_by_label('who receives invoices').fill('Priya Rao')
+    p.fill('#billing-taxid', '27AABCS1234A1Z5')
+    p.fill('#billing-contact', 'Priya Rao')
     p.fill('#billing-mail', 'ap@swisse.example')
-    p.click('#billing-drawer [role=tablist][aria-label="Retainer"] [role=tab]:has-text("On")')
+    p.click('#billing-retainer-card [role=tablist][aria-label="Retainer"] [role=tab]:has-text("On")')
     p.fill('#billing-retainer', '250000')
     p.click('#billing-save')
     p.wait_for_function('() => { const d = window.__db.get("books/clients"); return d && d.map && d.map["%s"] && d.map["%s"].retainer.active && d.map["%s"].code === "SW"; }' % (CLIENT, CLIENT, CLIENT))
+    p.click('#billing-back')
+    p.wait_for_selector('#billing-table')
+    check('ready' in p.inner_text('#billing-table .billing-row').lower() and 'ap@swisse.example' in p.inner_text('#billing-table'), 'the table should show the saved profile: ' + p.inner_text('#billing-table').replace(chr(10), ' | ')[:200])
     # an invoice from the profile: the number, the retainer line, the GST split
     h.go(p, 'founder', hash='#invoices', width=1280)
     p.wait_for_selector('#inv-new')
@@ -87,6 +95,7 @@ def artifact_part(h):
     # the document
     p.wait_for_selector('#invoice-doc')
     body = p.inner_text('#invoice-doc')
+    check(p.locator('#invoice-doc .mark svg').count() == 1, 'the invoice should carry the logo')
     check('TAX INVOICE' in body.upper() and '2,95,000' in body and 'Two Lakh Ninety Five Thousand Rupees Only' in body and '27DGFPR0438M1ZV' in body and 'UTIB0000186' in body, 'invoice document: ' + body[:400].replace('\n', ' | '))
     # mark sent, then a part payment
     p.click('#inv-mark-sent')
@@ -132,43 +141,48 @@ def artifact_part(h):
     p.fill('#exp-vendor', 'Adobe')
     p.fill('#exp-amount', '4999')
     p.select_option('#exp-cat', 'Software and tools')
-    p.get_by_label('repeats').select_option('monthly')
+    p.locator('#exp-drawer').get_by_label('repeats').select_option('monthly')
     p.click('#exp-save')
     p.wait_for_function('() => { const d = window.__db.get("expenses/%s"); return d && Object.keys(d.rows || {}).length === 1; }' % mid)
-    p.wait_for_selector('#exp-list:has-text("Adobe")')
+    p.wait_for_function('() => Array.from(document.querySelectorAll("#exp-sheet input")).some(i => i.value === "Adobe")')
     check('4,999' in p.inner_text('#exp-cats'), 'by category card: ' + p.inner_text('#exp-cats'))
-    # payroll: pay for a member, the run, the payslip
+    # the sheet: type a second row straight into the blank cells and save
+    p.fill('#exp-sheet input[data-r="1"][aria-label="paid to"]', 'The landlord')
+    p.fill('#exp-sheet input[data-r="1"][aria-label="amount"]', '60000')
+    p.wait_for_timeout(150)
+    p.click('#exp-sheet-save')
+    p.wait_for_function('() => { const d = window.__db.get("expenses/%s"); return d && Object.values(d.rows || {}).some(r => r && r.vendor === "The landlord" && r.amount === 60000); }' % mid)
+    check(p.locator('#exp-import').count() == 1, 'the statement import button should be there')
+    # payroll: pay for a member (professional tax on by default, PF off), the month, mark paid, the payslip
     h.go(p, 'founder', hash='#payroll', width=1280)
     p.wait_for_selector('#pay-edit-u_m1')
+    body = p.inner_text('#pay-month-card').lower()
+    check('prepare' not in body and 'run' not in body.split('salaries')[0] and 'close' not in body, 'the month card should not talk about runs: ' + body[:200])
     p.click('#pay-edit-u_m1')
     p.wait_for_selector('#pay-drawer')
     p.fill('#pay-ctc', '1200000')
     p.click('#pay-suggest')
     p.wait_for_function('() => Number(document.querySelector("#pay-basic").value) === 50000')
+    check(p.locator('#pay-pf').count() == 0 and p.locator('#pay-pt').count() == 1 and p.input_value('#pay-pt') == '200', 'PF off and professional tax on by default: pf %d pt %r' % (p.locator('#pay-pf').count(), p.input_value('#pay-pt') if p.locator('#pay-pt').count() else None))
     net = p.inner_text('#pay-net')
-    check('98,200' in net, 'net pay after the suggested split: %r' % net)
+    check('99,800' in net, 'net pay after the suggested split: %r' % net)
     p.click('#pay-save')
     p.wait_for_function('() => { const d = window.__db.get("payroll/salaries"); return d && d.map && d.map.u_m1 && d.map.u_m1.ctc === 1200000; }')
-    p.click('#pay-prepare')
-    p.wait_for_selector('#pay-rows')
-    check('u_m1' in p.evaluate('Array.from(document.querySelectorAll("#pay-rows [data-uid]")).map(e => e.dataset.uid)') or 'Durvesh' in p.inner_text('#pay-rows'), 'the run misses the paid member: ' + p.inner_text('#pay-rows')[:200])
-    lops = p.locator('#pay-rows input[aria-label="Loss of pay days"]')
-    check(lops.count() >= 1 and int(p.input_value('#pay-rows input[aria-label="Loss of pay days"] >> nth=0') or 0) > 0, 'loss of pay should start at the days without attendance')
-    for i in range(lops.count()):
-        lops.nth(i).fill('0')
+    p.wait_for_selector('#pay-lop-u_m1')
+    check(int(p.input_value('#pay-lop-u_m1') or 0) > 0, 'loss of pay should start at the days without attendance')
+    p.fill('#pay-lop-u_m1', '0')
     p.wait_for_timeout(200)
-    p.click('#pay-save-run')
-    p.wait_for_function('() => { const d = window.__db.get("payroll/%s"); return d && d.run && d.run.rows && d.run.rows.u_m1; }' % mid)
+    check('99,800' in p.inner_text('#pay-rows'), 'the month row should recompute with no loss of pay: ' + p.inner_text('#pay-rows')[:200])
+    p.click('#pay-paid-u_m1')
+    p.wait_for_function('() => { const d = window.__db.get("payroll/%s"); return d && d.run && d.run.rows && d.run.rows.u_m1 && d.run.rows.u_m1.paidAt; }' % mid)
     r = p.evaluate('window.__db.get("payroll/%s").run.rows.u_m1' % mid)
-    check(r['gross'] == 100000 and r['net'] == 98200 and r['pf'] == 1800, 'payroll row: %r' % r)
+    check(r['gross'] == 100000 and r['net'] == 99800 and r['pt'] == 200 and r['lop'] == 0, 'payroll row: %r' % r)
+    p.wait_for_function('() => { const d = window.__db.get("expenses/%s"); return d && d.rows && d.rows["payroll-%s"] && d.rows["payroll-%s"].amount === 99800; }' % (mid, mid, mid))
     p.click('#pay-slip-u_m1')
     p.wait_for_selector('#payslip-doc')
     slip = p.inner_text('#payslip-doc')
-    check('Durvesh Patil' in slip and '98,200' in slip and 'Ninety Eight Thousand Two Hundred Rupees Only' in slip, 'payslip: ' + slip[:300].replace('\n', ' | '))
-    # a salary line lands in expenses when the month closes
-    p.get_by_role('button', name='Close the month').click()
-    p.get_by_role('button', name='Tap again to confirm').click()
-    p.wait_for_function('() => { const d = window.__db.get("payroll/%s"); return d && d.run && d.run.closed; }' % mid)
+    check('Durvesh Patil' in slip and '99,800' in slip and 'Ninety Nine Thousand Eight Hundred Rupees Only' in slip and 'Professional tax' in slip and 'Provident' not in slip, 'payslip: ' + slip[:300].replace('\n', ' | '))
+    check(p.locator('#payslip-doc .mark svg').count() == 1, 'the payslip should carry the logo')
     # letters: an offer letter for a member, saved and issued
     h.go(p, 'founder', hash='#letters/u_m1', width=1280)
     p.wait_for_selector('#letter-kind')
@@ -244,7 +258,7 @@ def standalone_part():
             today = k.evaluate('M.U.todayStr()')
             fy = k.evaluate('M.books.fyOf(M.U.todayStr())')
             mid = today[:7]
-            k.evaluate('M.lastCtx.W.set("clients/c1", {name: "Tanishq", status: "live", updated: Date.now()})')
+            k.evaluate('M.lastCtx.W.set("clients/c1", {name: "Swisse Wellness UAE", status: "live", updated: Date.now()})')
             k.evaluate('M.lastCtx.W.set("books/clients", {map: {c1: {code: "TQ", legalName: "Titan Company Ltd", address: "Bengaluru", country: "India", contactEmail: "ap@titan.example", contactName: "Priya Rao", currency: "INR", termsDays: 15, retainer: {active: true, amount: 300000, day: 1, desc: "Monthly retainer", sac: "998361", gst: "intra"}}}, updated: Date.now()})')
             k.wait_for_timeout(400)
             # the next request drafts the retainer on the server and mails the owner
@@ -285,6 +299,31 @@ def standalone_part():
             check(len(rem) == 1 and 'ap@titan.example' in rem[0]['to'] and 'days past due' in rem[0]['subject'] and 'UTIB0000186' in rem[0]['text'], 'auto-chase mail: %r' % [(m['to'], m['subject']) for m in rem])
             row = json.loads(json.loads(urllib.request.urlopen(base + '__store').read())['d/invoices~' + fy])['rows'][iid]
             check(len(row.get('chased') or []) == 1 and row['chased'][0]['step'] == 7 and row['chased'][0]['via'] == 'auto', 'chase mark: %r' % row.get('chased'))
+            # the books read the owner's Gmail: connect the (canned) Google account, then fill Tanishq's billing from the mail
+            k.evaluate('window.M360_API("googlekey", {clientId: "%s", clientKey: "GOCSPX-test-secret"})' % GOOGLE_CLIENT)
+            r = k.evaluate('window.M360_API("googlestart", {back: "#billing"})')
+            state = r['url'].split('state=')[1].split('&')[0]
+            k.goto(base + 'api/google?code=fake-code-ok&state=' + state)
+            k.wait_for_selector('.sidebar')
+            k.goto(base + '#billing/c1'); k.wait_for_selector('#billing-read')
+            k.click('#billing-read')
+            k.wait_for_selector('#billing-found', timeout=30000)
+            found = k.inner_text('#billing-found')
+            check('Swisse Wellness Middle East FZ LLC' in found and '100234567800003' in found and 'ap@swisse.example' in found and 'Omar Haddad' in found and 'PO-4471.pdf' in found, 'found from the mail: ' + found.replace(chr(10), ' | ')[:300])
+            k.click('#billing-use-all')
+            k.wait_for_timeout(200)
+            check(k.input_value('#billing-legal') == 'Swisse Wellness Middle East FZ LLC' and k.input_value('#billing-taxid') == '100234567800003' and k.input_value('#billing-terms') == '30' and k.input_value('#billing-po') == '4471', 'use all: %r' % [k.input_value(x) for x in ('#billing-legal', '#billing-taxid', '#billing-terms', '#billing-po')])
+            k.click('#billing-save')
+            k.wait_for_function('() => { const m = (M.lastCtx.coll.books.map.clients || {}).map || {}; return m.c1 && m.c1.taxId === "100234567800003"; }')
+            # the scan across every client fills only what is blank
+            k.evaluate('M.lastCtx.W.set("clients/c2", {name: "Marina", status: "live", updated: Date.now()})')
+            k.goto(base + '#billing'); k.wait_for_selector('#billing-scan')
+            k.click('#billing-scan')
+            k.wait_for_function('() => document.querySelector("#billing-scan") && !/Reading/.test(document.querySelector("#billing-scan").textContent)', timeout=60000)
+            logt = k.inner_text('#billing-scan-log')
+            check('Marina: legal name' in logt and 'nothing new' in logt, 'scan log: ' + logt.replace(chr(10), ' | '))
+            m2 = k.evaluate('(M.lastCtx.coll.books.map.clients || {}).map.c2')
+            check(m2 and m2.get('legalName') == 'Swisse Wellness Middle East FZ LLC' and m2.get('country') == 'United Arab Emirates' and m2.get('currency') == 'AED', 'the scan should draft the new client from the mail: %r' % m2)
             # nobody but the owner sends an invoice mail: a call without the owner's cookie is refused
             req = urllib.request.Request(base + 'api/m360', data=json.dumps({'a': 'invoicesend', 'fy': fy, 'id': iid, 'to': 'x@y.example', 'subject': 's', 'text': 't'}).encode(), headers={'content-type': 'application/json'}, method='POST')
             try:

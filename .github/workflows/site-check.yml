@@ -15,7 +15,7 @@ jobs:
           SITE: ${{ github.event.inputs.site || 'https://m360os-wx9u1bqs.edgeone.dev' }}
         run: |
           echo "== version.json"; curl -sS -m 30 "$SITE/version.json?t=$(date +%s)" || echo "(no version.json)"; echo
-          echo "== headers of /"; curl -sSI -m 30 "$SITE/" | tr -d '\r' | grep -iE '^(HTTP|cache-control|etag|last-modified|age|x-cache|content-length|eo-)' || true
+          echo "== headers of /"; curl -sSI -m 30 "$SITE/" | tr -d '\r' | grep -iE '^(HTTP|cache-control|etag|last-modified|age|x-cache|content-length|eo-|content-security-policy|x-frame-options|x-content-type-options|referrer-policy|strict-transport-security|permissions-policy|cross-origin-opener-policy)' || true
           echo "== headers of /sw.js"; curl -sSI -m 30 "$SITE/sw.js" | tr -d '\r' | grep -iE '^(HTTP|cache-control|etag|last-modified|age|x-cache)' || true
           echo "== markers in the page"
           curl -sS -m 60 "$SITE/?t=$(date +%s)" -o page.html
