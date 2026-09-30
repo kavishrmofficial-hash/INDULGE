@@ -51,6 +51,12 @@ def artifact_part(h):
     check(p.locator('#scout-outputs a[href*="linkedin.com"]').count() == 1, 'an Open LinkedIn link')
     items = h.ctx(p, 'M.inbox.items(ctx).filter(i => i.id.startsWith("scout:")).map(i => i.text)')
     check(len(items) == 1 and 'Scout: Pitch for Tata Neu' in items[0], 'the inbox line: %r' % items)
+    # the inbox drawer itself opens with the Scout line in it
+    p.keyboard.press('i')
+    p.wait_for_selector('.drawer:has-text("Inbox")')
+    check('Pitch for Tata Neu' in p.inner_text('.drawer'), 'the inbox drawer should show the Scout line: ' + p.inner_text('.drawer')[:200].replace(chr(10), ' | '))
+    p.keyboard.press('Escape')
+    p.wait_for_selector('.drawer', state='detached')
     # a second run the same day does nothing more (no force, day marked)
     n_before = len(st['log'])
     p.wait_for_timeout(2500)

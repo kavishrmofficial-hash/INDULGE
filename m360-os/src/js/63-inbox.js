@@ -96,7 +96,7 @@
   const seenAt = ctx => Number(((ctx.coll.me.map[ctx.uid] || {}).inboxSeen) || 0);
   const unread = ctx => items(ctx).filter(i => i.at > seenAt(ctx)).length;
 
-  const KIND_ICON = {tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift', fix: 'fix', chat: 'send', books: 'log', scout: 'spark'};
+  const KIND_ICON = {tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift', fix: 'fix', chat: 'send', books: 'log', scout: 'search'};
 
   function Inbox({onClose}) {
     const ctx = M.useCtx();
@@ -110,7 +110,7 @@
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Inbox">
       ${list.length ? html`<div class="stack" style=${{gap: 0}}>
         ${list.map(i => html`<button type="button" key=${i.id} class=${'inbox-item' + (i.at > was ? ' unread' : '')} onClick=${() => { onClose(); M.nav(i.ref); }}>
-          ${i.actor ? html`<${UI.Avatar} id=${i.actor} size=${34}/>` : html`<span class=${'inbox-kind' + (i.hot ? ' hot' : '')}><${icons[KIND_ICON[i.kind] || 'feed']}/></span>`}
+          ${i.actor ? html`<${UI.Avatar} id=${i.actor} size=${34}/>` : html`<span class=${'inbox-kind' + (i.hot ? ' hot' : '')}><${icons[KIND_ICON[i.kind]] || icons.feed}/></span>`}
           <span class="grow">
             <div class="t">${i.text}</div>
             <div class="tiny ink62">${U.timeAgo(i.at)}</div>

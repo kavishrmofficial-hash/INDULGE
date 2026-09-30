@@ -190,7 +190,7 @@
   /* ---------- the face ---------- */
   function Character({state, avatar}) {
     const s = state || 'idle';
-    if (avatar) return html`<div class=${'scout-figure av sc-' + s}><img src=${avatar} alt="" class="scout-avatar"/><span class="scout-badge"><${icons[s === 'write' ? 'edit' : s === 'read' ? 'log' : s === 'find' ? 'search' : s === 'deliver' ? 'send' : s === 'think' ? 'spark' : 'clock'] || icons.spark}/></span></div>`;
+    if (avatar) return html`<div class=${'scout-figure av sc-' + s}><img src=${avatar} alt="" class="scout-avatar"/><span class="scout-badge"><${icons[s === 'write' ? 'edit' : s === 'read' ? 'log' : s === 'find' ? 'search' : s === 'deliver' ? 'send' : 'clock'] || icons.send}/></span></div>`;
     return html`<div class=${'scout-figure sc-' + s} aria-hidden="true">
       <svg viewBox="0 0 120 120" class="scout-svg">
         <ellipse class="sc-shadow" cx="60" cy="108" rx="26" ry="5"/>

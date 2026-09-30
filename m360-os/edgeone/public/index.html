@@ -1574,7 +1574,7 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
 }
 .clamp2{display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
 </style>
-<script>window.M360_BUILD = "7e48dca.260930-1140";</script><script>
+<script>window.M360_BUILD = "e540d08+.260930-1220";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -15651,7 +15651,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   /* ---------- the face ---------- */
   function Character({state, avatar}) {
     const s = state || 'idle';
-    if (avatar) return html`<div class=${'scout-figure av sc-' + s}><img src=${avatar} alt="" class="scout-avatar"/><span class="scout-badge"><${icons[s === 'write' ? 'edit' : s === 'read' ? 'log' : s === 'find' ? 'search' : s === 'deliver' ? 'send' : s === 'think' ? 'spark' : 'clock'] || icons.spark}/></span></div>`;
+    if (avatar) return html`<div class=${'scout-figure av sc-' + s}><img src=${avatar} alt="" class="scout-avatar"/><span class="scout-badge"><${icons[s === 'write' ? 'edit' : s === 'read' ? 'log' : s === 'find' ? 'search' : s === 'deliver' ? 'send' : 'clock'] || icons.send}/></span></div>`;
     return html`<div class=${'scout-figure sc-' + s} aria-hidden="true">
       <svg viewBox="0 0 120 120" class="scout-svg">
         <ellipse class="sc-shadow" cx="60" cy="108" rx="26" ry="5"/>
@@ -18715,7 +18715,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   const seenAt = ctx => Number(((ctx.coll.me.map[ctx.uid] || {}).inboxSeen) || 0);
   const unread = ctx => items(ctx).filter(i => i.at > seenAt(ctx)).length;
 
-  const KIND_ICON = {tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift', fix: 'fix', chat: 'send', books: 'log', scout: 'spark'};
+  const KIND_ICON = {tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift', fix: 'fix', chat: 'send', books: 'log', scout: 'search'};
 
   function Inbox({onClose}) {
     const ctx = M.useCtx();
@@ -18729,7 +18729,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Inbox">
       ${list.length ? html`<div class="stack" style=${{gap: 0}}>
         ${list.map(i => html`<button type="button" key=${i.id} class=${'inbox-item' + (i.at > was ? ' unread' : '')} onClick=${() => { onClose(); M.nav(i.ref); }}>
-          ${i.actor ? html`<${UI.Avatar} id=${i.actor} size=${34}/>` : html`<span class=${'inbox-kind' + (i.hot ? ' hot' : '')}><${icons[KIND_ICON[i.kind] || 'feed']}/></span>`}
+          ${i.actor ? html`<${UI.Avatar} id=${i.actor} size=${34}/>` : html`<span class=${'inbox-kind' + (i.hot ? ' hot' : '')}><${icons[KIND_ICON[i.kind]] || icons.feed}/></span>`}
           <span class="grow">
             <div class="t">${i.text}</div>
             <div class="tiny ink62">${U.timeAgo(i.at)}</div>
