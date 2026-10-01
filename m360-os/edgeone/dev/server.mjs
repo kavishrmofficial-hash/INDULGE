@@ -140,7 +140,36 @@ function handshakeWrite(prompt) {
   return {people};
 }
 
+/* the voice box stand-in: health, voices, speech as a tiny wav, transcriptions as one canned line */
+const WAV = (() => { const n = 2400, b = Buffer.alloc(44 + n * 2); b.write('RIFF', 0); b.writeUInt32LE(36 + n * 2, 4); b.write('WAVE', 8); b.write('fmt ', 12); b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22); b.writeUInt32LE(24000, 24); b.writeUInt32LE(48000, 28); b.writeUInt16LE(2, 32); b.writeUInt16LE(16, 34); b.write('data', 36); b.writeUInt32LE(n * 2, 40); return new Uint8Array(b); })();
+async function fakeVoice(url, init) {
+  if (!/^https:\/\/voice\.example(\/|$)/.test(url)) return null;
+  const h = init.headers || {};
+  const auth = h.authorization || h.Authorization || '';
+  const j = (o, status) => new Response(JSON.stringify(o), {status: status || 200, headers: {'content-type': 'application/json'}});
+  if (url.endsWith('/health')) return j({ok: true, device: 'cuda', english_engine: 'turbo', multilingual: true, stt: 'large-v3-turbo', voices: ['default', 'm360'], languages: ['ar', 'en', 'hi']});
+  if (auth !== 'Bearer vb_test_key_1234567890') return j({detail: 'Missing or wrong VOICE_API_KEY'}, 401);
+  if (url.endsWith('/v1/voices')) return j({voices: ['default', 'm360']});
+  if (url.endsWith('/v1/audio/speech')) {
+    const b = JSON.parse(init.body || '{}');
+    if (!['default', 'm360'].includes(b.voice)) return j({detail: 'Voice not found'}, 404);
+    globalThis.__voice = globalThis.__voice || {tts: 0, stt: 0, last: null};
+    globalThis.__voice.tts++; globalThis.__voice.last = b;
+    return new Response(WAV, {status: 200, headers: {'content-type': 'audio/wav'}});
+  }
+  if (url.endsWith('/v1/audio/transcriptions')) {
+    globalThis.__voice = globalThis.__voice || {tts: 0, stt: 0, last: null};
+    globalThis.__voice.stt++;
+    const file = init.body && typeof init.body.get === 'function' ? init.body.get('file') : null;
+    globalThis.__voice.lastStt = {name: file && file.name, type: file && file.type, size: file && file.size, language: init.body && typeof init.body.get === 'function' ? init.body.get('language') : null};
+    return j({text: 'What is overdue on me?', language: 'en'});
+  }
+  return j({detail: 'not found'}, 404);
+}
+
 async function fakeFetch(url, init) {
+  const fv = await fakeVoice(String(url), init || {});
+  if (fv) return fv;
   if (String(url).startsWith('https://api.pwnedpasswords.com/range/')) {
     const prefix = String(url).slice(-5).toUpperCase();
     const known = ['password1234', 'Passw0rd2026'].map(p => crypto.createHash('sha1').update(p).digest('hex').toUpperCase());
@@ -259,6 +288,7 @@ http.createServer(async (req, res) => {
     return;
   }
   if (url.pathname === '/__spotify') { res.writeHead(200, {'content-type': 'application/json'}); res.end(JSON.stringify(globalThis.__spotifyChecks || [])); return; }
+  if (url.pathname === '/__voice') { res.writeHead(200, {'content-type': 'application/json'}); res.end(JSON.stringify(globalThis.__voice || {tts: 0, stt: 0, last: null})); return; }
   if (url.pathname === '/__ai') { res.writeHead(200, {'content-type': 'application/json'}); res.end(JSON.stringify(globalThis.__aiReqs || [])); return; }
   if (url.pathname === '/api/google') {
     const request = new Request(url, {method: req.method, headers: req.headers});

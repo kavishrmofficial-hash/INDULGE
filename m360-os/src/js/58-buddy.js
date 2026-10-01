@@ -246,9 +246,10 @@
     }, []);
 
     const voiceOn = () => store.get('buddyVoice') !== '0';
+    const lang = useRef('en');   /* the language the last question came in; the answer goes back in it */
     const speak = async t => {
       if (!voiceOn() || !M.speech) return false;
-      return M.speech.say(String(t).replace(/\*\*/g, '').slice(0, 600));
+      return M.speech.say(String(t).replace(/\*\*/g, '').slice(0, 600), lang.current);
     };
 
     /* ---------- the tour ---------- */
@@ -337,7 +338,39 @@
     };
 
     /* ---------- listening: hold to talk, and the follow up after an answer ---------- */
+    /* the voice box: record while they hold, send the recording up, ask with the words that come back */
+    const listenBox = ({follow}) => {
+      if (!navigator.mediaDevices || !window.MediaRecorder) return false;
+      stopListening();
+      const r = {mr: null, stream: null, gone: false,
+        stop() { if (this.mr && this.mr.state !== 'inactive') this.mr.stop(); else this.gone = true; },
+        abort() { this.gone = true; if (this.mr) this.mr.onstop = null; if (this.mr && this.mr.state !== 'inactive') this.mr.stop(); if (this.stream) this.stream.getTracks().forEach(t => t.stop()); }};
+      rec.current = r;
+      if (follow) setFollowUp(true); else { setMode('listening'); setHeard(''); }
+      navigator.mediaDevices.getUserMedia({audio: true}).then(stream => {
+        if (rec.current !== r || r.gone) { stream.getTracks().forEach(t => t.stop()); return; }
+        const parts = [];
+        const mr = new MediaRecorder(stream); r.mr = mr; r.stream = stream;
+        mr.ondataavailable = e => { if (e.data && e.data.size) parts.push(e.data); };
+        mr.onstop = async () => {
+          stream.getTracks().forEach(t => t.stop());
+          if (rec.current !== r) return;
+          rec.current = null;
+          if (!follow) setHeard('Hearing it.');
+          let text = '', lg = 'en';
+          try { const out = await M.speech.listen(new Blob(parts, {type: mr.mimeType || 'audio/webm'})); text = out.text; lg = out.language || 'en'; } catch (e) { /* nothing heard */ }
+          if (text.trim()) { lang.current = lg; spoke.current = true; setHeard(text); askRef.current(text); }
+          else if (follow) { setFollowUp(false); setHeard(''); }
+          else setMode('asking');
+        };
+        mr.start();
+        if (M.speech && M.speech.speaking()) M.speech.stop();
+        setTimeout(() => { if (rec.current === r) r.stop(); }, follow ? 6000 : 30000);
+      }).catch(() => { rec.current = null; spoke.current = false; openAt(pos.current.x, pos.current.y); M.toast('The mic is off here. Type instead'); });
+      return true;
+    };
     const listen = useCallback(({follow}) => {
+      if (M.speech && M.speech.listenOn && M.speech.listenOn()) return listenBox({follow});
       const S = SR();
       if (!S) return false;
       stopListening();
@@ -643,7 +676,7 @@
             onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') ask(q); }} aria-label="Ask m360"/>
           <div class="row between"><span class="tiny" style=${{color: 'rgba(255,255,255,.6)'}}>${coarse() && !fine() ? 'Hold the button to talk' : 'Hold Ctrl + Option to talk'}</span>
             <span class="row nowrap">
-              ${M.parts.MicButton ? html`<${M.parts.MicButton} sm=${true} label="Talk" onText=${t => { spoke.current = true; ask(t); }}/>` : null}
+              ${M.parts.MicButton ? html`<${M.parts.MicButton} sm=${true} label="Talk" onText=${(t, lg) => { lang.current = lg || 'en'; spoke.current = true; ask(t); }}/>` : null}
               <button type="button" class="btn on-dark sm" disabled=${!q.trim()} onClick=${() => ask(q)}>Ask</button>
             </span></div>
           <div class="row" style=${{gap: '6px', flexWrap: 'wrap'}}>

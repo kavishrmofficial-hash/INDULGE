@@ -1,0 +1,7 @@
+chatterbox-tts @ git+https://github.com/resemble-ai/chatterbox.git
+faster-whisper==1.2.1
+av>=11,<17
+fastapi
+uvicorn[standard]
+python-multipart
+soundfile

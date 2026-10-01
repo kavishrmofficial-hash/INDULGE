@@ -344,6 +344,17 @@ The v23 games and resets were replaced after a deep research pass (four research
 - **The feed rains.** A tap on a reaction fills the screen with that emoji, a fountain from the button and a sheet from the top, the way confetti falls; sending kudos rains applause, a comment rains a little, finishing a task rains fire, a Five in three or under rains fire. Seven reactions on every card (thumbs, fire, heart, laugh, applause, eyes, tick), kudos cards and Five cards included. Reduced motion keeps the small spark.
 - Tests: `harness/tests/test_break.py` rewritten (Five wrong then right, the record and the sparks, Doubles to its timer, the reaction check into the private space, hide and show, squads and the streak repair as pure functions, the three protocols with a skipped one earning nothing and a finished one once, the if-then on Home, both walks, park it through the shades, the sprint, eyes off, the nap, three catches, care, Reflect, the Five card on the feed, the rain on a reaction and a comment, kudos reactions, a member on the phone, the map).
 
+## What is in v24.1: the m360 voice, one voice to speak and listen
+
+The Ask chat and the buddy now speak and listen through the m360 voice box (`m360-voice/` at the repo root: `server.py` as specified, Chatterbox Turbo for English, Chatterbox Multilingual V3 for Hindi, Arabic and twenty one more, Whisper large-v3-turbo through faster-whisper to listen; all MIT). The OS stays on EdgeOne; the function in `edgeone/server/voice.js` is the only thing that talks to the box, so the browser calls its own origin and the key never reaches a page.
+
+- **Server** (`edgeone/server/voice.js`): two engines behind one set of actions. `voicestatus` says which is on and whether it listens; `speak` takes `{text, lang}` and returns wav (the box) or mp3 (ElevenLabs) in base64, cached thirty days for short lines; `listen` takes a recording in base64 and returns `{text, language}` from Whisper; `voicebox` (admin) stores the box address, key and voice name after a health check; the ElevenLabs path (`voicekey`) is unchanged. The box is set from `VOICE_URL`, `VOICE_API_KEY`, `VOICE_NAME` in the environment or from Admin.
+- **Admin > Controls > Super > Voice box** (`81-voicebox.js`): address, key, voice name, Connect, Say a line, Remove; the artifact says why it cannot have a box.
+- **Listening** (`59-mic.js`, `58-buddy.js`): with the box on, the talk button and the buddy's hold-to-talk record with MediaRecorder and send the recording up; the words come back with the language heard. Without it, the browser's own recognition as before.
+- **Speaking** (`80-voice.js`): `M.speech.say(text, lang)`; the buddy answers in the language the question came in; the browser fallback picks a voice in that language.
+- **Ask chat** (`57-ask.js`): a Talk button beside the input and a speaker toggle (replies read aloud, kept in preferences); a spoken question gets a spoken answer in its language.
+- The dev stand-in fakes the box at `https://voice.example` (health, voices, a tiny wav, one canned transcription) and reports what it was asked at `/__voice`. Test: `harness/tests/test_talk.py` (the status, speak in Hindi with the cache, listen, Ask by voice with the reply read aloud, the buddy's hold to talk, the Admin card with a refused key, a changed voice and the environment fallback).
+
 ## Launch day
 
 1. Admin > Team: invite each person by email. They get a link, type their email and pick a password. Without an email key the invite shows a link to copy instead.

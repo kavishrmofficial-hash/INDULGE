@@ -1509,6 +1509,7 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
 .memory-row{gap:10px; align-items:baseline; padding:4px 0; border-bottom:1px solid var(--line)}
 .memory-row:last-child{border-bottom:0}
 .buddy-hello{font-size:15px; font-weight:500; line-height:1.4}
+.ask-in .iconbtn.on{color:var(--flame)}
 
 /* ==== 85-handshake.css ==== */
 /* ---------- handshake: the LinkedIn DM desk ---------- */
@@ -1632,7 +1633,7 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
 }
 :root[data-theme="dark"] .dbl-over{background:rgba(10,10,10,.82)}
 </style>
-<script>window.M360_BUILD = "10bf9ce.261001-0737";</script><script>
+<script>window.M360_BUILD = "3aa44db+.261001-1026";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -18877,6 +18878,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const endRef = useRef(null);
     const sentInitial = useRef(false);
     const fileRef = useRef(null);
+    const lang = useRef('en');                        /* the language the last spoken question came in */
+    const [aloud, setAloud] = useState(() => M.prefs.get('askAloud', '0') === '1');
+    const aloudRef = useRef(aloud); aloudRef.current = aloud;
     useEffect(() => { let on = true; if (ctx.sample && ctx.sample.limits) ctx.sample.limits().then(l => { if (on) setCanImg(!!(l && l.images)); }).catch(() => {}); return () => { on = false; }; }, [ctx.sample]);
     const attach = async files => {
       const out = [];
@@ -18930,6 +18934,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         const answer = {role: 'assistant', content: out.text.replace(/\u2014|\u2013/g, ', ')};
         const all = [...M.chat.turns, answer];
         await M.chat.save(ctx, all);
+        if (aloudRef.current && M.speech) M.speech.say(answer.content, lang.current).catch(() => {});
         if (M.brain) M.brain.compact(ctx).catch(() => {});
       } catch (e) {
         const code = (e && e.code) || 'upstream_error';
@@ -18960,6 +18965,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           <button type="button" class="iconbtn" aria-label="Attach an image" title="A photo or a screenshot" onClick=${() => fileRef.current && fileRef.current.click()}><${M.icons.plus}/></button>` : null}
         <input id=${inline ? 'ask-inline' : 'ask-input'} class="input" value=${q} placeholder=${ctx.isFounder ? 'Ask HQ anything…' : 'Ask m360 anything…'}
           onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') send(); }} onPaste=${e => { const fs = Array.from((e.clipboardData && e.clipboardData.files) || []).filter(f => /^image\//.test(f.type)); if (fs.length && canImg) { e.preventDefault(); attach(fs); } }} aria-label="Ask m360"/>
+        ${M.parts.MicButton ? html`<${M.parts.MicButton} sm=${true} label="Talk" onText=${(t, lg) => { lang.current = lg || 'en'; send(t); }}/>` : null}
+        <button type="button" class=${'iconbtn' + (aloud ? ' on' : '')} id=${inline ? 'ask-aloud-inline' : 'ask-aloud'} aria-pressed=${aloud} aria-label="Read replies aloud" title=${aloud ? 'Replies are read aloud' : 'Read replies aloud'}
+          onClick=${() => { const v = !aloud; setAloud(v); M.prefs.set('askAloud', v ? '1' : '0'); if (!v && M.speech) M.speech.stop(); }}><${M.icons.voice}/></button>
         ${busy ? html`<${UI.Btn} kind="sec" onClick=${() => ctl.current && ctl.current.abort()}>Stop<//>`
           : html`<button type="button" class="btn" disabled=${!q.trim() && !imgs.length} onClick=${() => send()}>Ask</button>`}
       </div>
@@ -19314,9 +19322,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     }, []);
 
     const voiceOn = () => store.get('buddyVoice') !== '0';
+    const lang = useRef('en');   /* the language the last question came in; the answer goes back in it */
     const speak = async t => {
       if (!voiceOn() || !M.speech) return false;
-      return M.speech.say(String(t).replace(/\*\*/g, '').slice(0, 600));
+      return M.speech.say(String(t).replace(/\*\*/g, '').slice(0, 600), lang.current);
     };
 
     /* ---------- the tour ---------- */
@@ -19405,7 +19414,39 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     };
 
     /* ---------- listening: hold to talk, and the follow up after an answer ---------- */
+    /* the voice box: record while they hold, send the recording up, ask with the words that come back */
+    const listenBox = ({follow}) => {
+      if (!navigator.mediaDevices || !window.MediaRecorder) return false;
+      stopListening();
+      const r = {mr: null, stream: null, gone: false,
+        stop() { if (this.mr && this.mr.state !== 'inactive') this.mr.stop(); else this.gone = true; },
+        abort() { this.gone = true; if (this.mr) this.mr.onstop = null; if (this.mr && this.mr.state !== 'inactive') this.mr.stop(); if (this.stream) this.stream.getTracks().forEach(t => t.stop()); }};
+      rec.current = r;
+      if (follow) setFollowUp(true); else { setMode('listening'); setHeard(''); }
+      navigator.mediaDevices.getUserMedia({audio: true}).then(stream => {
+        if (rec.current !== r || r.gone) { stream.getTracks().forEach(t => t.stop()); return; }
+        const parts = [];
+        const mr = new MediaRecorder(stream); r.mr = mr; r.stream = stream;
+        mr.ondataavailable = e => { if (e.data && e.data.size) parts.push(e.data); };
+        mr.onstop = async () => {
+          stream.getTracks().forEach(t => t.stop());
+          if (rec.current !== r) return;
+          rec.current = null;
+          if (!follow) setHeard('Hearing it.');
+          let text = '', lg = 'en';
+          try { const out = await M.speech.listen(new Blob(parts, {type: mr.mimeType || 'audio/webm'})); text = out.text; lg = out.language || 'en'; } catch (e) { /* nothing heard */ }
+          if (text.trim()) { lang.current = lg; spoke.current = true; setHeard(text); askRef.current(text); }
+          else if (follow) { setFollowUp(false); setHeard(''); }
+          else setMode('asking');
+        };
+        mr.start();
+        if (M.speech && M.speech.speaking()) M.speech.stop();
+        setTimeout(() => { if (rec.current === r) r.stop(); }, follow ? 6000 : 30000);
+      }).catch(() => { rec.current = null; spoke.current = false; openAt(pos.current.x, pos.current.y); M.toast('The mic is off here. Type instead'); });
+      return true;
+    };
     const listen = useCallback(({follow}) => {
+      if (M.speech && M.speech.listenOn && M.speech.listenOn()) return listenBox({follow});
       const S = SR();
       if (!S) return false;
       stopListening();
@@ -19711,7 +19752,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
             onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') ask(q); }} aria-label="Ask m360"/>
           <div class="row between"><span class="tiny" style=${{color: 'rgba(255,255,255,.6)'}}>${coarse() && !fine() ? 'Hold the button to talk' : 'Hold Ctrl + Option to talk'}</span>
             <span class="row nowrap">
-              ${M.parts.MicButton ? html`<${M.parts.MicButton} sm=${true} label="Talk" onText=${t => { spoke.current = true; ask(t); }}/>` : null}
+              ${M.parts.MicButton ? html`<${M.parts.MicButton} sm=${true} label="Talk" onText=${(t, lg) => { lang.current = lg || 'en'; spoke.current = true; ask(t); }}/>` : null}
               <button type="button" class="btn on-dark sm" disabled=${!q.trim()} onClick=${() => ask(q)}>Ask</button>
             </span></div>
           <div class="row" style=${{gap: '6px', flexWrap: 'wrap'}}>
@@ -19760,26 +19801,51 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 })();
 
 /* ==== 59-mic.js ==== */
-/* module: mic. A talk button: tap, speak, tap again, and the words land in a field.
-   Uses the browser's speech recognition where it exists; says so where it does not. */
+/* module: mic. A talk button: tap, speak, tap again, and the words land in a field. With the voice box
+   set up on the site the recording goes to Whisper through the server and the words come back with
+   the language heard (English, Hindi, Arabic and more); everywhere else the browser's own speech
+   recognition does the listening, and says so where it does not exist. onText(text, language). */
 'use strict';
 (function () {
-  const {html, React, UI, icons} = M;
+  const {html, React, icons} = M;
   const {useState, useRef, useEffect} = React;
   const SR = () => window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  const MAX_MS = 30000;
 
   function MicButton({onText, label, sm}) {
     const [live, setLive] = useState(false);
+    const [busy, setBusy] = useState(false);
     const rec = useRef(null);
     const heard = useRef('');
     useEffect(() => () => { if (rec.current) { try { rec.current.abort(); } catch (e) { /* stopped */ } } }, []);
-    const stop = () => {
-      if (rec.current) { try { rec.current.stop(); } catch (e) { /* stopped */ } rec.current = null; }
-      setLive(false);
-      if (heard.current.trim()) { onText(heard.current.trim()); M.sound.play('soft'); }
-      heard.current = '';
+
+    /* the box: record, then send the recording up */
+    const startBox = async () => {
+      let stream;
+      try { stream = await navigator.mediaDevices.getUserMedia({audio: true}); }
+      catch (e) { M.toast('The mic is off in this browser. Type instead', true); return; }
+      const mr = new MediaRecorder(stream);
+      const parts = [];
+      const r = {abort: () => { mr.onstop = null; try { if (mr.state !== 'inactive') mr.stop(); } catch (e) { /* stopped */ } stream.getTracks().forEach(t => t.stop()); }, stop: () => { try { if (mr.state !== 'inactive') mr.stop(); } catch (e) { /* stopped */ } }};
+      mr.ondataavailable = e => { if (e.data && e.data.size) parts.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        if (rec.current === r) rec.current = null;
+        setLive(false); setBusy(true);
+        try {
+          const out = await M.speech.listen(new Blob(parts, {type: mr.mimeType || 'audio/webm'}));
+          if (out.text) { onText(out.text, out.language); M.sound.play('soft'); } else M.toast('Nothing heard. Try again');
+        } catch (e) { M.toast(e && e.code === 'voice_off' ? 'Voice is off here. Type instead' : 'The voice box did not answer. Type instead', true); }
+        setBusy(false);
+      };
+      rec.current = r;
+      mr.start();
+      setLive(true); M.sound.play('start');
+      setTimeout(() => { if (rec.current === r) r.stop(); }, MAX_MS);
     };
-    const start = () => {
+
+    /* the browser's own recognition */
+    const startBrowser = () => {
       const S = SR();
       if (!S) { M.toast('Voice is off in this browser. Type instead', true); return; }
       try {
@@ -19787,12 +19853,24 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         r.lang = 'en-IN'; r.interimResults = true; r.continuous = true;
         r.onresult = ev => { let t = ''; for (let i = 0; i < ev.results.length; i++) t += ev.results[i][0].transcript; heard.current = t; };
         r.onerror = () => { rec.current = null; setLive(false); M.toast('Voice is off here. Type instead', true); };
-        r.onend = () => { if (rec.current === r) { rec.current = null; setLive(false); if (heard.current.trim()) { onText(heard.current.trim()); heard.current = ''; } } };
+        r.onend = () => { if (rec.current === r) { rec.current = null; setLive(false); if (heard.current.trim()) { onText(heard.current.trim(), 'en'); heard.current = ''; } } };
         rec.current = r; heard.current = ''; r.start(); setLive(true);
       } catch (e) { M.toast('Voice is off here. Type instead', true); }
     };
-    return html`<button type="button" class=${'btn sec micbtn' + (sm === false ? '' : ' sm') + (live ? ' live' : '')} aria-pressed=${live} onClick=${live ? stop : start}>
-      <${icons.voice}/>${live ? 'Listening, tap to stop' : (label || 'Say it')}</button>`;
+
+    const stop = () => {
+      const r = rec.current;
+      if (!r) { setLive(false); return; }
+      if (r.abort && !r.lang) { r.stop(); return; }   /* the box recorder finishes in onstop */
+      try { r.stop(); } catch (e) { /* stopped */ }
+      rec.current = null;
+      setLive(false);
+      if (heard.current.trim()) { onText(heard.current.trim(), 'en'); M.sound.play('soft'); }
+      heard.current = '';
+    };
+    const start = () => { if (M.speech && M.speech.listenOn && M.speech.listenOn()) startBox(); else startBrowser(); };
+    return html`<button type="button" class=${'btn sec micbtn' + (sm === false ? '' : ' sm') + (live ? ' live' : '')} aria-pressed=${live} disabled=${busy} onClick=${live ? stop : start}>
+      <${icons.voice}/>${live ? 'Listening, tap to stop' : busy ? 'Hearing it' : (label || 'Say it')}</button>`;
   }
 
   M.parts.MicButton = MicButton;
@@ -25531,15 +25609,17 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 })();
 
 /* ==== 80-voice.js ==== */
-/* module: voice. How m360 speaks. On EdgeOne with a voice set up in Admin, lines come back from the
-   server as audio (a natural, warm voice). Everywhere else the browser's best voice is picked and the
-   line is read in sentences, so it breathes. One line at a time; a new line stops the old one.
-   say() resolves when the line has been heard to the end (or was cut off), so the buddy can move its
-   mouth while it talks and the tour can move on by itself. */
+/* module: voice. How m360 speaks and listens. On EdgeOne with a voice set up (the m360 voice box, or
+   ElevenLabs), lines come back from the server as audio in the one m360 voice, in the language the
+   question came in; the box also listens, so a recording goes up and the words come back with the
+   language Whisper heard. Everywhere else the browser's best voice is picked and the line is read in
+   sentences, so it breathes, and listening falls back to the browser's own recognition.
+   One line at a time; a new line stops the old one. say() resolves when the line has been heard to the
+   end (or was cut off), so the buddy can move its mouth while it talks and the tour can move on. */
 'use strict';
 (function () {
   const GOOD = ['samantha', 'karen', 'moira', 'tessa', 'fiona', 'aria', 'jenny', 'sonia', 'libby', 'neerja', 'natasha', 'google uk english female', 'google us english', 'zira', 'susan', 'ava', 'allison', 'serena', 'kate'];
-  let audio = null, serverOn = null, voicesCache = null, checkedAt = 0, speaking = false, seq = 0;
+  let audio = null, serverOn = null, status = null, voicesCache = null, checkedAt = 0, speaking = false, seq = 0, said = 0;
 
   function browserVoices() {
     try { const v = window.speechSynthesis ? window.speechSynthesis.getVoices() : []; if (v && v.length) voicesCache = v; } catch (e) { /* none */ }
@@ -25553,16 +25633,17 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     try { window.dispatchEvent(new CustomEvent('m360:speech', {detail: {on}})); } catch (e) { /* none */ }
   };
 
-  /* the most human sounding voice this browser has */
-  function pick() {
+  /* the most human sounding voice this browser has, in the language asked for */
+  function pick(lang) {
     const vs = browserVoices();
     if (!vs.length) return null;
+    const want = String(lang || 'en').toLowerCase();
     const score = v => {
       const n = String(v.name || '').toLowerCase(), l = String(v.lang || '').toLowerCase();
       let s = 0;
       if (/natural|neural|online|premium|enhanced/.test(n)) s += 6;
-      GOOD.forEach((g, i) => { if (n.includes(g)) s += 5 - Math.min(4, i / 5); });
-      if (l.startsWith('en-in')) s += 3; else if (l.startsWith('en-gb')) s += 2; else if (l.startsWith('en')) s += 1; else s -= 6;
+      if (want !== 'en') { if (l.startsWith(want)) s += 12; else s -= 12; }
+      else { GOOD.forEach((g, i) => { if (n.includes(g)) s += 5 - Math.min(4, i / 5); }); if (l.startsWith('en-in')) s += 3; else if (l.startsWith('en-gb')) s += 2; else if (l.startsWith('en')) s += 1; else s -= 6; }
       if (/compact|espeak|robot/.test(n)) s -= 5;
       return s;
     };
@@ -25577,10 +25658,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   }
 
   /* resolves when the last sentence ends; a stop() in between resolves early */
-  function sayInBrowser(text, my) {
+  function sayInBrowser(text, my, lang) {
     if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return Promise.resolve(false);
-    const v = pick();
-    const parts = String(text).split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
+    const v = pick(lang);
+    const parts = String(text).split(/(?<=[.!?।؟])\s+/).map(s => s.trim()).filter(Boolean);
     if (!parts.length) return Promise.resolve(false);
     return new Promise(res => {
       let left = parts.length, done = false;
@@ -25589,6 +25670,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       parts.forEach((p, i) => {
         const u = new SpeechSynthesisUtterance(p);
         if (v) { u.voice = v; u.lang = v.lang; }
+        else if (lang && lang !== 'en') u.lang = lang;
         u.rate = .98; u.pitch = 1.04; u.volume = 1;
         if (i === 0) u.onstart = () => { if (seq === my) state(true); };
         u.onend = u.onerror = () => { if (--left <= 0) { clearTimeout(guard); finish(); } };
@@ -25598,14 +25680,16 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     });
   }
 
-  async function sayFromServer(text, my) {
-    if (!window.M360_STANDALONE || typeof window.M360_API !== 'function') return false;
+  const standalone = () => !!window.M360_STANDALONE && typeof window.M360_API === 'function';
+
+  async function sayFromServer(text, my, lang) {
+    if (!standalone()) return false;
     /* a no from the server is trusted for five minutes, then asked again (a voice may have been set up meanwhile) */
     if (serverOn === false && Date.now() - checkedAt < 300000) return false;
     try {
-      const r = await window.M360_API('speak', {text});
+      const r = await window.M360_API('speak', {text, lang: lang || 'en'});
       if (!r || !r.audio) { serverOn = false; checkedAt = Date.now(); return false; }
-      serverOn = true; checkedAt = Date.now();
+      serverOn = true; checkedAt = Date.now(); said++;
       if (seq !== my) return true;
       const bytes = Uint8Array.from(atob(r.audio), c => c.charCodeAt(0));
       const url = URL.createObjectURL(new Blob([bytes], {type: r.mime || 'audio/mpeg'}));
@@ -25627,32 +25711,104 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   }
 
   const clean = t => String(t || '').replace(/[*_`#>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 600);
+  const toB64 = blob => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(',')[1] || ''); fr.onerror = rej; fr.readAsDataURL(blob); });
 
   M.speech = {
-    /* resolves true when something was said and finished, false when nothing could speak */
-    say: async text => {
+    /* resolves true when something was said and finished, false when nothing could speak; lang is a two letter code */
+    say: async (text, lang) => {
       const t = clean(text);
       if (!t) return false;
       stop();
       const my = seq;
-      if (await sayFromServer(t, my)) return true;
+      if (await sayFromServer(t, my, lang)) return true;
       if (seq !== my) return false;
-      return sayInBrowser(t, my);
+      return sayInBrowser(t, my, lang);
     },
     stop,
     pick,
     speaking: () => speaking,
     voices: browserVoices,
+    /* a recording to the box: {text, language}; throws when there is no box */
+    listen: async (blob, lang) => {
+      if (!standalone() || !(status && status.listen)) throw Object.assign(new Error('no box'), {code: 'voice_off'});
+      const b64 = await toB64(blob);
+      const r = await window.M360_API('listen', {audio: b64, mime: blob.type || 'audio/webm', ...(lang ? {lang} : {})});
+      return {text: String((r && r.text) || ''), language: (r && r.language) || 'en'};
+    },
+    /* true when the server can turn a recording into words (the voice box is set up) */
+    listenOn: () => !!(status && status.listen) && !!(navigator.mediaDevices && window.MediaRecorder),
     /* the page asks once whether the server has a voice; the answer also refreshes after Admin saves one */
     refresh: async () => {
-      if (!window.M360_STANDALONE || typeof window.M360_API !== 'function') { serverOn = false; return false; }
-      try { const r = await window.M360_API('voicestatus'); serverOn = !!(r && r.on); } catch (e) { serverOn = false; }
+      if (!standalone()) { serverOn = false; status = null; return false; }
+      try { const r = await window.M360_API('voicestatus'); status = r || null; serverOn = !!(r && r.on); } catch (e) { serverOn = false; status = null; }
       checkedAt = Date.now();
       return serverOn;
     },
-    serverOn: () => serverOn
+    serverOn: () => serverOn,
+    status: () => status,
+    said: () => said
   };
   M.speech.refresh();
+})();
+
+/* ==== 81-voicebox.js ==== */
+/* module: voicebox. Admin > Controls > Super: point the site at the m360 voice box (m360-voice/, the
+   open source speaker and listener). The founder gives its https address, the key it runs with and the
+   voice name; the server checks the box's health and keeps the key where no page can read it. The
+   site only: the artifact cannot reach outside servers and says so. */
+'use strict';
+(function () {
+  const {html, React, UI} = M;
+  const {useState, useEffect} = React;
+
+  function VoiceBoxCard() {
+    const ctx = M.useCtx();
+    const api = typeof window.M360_API === 'function' && window.M360_STANDALONE ? window.M360_API : null;
+    const [st, setSt] = useState(null);
+    const [url, setUrl] = useState('');
+    const [key, setKey] = useState('');
+    const [voice, setVoice] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState('');
+    const [info, setInfo] = useState(null);
+    const load = () => { if (api) api('voicestatus').then(r => setSt(r || null)).catch(() => setSt(null)); };
+    useEffect(load, []);
+    if (!ctx.isFounder) return null;
+    if (!api) return html`<${UI.Card} id="voicebox-card" title="Voice box">
+      <div class="small ink62">The one m360 voice (Chatterbox to speak, Whisper to listen) runs on the team site. This page cannot reach outside servers, so here m360 uses the browser's own voice.</div>
+    <//>`;
+    const save = async () => {
+      setBusy(true); setErr(''); setInfo(null);
+      try {
+        const r = await api('voicebox', {url: url.trim(), key: key.trim(), keep: !key.trim(), voice: voice.trim()});
+        setInfo(r); setKey(''); load();
+        if (M.speech) { await M.speech.refresh(); if (r.on) M.speech.say('Hi, this is the m360 voice. All set.'); }
+        M.toast(r.on ? 'Voice box on' : 'Voice box removed');
+      } catch (e) { setErr((e && e.message) || 'That did not save.'); }
+      setBusy(false);
+    };
+    const remove = async () => { setBusy(true); try { await api('voicebox', {url: ''}); setInfo(null); load(); if (M.speech) M.speech.refresh(); M.toast('Voice box removed'); } catch (e) { setErr((e && e.message) || 'That did not save.'); } setBusy(false); };
+    const on = !!(st && st.on && st.engine === 'box');
+    return html`<${UI.Card} id="voicebox-card" title="Voice box" action=${html`<span class=${'tiny ' + (on ? 'flame-t' : 'ink62')} id="voicebox-status">${on ? 'on, voice ' + (st.name || 'm360') : st && st.on ? 'ElevenLabs is on; the box replaces it' : 'off'}</span>`}>
+      <div class="small" style=${{marginBottom: '10px'}}>The one m360 voice: Chatterbox speaks (English, Hindi, Arabic and twenty one more), Whisper listens. Open source, MIT, on a box you run (see m360-voice/ in the repo). The key stays on the server.</div>
+      <div class="stack tight">
+        <${UI.Input} id="voicebox-url" label="box address" placeholder="https://voice.mask360.agency" value=${url} onChange=${setUrl}/>
+        <${UI.Input} id="voicebox-key" label=${on ? 'key (blank keeps the one saved)' : 'key'} placeholder="the long random string the box runs with" value=${key} onChange=${setKey}/>
+        <${UI.Input} id="voicebox-voice" label="voice name" placeholder="m360 (blank picks m360, or default)" value=${voice} onChange=${setVoice}/>
+        <div class="row between">
+          <span class="row nowrap">
+            <${UI.Btn} id="voicebox-save" sm=${true} disabled=${busy || !url.trim()} onClick=${save}>${on ? 'Update' : 'Connect'}<//>
+            ${on ? html`<${UI.Btn} id="voicebox-say" sm=${true} kind="sec" onClick=${() => M.speech && M.speech.say('Hi, this is the m360 voice.')}>Say a line<//>` : null}
+          </span>
+          ${on ? html`<button type="button" class="linky tiny" id="voicebox-remove" onClick=${remove}>Remove</button>` : null}
+        </div>
+        ${err ? html`<div class="tiny flame-t" id="voicebox-err">${err}</div>` : null}
+        ${info && info.on ? html`<div class="tiny ink62" id="voicebox-info">Connected: ${info.device || 'device unknown'}, ${info.multilingual ? 'multilingual on' : 'English only'}, voices ${(info.voices || []).join(', ') || 'none saved yet'}.</div>` : null}
+      </div>
+    <//>`;
+  }
+
+  M.superCards = (M.superCards || []).concat([VoiceBoxCard]);
 })();
 
 /* ==== 70-standalone.js ==== */

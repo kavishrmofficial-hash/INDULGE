@@ -72,6 +72,9 @@
     const endRef = useRef(null);
     const sentInitial = useRef(false);
     const fileRef = useRef(null);
+    const lang = useRef('en');                        /* the language the last spoken question came in */
+    const [aloud, setAloud] = useState(() => M.prefs.get('askAloud', '0') === '1');
+    const aloudRef = useRef(aloud); aloudRef.current = aloud;
     useEffect(() => { let on = true; if (ctx.sample && ctx.sample.limits) ctx.sample.limits().then(l => { if (on) setCanImg(!!(l && l.images)); }).catch(() => {}); return () => { on = false; }; }, [ctx.sample]);
     const attach = async files => {
       const out = [];
@@ -125,6 +128,7 @@
         const answer = {role: 'assistant', content: out.text.replace(/\u2014|\u2013/g, ', ')};
         const all = [...M.chat.turns, answer];
         await M.chat.save(ctx, all);
+        if (aloudRef.current && M.speech) M.speech.say(answer.content, lang.current).catch(() => {});
         if (M.brain) M.brain.compact(ctx).catch(() => {});
       } catch (e) {
         const code = (e && e.code) || 'upstream_error';
@@ -155,6 +159,9 @@
           <button type="button" class="iconbtn" aria-label="Attach an image" title="A photo or a screenshot" onClick=${() => fileRef.current && fileRef.current.click()}><${M.icons.plus}/></button>` : null}
         <input id=${inline ? 'ask-inline' : 'ask-input'} class="input" value=${q} placeholder=${ctx.isFounder ? 'Ask HQ anything…' : 'Ask m360 anything…'}
           onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') send(); }} onPaste=${e => { const fs = Array.from((e.clipboardData && e.clipboardData.files) || []).filter(f => /^image\//.test(f.type)); if (fs.length && canImg) { e.preventDefault(); attach(fs); } }} aria-label="Ask m360"/>
+        ${M.parts.MicButton ? html`<${M.parts.MicButton} sm=${true} label="Talk" onText=${(t, lg) => { lang.current = lg || 'en'; send(t); }}/>` : null}
+        <button type="button" class=${'iconbtn' + (aloud ? ' on' : '')} id=${inline ? 'ask-aloud-inline' : 'ask-aloud'} aria-pressed=${aloud} aria-label="Read replies aloud" title=${aloud ? 'Replies are read aloud' : 'Read replies aloud'}
+          onClick=${() => { const v = !aloud; setAloud(v); M.prefs.set('askAloud', v ? '1' : '0'); if (!v && M.speech) M.speech.stop(); }}><${M.icons.voice}/></button>
         ${busy ? html`<${UI.Btn} kind="sec" onClick=${() => ctl.current && ctl.current.abort()}>Stop<//>`
           : html`<button type="button" class="btn" disabled=${!q.trim() && !imgs.length} onClick=${() => send()}>Ask</button>`}
       </div>

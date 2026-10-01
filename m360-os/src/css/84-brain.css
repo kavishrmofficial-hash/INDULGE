@@ -10,3 +10,4 @@
 .memory-row{gap:10px; align-items:baseline; padding:4px 0; border-bottom:1px solid var(--line)}
 .memory-row:last-child{border-bottom:0}
 .buddy-hello{font-size:15px; font-weight:500; line-height:1.4}
+.ask-in .iconbtn.on{color:var(--flame)}
