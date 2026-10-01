@@ -169,7 +169,7 @@
         const ref = (done && isNum(t.doneAt)) ? t.doneAt : (isNum(t.updated) ? t.updated : t.created);
         if (isNum(ref) && inRange(ymdOf(ref), from, to)) counts.shown20++;
       }
-      if (!done && t.due && t.due < end) counts.overdueOpen++;
+      if (!done && t.status !== 'review' && t.due && t.due < end) counts.overdueOpen++;
       if (done && inRange(t.due, from, to)) {
         dueInRangeDone++;
         if (!doneOnTime(t)) dueInRangeLate++;
@@ -182,7 +182,7 @@
     const kudosMap = collMap(ctx, 'kudos');
     for (const giver of Object.keys(kudosMap)) {
       for (const k of ((kudosMap[giver] || {}).given || [])) {
-        if (!k || k.to !== uid || !isNum(k.at)) continue;
+        if (!k || k.to !== uid || giver === uid || !isNum(k.at)) continue;
         if (!inRange(ymdOf(k.at), from, to)) continue;
         const wk = U.isoWeek(new Date(k.at));
         perWeek[wk] = (perWeek[wk] || 0) + 1;
@@ -192,8 +192,10 @@
 
     /* rocks marked done, only when the range covers a whole quarter */
     const rockQ = docOf(ctx, 'rocks', uid).q || {};
+    const rockOk = docOf(ctx, 'review', uid).rocksOk || {};
     for (const qid of wholeQuartersIn(from, to)) {
-      for (const r of (rockQ[qid] || [])) if (r && r.state === 'done') counts.rockDone++;
+      const ok = Array.isArray(rockOk[qid]) ? rockOk[qid] : [];
+      for (const r of (rockQ[qid] || [])) if (r && r.state === 'done' && r.id && ok.indexOf(r.id) >= 0) counts.rockDone++;
     }
 
     return finish();

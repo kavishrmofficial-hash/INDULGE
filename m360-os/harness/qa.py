@@ -115,6 +115,7 @@ def seed(h, page):
             'by': F, 'created': ms(mon), 'updated': ms(d(2)),
             'doneAt': ms(now - timedelta(days=3), 16, 0) if status == 'done' else None,
             'approvedBy': F if status == 'done' else None, 'approvedAt': ms(now - timedelta(days=3), 16, 5) if status == 'done' else None})
+    h.seed_doc(page, 'approvals/' + F, {'ok': {'t4': ms(now - timedelta(days=3), 16, 5)}})
 
     h.seed_doc(page, 'pitches/pi1', {'brand': 'Aurelia Jewels', 'category': 'Luxury retail', 'contact': 'Nisha, marketing head',
                                      'source': 'Referral', 'stage': 'proposal', 'stageAt': ms(now - timedelta(days=6)),

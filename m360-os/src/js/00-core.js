@@ -156,7 +156,7 @@ function logSummary(d) {
 let logRefused = false;
 M.logWrite = function logWrite(db, uid, a, p, d) {
   try {
-    if (window.M360_STANDALONE || logRefused || !db || !uid || !p || /^log(\/|$)/.test(String(p))) return;
+    if (window.M360_STANDALONE || logRefused || !db || !uid || !p || /^(log|pulse)(\/|$)/.test(String(p))) return;
     const at = Date.now();
     const id = String(at) + Math.random().toString(36).slice(2, 6).padEnd(4, '0');
     const path = 'log/' + uid + '/days/' + U.todayStr();

@@ -52,8 +52,8 @@
     const today = U.ymd(now);
     const entry = eodDays(ctx, uid)[today] || null;
     const working = typeof ctx.isWorkingDay === 'function' ? ctx.isWorkingDay(today, uid) : true;
-    const cutHour = parseInt(String((ctx.settings && ctx.settings.eodCut) || '19:30'), 10) || 19;
-    const due = !entry && working && now.getHours() >= cutHour - 1;
+    const cutMin = U.minutes(String((ctx.settings && ctx.settings.eodCut) || '19:30'));
+    const due = !entry && working && (now.getHours() * 60 + now.getMinutes()) >= cutMin - 60;
     const showForm = !entry || editing;
 
     const startEdit = () => {

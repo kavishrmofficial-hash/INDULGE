@@ -79,8 +79,17 @@
   const signoffOn = ctx => !!ctx && !!ctx.settings && ctx.settings.signoff !== false;
   const canSign = (ctx, t) => !!ctx && (ctx.isFounder || !!(M.reviews && M.reviews.canReview(ctx, t || {})));
   const gate = (ctx, t, status) => (status === 'done' && signoffOn(ctx) && !canSign(ctx, t || {owner: ctx.uid})) ? 'review' : status;
-  /* a done task that counts for points: signed off, or the founder's own, or from before sign-off, or sign-off is off */
-  const counted = (ctx, t) => !!t && t.status === 'done' && (!!t.approvedBy || !signoffOn(ctx) || t.owner === ctx.founderUid || (Number(t.doneAt) || 0) < SIGNOFF_SINCE);
+  /* the sign-off itself lives in the signer's own approvals document, which nobody else can write; a task's
+     approvedBy field alone proves nothing */
+  const sign = (ctx, id) => ctx.W.merge('approvals/' + ctx.uid, {ok: {[id]: Date.now()}}).catch(() => {});
+  const signedBy = (ctx, who, id) => !!(ctx.coll.approvals && ctx.coll.approvals.map[who] && (ctx.coll.approvals.map[who].ok || {})[id]);
+  const mayHaveSigned = (ctx, who, t) => who === ctx.founderUid || (!!t.project && !!ctx.coll.projects.map[t.project] && (ctx.coll.projects.map[t.project].owner === who || (ctx.coll.projects.map[t.project].members || []).indexOf(who) >= 0));
+  /* a done task that counts for points: signed off by someone allowed to, or the founder's own, or from before
+     sign-off began, or sign-off is off */
+  const counted = (ctx, t) => !!t && t.status === 'done' && (!signoffOn(ctx) || t.owner === ctx.founderUid || (Number(t.doneAt) || 0) < SIGNOFF_SINCE
+    || (!!t.approvedBy && t.approvedBy !== t.owner && signedBy(ctx, t.approvedBy, t.id) && mayHaveSigned(ctx, t.approvedBy, t)));
+  /* one status write with its sign-off recorded */
+  const commit = (ctx, id, sp) => ctx.W.update('tasks/' + id, sp.patch).then(r => { if (sp.patch.approvedBy) return sign(ctx, id).then(() => r); return r; });
   /* the status options for one task as this person sees them */
   const statusOpts = (ctx, t) => STATUSES.map(s => s.v === 'done' && signoffOn(ctx) && !canSign(ctx, t || {owner: ctx.uid}) ? {...s, label: 'Sign-off'} : s);
 
@@ -108,9 +117,10 @@
   }
   async function moveTask(ctx, task, status, el) {
     if (!task || task.status === status) return;
-    const {patch, msg, status: st} = statusPatch(task, status, ctx.uid, ctx);
+    const sp = statusPatch(task, status, ctx.uid, ctx);
+    const {msg, status: st} = sp;
     if (task.status === st) { M.toast(st === 'review' ? 'Waiting for sign-off' : msg); return; }
-    await ctx.W.update('tasks/' + task.id, patch).catch(() => {});
+    await commit(ctx, task.id, sp).catch(() => {});
     if (st === 'done') M.rain('🔥', el || document.body, {n: 56}); else M.sound.play('tick');
     M.toast(msg);
   }
@@ -304,17 +314,23 @@
             subtasks: localSubs, comments: {}, by: uid, created: now, updated: now,
             doneAt: st === 'done' ? now : null, ...(st === 'done' && canSign(ctx, draft) ? {approvedBy: uid, approvedAt: now} : {}), ...(st === 'review' ? {reviewAt: now} : {})
           });
+          if (st === 'done' && canSign(ctx, draft)) await sign(ctx, id);
           M.toast(st === 'review' && f.status === 'done' ? 'Task created, sent for sign-off' : 'Task created');
         } else {
           const prev = (task && task.status) || 'todo';
           const sp = prev === f.status ? {patch: {doneAt: (task && task.doneAt) || null}, msg: 'Saved', status: prev} : statusPatch(task, f.status, uid, ctx);
+          /* a shipped task keeps its owner, dates and project unless the founder changes them; the 20% mark is a reviewer's call */
+          const locked = task.status === 'done' && !ctx.isFounder;
+          const fx = locked ? {owner: task.owner || '', due: task.due || '', project: task.project || '', client: task.client || '', section: task.section || ''} : {owner: f.owner, due: f.due, project: f.project, client: f.client, section: f.section};
+          if (locked && (fx.owner !== f.owner || fx.due !== f.due || fx.project !== f.project)) M.toast('A shipped task keeps its owner, due date and project. Ask the founder to change those.');
+          const shown20 = canSign(ctx, task) ? !!f.shown20 : !!task.shown20;
           const logs = {};
-          if ((task.due || '') !== (f.due || '')) logs.dueLog = (Array.isArray(task.dueLog) ? task.dueLog : []).slice(-9).concat([{from: task.due || '', to: f.due || '', by: uid, at: now}]);
-          if ((task.owner || '') !== (f.owner || '')) logs.ownerLog = (Array.isArray(task.ownerLog) ? task.ownerLog : []).slice(-9).concat([{from: task.owner || '', to: f.owner || '', by: uid, at: now}]);
+          if ((task.due || '') !== (fx.due || '')) logs.dueLog = (Array.isArray(task.dueLog) ? task.dueLog : []).slice(-9).concat([{from: task.due || '', to: fx.due || '', by: uid, at: now}]);
+          if ((task.owner || '') !== (fx.owner || '')) logs.ownerLog = (Array.isArray(task.ownerLog) ? task.ownerLog : []).slice(-9).concat([{from: task.owner || '', to: fx.owner || '', by: uid, at: now}]);
           await W.update(path, {
-            title, owner: f.owner, client: f.client, project: f.project, section: f.section, due: f.due,
-            priority: f.priority, link: f.link.trim(), shown20: !!f.shown20, ...logs, ...sp.patch, status: sp.status, updated: now
+            title, ...fx, priority: f.priority, link: f.link.trim(), shown20, ...logs, ...sp.patch, status: sp.status, updated: now
           });
+          if (sp.patch.approvedBy) await sign(ctx, taskId);
           if (sp.status === 'done' && prev !== 'done') M.burst(document.querySelector('.drawer-foot'));
           M.toast(sp.msg);
         }
@@ -505,5 +521,5 @@
 
   M.pages.Tasks = Tasks;
   M.parts.TaskDrawer = TaskDrawer;
-  M.tasks = {isOverdue, progress, open, STATUSES, PRIORITIES, dueLabel, revNote, moveTask, statusPatch, gate, canSign, counted, signoffOn, statusOpts, binTask, SIGNOFF_SINCE};
+  M.tasks = {isOverdue, progress, open, STATUSES, PRIORITIES, dueLabel, revNote, moveTask, statusPatch, gate, canSign, counted, signoffOn, statusOpts, binTask, sign, commit, signedBy, SIGNOFF_SINCE};
 })();

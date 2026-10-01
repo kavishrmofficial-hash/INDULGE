@@ -588,7 +588,7 @@
         const st = ['todo', 'doing', 'review', 'done'].indexOf(input.status) >= 0 ? input.status : null;
         if (!st) throw new Error('status is todo, doing, review or done');
         const sp = M.tasks && M.tasks.statusPatch ? M.tasks.statusPatch(t, st, uid, ctx) : {patch: {status: st, updated: now, doneAt: st === 'done' ? now : null}, status: st};
-        await ctx.W.update('tasks/' + t.id, sp.patch);
+        if (M.tasks && M.tasks.commit) await M.tasks.commit(ctx, t.id, sp); else await ctx.W.update('tasks/' + t.id, sp.patch);
         say(sp.status !== st ? 'Sent "' + t.title + '" for sign-off' : 'Moved "' + t.title + '" to ' + st);
         return {ok: true, task: t.title, status: sp.status, note: sp.status !== st ? 'done needs a sign-off from the founder or someone on the project; it is in review' : undefined};
       }
@@ -631,7 +631,7 @@
         const t = needTask();
         if (t.status !== 'review') throw new Error('"' + t.title + '" is not in review');
         if (!(M.reviews && M.reviews.canReview(ctx, t))) throw new Error('only someone on the project, not the task\'s owner, reviews this one');
-        if (a === 'approve_task') return hold('Approve "' + cut(t.title, 40) + '"', 'Marks it done, approved by you.', () => ctx.W.update('tasks/' + t.id, {status: 'done', doneAt: Date.now(), approvedBy: uid, approvedAt: Date.now(), updated: Date.now()}));
+        if (a === 'approve_task') return hold('Approve "' + cut(t.title, 40) + '"', 'Marks it done, approved by you.', () => ctx.W.update('tasks/' + t.id, {status: 'done', doneAt: Date.now(), approvedBy: uid, approvedAt: Date.now(), updated: Date.now()}).then(() => M.tasks.sign(ctx, t.id)));
         const note = cut(String(input.note || '').trim(), 240);
         return hold('Send back "' + cut(t.title, 40) + '"', note || 'No note.', () => {
           const n = Date.now();

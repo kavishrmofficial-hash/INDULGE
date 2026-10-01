@@ -34,8 +34,7 @@
     const entry = daysOf(ctx, uid)[ymd] || null;
     const mode = entry && (entry.mode === 'office' || entry.mode === 'wfh') ? entry.mode : null;
     let status = 'none';
-    if (entry && entry.mode === 'leave') status = 'leave';   /* marked as leave from Admin */
-    else if (ctx && typeof ctx.onLeave === 'function' && ctx.onLeave(uid, ymd)) status = 'leave';
+    if (ctx && typeof ctx.onLeave === 'function' && ctx.onLeave(uid, ymd)) status = 'leave';   /* approved leave only, never a mark in the person's own doc */
     else if (ctx && ctx.holidays && typeof ctx.holidays.has === 'function' && ctx.holidays.has(ymd)) status = 'holiday';
     else if (U.parseYmd(ymd).getDay() === 0) status = 'sunday';
     else if (mode) status = mode;

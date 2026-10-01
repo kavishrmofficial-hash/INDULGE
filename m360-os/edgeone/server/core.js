@@ -53,6 +53,7 @@ const BODY_MAX = 6 * 1024 * 1024; /* the platform's own limit, refused early wit
 const AI_MODELS = {quick: 'claude-haiku-4-5-20251001', default: 'claude-opus-5-5', complex: 'claude-opus-5-5'};
 const AI_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 const AI_IMAGE_MAX = 2200000;   /* base64 characters per image, about 1.6 MB */
+const AI_DAILY_MAX = 600;        /* model turns one person gets in a day */
 const AUTH_ACTIONS = new Set(['setup', 'signup', 'login', 'accept', 'invited', 'magic', 'pw', 'pw2', 'reset', 'resetpw']);
 /* the caller's address, from the edge's headers; empty when none is present */
 function clientIp(request) {
@@ -92,10 +93,15 @@ const rand = (n = 24) => {
 };
 const newId = () => 'u_' + rand(14);
 const isObj = x => x && typeof x === 'object' && !Array.isArray(x);
+/* a deep merge where a null value removes the key (so rolling documents can shed old days), and keys that
+   would reach the prototype never land */
+const BAD_KEY = new Set(['__proto__', 'constructor', 'prototype']);
 function merge(a, b) {
   const out = isObj(a) ? {...a} : {};
   for (const k of Object.keys(b)) {
+    if (BAD_KEY.has(k)) continue;
     const v = b[k];
+    if (v === null) { delete out[k]; continue; }
     if (isObj(v) && isObj(out[k])) out[k] = merge(out[k], v);
     else out[k] = v;
   }
@@ -337,6 +343,7 @@ export function createApp({store, env = {}}) {
   }
   async function log(uid, a, p, s) {
     if (!uid) return;
+    if (/^pulse(\/|$)/.test(String(p || ''))) return;   /* the pulse is anonymous: no line ties a person to a response */
     try {
       const at = Date.now();
       const id = String(at) + Math.random().toString(36).slice(2, 6).padEnd(4, '0');
@@ -982,7 +989,10 @@ export function createApp({store, env = {}}) {
       if (target !== v.uid) {
         const n = await endSessions(target, null);
         await log(v.uid, 'setpw', '', target + ': ' + n + (n === 1 ? ' device' : ' devices') + ' signed out');
-      } else await log(v.uid, 'setpw', '', '');
+      } else {
+        const n = await endSessions(v.uid, v.token || null);
+        await log(v.uid, 'setpw', '', n ? n + (n === 1 ? ' other device' : ' other devices') + ' signed out' : '');
+      }
       return {ok: true};
     },
     /* a 6 digit reset code by email, good for 15 minutes; the answer is the same whether or not the email is known */
@@ -1059,6 +1069,11 @@ export function createApp({store, env = {}}) {
        same way, so a multi round call keeps its thinking intact on the same model. */
     async ai(v, body) {
       if (!v || (await levelOf(v.uid)) < LEVEL.interact) throw new HttpError(403, 'not_granted');
+      /* one person's turns per day are counted, so a loop or a leaked session cannot run the key dry */
+      const dayKey = 'n/ai/' + ymdIST(Date.now()) + '/' + v.uid;
+      const used = Number(((await getJ(dayKey).catch(() => null)) || {}).n) || 0;
+      if (used >= AI_DAILY_MAX) throw new HttpError(429, 'slow_down', 'The AI has done its ' + AI_DAILY_MAX + ' turns for you today. It is back tomorrow.');
+      await putJ(dayKey, {n: used + 1, at: Date.now()}).catch(() => {});
       const key = await aiKey();
       if (!key) throw new HttpError(403, 'not_granted', 'AI is off');
       const tier = body.tier === 'quick' || body.tier === 'complex' ? body.tier : 'default';
@@ -1150,12 +1165,11 @@ export function createApp({store, env = {}}) {
     /* the address links point at is the one this request came to, never one the caller names */
     let site = '';
     try { site = new URL(request.url).origin; } catch (e) { site = ''; }
-    const org = request.headers.get('origin');
-    if (org && /^https?:\/\//.test(org)) site = org;
+    if (env.SITE_URL && /^https:\/\//.test(env.SITE_URL)) site = String(env.SITE_URL).replace(/\/+$/, '');
     const ip = clientIp(request);
     try {
-      /* sign-in shaped calls are counted per address before anything else */
-      if (AUTH_ACTIONS.has(a)) await sec.throttle({ip, ua: deviceLabel(request.headers.get('user-agent'))});
+      /* sign-in shaped calls are counted per address before anything else; with no address to count, per email */
+      if (AUTH_ACTIONS.has(a)) await sec.throttle({ip: ip || (body && typeof body.email === 'string' ? 'e:' + cleanEmail(body.email) : ''), ua: deviceLabel(request.headers.get('user-agent'))});
       const v = await viewer(request);
       /* once a day: the backup and the trash and backup pruning (safety.js); never fails a request */
       if (hooks.upkeep) await hooks.upkeep().catch(() => {});

@@ -28,14 +28,14 @@
   const fmtMs = ms => { const s = Math.max(0, Math.round(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 
   /* ---------- workdays: a streak that ignores the weekend ---------- */
-  /* Monday to Friday count; a Saturday or Sunday folds into the Friday before it */
+  /* Monday to Saturday count (the studio works Saturdays); a Sunday folds into the Saturday before it */
   const workdayIndex = ymd => {
     const d = U.parseYmd(ymd);
     const mon = U.mondayOf(d);
     const week = Math.round(mon.getTime() / 604800000);
-    return week * 5 + Math.min((d.getDay() + 6) % 7, 4);
+    return week * 6 + Math.min((d.getDay() + 6) % 7, 5);
   };
-  const workdayBack = (ymd, n) => { let d = U.parseYmd(ymd); let left = n; while (left > 0) { d = U.addDays(d, -1); if (d.getDay() >= 1 && d.getDay() <= 5) left--; } return U.ymd(d); };
+  const workdayBack = (ymd, n) => { let d = U.parseYmd(ymd); let left = n; while (left > 0) { d = U.addDays(d, -1); if (d.getDay() !== 0) left--; } return U.ymd(d); };
 
   /* ---------- the engine ---------- */
   const docOf = (ctx, uid) => (ctx.coll.play && ctx.coll.play.map[uid || ctx.uid]) || {};

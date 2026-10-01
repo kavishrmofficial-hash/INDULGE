@@ -28,7 +28,7 @@
     const href = t.link && /^https?:/i.test(t.link) ? t.link : (t.link ? 'https://' + t.link : null);
     const approve = async () => {
       const now = Date.now();
-      await ctx.W.update('tasks/' + t.id, {status: 'done', doneAt: now, approvedBy: ctx.uid, approvedAt: now, updated: now}).catch(() => {});
+      await ctx.W.update('tasks/' + t.id, {status: 'done', doneAt: now, approvedBy: ctx.uid, approvedAt: now, updated: now}).then(() => M.tasks.sign(ctx, t.id)).catch(() => {});
       M.burst(document.getElementById('rev-' + t.id));
       M.toast('Approved. Shipped.');
     };

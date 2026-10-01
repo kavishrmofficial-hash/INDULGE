@@ -50,6 +50,10 @@
         if (!t || t.owner === founder) continue;
         const doneAt = Number(t.doneAt) || 0;
         if (t.status === 'done' && doneAt >= since0 && !t.approvedBy && !M.tasks.signoffOn(ctx)) push('flag:unsigned:' + id, 'flag', doneAt, T`${nm(t.owner)} marked ${t.title} done with no sign-off`, '#tasks/' + id, t.owner, true);
+        if (t.status === 'done' && doneAt >= since0 && t.approvedBy && t.approvedBy !== founder) {
+          const self = t.approvedBy === t.by && t.by !== t.owner;
+          push('flag:signed:' + id, 'flag', Number(t.approvedAt) || doneAt, self ? T`${nm(t.approvedBy)} created ${t.title} for ${nm(t.owner)} and signed it off themselves` : T`${nm(t.approvedBy)} signed off ${t.title} for ${nm(t.owner)}`, '#tasks/' + id, t.approvedBy, self);
+        }
         if (t.status === 'done' && doneAt && t.due && dayOf(doneAt) > t.due) { const late = U.daysBetween(t.due, dayOf(doneAt)); push('flag:late:' + id, 'flag', doneAt, T`${nm(t.owner)} shipped ${t.title} ${late} ${late === 1 ? 'day' : 'days'} late`, '#tasks/' + id, t.owner); }
         if (t.status === 'done' && doneAt && t.created && doneAt - t.created < 600000 && t.by === t.owner) push('flag:rushed:' + id, 'flag', doneAt, T`${nm(t.owner)} created and finished ${t.title} within ${Math.max(1, Math.round((doneAt - t.created) / 60000))} min`, '#tasks/' + id, t.owner, true);
         for (const d of (Array.isArray(t.dueLog) ? t.dueLog : [])) if (d && d.by === t.owner && d.to > d.from) push('flag:due:' + id + ':' + d.at, 'flag', d.at || 0, T`${nm(d.by)} moved the due date of ${t.title} from ${d.from ? U.fmtDate(d.from) : 'none'} to ${U.fmtDate(d.to)}`, '#tasks/' + id, d.by, true);

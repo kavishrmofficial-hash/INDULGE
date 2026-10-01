@@ -113,7 +113,8 @@
     const member = ctx.member;
     const probation = member && okDate(member.probationEnd) && member.probationEnd > today ? member.probationEnd : null;
     const mine = reqsOf(ctx, uid).slice().sort((a, b) => (b.at || 0) - (a.at || 0));
-    const canSend = okDate(from) && okDate(to) && to >= from && !busy;
+    const overlaps = okDate(from) && okDate(to) && mine.some(r => r && r.status !== 'declined' && r.status !== 'withdrawn' && !(to < r.from || from > r.to));
+    const canSend = okDate(from) && okDate(to) && to >= from && !busy && !overlaps;
 
     /* the to date follows the from date until the person picks a later one */
     const onFrom = v => {

@@ -163,6 +163,24 @@ export const RULES = [
   "write": "interact"
  },
  {
+  "path": "approvals",
+  "read": "interact",
+  "write": "admin"
+ },
+ {
+  "path": "approvals/{self}",
+  "write": "interact"
+ },
+ {
+  "path": "play",
+  "read": "interact",
+  "write": "admin"
+ },
+ {
+  "path": "play/{self}",
+  "write": "interact"
+ },
+ {
   "path": "me",
   "read": "interact",
   "write": "admin"

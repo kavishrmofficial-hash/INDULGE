@@ -48,7 +48,9 @@
     {path: 'access', read: 'interact', write: 'admin'}, {path: 'access/{self}', write: 'interact'},
     {path: 'onboard', read: 'interact', write: 'admin'}, {path: 'onboard/{self}', write: 'interact'},
     {path: 'me', read: 'interact', write: 'admin'}, {path: 'me/{self}', write: 'interact'},
-    {path: 'join', read: 'admin', write: 'admin'}, {path: 'join/{self}', read: 'interact', write: 'interact'}
+    {path: 'join', read: 'admin', write: 'admin'}, {path: 'join/{self}', read: 'interact', write: 'interact'},
+    {path: 'approvals', read: 'interact', write: 'admin'}, {path: 'approvals/{self}', write: 'interact'},
+    {path: 'play', read: 'interact', write: 'admin'}, {path: 'play/{self}', write: 'interact'}
   ];
   const LEVEL = {view: 0, interact: 1, admin: 2, owner: 3};
   const myLevel = ME.isOwner ? 3 : (q.get('level') === 'view' ? 0 : 1);

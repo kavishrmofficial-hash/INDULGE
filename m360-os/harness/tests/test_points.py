@@ -110,7 +110,11 @@ def test(h):
             'title': 'Task ' + tid, 'owner': owner, 'client': '', 'project': '', 'section': '', 'due': due,
             'status': status, 'priority': 'normal', 'link': '', 'revisions': revisions, 'shown20': shown20,
             'subtasks': {}, 'comments': {}, 'by': owner, 'created': ms(last_mon, 10, 0),
-            'updated': updated or done_at or ms(mon, 10, 0), 'doneAt': done_at})
+            'updated': updated or done_at or ms(mon, 10, 0), 'doneAt': done_at,
+            'approvedBy': F if done_at else None, 'approvedAt': done_at})
+        if done_at:
+            signed[tid] = done_at
+    signed = {}
 
     task('t1', M1, ymd(tue), 'done', done_at=ms(tue, 16, 0), shown20=True)                 # on time, shown
     task('t2', M1, ymd(mon), 'done', done_at=ms(wed, 11, 0), revisions=1)                  # late, one revision
@@ -120,6 +124,7 @@ def test(h):
     task('t6', M1, ymd(wed), 'review', shown20=True, updated=ms(wed, 15, 0))               # in review, shown, overdue
     task('t7', M2, ymd(thu), 'done', done_at=ms(thu, 10, 0))                               # m2 on time
     task('t8', M1, ymd(last_mon + timedelta(days=2)), 'done', done_at=ms(last_mon + timedelta(days=2), 12, 0))  # last week
+    h.seed_doc(page, 'approvals/' + F, {'ok': dict(signed)})
 
     # kudos: 7 to m1 this week (cap 5), 1 to m1 last week, 1 to m2 this week
     given_f = [{'id': 'k%d' % i, 'to': M1, 'why': 'Great reel', 'at': ms(mon + timedelta(days=i % 4), 12, i)} for i in range(4)]
@@ -133,6 +138,9 @@ def test(h):
     h.seed_doc(page, 'rocks/' + M1, {'q': {q_id: [
         {'id': 'r1', 'text': 'Pod 1 runs without me', 'state': 'done'},
         {'id': 'r2', 'text': 'Two retainers signed', 'state': 'on'}]}})
+    # a done rock counts once the founder confirms it in the person's review document
+    h.seed_doc(page, 'review/' + M1, {'weeks': {
+        wk: {'marks': {'p1': 'hit', 'p2': 'miss', 'p3': 'hit'}, 'quality': 4, 'note': '', 'at': ms(thu, 14, 0)}}, 'rocksOk': {q_id: ['r1']}})
 
     page.wait_for_function('''() => {
       const c = M.lastCtx; if (!c) return false;
@@ -146,15 +154,15 @@ def test(h):
     p1 = h.ctx(page, 'M.points.pointsFor(ctx, "u_m1", "%s", "%s")' % (week_from, week_to))
     expect_counts = {'checkinOnTime': 2, 'eod': 3, 'planOnTime': 1, 'planLate': 0, 'outcomeHit': 2, 'outcomeMiss': 1,
                      'taskOnTime': 2, 'taskLate': 1, 'revision': 1, 'shown20': 3, 'qualityMult': 4, 'kudos': 5,
-                     'rockDone': 0, 'overdueOpen': 2}
+                     'rockDone': 0, 'overdueOpen': 1}
     for k, n in expect_counts.items():
         check(p1['counts'][k] == n, 'm1 counts.%s = %r, expected %d' % (k, p1['counts'].get(k), n))
         check(p1['parts'][k] == POINTS[k] * n, 'm1 parts.%s = %r, expected %d' % (k, p1['parts'].get(k), POINTS[k] * n))
     discipline = 2 * 2 + 3 * 2 + 1 * 4 + 0 * 1                                    # 14
-    output = 2 * 12 + 1 * -6 + 2 * 6 + 1 * 2 + 1 * -2 + 3 * 2 + 4 * 4 + 5 * 3 + 0 * 20 + 2 * -2   # 63
+    output = 2 * 12 + 1 * -6 + 2 * 6 + 1 * 2 + 1 * -2 + 3 * 2 + 4 * 4 + 5 * 3 + 0 * 20 + 1 * -2   # 65, a task waiting for sign-off is not overdue
     check(p1['discipline'] == discipline, 'm1 discipline %r, expected %d' % (p1['discipline'], discipline))
     check(p1['output'] == output, 'm1 output %r, expected %d' % (p1['output'], output))
-    check(p1['total'] == output + discipline == 77, 'm1 total %r, expected 77' % p1['total'])
+    check(p1['total'] == output + discipline == 79, 'm1 total %r, expected 79' % p1['total'])
     check(p1['badges'] == ['Every EOD'], 'm1 badges %r, expected [Every EOD]' % p1['badges'])
 
     # ---- pointsFor, m2, this week ----
@@ -218,8 +226,8 @@ def test(h):
     # ---- leaderboard ----
     lb = h.ctx(page, 'M.points.leaderboard(ctx, "week", new Date())')
     check([r['uid'] for r in lb] == [M1, M2], 'leaderboard order %r, expected m1 then m2 without the founder' % [r['uid'] for r in lb])
-    check(lb[0]['total'] == 77 and lb[1]['total'] == 14, 'leaderboard totals %r' % [(r['uid'], r['total']) for r in lb])
-    check(lb[0]['badges'] == ['Every EOD'] and 'parts' in lb[0] and lb[0]['output'] == 63, 'leaderboard row %r' % lb[0])
+    check(lb[0]['total'] == 79 and lb[1]['total'] == 14, 'leaderboard totals %r' % [(r['uid'], r['total']) for r in lb])
+    check(lb[0]['badges'] == ['Every EOD'] and 'parts' in lb[0] and lb[0]['output'] == 65, 'leaderboard row %r' % lb[0])
 
     check(all(r['ranked'] == 'total' for r in lb) and lb[0]['days'] >= 1 and lb[0]['pace'] > 0, 'a board with nobody new ranks by total and carries days and pace: %r' % [(r['uid'], r.get('ranked'), r.get('days'), r.get('pace')) for r in lb])
     # someone who joined this morning: the board ranks by pace, so their two points on one day beat a slow week

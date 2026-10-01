@@ -277,7 +277,7 @@
         const patch = sp && sp.patch ? sp.patch : {status: st, updated: Date.now(), doneAt: st === 'done' ? Date.now() : null};
         if (!sp && t.status === 'review' && (st === 'doing' || st === 'todo')) patch.revisions = (t.revisions || 0) + 1;
         const landed = sp && sp.status ? sp.status : st;
-        await ctx.W.update('tasks/' + t.id, patch);
+        if (sp && M.tasks.commit) await M.tasks.commit(ctx, t.id, sp); else await ctx.W.update('tasks/' + t.id, patch);
         say(landed !== st ? 'Sent "' + t.title + '" for sign-off' : 'Moved "' + t.title + '" to ' + st);
         return {ok: true, task: t.title, status: landed};
       }
@@ -294,7 +294,7 @@
         if (!t) throw new Error('no task matches that title');
         const owner = ai.findMember(ctx, nm, input.owner);
         if (!owner) throw new Error('no teammate by that name');
-        await ctx.W.update('tasks/' + t.id, {owner, updated: Date.now()});
+        await ctx.W.update('tasks/' + t.id, {owner, ownerLog: (Array.isArray(t.ownerLog) ? t.ownerLog : []).slice(-9).concat([{from: t.owner || '', to: owner, by: ctx.uid, at: Date.now()}]), updated: Date.now()});
         say('Handed "' + t.title + '" to ' + nm[owner]);
         return {ok: true, task: t.title, owner: nm[owner]};
       }

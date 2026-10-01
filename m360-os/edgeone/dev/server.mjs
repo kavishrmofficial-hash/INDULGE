@@ -277,7 +277,7 @@ const app = createApp({store, env});
 const TYPES = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json'};
 
 http.createServer(async (req, res) => {
-  const url = new URL(req.url, 'http://localhost');
+  const url = new URL(req.url, 'http://' + (req.headers.host || 'localhost'));
   if (url.pathname === '/api/file' || url.pathname === '/api/browse') {
     const request = new Request('http://' + (req.headers.host || 'localhost') + req.url, {method: req.method, headers: req.headers});
     const out = await (url.pathname === '/api/file' ? app.file(request) : app.browse(request));

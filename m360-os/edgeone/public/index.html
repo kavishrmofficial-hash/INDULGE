@@ -1633,7 +1633,7 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
 }
 :root[data-theme="dark"] .dbl-over{background:rgba(10,10,10,.82)}
 </style>
-<script>window.M360_BUILD = "3aa44db+.261001-1026";</script><script>
+<script>window.M360_BUILD = "ee598a5+.261001-2312";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -2221,7 +2221,7 @@ function logSummary(d) {
 let logRefused = false;
 M.logWrite = function logWrite(db, uid, a, p, d) {
   try {
-    if (window.M360_STANDALONE || logRefused || !db || !uid || !p || /^log(\/|$)/.test(String(p))) return;
+    if (window.M360_STANDALONE || logRefused || !db || !uid || !p || /^(log|pulse)(\/|$)/.test(String(p))) return;
     const at = Date.now();
     const id = String(at) + Math.random().toString(36).slice(2, 6).padEnd(4, '0');
     const path = 'log/' + uid + '/days/' + U.todayStr();
@@ -2958,7 +2958,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     office: null, start: '10:30', grace: 15, eodCut: '19:30', mondayCut: '12:00',
     wfhCap: 2, revCap: 2, ackHours: 48, blockerDays: 2, holidays: [],
     rules: {}, points: {}, leaderboardIncludesFounder: false,
-    locked: false, lockNote: '', joinPolicy: 'open', alert: null
+    locked: false, lockNote: '', joinPolicy: 'open', alert: null, signoff: true
   };
 
   /* view as: the founder previews the app as one member. Held in memory only, never persisted. */
@@ -2984,7 +2984,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   M.RULE_IDS = ['R01','R02','R03','R04','R05','R06','R07','R08','R09','R10','R11','R12','R13','R14','R15','R16'];
 
   const COLLS = ['checkin','eod','plan','review','rocks','feed','reacts','acks','kudos','leave','leavedec',
-    'tasks','projects','pitches','clients','handbook','candidates','evals','pulse','ideas','votes','access','onboard','me','fixes','contacts','orgs','chat','chatrooms','dm','play'];
+    'tasks','projects','pitches','clients','handbook','candidates','evals','pulse','ideas','votes','access','onboard','me','fixes','contacts','orgs','chat','chatrooms','dm','play','approvals'];
 
   /* the books (invoices, expenses, payroll, HR letters, billing setup): the owner's alone, subscribed by nobody else */
   const BOOK_COLLS = ['books', 'invoices', 'expenses', 'payroll', 'hr'];
@@ -3011,6 +3011,13 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     React.useEffect(() => { if (!remoteBase) return; const f = n => { if (n > 0) setBaseOn(true); }; M.baseNeed.subs.add(f); return () => M.baseNeed.subs.delete(f); }, []);
     const coll = {};
     for (const c of COLLS) coll[c] = M.useColl(db, (c === 'contacts' || c === 'orgs') && !baseOn ? null : c);
+    /* a deleted task leaves every list and sits in the bin (coll.tasks.trash) until the founder settles it */
+    const rawTasks = coll.tasks;
+    coll.tasks = React.useMemo(() => {
+      const map = {}, trash = {};
+      for (const id of Object.keys(rawTasks.map || {})) { const t = rawTasks.map[id]; if (t && t.deleted) trash[id] = t; else map[id] = t; }
+      return {...rawTasks, map, trash};
+    }, [rawTasks]);
     if (!baseOn) { coll.contacts = OFF_COLL; coll.orgs = OFF_COLL; }
     /* join requests: only the founder lists them; everyone else reads their own */
     const rm = ((rosterDoc.data || {}).members || {})[realUid];
@@ -3878,12 +3885,13 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         const st = ['todo', 'doing', 'review', 'done'].indexOf(input.status) >= 0 ? input.status : null;
         if (!st) throw new Error('unknown status');
         /* the same bookkeeping a hand move does: review and send back stamps, revisions, the inbox */
-        const sp = (M.tasks && M.tasks.statusPatch) ? M.tasks.statusPatch(t, st, ctx.uid) : null;
+        const sp = (M.tasks && M.tasks.statusPatch) ? M.tasks.statusPatch(t, st, ctx.uid, ctx) : null;
         const patch = sp && sp.patch ? sp.patch : {status: st, updated: Date.now(), doneAt: st === 'done' ? Date.now() : null};
         if (!sp && t.status === 'review' && (st === 'doing' || st === 'todo')) patch.revisions = (t.revisions || 0) + 1;
-        await ctx.W.update('tasks/' + t.id, patch);
-        say('Moved "' + t.title + '" to ' + st);
-        return {ok: true, task: t.title, status: st};
+        const landed = sp && sp.status ? sp.status : st;
+        if (sp && M.tasks.commit) await M.tasks.commit(ctx, t.id, sp); else await ctx.W.update('tasks/' + t.id, patch);
+        say(landed !== st ? 'Sent "' + t.title + '" for sign-off' : 'Moved "' + t.title + '" to ' + st);
+        return {ok: true, task: t.title, status: landed};
       }
     }];
     tools.push({
@@ -3898,7 +3906,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         if (!t) throw new Error('no task matches that title');
         const owner = ai.findMember(ctx, nm, input.owner);
         if (!owner) throw new Error('no teammate by that name');
-        await ctx.W.update('tasks/' + t.id, {owner, updated: Date.now()});
+        await ctx.W.update('tasks/' + t.id, {owner, ownerLog: (Array.isArray(t.ownerLog) ? t.ownerLog : []).slice(-9).concat([{from: t.owner || '', to: owner, by: ctx.uid, at: Date.now()}]), updated: Date.now()});
         say('Handed "' + t.title + '" to ' + nm[owner]);
         return {ok: true, task: t.title, owner: nm[owner]};
       }
@@ -4467,6 +4475,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   /* ---------- pointsFor ---------- */
   /* {total, output, discipline, parts, counts, badges}. parts[key] = weights[key] * counts[key] for every
      weight key. counts.qualityMult is the sum of weekly quality scores in range. */
+  /* a done task that counts: signed off under the sign-off rule (21-tasks.js decides) */
+  const cnt = (ctx, t) => (M.tasks && M.tasks.counted) ? M.tasks.counted(ctx, t) : isDone(t);
   function pointsFor(ctx, uid, fromYmd, toYmd) {
     const w = weightsOf(ctx);
     const counts = zeroMap();
@@ -4534,7 +4544,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     /* tasks owned: done in range, revisions on those, 20% shown, open overdue at the end */
     let dueInRangeDone = 0, dueInRangeLate = 0;
     for (const t of ownedTasks(ctx, uid)) {
-      const done = isDone(t);
+      const done = cnt(ctx, t);
       const dy = doneYmd(t);
       if (done && inRange(dy, from, to)) {
         if (doneOnTime(t)) counts.taskOnTime++; else counts.taskLate++;
@@ -4544,7 +4554,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         const ref = (done && isNum(t.doneAt)) ? t.doneAt : (isNum(t.updated) ? t.updated : t.created);
         if (isNum(ref) && inRange(ymdOf(ref), from, to)) counts.shown20++;
       }
-      if (!done && t.due && t.due < end) counts.overdueOpen++;
+      if (!done && t.status !== 'review' && t.due && t.due < end) counts.overdueOpen++;
       if (done && inRange(t.due, from, to)) {
         dueInRangeDone++;
         if (!doneOnTime(t)) dueInRangeLate++;
@@ -4557,7 +4567,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const kudosMap = collMap(ctx, 'kudos');
     for (const giver of Object.keys(kudosMap)) {
       for (const k of ((kudosMap[giver] || {}).given || [])) {
-        if (!k || k.to !== uid || !isNum(k.at)) continue;
+        if (!k || k.to !== uid || giver === uid || !isNum(k.at)) continue;
         if (!inRange(ymdOf(k.at), from, to)) continue;
         const wk = U.isoWeek(new Date(k.at));
         perWeek[wk] = (perWeek[wk] || 0) + 1;
@@ -4567,8 +4577,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 
     /* rocks marked done, only when the range covers a whole quarter */
     const rockQ = docOf(ctx, 'rocks', uid).q || {};
+    const rockOk = docOf(ctx, 'review', uid).rocksOk || {};
     for (const qid of wholeQuartersIn(from, to)) {
-      for (const r of (rockQ[qid] || [])) if (r && r.state === 'done') counts.rockDone++;
+      const ok = Array.isArray(rockOk[qid]) ? rockOk[qid] : [];
+      for (const r of (rockQ[qid] || [])) if (r && r.state === 'done' && r.id && ok.indexOf(r.id) >= 0) counts.rockDone++;
     }
 
     return finish();
@@ -4589,9 +4601,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     for (const t of ownedTasks(ctx, uid)) {
       if (inRange(t.due, from, to)) {
         out.due++;
-        if (isDone(t) && doneOnTime(t)) dueOnTime++;
+        if (cnt(ctx, t) && doneOnTime(t)) dueOnTime++;
       }
-      if (isDone(t) && inRange(doneYmd(t), from, to)) {
+      if (cnt(ctx, t) && inRange(doneYmd(t), from, to)) {
         doneN++;
         revs += Math.max(0, Math.round(Number(t.revisions) || 0));
       }
@@ -4732,8 +4744,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const entry = daysOf(ctx, uid)[ymd] || null;
     const mode = entry && (entry.mode === 'office' || entry.mode === 'wfh') ? entry.mode : null;
     let status = 'none';
-    if (entry && entry.mode === 'leave') status = 'leave';   /* marked as leave from Admin */
-    else if (ctx && typeof ctx.onLeave === 'function' && ctx.onLeave(uid, ymd)) status = 'leave';
+    if (ctx && typeof ctx.onLeave === 'function' && ctx.onLeave(uid, ymd)) status = 'leave';   /* approved leave only, never a mark in the person's own doc */
     else if (ctx && ctx.holidays && typeof ctx.holidays.has === 'function' && ctx.holidays.has(ymd)) status = 'holiday';
     else if (U.parseYmd(ymd).getDay() === 0) status = 'sunday';
     else if (mode) status = mode;
@@ -4974,8 +4985,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const today = U.ymd(now);
     const entry = eodDays(ctx, uid)[today] || null;
     const working = typeof ctx.isWorkingDay === 'function' ? ctx.isWorkingDay(today, uid) : true;
-    const cutHour = parseInt(String((ctx.settings && ctx.settings.eodCut) || '19:30'), 10) || 19;
-    const due = !entry && working && now.getHours() >= cutHour - 1;
+    const cutMin = U.minutes(String((ctx.settings && ctx.settings.eodCut) || '19:30'));
+    const due = !entry && working && (now.getHours() * 60 + now.getMinutes()) >= cutMin - 60;
     const showForm = !entry || editing;
 
     const startEdit = () => {
@@ -5892,10 +5903,36 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 
   const revNote = n => n > 0 ? n + (n === 1 ? ' revision' : ' revisions') : 'No revisions yet';
 
-  /* one status change, with the bookkeeping every path shares: review time, revisions, done time */
-  function statusPatch(task, status, uid) {
+  /* ---------- sign-off: done is a decision, not a self-declaration ----------
+     While it is on (Admin > Settings, on by default), only the founder or a reviewer of the task (someone on
+     its project who does not own it) marks work done. Anyone else asking for done sends it for sign-off
+     instead, and the sign-off makes it done, so points land only on work somebody else has seen. Work done
+     before the day sign-off began counts as it was. */
+  const SIGNOFF_SINCE = Date.UTC(2026, 9, 1);
+  const signoffOn = ctx => !!ctx && !!ctx.settings && ctx.settings.signoff !== false;
+  const canSign = (ctx, t) => !!ctx && (ctx.isFounder || !!(M.reviews && M.reviews.canReview(ctx, t || {})));
+  const gate = (ctx, t, status) => (status === 'done' && signoffOn(ctx) && !canSign(ctx, t || {owner: ctx.uid})) ? 'review' : status;
+  /* the sign-off itself lives in the signer's own approvals document, which nobody else can write; a task's
+     approvedBy field alone proves nothing */
+  const sign = (ctx, id) => ctx.W.merge('approvals/' + ctx.uid, {ok: {[id]: Date.now()}}).catch(() => {});
+  const signedBy = (ctx, who, id) => !!(ctx.coll.approvals && ctx.coll.approvals.map[who] && (ctx.coll.approvals.map[who].ok || {})[id]);
+  const mayHaveSigned = (ctx, who, t) => who === ctx.founderUid || (!!t.project && !!ctx.coll.projects.map[t.project] && (ctx.coll.projects.map[t.project].owner === who || (ctx.coll.projects.map[t.project].members || []).indexOf(who) >= 0));
+  /* a done task that counts for points: signed off by someone allowed to, or the founder's own, or from before
+     sign-off began, or sign-off is off */
+  const counted = (ctx, t) => !!t && t.status === 'done' && (!signoffOn(ctx) || t.owner === ctx.founderUid || (Number(t.doneAt) || 0) < SIGNOFF_SINCE
+    || (!!t.approvedBy && t.approvedBy !== t.owner && signedBy(ctx, t.approvedBy, t.id) && mayHaveSigned(ctx, t.approvedBy, t)));
+  /* one status write with its sign-off recorded */
+  const commit = (ctx, id, sp) => ctx.W.update('tasks/' + id, sp.patch).then(r => { if (sp.patch.approvedBy) return sign(ctx, id).then(() => r); return r; });
+  /* the status options for one task as this person sees them */
+  const statusOpts = (ctx, t) => STATUSES.map(s => s.v === 'done' && signoffOn(ctx) && !canSign(ctx, t || {owner: ctx.uid}) ? {...s, label: 'Sign-off'} : s);
+
+  /* one status change, with the bookkeeping every path shares: the gate, review time, revisions, done
+     time, who signed it off. Pass ctx so the gate applies; without it the change is taken as asked. */
+  function statusPatch(task, status, uid, ctx) {
     const now = Date.now();
     const prev = (task && task.status) || 'todo';
+    const asked = status;
+    status = ctx ? gate(ctx, task, status) : status;
     const patch = {status, updated: now};
     let msg = 'Moved to ' + (STATUSES.find(x => x.v === status) || {label: status}).label.toLowerCase();
     if (prev === 'review' && (status === 'doing' || status === 'todo')) {
@@ -5903,18 +5940,25 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       patch.sentBackAt = now; patch.sentBackBy = uid;
       msg = 'Sent back, revision ' + patch.revisions;
     }
-    if (status === 'review' && prev !== 'review') patch.reviewAt = now;
-    if (status === 'done') { if (prev !== 'done' || !(task && task.doneAt)) patch.doneAt = now; msg = 'Shipped'; }
-    else patch.doneAt = null;
-    return {patch, msg};
+    if (status === 'review' && prev !== 'review') { patch.reviewAt = now; if (asked === 'done') msg = 'Sent for sign-off'; }
+    if (status === 'done') {
+      if (prev !== 'done' || !(task && task.doneAt)) patch.doneAt = now;
+      msg = 'Shipped';
+      if (ctx && canSign(ctx, task)) { patch.approvedBy = uid; patch.approvedAt = now; }
+    } else { patch.doneAt = null; patch.approvedBy = null; patch.approvedAt = null; }
+    return {patch, msg, status};
   }
   async function moveTask(ctx, task, status, el) {
     if (!task || task.status === status) return;
-    const {patch, msg} = statusPatch(task, status, ctx.uid);
-    await ctx.W.update('tasks/' + task.id, patch).catch(() => {});
-    if (status === 'done') M.rain('🔥', el || document.body, {n: 56}); else M.sound.play('tick');
+    const sp = statusPatch(task, status, ctx.uid, ctx);
+    const {msg, status: st} = sp;
+    if (task.status === st) { M.toast(st === 'review' ? 'Waiting for sign-off' : msg); return; }
+    await commit(ctx, task.id, sp).catch(() => {});
+    if (st === 'done') M.rain('🔥', el || document.body, {n: 56}); else M.sound.play('tick');
     M.toast(msg);
   }
+  /* a task is never erased by its owner: it goes to the founder's bin, with who and when, and can come back */
+  const binTask = (ctx, id) => ctx.W.update('tasks/' + id, {deleted: true, deletedBy: ctx.uid, deletedAt: Date.now(), updated: Date.now()});
 
   /* @mentions: names in a comment become ids the inbox can use */
   function useMentions(text, setText) {
@@ -6095,21 +6139,32 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       try {
         if (isNew) {
           const id = U.uid();
+          const draft = {owner: f.owner, project: f.project};
+          const st = gate(ctx, draft, f.status);
           await W.set('tasks/' + id, {
             title, owner: f.owner, client: f.client, project: f.project, section: f.section, due: f.due,
-            status: f.status, priority: f.priority, link: f.link.trim(), revisions: 0, shown20: !!f.shown20,
+            status: st, priority: f.priority, link: f.link.trim(), revisions: 0, shown20: !!f.shown20,
             subtasks: localSubs, comments: {}, by: uid, created: now, updated: now,
-            doneAt: f.status === 'done' ? now : null
+            doneAt: st === 'done' ? now : null, ...(st === 'done' && canSign(ctx, draft) ? {approvedBy: uid, approvedAt: now} : {}), ...(st === 'review' ? {reviewAt: now} : {})
           });
-          M.toast('Task created');
+          if (st === 'done' && canSign(ctx, draft)) await sign(ctx, id);
+          M.toast(st === 'review' && f.status === 'done' ? 'Task created, sent for sign-off' : 'Task created');
         } else {
           const prev = (task && task.status) || 'todo';
-          const sp = prev === f.status ? {patch: {doneAt: (task && task.doneAt) || null}, msg: 'Saved'} : statusPatch(task, f.status, uid);
+          const sp = prev === f.status ? {patch: {doneAt: (task && task.doneAt) || null}, msg: 'Saved', status: prev} : statusPatch(task, f.status, uid, ctx);
+          /* a shipped task keeps its owner, dates and project unless the founder changes them; the 20% mark is a reviewer's call */
+          const locked = task.status === 'done' && !ctx.isFounder;
+          const fx = locked ? {owner: task.owner || '', due: task.due || '', project: task.project || '', client: task.client || '', section: task.section || ''} : {owner: f.owner, due: f.due, project: f.project, client: f.client, section: f.section};
+          if (locked && (fx.owner !== f.owner || fx.due !== f.due || fx.project !== f.project)) M.toast('A shipped task keeps its owner, due date and project. Ask the founder to change those.');
+          const shown20 = canSign(ctx, task) ? !!f.shown20 : !!task.shown20;
+          const logs = {};
+          if ((task.due || '') !== (fx.due || '')) logs.dueLog = (Array.isArray(task.dueLog) ? task.dueLog : []).slice(-9).concat([{from: task.due || '', to: fx.due || '', by: uid, at: now}]);
+          if ((task.owner || '') !== (fx.owner || '')) logs.ownerLog = (Array.isArray(task.ownerLog) ? task.ownerLog : []).slice(-9).concat([{from: task.owner || '', to: fx.owner || '', by: uid, at: now}]);
           await W.update(path, {
-            title, owner: f.owner, client: f.client, project: f.project, section: f.section, due: f.due,
-            status: f.status, priority: f.priority, link: f.link.trim(), shown20: !!f.shown20, ...sp.patch, updated: now
+            title, ...fx, priority: f.priority, link: f.link.trim(), shown20, ...logs, ...sp.patch, status: sp.status, updated: now
           });
-          if (f.status === 'done' && prev !== 'done') M.burst(document.querySelector('.drawer-foot'));
+          if (sp.patch.approvedBy) await sign(ctx, taskId);
+          if (sp.status === 'done' && prev !== 'done') M.burst(document.querySelector('.drawer-foot'));
           M.toast(sp.msg);
         }
         ok = true;
@@ -6121,8 +6176,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const canDelete = !isNew && !!task && (task.by === uid || ctx.isFounder);
     const delTask = async () => {
       try {
-        await W.del(path);
-        M.toast('Task deleted');
+        await binTask(ctx, taskId);
+        M.toast(ctx.isFounder ? 'Task deleted. It sits in the bin on Admin for thirty days.' : 'Task deleted. The founder can bring it back.');
         onClose();
       } catch (e) { /* the write layer toasts the failure */ }
     };
@@ -6144,7 +6199,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${isNew ? 'New task' : 'Task'} footer=${footer}>
       <${UI.Input} id="task-title" label="title" value=${f.title} onChange=${set('title')} placeholder="What needs to happen"/>
       <${UI.Field} label="status">
-        <${UI.Seg} options=${STATUSES} value=${f.status} onChange=${set('status')} ariaLabel="Status"/>
+        <${UI.Seg} options=${statusOpts(ctx, isNew ? {owner: f.owner, project: f.project} : task)} value=${f.status} onChange=${set('status')} ariaLabel="Status"/>
       <//>
       <div class="grid2">
         <${UI.Select} id="task-owner" label="owner" value=${f.owner} onChange=${set('owner')} options=${ownerOpts}/>
@@ -6299,7 +6354,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 
   M.pages.Tasks = Tasks;
   M.parts.TaskDrawer = TaskDrawer;
-  M.tasks = {isOverdue, progress, open, STATUSES, PRIORITIES, dueLabel, revNote, moveTask, statusPatch};
+  M.tasks = {isOverdue, progress, open, STATUSES, PRIORITIES, dueLabel, revNote, moveTask, statusPatch, gate, canSign, counted, signoffOn, statusOpts, binTask, sign, commit, signedBy, SIGNOFF_SINCE};
 })();
 
 /* ==== 22-projects.js ==== */
@@ -6520,8 +6575,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const toggle = checked => {
       const now = Date.now();
       setShown(checked);
-      ctx.W.update('tasks/' + t.id, checked ? {status: 'done', doneAt: now, updated: now} : {status: 'todo', doneAt: null, updated: now})
-        .then(() => M.toast(checked ? 'Task done' : 'Task reopened'), () => setShown(null));
+      const sp = M.tasks.statusPatch(t, checked ? 'done' : 'todo', ctx.uid, ctx);
+      if (checked && sp.status !== 'done') setShown(null);
+      M.tasks.commit(ctx, t.id, sp)
+        .then(() => M.toast(checked ? (sp.status === 'done' ? 'Task done' : 'Sent for sign-off') : 'Task reopened'), () => setShown(null));
     };
     return html`<div class="listrow trow">
       <label class="checkline"><input type="checkbox" data-task=${t.id} checked=${shown} aria-label=${'Done: ' + t.title}
@@ -6644,7 +6701,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const members = project.members || [];
     /* people on the project who left the roster still show, so they can be removed */
     const all = ids.concat(members.filter(u => !ids.includes(u)));
+    const mayEdit = ctx.isFounder || project.owner === ctx.uid;
     const toggle = (u, on) => {
+      if (!mayEdit) { M.toast('Only the project owner or the founder changes who is on it.', true); return null; }
       if (u === project.owner && !on) { M.toast('The owner stays on the project.', true); return null; }
       const next = on ? (members.includes(u) ? members : members.concat([u])) : members.filter(x => x !== u);
       return ctx.W.update('projects/' + project.id, {members: next});
@@ -9336,6 +9395,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const qid = quarterNow(ctx);
     const mine = ctx.uid === uid;
     const rocks = rocksOf(ctx, uid, qid);
+    const rockOk = ((docOf(ctx, 'review', uid).rocksOk || {})[qid]) || [];
     const eodDays = docOf(ctx, 'eod', uid).days || {};
     const recent = Object.keys(eodDays).filter(okDate).sort().reverse().slice(0, EOD_SHOWN);
     const kudos = kudosFor(ctx, uid).slice(0, KUDOS_SHOWN);
@@ -9345,7 +9405,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         ${mine ? html`<${RocksForm} ctx=${ctx} uid=${uid} qid=${qid}/>`
           : (rocks.length ? rocks.map((r, i) => html`<div class="listrow" key=${r.id || i}>
               <span class="grow">${r.text}</span><${RockPill} state=${r.state}/>
+              ${ctx.isFounder && r.state === 'done' && r.id ? html`<${UI.Check} label=${rockOk.indexOf(r.id) >= 0 ? 'Confirmed' : 'Confirm done'} checked=${rockOk.indexOf(r.id) >= 0}
+                onChange=${v => ctx.W.merge('review/' + uid, {rocksOk: {[qid]: v ? rockOk.concat([r.id]) : rockOk.filter(x => x !== r.id)}}).then(() => M.toast(v ? 'Rock confirmed. It counts now.' : 'Confirmation removed')).catch(() => {})}/>` : null}
             </div>`) : html`<${UI.Empty} text="No rocks set for this quarter."/>`)}
+        ${!mine && ctx.isFounder && rocks.some(r => r.state === 'done') ? html`<div class="tiny ink62" style=${{marginTop: '8px'}}>A rock marked done counts for points once you confirm it.</div>` : null}
+        ${mine && rocks.some(r => r.state === 'done') ? html`<div class="tiny ink62" style=${{marginTop: '8px'}}>A done rock counts once the founder confirms it.</div>` : null}
       <//>
       <div class="grid2">
         <${UI.Card} title="Recent EOD lines" id="person-eod">
@@ -11381,7 +11445,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const member = ctx.member;
     const probation = member && okDate(member.probationEnd) && member.probationEnd > today ? member.probationEnd : null;
     const mine = reqsOf(ctx, uid).slice().sort((a, b) => (b.at || 0) - (a.at || 0));
-    const canSend = okDate(from) && okDate(to) && to >= from && !busy;
+    const overlaps = okDate(from) && okDate(to) && mine.some(r => r && r.status !== 'declined' && r.status !== 'withdrawn' && !(to < r.from || from > r.to));
+    const canSend = okDate(from) && okDate(to) && to >= from && !busy && !overlaps;
 
     /* the to date follows the from date until the person picks a later one */
     const onFrom = v => {
@@ -11482,14 +11547,14 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   const fmtMs = ms => { const s = Math.max(0, Math.round(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 
   /* ---------- workdays: a streak that ignores the weekend ---------- */
-  /* Monday to Friday count; a Saturday or Sunday folds into the Friday before it */
+  /* Monday to Saturday count (the studio works Saturdays); a Sunday folds into the Saturday before it */
   const workdayIndex = ymd => {
     const d = U.parseYmd(ymd);
     const mon = U.mondayOf(d);
     const week = Math.round(mon.getTime() / 604800000);
-    return week * 5 + Math.min((d.getDay() + 6) % 7, 4);
+    return week * 6 + Math.min((d.getDay() + 6) % 7, 5);
   };
-  const workdayBack = (ymd, n) => { let d = U.parseYmd(ymd); let left = n; while (left > 0) { d = U.addDays(d, -1); if (d.getDay() >= 1 && d.getDay() <= 5) left--; } return U.ymd(d); };
+  const workdayBack = (ymd, n) => { let d = U.parseYmd(ymd); let left = n; while (left > 0) { d = U.addDays(d, -1); if (d.getDay() !== 0) left--; } return U.ymd(d); };
 
   /* ---------- the engine ---------- */
   const docOf = (ctx, uid) => (ctx.coll.play && ctx.coll.play.map[uid || ctx.uid]) || {};
@@ -12948,7 +13013,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       start: s.start, grace: String(s.grace), eodCut: s.eodCut, mondayCut: s.mondayCut,
       wfhCap: String(s.wfhCap), revCap: String(s.revCap), ackHours: String(s.ackHours), blockerDays: String(s.blockerDays),
       holidays: (s.holidays || []).slice(), rules: {...s.rules}, points: {...s.points},
-      leaderboardIncludesFounder: !!s.leaderboardIncludesFounder, newHoliday: ''
+      leaderboardIncludesFounder: !!s.leaderboardIncludesFounder, signoff: s.signoff === false ? 'no' : 'yes', newHoliday: ''
     }));
     const set = (k, v) => setF(x => ({...x, [k]: v}));
     const names = (M.rules && M.rules.NAMES) || {};
@@ -12969,7 +13034,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         office, start: f.start, grace: Number(f.grace) || 0, eodCut: f.eodCut, mondayCut: f.mondayCut,
         wfhCap: Number(f.wfhCap) || 0, revCap: Number(f.revCap) || 0, ackHours: Number(f.ackHours) || 0,
         blockerDays: Number(f.blockerDays) || 0, holidays: f.holidays, rules: f.rules, points,
-        leaderboardIncludesFounder: f.leaderboardIncludesFounder, updated: Date.now()
+        leaderboardIncludesFounder: f.leaderboardIncludesFounder, signoff: f.signoff !== 'no', updated: Date.now()
       });
       M.toast('Settings saved');
     }
@@ -13029,6 +13094,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       <${UI.Card} title="Leaderboard">
         <${UI.Check} label="Leaderboard includes the founder" checked=${f.leaderboardIncludesFounder}
           onChange=${v => set('leaderboardIncludesFounder', v)}/>
+        <div style=${{marginTop: '10px'}}>
+          <${UI.Check} label="Done needs a sign-off" checked=${f.signoff !== 'no'} onChange=${v => set('signoff', v ? 'yes' : 'no')}/>
+          <div class="tiny ink62" style=${{marginTop: '4px'}}>On: a member marking their own work done sends it for sign-off; you or someone on the project ships it, and only then do the points land. Off: anyone can mark done, and each one shows up in your inbox as a flag.</div>
+        </div>
       <//>
 
       <div class="row"><${UI.Btn} onClick=${save}>Save settings<//></div>
@@ -16901,8 +16970,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       return {open: open.slice(0, 6), more: Math.max(0, open.length - 6), doneToday};
     }, [ctx.coll.tasks.map, ctx.uid, td]);
 
-    const complete = t => ctx.W.update('tasks/' + t.id, {status: 'done', doneAt: Date.now(), updated: Date.now()}).then(() => M.toast('Done. Nice')).catch(() => {});
-    const reopen = t => ctx.W.update('tasks/' + t.id, {status: 'doing', doneAt: null, updated: Date.now()}).catch(() => {});
+    const complete = t => { const sp = M.tasks.statusPatch(t, 'done', ctx.uid, ctx); return M.tasks.commit(ctx, t.id, sp).then(() => M.toast(sp.status === 'done' ? 'Done. Nice' : 'Sent for sign-off')).catch(() => {}); };
+    const reopen = t => ctx.W.update('tasks/' + t.id, M.tasks.statusPatch(t, 'doing', ctx.uid, ctx).patch).catch(() => {});
 
     async function add() {
       const text = q.trim();
@@ -18401,10 +18470,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         if (t.owner !== uid && !ctx.isFounder) throw new Error('only the owner or the founder can move this task');
         const st = ['todo', 'doing', 'review', 'done'].indexOf(input.status) >= 0 ? input.status : null;
         if (!st) throw new Error('status is todo, doing, review or done');
-        const sp = M.tasks && M.tasks.statusPatch ? M.tasks.statusPatch(t, st, uid) : {patch: {status: st, updated: now, doneAt: st === 'done' ? now : null}};
-        await ctx.W.update('tasks/' + t.id, sp.patch);
-        say('Moved "' + t.title + '" to ' + st);
-        return {ok: true, task: t.title, status: st};
+        const sp = M.tasks && M.tasks.statusPatch ? M.tasks.statusPatch(t, st, uid, ctx) : {patch: {status: st, updated: now, doneAt: st === 'done' ? now : null}, status: st};
+        if (M.tasks && M.tasks.commit) await M.tasks.commit(ctx, t.id, sp); else await ctx.W.update('tasks/' + t.id, sp.patch);
+        say(sp.status !== st ? 'Sent "' + t.title + '" for sign-off' : 'Moved "' + t.title + '" to ' + st);
+        return {ok: true, task: t.title, status: sp.status, note: sp.status !== st ? 'done needs a sign-off from the founder or someone on the project; it is in review' : undefined};
       }
       case 'reassign_task': {
         const t = needTask();
@@ -18445,7 +18514,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         const t = needTask();
         if (t.status !== 'review') throw new Error('"' + t.title + '" is not in review');
         if (!(M.reviews && M.reviews.canReview(ctx, t))) throw new Error('only someone on the project, not the task\'s owner, reviews this one');
-        if (a === 'approve_task') return hold('Approve "' + cut(t.title, 40) + '"', 'Marks it done, approved by you.', () => ctx.W.update('tasks/' + t.id, {status: 'done', doneAt: Date.now(), approvedBy: uid, approvedAt: Date.now(), updated: Date.now()}));
+        if (a === 'approve_task') return hold('Approve "' + cut(t.title, 40) + '"', 'Marks it done, approved by you.', () => ctx.W.update('tasks/' + t.id, {status: 'done', doneAt: Date.now(), approvedBy: uid, approvedAt: Date.now(), updated: Date.now()}).then(() => M.tasks.sign(ctx, t.id)));
         const note = cut(String(input.note || '').trim(), 240);
         return hold('Send back "' + cut(t.title, 40) + '"', note || 'No note.', () => {
           const n = Date.now();
@@ -20692,6 +20761,28 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         if (mentioned || mine) push('cm:' + cid, 'feed', c.at || 0, T`${nm(c.by)}${mentioned ? ' mentioned you on ' : ' commented on '}${t.title}`, '#tasks/' + id, c.by, mentioned);
       }
     }
+    /* the founder's flags: what somebody did to the record that deserves a look */
+    if (ctx.isFounder && M.tasks) {
+      const founder = ctx.founderUid;
+      const since0 = M.tasks.SIGNOFF_SINCE || 0;
+      const dayOf = ts => U.ymd(new Date(ts));
+      for (const id of Object.keys(tmap)) {
+        const t = tmap[id];
+        if (!t || t.owner === founder) continue;
+        const doneAt = Number(t.doneAt) || 0;
+        if (t.status === 'done' && doneAt >= since0 && !t.approvedBy && !M.tasks.signoffOn(ctx)) push('flag:unsigned:' + id, 'flag', doneAt, T`${nm(t.owner)} marked ${t.title} done with no sign-off`, '#tasks/' + id, t.owner, true);
+        if (t.status === 'done' && doneAt >= since0 && t.approvedBy && t.approvedBy !== founder) {
+          const self = t.approvedBy === t.by && t.by !== t.owner;
+          push('flag:signed:' + id, 'flag', Number(t.approvedAt) || doneAt, self ? T`${nm(t.approvedBy)} created ${t.title} for ${nm(t.owner)} and signed it off themselves` : T`${nm(t.approvedBy)} signed off ${t.title} for ${nm(t.owner)}`, '#tasks/' + id, t.approvedBy, self);
+        }
+        if (t.status === 'done' && doneAt && t.due && dayOf(doneAt) > t.due) { const late = U.daysBetween(t.due, dayOf(doneAt)); push('flag:late:' + id, 'flag', doneAt, T`${nm(t.owner)} shipped ${t.title} ${late} ${late === 1 ? 'day' : 'days'} late`, '#tasks/' + id, t.owner); }
+        if (t.status === 'done' && doneAt && t.created && doneAt - t.created < 600000 && t.by === t.owner) push('flag:rushed:' + id, 'flag', doneAt, T`${nm(t.owner)} created and finished ${t.title} within ${Math.max(1, Math.round((doneAt - t.created) / 60000))} min`, '#tasks/' + id, t.owner, true);
+        for (const d of (Array.isArray(t.dueLog) ? t.dueLog : [])) if (d && d.by === t.owner && d.to > d.from) push('flag:due:' + id + ':' + d.at, 'flag', d.at || 0, T`${nm(d.by)} moved the due date of ${t.title} from ${d.from ? U.fmtDate(d.from) : 'none'} to ${U.fmtDate(d.to)}`, '#tasks/' + id, d.by, true);
+        for (const o of (Array.isArray(t.ownerLog) ? t.ownerLog : [])) if (o && o.by !== founder) push('flag:owner:' + id + ':' + o.at, 'flag', o.at || 0, T`${nm(o.by)} handed ${t.title} ${o.to ? 'to ' : 'off'}${o.to ? nm(o.to) : ''}`, '#tasks/' + id, o.by);
+      }
+      const trash = (ctx.coll.tasks && ctx.coll.tasks.trash) || {};
+      for (const id of Object.keys(trash)) { const t = trash[id]; if (t && t.deletedBy && t.deletedBy !== founder) push('flag:del:' + id, 'flag', Number(t.deletedAt) || 0, T`${nm(t.deletedBy)} deleted ${t.title}. It is in the bin on Admin`, '#admin', t.deletedBy, true); }
+    }
     /* kudos to me */
     const kmap = ctx.coll.kudos.map;
     for (const giver of Object.keys(kmap)) for (const k of (kmap[giver].given || [])) {
@@ -20747,7 +20838,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   const seenAt = ctx => Number(((ctx.coll.me.map[ctx.uid] || {}).inboxSeen) || 0);
   const unread = ctx => items(ctx).filter(i => i.at > seenAt(ctx)).length;
 
-  const KIND_ICON = {tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift', fix: 'fix', chat: 'send', books: 'log'};
+  const KIND_ICON = {tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift', fix: 'fix', chat: 'send', books: 'log', flag: 'shield'};
 
   function Inbox({onClose}) {
     const ctx = M.useCtx();
@@ -20776,7 +20867,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
      notification when m360 sits in another window. Chat lines have their own watcher. The mark of
      the newest item seen lives in this browser, per person; the first load on a device sets it, so
      a backlog never rains down. ---------- */
-  const TITLE = {tasks: 'Work', review: 'Review', feed: 'Feed', scores: 'Kudos', leave: 'Leave', people: 'Team', gift: 'Today', fix: 'Correction', books: 'Books'};
+  const TITLE = {tasks: 'Work', review: 'Review', feed: 'Feed', scores: 'Kudos', leave: 'Leave', people: 'Team', gift: 'Today', fix: 'Correction', books: 'Books', flag: 'Flag'};
   function InboxWatch() {
     const ctx = M.useCtx();
     const uid = ctx.uid;
@@ -20960,7 +21051,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const href = t.link && /^https?:/i.test(t.link) ? t.link : (t.link ? 'https://' + t.link : null);
     const approve = async () => {
       const now = Date.now();
-      await ctx.W.update('tasks/' + t.id, {status: 'done', doneAt: now, approvedBy: ctx.uid, approvedAt: now, updated: now}).catch(() => {});
+      await ctx.W.update('tasks/' + t.id, {status: 'done', doneAt: now, approvedBy: ctx.uid, approvedAt: now, updated: now}).then(() => M.tasks.sign(ctx, t.id)).catch(() => {});
       M.burst(document.getElementById('rev-' + t.id));
       M.toast('Approved. Shipped.');
     };
@@ -21007,7 +21098,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     if (compact && !mine.length) return null;
     return html`<${UI.Card} id="reviews" title=${compact ? 'Waiting on your review' : 'Reviews'}
       action=${html`<span class=${'pill ' + (mine.length ? 'flame' : 'warm')}>${mine.length} on you</span>`}>
-      ${!compact ? html`<p class="small ink62" style=${{marginTop: 0}}>Work in review, oldest first. Approve ships it, send back counts a revision and tells the owner why.</p>` : null}
+      ${!compact ? html`<p class="small ink62" style=${{marginTop: 0}}>Work in review, oldest first. Approve ships it, send back counts a revision and tells the owner why.${M.tasks && M.tasks.signoffOn(ctx) ? ' Sign-off is on: nothing counts as done until someone here approves it.' : ''}</p>` : null}
       ${list.length ? list.map(t => html`<${Row} key=${t.id} t=${t} onOpen=${setOpen}/>`)
         : html`<${UI.Empty} text=${theirs.length ? 'Nothing waiting on you. ' + theirs.length + ' of yours ' + (theirs.length === 1 ? 'is' : 'are') + ' with the reviewers.' : 'Nothing in review right now.'}/>`}
       ${open && D ? html`<${D} taskId=${open} onClose=${() => setOpen(null)}/>` : null}
@@ -22480,6 +22571,46 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 
   M.deskTabs.push({v: 'super', label: 'Super', render: SuperTab});
   M.superctl = {openTasksFor};
+})();
+
+/* ==== 74-trash.js ==== */
+/* module: trash. Admin > Controls > Super: the bin. A deleted task is never erased by whoever deleted
+   it; it lands here with who and when, the founder brings it back or lets it go, and anything older
+   than thirty days is let go on the next visit. */
+'use strict';
+(function () {
+  const {html, React, U, UI} = M;
+  const {useEffect} = React;
+  const KEEP_MS = 30 * 86400000;
+
+  function TrashCard() {
+    const ctx = M.useCtx();
+    const trash = (ctx.coll.tasks && ctx.coll.tasks.trash) || {};
+    const list = Object.keys(trash).map(id => ({id, ...trash[id]})).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
+    useEffect(() => {
+      /* thirty days on, gone for good */
+      list.filter(t => (Number(t.deletedAt) || 0) < Date.now() - KEEP_MS).forEach(t => ctx.W.del('tasks/' + t.id).catch(() => {}));
+    }, [list.length]);
+    if (!ctx.isFounder) return null;
+    const restore = t => ctx.W.update('tasks/' + t.id, {deleted: false, deletedBy: null, deletedAt: null, updated: Date.now()}).then(() => M.toast('Back on the board')).catch(() => {});
+    const purge = t => ctx.W.del('tasks/' + t.id).then(() => M.toast('Gone for good')).catch(() => {});
+    return html`<${UI.Card} id="trash-card" title="Deleted tasks" action=${html`<span class="tiny ink62 num">${list.length} in the bin, thirty days</span>`}>
+      ${list.length ? html`<div class="stack tight">
+        ${list.map(t => html`<div key=${t.id} class="row between brk-row" id=${'trash-' + t.id}>
+          <div class="grow" style=${{minWidth: 0}}>
+            <div style=${{overflowWrap: 'anywhere'}}>${t.title}</div>
+            <div class="tiny ink62">owner <${UI.Name} id=${t.owner}/> · deleted by <${UI.Name} id=${t.deletedBy}/> ${t.deletedAt ? U.timeAgo(t.deletedAt) : ''}${t.status ? ' · was ' + t.status : ''}${t.due ? ' · due ' + U.fmtDate(t.due) : ''}</div>
+          </div>
+          <span class="row nowrap">
+            <${UI.Btn} sm=${true} kind="sec" onClick=${() => restore(t)}>Restore<//>
+            <${UI.ConfirmBtn} sm=${true} kind="ghost" onConfirm=${() => purge(t)}>Delete for good<//>
+          </span>
+        </div>`)}
+      </div>` : html`<div class="small ink62">Nothing deleted. When someone deletes a task it waits here, and your inbox gets a flag.</div>`}
+    <//>`;
+  }
+
+  M.superCards = (M.superCards || []).concat([TrashCard]);
 })();
 
 /* ==== 75-radar.js ==== */

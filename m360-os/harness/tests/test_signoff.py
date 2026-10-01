@@ -46,9 +46,9 @@ def part(h):
     g = p.evaluate('''() => { const c = M.lastCtx; const t1 = {owner: "u_m1", project: "p1"}, t3 = {owner: "u_m2", project: "p1"};
       return {own: M.tasks.gate(c, t1, "done"), theirs: M.tasks.gate(c, t3, "done"), doing: M.tasks.gate(c, t1, "doing"), on: M.tasks.signoffOn(c),
         legacy: M.tasks.counted(c, {status: "done", owner: "u_m2", doneAt: Date.UTC(2026, 0, 5)}), fresh: M.tasks.counted(c, {status: "done", owner: "u_m2", doneAt: Date.now()}),
-        signed: M.tasks.counted(c, {status: "done", owner: "u_m2", doneAt: Date.now(), approvedBy: "u_m1"}), founders: M.tasks.counted(c, {status: "done", owner: "u_founder", doneAt: Date.now()})}; }''')
+        signed: M.tasks.counted(c, {id: "t4", status: "done", owner: "u_m2", doneAt: Date.now(), approvedBy: "u_founder"}), forged: M.tasks.counted(c, {id: "t3", status: "done", owner: "u_m2", doneAt: Date.now(), approvedBy: "u_founder"}), founders: M.tasks.counted(c, {status: "done", owner: "u_founder", doneAt: Date.now()})}; }''')
     check(g['own'] == 'review' and g['theirs'] == 'done' and g['doing'] == 'doing' and g['on'] is True, 'the gate: %r' % g)
-    check(g['legacy'] is True and g['fresh'] is False and g['signed'] is True and g['founders'] is True, 'what counts: %r' % g)
+    check(g['legacy'] is True and g['fresh'] is False and g['signed'] is True and g['forged'] is False and g['founders'] is True, 'what counts: %r' % g)
     # ---- a member asks for done on their own task: it goes for sign-off ----
     open_task(p, 'Write hero reel script')
     check(p.locator('.drawer .seg-btn:has-text("Sign-off")').count() == 1 and p.locator('.drawer .seg-btn:has-text("Done")').count() == 0, 'the status option reads Sign-off for the owner')
@@ -73,6 +73,8 @@ def part(h):
     p.wait_for_function('() => (window.__db.get("tasks/t1") || {}).status === "done"')
     t1 = doc(p, 'tasks/t1')
     check(t1['approvedBy'] == M2 and t1.get('approvedAt') and t1.get('doneAt'), 'signed off by the teammate: %r' % {k: t1.get(k) for k in ('approvedBy', 'approvedAt', 'doneAt')})
+    p.wait_for_function('() => { const a = window.__db.get("approvals/u_m2"); return a && a.ok && a.ok.t1; }')
+    check(p.evaluate('() => M.tasks.counted(M.lastCtx, {id: "t1", ...window.__db.get("tasks/t1")})') is True, 'the sign-off is recorded in the signer\'s own document and counts')
     pts = p.evaluate('() => M.points.pointsFor(M.lastCtx, "u_m1", M.U.ymd(M.U.addDays(new Date(), -30)), M.U.todayStr()).counts')
     check(pts['taskOnTime'] + pts['taskLate'] == 1, 'the points land after the sign-off: %r' % pts)
     # ---- the owner of the project signs off a member's work; the founder's own done is direct ----

@@ -21,6 +21,9 @@ export function publicHost(url) {
   if (u.username || u.password) return '';
   const h = u.hostname.toLowerCase();
   if (!h || h.indexOf('.') < 0 || h[0] === '[' || h.indexOf(':') >= 0) return '';
+  /* only the usual web ports; a number-shaped host that is not a plain dotted quad (octal, hex, short forms) is refused */
+  if (u.port && u.port !== '80' && u.port !== '443') return '';
+  if (/^[0-9a-fx.]+$/.test(h) && !/^(0|[1-9]\d{0,2})\.(0|[1-9]\d{0,2})\.(0|[1-9]\d{0,2})\.(0|[1-9]\d{0,2})$/.test(h)) return '';
   if (h === 'localhost' || /\.(localhost|local|internal|home|lan)$/.test(h)) return '';
   /* wildcard DNS services resolve any name to the address inside it, so they can point at private space */
   if (/\.(nip\.io|sslip\.io|xip\.io|localtest\.me|lvh\.me|traefik\.me)$/.test(h)) return '';
@@ -97,10 +100,21 @@ export function peekActions(h) {
     const ctl = new AbortController();
     const t = setTimeout(() => ctl.abort(), FETCH_MS);
     try {
-      const r = await doFetch(url, {signal: ctl.signal, redirect: 'follow',
-        headers: {'user-agent': 'Mozilla/5.0 (compatible; m360-peek/1.0)', accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.5', 'accept-language': 'en-IN,en;q=0.8'}});
-      if (!r || !r.ok) throw new Error('http ' + (r ? r.status : 0));
-      if (r.url && !publicHost(r.url)) throw new Error('redirected to a private address');
+      /* redirects are followed by hand, so every hop is checked against the same public-host rule */
+      let r = null, at = url;
+      for (let hop = 0; hop < 5; hop++) {
+        if (!publicHost(at)) throw new Error('redirected to a private address');
+        r = await doFetch(at, {signal: ctl.signal, redirect: 'manual',
+          headers: {'user-agent': 'Mozilla/5.0 (compatible; m360-peek/1.0)', accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.5', 'accept-language': 'en-IN,en;q=0.8'}});
+        const loc = r && r.status >= 300 && r.status < 400 && r.headers && r.headers.get ? r.headers.get('location') : '';
+        if (!loc) break;
+        at = new URL(loc, at).toString();
+        r = null;
+      }
+      if (!r) throw new Error('too many redirects');
+      if (!r.ok) throw new Error('http ' + r.status);
+      if (!publicHost(at)) throw new Error('redirected to a private address');
+      Object.defineProperty(r, 'url', {value: at, configurable: true});
       const ct = String(r.headers && r.headers.get ? r.headers.get('content-type') || '' : '');
       if (ct && !/text\/html|application\/xhtml|text\/plain/i.test(ct)) throw new Error('that address is a file');
       return {html: await r.text(), url: (r.url && publicHost(r.url)) ? r.url : url};

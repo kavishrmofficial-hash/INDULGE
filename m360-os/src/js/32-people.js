@@ -228,6 +228,7 @@
     const qid = quarterNow(ctx);
     const mine = ctx.uid === uid;
     const rocks = rocksOf(ctx, uid, qid);
+    const rockOk = ((docOf(ctx, 'review', uid).rocksOk || {})[qid]) || [];
     const eodDays = docOf(ctx, 'eod', uid).days || {};
     const recent = Object.keys(eodDays).filter(okDate).sort().reverse().slice(0, EOD_SHOWN);
     const kudos = kudosFor(ctx, uid).slice(0, KUDOS_SHOWN);
@@ -237,7 +238,11 @@
         ${mine ? html`<${RocksForm} ctx=${ctx} uid=${uid} qid=${qid}/>`
           : (rocks.length ? rocks.map((r, i) => html`<div class="listrow" key=${r.id || i}>
               <span class="grow">${r.text}</span><${RockPill} state=${r.state}/>
+              ${ctx.isFounder && r.state === 'done' && r.id ? html`<${UI.Check} label=${rockOk.indexOf(r.id) >= 0 ? 'Confirmed' : 'Confirm done'} checked=${rockOk.indexOf(r.id) >= 0}
+                onChange=${v => ctx.W.merge('review/' + uid, {rocksOk: {[qid]: v ? rockOk.concat([r.id]) : rockOk.filter(x => x !== r.id)}}).then(() => M.toast(v ? 'Rock confirmed. It counts now.' : 'Confirmation removed')).catch(() => {})}/>` : null}
             </div>`) : html`<${UI.Empty} text="No rocks set for this quarter."/>`)}
+        ${!mine && ctx.isFounder && rocks.some(r => r.state === 'done') ? html`<div class="tiny ink62" style=${{marginTop: '8px'}}>A rock marked done counts for points once you confirm it.</div>` : null}
+        ${mine && rocks.some(r => r.state === 'done') ? html`<div class="tiny ink62" style=${{marginTop: '8px'}}>A done rock counts once the founder confirms it.</div>` : null}
       <//>
       <div class="grid2">
         <${UI.Card} title="Recent EOD lines" id="person-eod">

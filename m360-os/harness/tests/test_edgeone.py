@@ -433,6 +433,13 @@ def main():
             d.reload()
             d.wait_for_selector('.sidebar')
             check('Durvesh Patil' in d.inner_text('.side-foot'), 'changing a password ended this session')
+            # the change ends his other devices; the phone signs in again with the new password
+            m.reload()
+            m.wait_for_selector('text=Sign in to m360')
+            m.fill('#signin-email', 'durvesh@mask360.agency')
+            m.fill('#signin-pw', PW['d2'])
+            m.get_by_role('button', name='Sign in', exact=True).click()
+            m.wait_for_selector('.tabbar')
 
             # ---- reset by email: a code, a new password, every other device signed out ----
             p1c, p1 = device()

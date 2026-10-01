@@ -217,7 +217,7 @@
       setShown(checked);
       const sp = M.tasks.statusPatch(t, checked ? 'done' : 'todo', ctx.uid, ctx);
       if (checked && sp.status !== 'done') setShown(null);
-      ctx.W.update('tasks/' + t.id, sp.patch)
+      M.tasks.commit(ctx, t.id, sp)
         .then(() => M.toast(checked ? (sp.status === 'done' ? 'Task done' : 'Sent for sign-off') : 'Task reopened'), () => setShown(null));
     };
     return html`<div class="listrow trow">
@@ -341,7 +341,9 @@
     const members = project.members || [];
     /* people on the project who left the roster still show, so they can be removed */
     const all = ids.concat(members.filter(u => !ids.includes(u)));
+    const mayEdit = ctx.isFounder || project.owner === ctx.uid;
     const toggle = (u, on) => {
+      if (!mayEdit) { M.toast('Only the project owner or the founder changes who is on it.', true); return null; }
       if (u === project.owner && !on) { M.toast('The owner stays on the project.', true); return null; }
       const next = on ? (members.includes(u) ? members : members.concat([u])) : members.filter(x => x !== u);
       return ctx.W.update('projects/' + project.id, {members: next});
