@@ -1,0 +1,6 @@
+.venv/
+.env
+.runpod.json
+voices/
+*.wav
+__pycache__/

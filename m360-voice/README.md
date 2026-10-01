@@ -32,7 +32,32 @@ reach it.
 The claude.ai artifact cannot reach outside servers, so voice is a site-only feature there: the artifact
 falls back to the browser's own voices and speech recognition.
 
-## 1. Box
+## The fastest path: RunPod, one command
+
+You need a RunPod account with some credit (runpod.io) and its API key (Settings > API Keys). Then:
+
+```bash
+cd m360-voice
+export RUNPOD_API_KEY=...
+python3 runpod.py up
+```
+
+That creates a pod on a 4090, installs the box on it, waits until `/health` answers (five to fifteen
+minutes on first boot while the models download) and prints the https address and the key. Paste both
+into Admin > Controls > Super > Voice box on the team site and press Connect. `python3 runpod.py status`
+checks on it, `python3 runpod.py down` stops the bill. No domain, no Docker image, no SSH: RunPod's proxy
+gives the box its https address, and the server rides along inside the pod's environment.
+
+## Any other GPU machine: Docker
+
+```bash
+cp .env.example .env     # set VOICE_API_KEY and DOMAIN (a name pointing at this machine)
+docker compose up -d
+```
+
+Caddy fetches the certificate for DOMAIN itself; the box answers at https://DOMAIN.
+
+## 1. Box (by hand)
 
 One NVIDIA GPU with 16GB VRAM to be safe (RunPod, or E2E Networks Mumbai for India latency). Ubuntu,
 Python 3.11. Model weights download from Hugging Face on first boot and stay cached after that.
