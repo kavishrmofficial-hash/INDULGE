@@ -70,6 +70,13 @@
       for (const id of Object.keys(rawTasks.map || {})) { const t = rawTasks.map[id]; if (t && t.deleted) trash[id] = t; else map[id] = t; }
       return {...rawTasks, map, trash};
     }, [rawTasks]);
+    /* an archived client leaves every list and sits with the founder (coll.clients.archived) */
+    const rawClients = coll.clients;
+    coll.clients = React.useMemo(() => {
+      const map = {}, archived = {};
+      for (const id of Object.keys(rawClients.map || {})) { const c = rawClients.map[id]; if (c && c.archived) archived[id] = c; else map[id] = c; }
+      return {...rawClients, map, archived};
+    }, [rawClients]);
     if (!baseOn) { coll.contacts = OFF_COLL; coll.orgs = OFF_COLL; }
     /* join requests: only the founder lists them; everyone else reads their own */
     const rm = ((rosterDoc.data || {}).members || {})[realUid];
@@ -184,9 +191,10 @@
     }, [rosterDoc, settingsDoc, me, uid, realUid, viewAs, isFounder, locked, W, now, online, coll.join,
       privState, privKeeper, privFinance, ...COLLS.map(c => coll[c]), ...BOOK_COLLS.map(c => coll[c])]);
 
-    /* rules engine output, computed each render pass */
-    ctx.flags = (M.rules && M.rules.evaluate) ? M.rules.evaluate(ctx, new Date()) : [];
-    ctx.myFlags = ctx.flags.filter(f => f.uid === ctx.uid);
+    /* rules engine output, computed once per context (the context changes with every snapshot and each minute) */
+    const flags = React.useMemo(() => (M.rules && M.rules.evaluate) ? M.rules.evaluate(ctx, new Date()) : [], [ctx]);
+    ctx.flags = flags;
+    ctx.myFlags = flags.filter(f => f.uid === ctx.uid);
     M.lastCtx = ctx;
 
     return html`<${M.Ctx.Provider} value=${ctx}>${children}<//>`;

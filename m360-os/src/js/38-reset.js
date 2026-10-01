@@ -136,7 +136,7 @@
       : html`<div class="stack tight">
         <div class="small brk-plan">${b}</div>
         <${Timer} id="walk-type-timer" seconds=${180} label="type everything" onDone=${() => {}}/>
-        <textarea class="input" rows="6" id="walk-text" placeholder="One per line. Wrong ones welcome." value=${text} onInput=${e => setText(e.target.value)}/>
+        <textarea class="input" rows="6" id="walk-text" aria-label="Ideas" placeholder="One per line. Wrong ones welcome." value=${text} onInput=${e => setText(e.target.value)}/>
         <div class="row between"><span class="tiny ink62 num">${lines(text).length} so far</span><${UI.Btn} id="walk-keep" sm=${true} disabled=${!text.trim()} onClick=${keepIdeas}>Keep these<//></div>
       </div>`}
     <//>`;
@@ -170,7 +170,7 @@
     return html`<${UI.Card} id="park" title="Park it" action=${html`<${Grade} g="well supported"/>`}>
       ${step === 'idle' ? html`<div class="stack tight">
         <div class="small">Read the brief for a minute without solving it. Then five minutes of something light and wordless. Then back to it, ideas, go. A light filler beat both rest and hard work for incubation across 117 studies. Mind wandering is not the mechanism, so we do not sell it as one.</div>
-        <textarea class="input" rows="2" id="park-brief" placeholder=${'The brief, in a few lines. Or we pick one: ' + BRIEFS[1]} value=${brief} onInput=${e => setBrief(e.target.value)}/>
+        <textarea class="input" rows="2" id="park-brief" aria-label="The brief" placeholder=${'The brief, in a few lines. Or we pick one: ' + BRIEFS[1]} value=${brief} onInput=${e => setBrief(e.target.value)}/>
         <div class="row between"><span class="tiny ink62">1:00 read, 5:00 filler, 3:00 back</span><${UI.Btn} id="park-start" sm=${true} onClick=${() => { if (!brief.trim()) setBrief(b); setStep('read'); M.sound.play('start'); }}>Start<//></div>
       </div>`
       : step === 'read' ? html`<div class="stack tight">
@@ -184,7 +184,7 @@
       : html`<div class="stack tight">
         <div class="small brk-plan">${b}</div>
         <${Timer} id="park-back" seconds=${180} label="back to it, ideas, go" onDone=${() => {}}/>
-        <textarea class="input" rows="6" id="park-text" placeholder="One per line." value=${text} onInput=${e => setText(e.target.value)}/>
+        <textarea class="input" rows="6" id="park-text" aria-label="Ideas" placeholder="One per line." value=${text} onInput=${e => setText(e.target.value)}/>
         <div class="row between"><span class="tiny ink62 num">${lines(text).length} so far</span><${UI.Btn} id="park-keep" sm=${true} disabled=${!text.trim()} onClick=${done}>Keep these<//></div>
       </div>`}
     <//>`;
@@ -207,13 +207,13 @@
       : step === 'one' ? html`<div class="stack tight">
         <div class="small brk-plan"><b>Gear one.</b> ${b}. As many angles as you can. Quantity only. Do not judge.</div>
         <${Timer} id="sprint-one" seconds=${180} label="gear one, quantity" onStop=${() => setStep('idle')} onDone=${() => { setStep('two'); M.sound.play('start'); }}/>
-        <textarea class="input" rows="6" id="sprint-one-text" placeholder="One per line. Obvious is fine here." value=${one} onInput=${e => setOne(e.target.value)}/>
+        <textarea class="input" rows="6" id="sprint-one-text" aria-label="Gear one ideas" placeholder="One per line. Obvious is fine here." value=${one} onInput=${e => setOne(e.target.value)}/>
         <div class="tiny ink62 num">${lines(one).length} so far</div>
       </div>`
       : html`<div class="stack tight">
         <div class="small brk-plan"><b>Gear two.</b> ${b}. Now only unusual, clever, uncommon, surprising ones. Fewer is fine. Think the way an eccentric poet would.</div>
         <${Timer} id="sprint-two" seconds=${180} label="gear two, be creative" onDone=${() => {}}/>
-        <textarea class="input" rows="6" id="sprint-two-text" placeholder="One per line. Weird is the brief." value=${two} onInput=${e => setTwo(e.target.value)}/>
+        <textarea class="input" rows="6" id="sprint-two-text" aria-label="Gear two ideas" placeholder="One per line. Weird is the brief." value=${two} onInput=${e => setTwo(e.target.value)}/>
         <div class="row between"><span class="tiny ink62 num">${lines(one).length} in gear one, ${lines(two).length} in gear two</span><${UI.Btn} id="sprint-keep" sm=${true} disabled=${!two.trim()} onClick=${done}>Keep these<//></div>
       </div>`}
     <//>`;

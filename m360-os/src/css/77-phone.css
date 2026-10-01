@@ -126,3 +126,12 @@
   .trow-meta{flex-basis:100%; padding-left:34px; gap:8px}
 }
 @keyframes boardpos{from{background-position:0% 50%, 0 50%} to{background-position:100% 50%, 0 50%}}
+
+/* fingers: nothing tappable under 40px on a phone */
+@media (max-width:600px){
+  .key{min-width:30px; height:42px}
+  .section-tabs .tab{min-height:40px}
+  .iconbtn{min-width:40px; min-height:40px}
+  .web-tab-close{min-width:32px; min-height:32px}
+  .emoji-btn{height:36px; padding:0 10px}
+}

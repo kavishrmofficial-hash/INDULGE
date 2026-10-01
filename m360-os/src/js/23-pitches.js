@@ -231,9 +231,15 @@
     const createClient = () => {
       if (busy || !pitch) return;
       setBusy(true);
-      const cid = U.uid(), now = Date.now();
-      let p = W.set('clients/' + cid, {name: pitch.brand || 'Client', status: 'live', pod: '', owner: pitch.owner || ctx.uid,
-        memory: '', approvals: '', never: '', links: '', updated: now, by: ctx.uid});
+      const now = Date.now();
+      const same = M.clients && M.clients.sameName ? M.clients.sameName(ctx, pitch.brand, null) : null;
+      if (same) { M.toast('A client called ' + same.name + ' is already here. Linking the pitch to it.'); W.merge('pitches/' + pitchId, {client: same.id, updated: now}).then(() => { onClose(); M.nav('#clients/' + same.id); }, () => setBusy(false)); return; }
+      let cid = U.uid();
+      let p = pitch.org && M.base && M.base.makeClientFromOrg
+        ? M.base.makeClientFromOrg(ctx, pitch.org).then(made => { if (made) cid = made; else return W.set('clients/' + cid, {name: pitch.brand || 'Client', status: 'live', pod: '', owner: pitch.owner || ctx.uid, memory: '', approvals: '', never: '', links: '', updated: now, by: ctx.uid}); })
+        : W.set('clients/' + cid, {name: pitch.brand || 'Client', status: 'live', pod: '', owner: pitch.owner || ctx.uid,
+          memory: '', approvals: '', never: '', links: '', updated: now, by: ctx.uid});
+      p = p.then(() => W.merge('pitches/' + pitchId, {client: cid, updated: now}));
       /* the founder's private monthly revenue starts from the pitch value */
       if (ctx.isFounder && valueOf(fe) > 0) p = p.then(() => W.merge(financePath(ctx), {clients: {[cid]: {monthly: valueOf(fe)}}}));
       p.then(() => { M.toast('Client page created'); onClose(); M.nav('#clients'); }, () => setBusy(false));

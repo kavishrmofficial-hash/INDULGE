@@ -120,7 +120,7 @@
     const done = () => { if (live.current) setBusy(false); };
     const writeDay = (entry, msg) => {
       const c = ctxRef.current;
-      const days = U.pruneDays({...U.clone(daysOf(c, uid)), [today]: entry});
+      const days = U.prunePatch({...U.clone(daysOf(c, uid)), [today]: entry});
       return c.W.merge('checkin/' + uid, {days}).then(() => M.toast(msg)).catch(() => {});
     };
     const checkIn = mode => {

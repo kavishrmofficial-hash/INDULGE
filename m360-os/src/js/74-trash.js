@@ -34,5 +34,20 @@
     <//>`;
   }
 
-  M.superCards = (M.superCards || []).concat([TrashCard]);
+  function ArchivedClientsCard() {
+    const ctx = M.useCtx();
+    const arch = (ctx.coll.clients && ctx.coll.clients.archived) || {};
+    const list = Object.keys(arch).map(id => ({id, ...arch[id]})).sort((a, b) => (b.archivedAt || 0) - (a.archivedAt || 0));
+    if (!ctx.isFounder) return null;
+    const restore = c => ctx.W.update('clients/' + c.id, {archived: false, archivedAt: null, archivedBy: null, updated: Date.now()}).then(() => M.toast('Back in Clients')).catch(() => {});
+    return html`<${UI.Card} id="archived-clients" title="Archived clients" action=${html`<span class="tiny ink62 num">${list.length}</span>`}>
+      ${list.length ? html`<div class="stack tight">
+        ${list.map(c => html`<div key=${c.id} class="row between brk-row" id=${'arch-' + c.id}>
+          <div class="grow" style=${{minWidth: 0}}><div>${c.name}</div><div class="tiny ink62">archived ${c.archivedAt ? U.timeAgo(c.archivedAt) : ''}${c.archivedBy ? html` by <${UI.Name} id=${c.archivedBy}/>` : ''}</div></div>
+          <${UI.Btn} sm=${true} kind="sec" onClick=${() => restore(c)}>Restore<//>
+        </div>`)}
+      </div>` : html`<div class="small ink62">Nothing archived. A client is archived from its page once nothing open points at it; its history stays.</div>`}
+    <//>`;
+  }
+  M.superCards = (M.superCards || []).concat([TrashCard, ArchivedClientsCard]);
 })();

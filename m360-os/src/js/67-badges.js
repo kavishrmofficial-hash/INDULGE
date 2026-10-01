@@ -71,7 +71,7 @@
     const wish = async c => {
       const given = [{id: U.uid(), to: c.uid, why: c.kind === 'birthday' ? 'Happy birthday. Have the best one.' : 'Happy work anniversary. Thank you for everything.', at: Date.now()}]
         .concat(((ctx.coll.kudos.map[ctx.uid] || {}).given) || []).slice(0, 60);
-      await ctx.W.merge('kudos/' + ctx.uid, {given}).catch(() => {});
+      try { await ctx.W.merge('kudos/' + ctx.uid, {given}); } catch (e) { return; }
       M.burst(document.getElementById('celebrate'));
       M.toast('Sent');
     };

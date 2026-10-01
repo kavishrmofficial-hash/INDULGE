@@ -90,7 +90,7 @@
     async function save() {
       const weeks = U.clone(((ctx.coll.review.map[uid] || {}).weeks) || {});
       weeks[weekId] = {marks, quality: isOwnFounderCard ? null : (quality === '' ? null : Number(quality)), note, at: Date.now()};
-      await ctx.W.merge('review/' + uid, {weeks: U.pruneWeeks(weeks)});
+      await ctx.W.merge('review/' + uid, {weeks: U.prunePatch(weeks, 26, true)});
       M.toast('Review saved');
     }
 

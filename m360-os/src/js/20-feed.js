@@ -186,10 +186,8 @@
     return (e, el) => {
       const r = myReacts(ctx, ctx.uid);
       if (r[key] === e) {
-        /* the whole document goes back, so the comments in it stay */
-        const doc = U.clone(collMap(ctx, 'reacts')[ctx.uid] || {});
-        doc.r = {...(doc.r || {})}; delete doc.r[key];
-        ctx.W.set('reacts/' + ctx.uid, doc).catch(() => {});
+        /* one key goes (a null is the removal), so the comments in the document stay */
+        ctx.W.update('reacts/' + ctx.uid, {r: {[key]: null}}).catch(() => {});
       } else {
         M.rain(e, el);
         ctx.W.merge('reacts/' + ctx.uid, {r: {[key]: e}}).catch(() => {});

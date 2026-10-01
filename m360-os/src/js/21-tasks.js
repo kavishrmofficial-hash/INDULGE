@@ -424,6 +424,20 @@
   function Tasks({id}) {
     const ctx = M.useCtx();
     const [who, setWho] = useState('mine');
+    /* a board with nothing of yours on it opens on everyone's work; on the phone it starts at the first column with cards */
+    const settled = useRef(false);
+    useEffect(() => {
+      if (settled.current || !ctx.coll.tasks.ready) return;
+      settled.current = true;
+      const all = Object.keys(ctx.coll.tasks.map).map(k => ctx.coll.tasks.map[k]);
+      if (!all.some(t => t && t.owner === ctx.uid && t.status !== 'done') && all.length) setWho('all');
+    }, [ctx.coll.tasks.ready]);
+    useEffect(() => {
+      const wrap = document.querySelector('.board-wrap');
+      if (!wrap || wrap.scrollWidth <= wrap.clientWidth) return;
+      const col = Array.from(wrap.querySelectorAll('.colm')).find(c => c.querySelector('.tcard'));
+      if (col && col.offsetLeft > 8) wrap.scrollTo({left: col.offsetLeft - 6, behavior: 'auto'});
+    }, [who, ctx.coll.tasks.ready]);
     const [proj, setProj] = useState('');
     const [client, setClient] = useState('');
     const [drawer, setDrawer] = useState(() => (id ? {id} : null));
@@ -500,8 +514,8 @@
       <div class="row between task-filters">
         <${UI.Seg} options=${WHO} value=${who} onChange=${setWho} ariaLabel="Whose tasks"/>
         <div class="row grow" style=${{justifyContent: 'flex-end'}}>
-          <div style=${SEL_STYLE}><${UI.Select} id="task-filter-project" value=${proj} onChange=${setProj} options=${projOpts}/></div>
-          <div style=${SEL_STYLE}><${UI.Select} id="task-filter-client" value=${client} onChange=${setClient} options=${clientOpts}/></div>
+          <div style=${SEL_STYLE}><${UI.Select} id="task-filter-project" ariaLabel="Project" value=${proj} onChange=${setProj} options=${projOpts}/></div>
+          <div style=${SEL_STYLE}><${UI.Select} id="task-filter-client" ariaLabel="Client" value=${client} onChange=${setClient} options=${clientOpts}/></div>
         </div>
       </div>
       <${UI.Card}>

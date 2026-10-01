@@ -233,7 +233,7 @@ def part(h):
     r = p.evaluate('() => window.__db.get("reacts/u_founder")')
     check(r.get('cm') and any(k.startswith('s:') for k in r['cm']), 'the comment lives in my reacts doc: %r' % list(r.keys()))
     first.locator('button[aria-label="React 🔥"]').click()
-    p.wait_for_function('() => { const r = window.__db.get("reacts/u_founder"); return r && !(Object.keys(r.r || {}).some(k => k.startsWith("s:"))); }')
+    p.wait_for_function('() => { const r = window.__db.get("reacts/u_founder"); return r && !(Object.keys(r.r || {}).some(k => k.startsWith("s:") && r.r[k])); }')
     r = p.evaluate('() => window.__db.get("reacts/u_founder")')
     check(r.get('cm') and any(k.startswith('s:') for k in r['cm']), 'the comment survives an unreact')
     p.get_by_role('tab', name='Kudos').click()

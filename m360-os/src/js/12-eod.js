@@ -70,7 +70,7 @@
       const old = days[today] || null;
       const at = old && old.at ? old.at : Date.now();
       days[today] = {shipped: trim(shipped), next: trim(next), blocked: trim(blocked), at, updated: Date.now()};
-      c.W.merge('eod/' + uid, {days: U.pruneDays(days)})
+      c.W.merge('eod/' + uid, {days: U.prunePatch(days)})
         .then(() => { M.toast('Posted'); if (live.current) setEditing(false); })
         .catch(() => {})
         .then(() => { if (live.current) setBusy(false); });
@@ -162,7 +162,7 @@
       }));
       const at = old && old.at ? old.at : Date.now();
       all[weekId] = {items: next, at, updated: Date.now()};
-      c.W.merge('plan/' + uid, {weeks: U.pruneWeeks(all)})
+      c.W.merge('plan/' + uid, {weeks: U.prunePatch(all, 26, true)})
         .then(() => { M.toast('Saved'); if (live.current) setEditing(false); })
         .catch(() => {})
         .then(() => { if (live.current) setBusy(false); });

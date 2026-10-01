@@ -165,31 +165,32 @@
       ${hint ? html`<div class="hint">${hint}</div>` : null}
     </div>`;
   };
-  UI.Input = function Input({label, hint, value, onChange, type, placeholder, id, min, max, step, disabled, onEnter, onFocus}) {
+  UI.Input = function Input({label, hint, value, onChange, type, placeholder, id, min, max, step, disabled, onEnter, onFocus, ariaLabel}) {
     const iid = React.useMemo(() => id || ('f' + (++fieldSeq)), [id]);
     return html`<div class="field">
       ${label ? html`<label for=${iid}>${label}</label>` : null}
-      <input id=${iid} class="input" type=${type || 'text'} value=${value == null ? '' : value} placeholder=${placeholder}
+      <input id=${iid} class="input" type=${type || 'text'} value=${value == null ? '' : value} placeholder=${placeholder} aria-label=${label ? undefined : (ariaLabel || placeholder)}
         min=${min} max=${max} step=${step} disabled=${disabled}
         onInput=${e => onChange && onChange(e.target.value)} onFocus=${onFocus}
         onKeyDown=${e => { if (onEnter && e.key === 'Enter') onEnter(e.target.value); }}/>
       ${hint ? html`<div class="hint">${hint}</div>` : null}
     </div>`;
   };
-  UI.TextArea = function TextArea({label, hint, value, onChange, placeholder, rows, id}) {
+  UI.TextArea = function TextArea({label, hint, value, onChange, placeholder, rows, id, ariaLabel}) {
     const iid = React.useMemo(() => id || ('f' + (++fieldSeq)), [id]);
     return html`<div class="field">
       ${label ? html`<label for=${iid}>${label}</label>` : null}
-      <textarea id=${iid} class="input" rows=${rows || 3} placeholder=${placeholder}
+      <textarea id=${iid} class="input" rows=${rows || 3} placeholder=${placeholder} aria-label=${label ? undefined : (ariaLabel || placeholder)}
         value=${value == null ? '' : value} onInput=${e => onChange && onChange(e.target.value)}/>
       ${hint ? html`<div class="hint">${hint}</div>` : null}
     </div>`;
   };
-  UI.Select = function Select({label, value, onChange, options, id, hint}) {
+  UI.Select = function Select({label, value, onChange, options, id, hint, ariaLabel}) {
     const iid = React.useMemo(() => id || ('f' + (++fieldSeq)), [id]);
+    const first = options && options[0] ? String(options[0].label || '') : '';
     return html`<div class="field">
       ${label ? html`<label for=${iid}>${label}</label>` : null}
-      <select id=${iid} class="input" value=${value == null ? '' : value} onChange=${e => onChange && onChange(e.target.value)}>
+      <select id=${iid} class="input" value=${value == null ? '' : value} aria-label=${label ? undefined : (ariaLabel || first)} onChange=${e => onChange && onChange(e.target.value)}>
         ${options.map(o => html`<option key=${o.v} value=${o.v}>${o.label}</option>`)}
       </select>
       ${hint ? html`<div class="hint">${hint}</div>` : null}

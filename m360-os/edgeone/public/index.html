@@ -1633,7 +1633,7 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
 }
 :root[data-theme="dark"] .dbl-over{background:rgba(10,10,10,.82)}
 </style>
-<script>window.M360_BUILD = "ee598a5+.261001-2312";</script><script>
+<script>window.M360_BUILD = "66bfa11+.261001-2317";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -2138,6 +2138,21 @@ const U = M.U = (() => {
     for (const k of Object.keys(weeks || {})) if (k >= cut) out[k] = weeks[k];
     return out;
   };
+  /* the same, as a patch for merge: kept entries as they are, dropped keys as null. A merge cannot remove a
+     key by leaving it out, so the null is the removal; the server deletes it and the page drops it on read. */
+  const prunePatch = (map, keep, weekly) => {
+    const kept = weekly ? pruneWeeks(map, keep) : pruneDays(map, keep);
+    const out = {...kept};
+    for (const k of Object.keys(map || {})) if (!(k in kept)) out[k] = null;
+    return out;
+  };
+  /* a document as read: null values are tombstones and never reach the page */
+  const dropNulls = x => {
+    if (!x || typeof x !== 'object' || Array.isArray(x)) return x;
+    const out = {};
+    for (const k of Object.keys(x)) { const v = x[k]; if (v === null) continue; out[k] = (v && typeof v === 'object' && !Array.isArray(v)) ? dropNulls(v) : v; }
+    return out;
+  };
   /* inclusive ymd range for a scoring period */
   const periodRange = (period, d) => {
     d = d || new Date();
@@ -2157,7 +2172,7 @@ const U = M.U = (() => {
   const firstName = n => String(n || '').trim().split(/\s+/)[0] || '';
   return {pad, ymd, parseYmd, mondayOf, addDays, isoWeek, mondayOfWeekId, quarterId, monthId, isoLocal,
     haversine, hhmm, minutes, durText, fmtDate, fmtDay, timeAgo, inr, uid, clone, cap, daysBetween, todayStr, pct,
-    weekDays, pruneDays, pruneWeeks, periodRange, greeting, dateLabel, firstName, MONTHS, DAYS, DAYS_S};
+    weekDays, pruneDays, pruneWeeks, prunePatch, dropNulls, periodRange, greeting, dateLabel, firstName, MONTHS, DAYS, DAYS_S};
 })();
 
 /* ---------- boot ---------- */
@@ -2286,7 +2301,7 @@ M.useColl = function useColl(db, path) {
     try {
       un = db.collection(path).onSnapshot(q => {
         const m = {};
-        q.docs.forEach(d => { if (d.exists) m[d.id] = d.data(); });
+        q.docs.forEach(d => { if (d.exists) m[d.id] = M.U.dropNulls(d.data()); });
         /* a collection still arriving in rounds is not ready: nothing dedupes against half of it */
         set({ready: !(q.metadata && q.metadata.partial), map: m});
       }, e => set(x => ({...x, ready: true, err: e && e.code})));
@@ -2306,7 +2321,7 @@ M.useDoc = function useDoc(db, path) {
     if (!db || !path) return;
     let un;
     try {
-      un = db.doc(path).onSnapshot(d => set({ready: true, data: d.exists ? d.data() : null}),
+      un = db.doc(path).onSnapshot(d => set({ready: true, data: d.exists ? M.U.dropNulls(d.data()) : null}),
         e => set(x => ({...x, ready: true, err: e && e.code})));
     } catch (e) { set({ready: true, data: null}); }
     return () => { if (un) un(); };
@@ -2333,8 +2348,10 @@ M.useProfiles = function useProfiles(ids) {
   React.useSyncExternalStore(profSubscribe, profSnapshot, profSnapshot);
   React.useEffect(() => {
     if (!user || !key) return;
+    const missing = key.split(',').filter(id => !profCache[id]);
+    if (!missing.length) return;
     let live = true;
-    user.profiles(key.split(',')).then(ps => {
+    user.profiles(missing).then(ps => {
       if (!live) return;
       let changed = false;
       Object.keys(ps).forEach(id => {
@@ -3018,6 +3035,13 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       for (const id of Object.keys(rawTasks.map || {})) { const t = rawTasks.map[id]; if (t && t.deleted) trash[id] = t; else map[id] = t; }
       return {...rawTasks, map, trash};
     }, [rawTasks]);
+    /* an archived client leaves every list and sits with the founder (coll.clients.archived) */
+    const rawClients = coll.clients;
+    coll.clients = React.useMemo(() => {
+      const map = {}, archived = {};
+      for (const id of Object.keys(rawClients.map || {})) { const c = rawClients.map[id]; if (c && c.archived) archived[id] = c; else map[id] = c; }
+      return {...rawClients, map, archived};
+    }, [rawClients]);
     if (!baseOn) { coll.contacts = OFF_COLL; coll.orgs = OFF_COLL; }
     /* join requests: only the founder lists them; everyone else reads their own */
     const rm = ((rosterDoc.data || {}).members || {})[realUid];
@@ -3132,9 +3156,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     }, [rosterDoc, settingsDoc, me, uid, realUid, viewAs, isFounder, locked, W, now, online, coll.join,
       privState, privKeeper, privFinance, ...COLLS.map(c => coll[c]), ...BOOK_COLLS.map(c => coll[c])]);
 
-    /* rules engine output, computed each render pass */
-    ctx.flags = (M.rules && M.rules.evaluate) ? M.rules.evaluate(ctx, new Date()) : [];
-    ctx.myFlags = ctx.flags.filter(f => f.uid === ctx.uid);
+    /* rules engine output, computed once per context (the context changes with every snapshot and each minute) */
+    const flags = React.useMemo(() => (M.rules && M.rules.evaluate) ? M.rules.evaluate(ctx, new Date()) : [], [ctx]);
+    ctx.flags = flags;
+    ctx.myFlags = flags.filter(f => f.uid === ctx.uid);
     M.lastCtx = ctx;
 
     return html`<${M.Ctx.Provider} value=${ctx}>${children}<//>`;
@@ -4830,7 +4855,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const done = () => { if (live.current) setBusy(false); };
     const writeDay = (entry, msg) => {
       const c = ctxRef.current;
-      const days = U.pruneDays({...U.clone(daysOf(c, uid)), [today]: entry});
+      const days = U.prunePatch({...U.clone(daysOf(c, uid)), [today]: entry});
       return c.W.merge('checkin/' + uid, {days}).then(() => M.toast(msg)).catch(() => {});
     };
     const checkIn = mode => {
@@ -5003,7 +5028,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const old = days[today] || null;
       const at = old && old.at ? old.at : Date.now();
       days[today] = {shipped: trim(shipped), next: trim(next), blocked: trim(blocked), at, updated: Date.now()};
-      c.W.merge('eod/' + uid, {days: U.pruneDays(days)})
+      c.W.merge('eod/' + uid, {days: U.prunePatch(days)})
         .then(() => { M.toast('Posted'); if (live.current) setEditing(false); })
         .catch(() => {})
         .then(() => { if (live.current) setBusy(false); });
@@ -5095,7 +5120,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       }));
       const at = old && old.at ? old.at : Date.now();
       all[weekId] = {items: next, at, updated: Date.now()};
-      c.W.merge('plan/' + uid, {weeks: U.pruneWeeks(all)})
+      c.W.merge('plan/' + uid, {weeks: U.prunePatch(all, 26, true)})
         .then(() => { M.toast('Saved'); if (live.current) setEditing(false); })
         .catch(() => {})
         .then(() => { if (live.current) setBusy(false); });
@@ -5524,10 +5549,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     return (e, el) => {
       const r = myReacts(ctx, ctx.uid);
       if (r[key] === e) {
-        /* the whole document goes back, so the comments in it stay */
-        const doc = U.clone(collMap(ctx, 'reacts')[ctx.uid] || {});
-        doc.r = {...(doc.r || {})}; delete doc.r[key];
-        ctx.W.set('reacts/' + ctx.uid, doc).catch(() => {});
+        /* one key goes (a null is the removal), so the comments in the document stay */
+        ctx.W.update('reacts/' + ctx.uid, {r: {[key]: null}}).catch(() => {});
       } else {
         M.rain(e, el);
         ctx.W.merge('reacts/' + ctx.uid, {r: {[key]: e}}).catch(() => {});
@@ -6807,11 +6830,12 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const D = M.parts.TaskDrawer;
     const view = tab === 'board' ? BoardTab : tab === 'overview' ? OverviewTab : ListTab;
     return html`<${React.Fragment}>
-      <${UI.PageHead} micro=${linkName(ctx, project)} title=${project.name}>${back}<//>
+      <${UI.PageHead} micro=${linkName(ctx, project)} title=${project.name}>${back}${ctx.isFounder || project.owner === ctx.uid ? html`<${UI.Btn} kind="sec" sm onClick=${() => ctx.W.update('projects/' + id, {archived: !project.archived, archivedAt: project.archived ? null : Date.now(), updated: Date.now()}).then(() => M.toast(project.archived ? 'Back on the list' : 'Archived. Its tasks and numbers stay.')).catch(() => {})}>${project.archived ? 'Unarchive' : 'Archive'}<//>` : null}<//>
       <${UI.Card}>
         <div class="stack">
           <div class="row">
             <${StatusPill} status=${project.status}/>
+            ${project.archived ? html`<${UI.Pill} kind="ink">archived<//>` : null}
             <span class="row nowrap small"><${UI.Avatar} id=${project.owner} size=${24}/><${UI.Name} id=${project.owner}/></span>
             <${UI.AvatarRow} ids=${project.members || []} size=${24}/>
             <span class=${'small num' + (late ? ' flame-t' : ' sub')}>${project.due ? 'due ' + U.fmtDate(project.due) : 'no due date'}</span>
@@ -7071,9 +7095,15 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const createClient = () => {
       if (busy || !pitch) return;
       setBusy(true);
-      const cid = U.uid(), now = Date.now();
-      let p = W.set('clients/' + cid, {name: pitch.brand || 'Client', status: 'live', pod: '', owner: pitch.owner || ctx.uid,
-        memory: '', approvals: '', never: '', links: '', updated: now, by: ctx.uid});
+      const now = Date.now();
+      const same = M.clients && M.clients.sameName ? M.clients.sameName(ctx, pitch.brand, null) : null;
+      if (same) { M.toast('A client called ' + same.name + ' is already here. Linking the pitch to it.'); W.merge('pitches/' + pitch.id, {client: same.id, updated: now}).then(() => { onClose(); M.nav('#clients/' + same.id); }, () => setBusy(false)); return; }
+      let cid = U.uid();
+      let p = pitch.org && M.base && M.base.makeClientFromOrg
+        ? M.base.makeClientFromOrg(ctx, pitch.org).then(made => { if (made) cid = made; else return W.set('clients/' + cid, {name: pitch.brand || 'Client', status: 'live', pod: '', owner: pitch.owner || ctx.uid, memory: '', approvals: '', never: '', links: '', updated: now, by: ctx.uid}); })
+        : W.set('clients/' + cid, {name: pitch.brand || 'Client', status: 'live', pod: '', owner: pitch.owner || ctx.uid,
+          memory: '', approvals: '', never: '', links: '', updated: now, by: ctx.uid});
+      p = p.then(() => W.merge('pitches/' + pitch.id, {client: cid, updated: now}));
       /* the founder's private monthly revenue starts from the pitch value */
       if (ctx.isFounder && valueOf(fe) > 0) p = p.then(() => W.merge(financePath(ctx), {clients: {[cid]: {monthly: valueOf(fe)}}}));
       p.then(() => { M.toast('Client page created'); onClose(); M.nav('#clients'); }, () => setBusy(false));
@@ -7651,6 +7681,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 
     async function save() {
       if (!f.name.trim() || busy) return;
+      const same = M.clients.sameName(ctx, f.name, id);
+      if (same) { M.toast('A client called ' + same.name + ' is already here. Open that one.', true); return; }
       const website = cleanSite(f.website);
       if (website === null) { M.toast('Check the website. A web address like swisse.ae works.', true); return; }
       const socials = {};
@@ -7689,7 +7721,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${id ? 'Client' : 'New client'}
       footer=${html`<div class="row between grow">
         <div>${id && ctx.isFounder ? html`<${UI.ConfirmBtn} label="Tap again to confirm"
-          onConfirm=${() => { ctx.W.del('clients/' + id).then(() => { M.toast('Deleted'); onClose(); }); }}>Delete<//>` : null}</div>
+          onConfirm=${() => {
+            const refs = M.clients.referrers(ctx, id);
+            if (refs.length) { M.toast('This client still has ' + refs.join(', ') + '. Move or finish those first.', true); return; }
+            ctx.W.update('clients/' + id, {archived: true, archivedAt: Date.now(), archivedBy: ctx.uid, updated: Date.now()}).then(() => { M.toast('Archived. It waits on Admin, under Controls, Super.'); onClose(); }).catch(() => {});
+          }}>Archive<//>` : null}</div>
         <${UI.Btn} onClick=${save} disabled=${!f.name.trim() || busy}>${id ? 'Save' : 'Create client'}<//>
       </div>`}>
       <div class="cl-logorow" id="client-logo">
@@ -7836,7 +7872,27 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   M.parts.ClientLogo = Logo;
 
   M.pages.Clients = Clients;
-  M.clients = {completeness, shares, openTaskCount, STATUS, FIELDS, BRAIN, HEALTH, health, domainOf, domainFrom, cleanSite, newsFor, eodMentions, brandWord, MODEL_LINE};
+  /* what still points at a client: open tasks, active projects, open pitches, the base's company row */
+  const referrers = (ctx, id) => {
+    const out = [];
+    const tasks = Object.values(ctx.coll.tasks.map).filter(t => t && t.client === id && t.status !== 'done').length;
+    const projects = Object.values(ctx.coll.projects.map).filter(p => p && p.client === id && p.status !== 'done' && !p.archived).length;
+    const pitches = Object.values(ctx.coll.pitches.map).filter(p => p && (p.client === id) && p.stage !== 'lost' && p.stage !== 'won').length;
+    if (tasks) out.push(tasks + (tasks === 1 ? ' open task' : ' open tasks'));
+    if (projects) out.push(projects + (projects === 1 ? ' active project' : ' active projects'));
+    if (pitches) out.push(pitches + (pitches === 1 ? ' open pitch' : ' open pitches'));
+    return out;
+  };
+  const nameKey = n => String(n || '').toLowerCase().replace(/\b(pvt|private|ltd|limited|llc|llp|inc|fz|fze|fzc|co)\b\.?/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  const sameName = (ctx, name, exceptId) => {
+    const k = nameKey(name);
+    if (!k) return null;
+    const all = {...(ctx.coll.clients.map || {}), ...((ctx.coll.clients && ctx.coll.clients.archived) || {})};
+    for (const cid of Object.keys(all)) if (cid !== exceptId && all[cid] && nameKey(all[cid].name) === k) return {id: cid, name: all[cid].name, archived: !!all[cid].archived};
+    return null;
+  };
+
+  M.clients = {completeness, shares, openTaskCount, STATUS, FIELDS, BRAIN, HEALTH, health, domainOf, domainFrom, cleanSite, newsFor, eodMentions, brandWord, MODEL_LINE, referrers, sameName, nameKey};
 })();
 
 /* ==== 27-crm.js ==== */
@@ -8369,11 +8425,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const m = {id: U.uid(), at: Date.now(), text: t, mentions: mentions || []};
     if (fs.length) m.files = fs;
     let msgs = cur.concat([m]);
-    if (msgs.length > CAP) {
-      const old = msgs.slice(0, msgs.length - KEEP);
-      msgs = msgs.slice(msgs.length - KEEP);
-      await ctx.W.set('chatlog/' + key + ':' + Date.now(), {msgs: old, room, by: ctx.uid}).catch(() => {});
-    }
+    if (msgs.length > CAP) msgs = msgs.slice(msgs.length - KEEP);
     await ctx.W.merge('chat/' + key, {msgs, room, by: ctx.uid, updated: Date.now()});
     return m;
   }
@@ -8741,7 +8793,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     async function save() {
       const weeks = U.clone(((ctx.coll.review.map[uid] || {}).weeks) || {});
       weeks[weekId] = {marks, quality: isOwnFounderCard ? null : (quality === '' ? null : Number(quality)), note, at: Date.now()};
-      await ctx.W.merge('review/' + uid, {weeks: U.pruneWeeks(weeks)});
+      await ctx.W.merge('review/' + uid, {weeks: U.prunePatch(weeks, 26, true)});
       M.toast('Review saved');
     }
 
@@ -9105,7 +9157,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const e = embedOf(link);
       if (!e) { M.toast('Paste a Spotify, Apple Music, YouTube or SoundCloud link', true); return; }
       const item = {id: U.uid(), title: (title.trim() || (e.kind + ' ' + e.label)).slice(0, 80), url: link.trim(), kind: e.kind, embed: e.embed, by: ctx.uid, at: Date.now()};
-      await ctx.W.merge(DOC, {items: items.concat([item]).slice(-200), updated: Date.now()}).catch(() => {});
+      try { await ctx.W.merge(DOC, {items: items.concat([item]).slice(-200), updated: Date.now()}); } catch (e) { return; }
       setLink(''); setTitle(''); M.toast('Added to the team list');
     };
     const remove = async it => { await ctx.W.merge(DOC, {items: items.filter(x => x.id !== it.id), updated: Date.now()}).catch(() => {}); };
@@ -11728,9 +11780,12 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     else await M.play.award(ctx, 3, 'showing up to Five');
   }
 
+  /* the browser keeps today's tries only */
+  const sweep = td => { try { Object.keys(localStorage).filter(k => /^m360\.five:/.test(k) && k.indexOf(td) < 0).forEach(k => localStorage.removeItem(k)); } catch (e) { /* none */ } };
   function Five() {
     const ctx = M.useCtx();
     const td = today();
+    useEffect(() => { sweep(td); }, [td]);
     const word = useMemo(() => wordFor(td), [td]);
     const done = myResult(ctx, ctx.uid);
     const [guesses, setGuesses] = useState(() => { const s = M.prefs.get('five:' + td, ''); return s ? s.split(',').filter(g => g.length === 5) : []; });
@@ -14253,7 +14308,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       await ctx.W.merge('invoices/' + b.fyOf(today), {rows: {[id]: n}, updated: Date.now()}).catch(() => {});
       M.nav('#invoices/' + id);
     };
-    const remove = async () => { await ctx.W.merge('invoices/' + inv.fy, {rows: {[inv.id]: null}, updated: Date.now()}).catch(() => {}); M.toast('Draft deleted'); onBack(); };
+    const remove = async () => { try { await ctx.W.merge('invoices/' + inv.fy, {rows: {[inv.id]: null}, updated: Date.now()}); } catch (e) { return; } M.toast('Draft deleted'); onBack(); };
     return html`<div class="stack" style=${{gap: '16px'}}>
       <div class="row between">
         <button type="button" class="linky nowrap" id="inv-back" onClick=${onBack}><${icons.chevL}/>All invoices</button>
@@ -14743,7 +14798,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       } catch (e) { M.toast('Could not save', true); }
       setBusy(false);
     };
-    const remove = async key => { const s = savedMap[key]; if (!s) return; await ctx.W.merge('expenses/' + s.month, {rows: {[key]: null}, updated: Date.now()}).catch(() => {}); dropRow(key); M.toast('Removed'); };
+    const remove = async key => { const s = savedMap[key]; if (!s) return; try { await ctx.W.merge('expenses/' + s.month, {rows: {[key]: null}, updated: Date.now()}); } catch (e) { return; } dropRow(key); M.toast('Removed'); };
 
     const cellProps = (r, c, key, f) => ({'data-r': r, 'data-c': c, onKeyDown: e => onKey(e, r, c, key, f), onPaste: e => onPaste(e, r, c, key, f)});
     const input = (r, c, key, row, f) => {
@@ -14826,7 +14881,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         M.toast('Saved'); onClose();
       } catch (e) { M.toast('Could not save', true); setBusy(false); }
     };
-    const remove = async () => { await ctx.W.merge('expenses/' + row.month, {rows: {[row.id]: null}, updated: Date.now()}).catch(() => {}); M.toast('Removed'); onClose(); };
+    const remove = async () => { try { await ctx.W.merge('expenses/' + row.month, {rows: {[row.id]: null}, updated: Date.now()}); } catch (e) { return; } M.toast('Removed'); onClose(); };
     const attach = e => {
       const file = e.target.files && e.target.files[0]; e.target.value = '';
       if (!file || !M.files || !M.files.upload) { M.toast('Receipts attach on the team site', true); return; }
@@ -16643,7 +16698,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const entry = {in: Date.now(), out: null, mode: m, loc, outLoc: null};
       if (mood) entry.mood = mood;
       days[U.todayStr()] = entry;
-      await ctx.W.merge('checkin/' + ctx.uid, {days: U.pruneDays(days)});
+      await ctx.W.merge('checkin/' + ctx.uid, {days: U.prunePatch(days)});
       M.burst(document.getElementById('tapin'));
       M.toast('Checked in at ' + U.hhmm(entry.in));
     }
@@ -16687,7 +16742,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       setBusy(true);
       const days = U.clone((ctx.coll.checkin.map[ctx.uid] || {}).days || {});
       const e = days[today];
-      if (e && e.out) { e.out = null; e.outLoc = null; days[today] = e; await ctx.W.merge('checkin/' + ctx.uid, {days: U.pruneDays(days)}).catch(() => {}); }
+      if (e && e.out) { e.out = null; e.outLoc = null; days[today] = e; await ctx.W.merge('checkin/' + ctx.uid, {days: U.prunePatch(days)}).catch(() => {}); }
       setBusy(false);
       M.toast('Day reopened');
     }
@@ -16698,7 +16753,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const e = days[U.todayStr()] || {};
       e.out = Date.now(); e.outLoc = pos ? M.att.locFrom(pos, ctx.settings.office) : null;
       days[U.todayStr()] = e;
-      await ctx.W.merge('checkin/' + ctx.uid, {days: U.pruneDays(days)}).catch(() => {});
+      await ctx.W.merge('checkin/' + ctx.uid, {days: U.prunePatch(days)}).catch(() => {});
       setBusy(false);
       M.sound.play('done');
       M.toast('Checked out. See you tomorrow');
@@ -16885,7 +16940,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       if (!f.shipped.trim()) return;
       const days = U.clone(eods);
       days[td] = {shipped: f.shipped.trim(), next: f.next.trim(), blocked: f.blocked.trim(), at: Date.now()};
-      await ctx.W.merge('eod/' + ctx.uid, {days: U.pruneDays(days)});
+      await ctx.W.merge('eod/' + ctx.uid, {days: U.prunePatch(days)});
       setEdit(false);
       M.toast('Posted');
     }
@@ -18648,7 +18703,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         const entry = {in: now, out: null, mode, loc: {lat: null, lng: null, acc: null, dist: null, verified: false, place, src: 'self'}, outLoc: null};
         const mood = Number(input.mood); if (mood >= 1 && mood <= 5) entry.mood = mood;
         days[td] = entry;
-        await ctx.W.merge('checkin/' + uid, {days: U.pruneDays(days)});
+        await ctx.W.merge('checkin/' + uid, {days: U.prunePatch(days)});
         say('Checked in, ' + mode + (place ? ', ' + place : ''));
         return {ok: true, mode, place, at: U.hhmm(now), note: 'no GPS from here, so the place is as they said'};
       }
@@ -18658,7 +18713,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         if (!days[td] || !days[td].in) throw new Error('not checked in today');
         if (days[td].out) throw new Error('already checked out at ' + U.hhmm(days[td].out));
         days[td] = {...days[td], out: now, outLoc: null};
-        await ctx.W.merge('checkin/' + uid, {days: U.pruneDays(days)});
+        await ctx.W.merge('checkin/' + uid, {days: U.prunePatch(days)});
         say('Checked out');
         return {ok: true, at: U.hhmm(now)};
       }
@@ -18669,7 +18724,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         const td = today();
         const old = days[td] || null;
         days[td] = {shipped, next: cut(String(input.next || '').trim(), 600), blocked: cut(String(input.blocked || '').trim(), 600), at: old && old.at ? old.at : now, updated: now};
-        await ctx.W.merge('eod/' + uid, {days: U.pruneDays(days)});
+        await ctx.W.merge('eod/' + uid, {days: U.prunePatch(days)});
         say((old ? 'Updated' : 'Filed') + ' the EOD');
         return {ok: true, shipped: cut(shipped, 80)};
       }
@@ -18682,7 +18737,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         const old = all[wk] || {};
         const prev = old.items || [];
         all[wk] = {items: items.map(t => ({id: (prev.find(p => p.text === t) || {}).id || U.uid(), text: t})), at: old.at || now, updated: now};
-        await ctx.W.merge('plan/' + uid, {weeks: U.pruneWeeks(all)});
+        await ctx.W.merge('plan/' + uid, {weeks: U.prunePatch(all, 26, true)});
         say('Set ' + items.length + ' outcomes for the week');
         return {ok: true, items};
       }
@@ -20934,10 +20989,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     async finish(ctx) {
       if (!state) return;
       const s = state;
-      state = null; persist(); emit();
       const doc = ctx.coll.me.map[ctx.uid] || {};
       const sessions = [{task: s.task, mins: s.mins, at: Date.now()}].concat(((doc.focus || {}).sessions) || []).slice(0, KEEP);
-      try { await ctx.W.merge('me/' + ctx.uid, {focus: {sessions}}); } catch (e) { /* toasted */ }
+      try { await ctx.W.merge('me/' + ctx.uid, {focus: {sessions}}); } catch (e) { M.toast('That session did not save. It stays on the clock; try again in a moment.', true); return; }
+      state = null; persist(); emit();
       M.burst(document.querySelector('.focus-pill') || document.body);
       M.toast('Session done. ' + s.mins + ' minutes of deep work banked.');
     },
@@ -21322,7 +21377,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const wish = async c => {
       const given = [{id: U.uid(), to: c.uid, why: c.kind === 'birthday' ? 'Happy birthday. Have the best one.' : 'Happy work anniversary. Thank you for everything.', at: Date.now()}]
         .concat(((ctx.coll.kudos.map[ctx.uid] || {}).given) || []).slice(0, 60);
-      await ctx.W.merge('kudos/' + ctx.uid, {given}).catch(() => {});
+      try { await ctx.W.merge('kudos/' + ctx.uid, {given}); } catch (e) { return; }
       M.burst(document.getElementById('celebrate'));
       M.toast('Sent');
     };
@@ -21884,11 +21939,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const req = {kind: f.kind, date: okDate(f.date) ? f.date : '', field: fields.length ? f.field : '',
         want: reopen ? REOPEN_WANT : f.want.trim().slice(0, WANT_MAX), note: f.note.trim().slice(0, NOTE_MAX), at: Date.now(), status: 'pending',
         decidedAt: null, decidedNote: ''};
-      const cur = U.clone(reqsOf(ctx, ctx.uid));
+      const cur = reqsOf(ctx, ctx.uid);
       const keep = Object.keys(cur).sort((a, b) => (cur[b].at || 0) - (cur[a].at || 0)).slice(0, KEEP - 1);
       const reqs = {[id]: req};
-      keep.forEach(k => { reqs[k] = cur[k]; });
-      ctx.W.set('fixes/' + ctx.uid, {reqs})
+      Object.keys(cur).forEach(k => { if (!keep.includes(k)) reqs[k] = null; });
+      ctx.W.merge('fixes/' + ctx.uid, {reqs})
         .then(() => { M.toast('Sent to Kaavish'); onClose(); })
         .catch(() => setBusy(false));
     };
@@ -21937,9 +21992,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const list = Object.keys(reqs).filter(id => reqs[id]).map(id => ({id, req: reqs[id]}))
       .sort((a, b) => (b.req.at || 0) - (a.req.at || 0));
     const withdraw = id => {
-      const cur = U.clone(reqs);
-      delete cur[id];
-      ctx.W.set('fixes/' + ctx.uid, {reqs: cur}).then(() => M.toast('Withdrawn')).catch(() => {});
+      ctx.W.merge('fixes/' + ctx.uid, {reqs: {[id]: null}}).then(() => M.toast('Withdrawn')).catch(() => {});
     };
     return html`<${UI.Card} id="fix-card" title="Something wrong?">
       <p class="small ink62" style=${{marginTop: 0}}>A check-in time, a leave day, a task or your roster line looks off? Ask for a correction and Kaavish decides.</p>
@@ -22610,7 +22663,22 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     <//>`;
   }
 
-  M.superCards = (M.superCards || []).concat([TrashCard]);
+  function ArchivedClientsCard() {
+    const ctx = M.useCtx();
+    const arch = (ctx.coll.clients && ctx.coll.clients.archived) || {};
+    const list = Object.keys(arch).map(id => ({id, ...arch[id]})).sort((a, b) => (b.archivedAt || 0) - (a.archivedAt || 0));
+    if (!ctx.isFounder) return null;
+    const restore = c => ctx.W.update('clients/' + c.id, {archived: false, archivedAt: null, archivedBy: null, updated: Date.now()}).then(() => M.toast('Back in Clients')).catch(() => {});
+    return html`<${UI.Card} id="archived-clients" title="Archived clients" action=${html`<span class="tiny ink62 num">${list.length}</span>`}>
+      ${list.length ? html`<div class="stack tight">
+        ${list.map(c => html`<div key=${c.id} class="row between brk-row" id=${'arch-' + c.id}>
+          <div class="grow" style=${{minWidth: 0}}><div>${c.name}</div><div class="tiny ink62">archived ${c.archivedAt ? U.timeAgo(c.archivedAt) : ''}${c.archivedBy ? html` by <${UI.Name} id=${c.archivedBy}/>` : ''}</div></div>
+          <${UI.Btn} sm=${true} kind="sec" onClick=${() => restore(c)}>Restore<//>
+        </div>`)}
+      </div>` : html`<div class="small ink62">Nothing archived. A client is archived from its page once nothing open points at it; its history stays.</div>`}
+    <//>`;
+  }
+  M.superCards = (M.superCards || []).concat([TrashCard, ArchivedClientsCard]);
 })();
 
 /* ==== 75-radar.js ==== */

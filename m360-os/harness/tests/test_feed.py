@@ -153,7 +153,7 @@ def test(h):
     ann_card.locator('.emoji-btn', has_text='👍').click()
     page.wait_for_timeout(250)
     reacts = page.evaluate('window.__db.get("reacts/u_founder")')
-    check(ann_key not in (reacts or {}).get('r', {}), 'reaction did not clear: %r' % reacts)
+    check(((reacts or {}).get('r') or {}).get(ann_key) is None, 'reaction did not clear: %r' % reacts)
     check(ann_card.locator('.emoji-btn.on').count() == 0, 'a reaction button is still on')
     check(ann_card.locator('.emoji-btn .num').count() == 0, 'a count lingers')
 

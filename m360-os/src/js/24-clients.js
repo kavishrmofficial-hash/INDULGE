@@ -476,6 +476,8 @@
 
     async function save() {
       if (!f.name.trim() || busy) return;
+      const same = M.clients.sameName(ctx, f.name, id);
+      if (same) { M.toast('A client called ' + same.name + ' is already here. Open that one.', true); return; }
       const website = cleanSite(f.website);
       if (website === null) { M.toast('Check the website. A web address like swisse.ae works.', true); return; }
       const socials = {};
@@ -514,7 +516,11 @@
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${id ? 'Client' : 'New client'}
       footer=${html`<div class="row between grow">
         <div>${id && ctx.isFounder ? html`<${UI.ConfirmBtn} label="Tap again to confirm"
-          onConfirm=${() => { ctx.W.del('clients/' + id).then(() => { M.toast('Deleted'); onClose(); }); }}>Delete<//>` : null}</div>
+          onConfirm=${() => {
+            const refs = M.clients.referrers(ctx, id);
+            if (refs.length) { M.toast('This client still has ' + refs.join(', ') + '. Move or finish those first.', true); return; }
+            ctx.W.update('clients/' + id, {archived: true, archivedAt: Date.now(), archivedBy: ctx.uid, updated: Date.now()}).then(() => { M.toast('Archived. It waits on Admin, under Controls, Super.'); onClose(); }).catch(() => {});
+          }}>Archive<//>` : null}</div>
         <${UI.Btn} onClick=${save} disabled=${!f.name.trim() || busy}>${id ? 'Save' : 'Create client'}<//>
       </div>`}>
       <div class="cl-logorow" id="client-logo">
@@ -661,5 +667,25 @@
   M.parts.ClientLogo = Logo;
 
   M.pages.Clients = Clients;
-  M.clients = {completeness, shares, openTaskCount, STATUS, FIELDS, BRAIN, HEALTH, health, domainOf, domainFrom, cleanSite, newsFor, eodMentions, brandWord, MODEL_LINE};
+  /* what still points at a client: open tasks, active projects, open pitches, the base's company row */
+  const referrers = (ctx, id) => {
+    const out = [];
+    const tasks = Object.values(ctx.coll.tasks.map).filter(t => t && t.client === id && t.status !== 'done').length;
+    const projects = Object.values(ctx.coll.projects.map).filter(p => p && p.client === id && p.status !== 'done' && !p.archived).length;
+    const pitches = Object.values(ctx.coll.pitches.map).filter(p => p && (p.client === id) && p.stage !== 'lost' && p.stage !== 'won').length;
+    if (tasks) out.push(tasks + (tasks === 1 ? ' open task' : ' open tasks'));
+    if (projects) out.push(projects + (projects === 1 ? ' active project' : ' active projects'));
+    if (pitches) out.push(pitches + (pitches === 1 ? ' open pitch' : ' open pitches'));
+    return out;
+  };
+  const nameKey = n => String(n || '').toLowerCase().replace(/\b(pvt|private|ltd|limited|llc|llp|inc|fz|fze|fzc|co)\b\.?/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  const sameName = (ctx, name, exceptId) => {
+    const k = nameKey(name);
+    if (!k) return null;
+    const all = {...(ctx.coll.clients.map || {}), ...((ctx.coll.clients && ctx.coll.clients.archived) || {})};
+    for (const cid of Object.keys(all)) if (cid !== exceptId && all[cid] && nameKey(all[cid].name) === k) return {id: cid, name: all[cid].name, archived: !!all[cid].archived};
+    return null;
+  };
+
+  M.clients = {completeness, shares, openTaskCount, STATUS, FIELDS, BRAIN, HEALTH, health, domainOf, domainFrom, cleanSite, newsFor, eodMentions, brandWord, MODEL_LINE, referrers, sameName, nameKey};
 })();

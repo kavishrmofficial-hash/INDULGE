@@ -112,7 +112,7 @@ img{max-width:100%}
 .side-foot{border-top:1px solid var(--line); padding:14px 18px; display:flex; gap:11px; align-items:center}
 .side-foot .nm{font-weight:500; font-size:14px; line-height:1.25}
 .side-foot .ti{font-size:12px; color:var(--ink62)}
-.main{flex:1; min-width:0; padding:36px 40px 100px}
+.main{flex:1; min-width:0; padding:36px 40px 140px}
 .content{max-width:1080px; margin:0 auto; display:flex; flex-direction:column; gap:18px}
 .content.wide{max-width:1200px}
 .page-head{display:flex; flex-direction:column; gap:2px; margin-bottom:4px}
@@ -441,7 +441,7 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 }
 @media (max-width:860px){
   :root{--r-card:18px; --pad-card:18px}
-  .app{display:block; padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+  .app{display:block; padding-bottom:calc(140px + env(safe-area-inset-bottom))}
   .sidebar{display:none}
   .topbar{display:flex; position:sticky; top:env(safe-area-inset-top,0px); z-index:50; height:56px; background:var(--paper); border-bottom:1px solid var(--line); align-items:center; justify-content:space-between; padding:0 16px}
   .topbar .mark{width:66px; color:var(--mark)}
@@ -760,7 +760,7 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .chat-composer{padding:12px 18px; border-top:1px solid var(--line)}
 .chat-composer textarea{resize:none; min-height:44px; max-height:160px}
 .chat-empty{padding:40px 0}
-@media (max-width:860px){
+@media (max-width:700px){
   .chat{grid-template-columns:minmax(0,1fr); min-height:0}
   .chat-list,.chat-pane{position:static; max-height:none}
   .chat.show-pane .chat-list{display:none}

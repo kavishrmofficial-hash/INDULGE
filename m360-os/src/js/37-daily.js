@@ -37,9 +37,12 @@
     else await M.play.award(ctx, 3, 'showing up to Five');
   }
 
+  /* the browser keeps today's tries only */
+  const sweep = td => { try { Object.keys(localStorage).filter(k => /^m360\.five:/.test(k) && k.indexOf(td) < 0).forEach(k => localStorage.removeItem(k)); } catch (e) { /* none */ } };
   function Five() {
     const ctx = M.useCtx();
     const td = today();
+    useEffect(() => { sweep(td); }, [td]);
     const word = useMemo(() => wordFor(td), [td]);
     const done = myResult(ctx, ctx.uid);
     const [guesses, setGuesses] = useState(() => { const s = M.prefs.get('five:' + td, ''); return s ? s.split(',').filter(g => g.length === 5) : []; });

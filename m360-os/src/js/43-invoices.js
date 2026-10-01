@@ -341,7 +341,7 @@
       await ctx.W.merge('invoices/' + b.fyOf(today), {rows: {[id]: n}, updated: Date.now()}).catch(() => {});
       M.nav('#invoices/' + id);
     };
-    const remove = async () => { await ctx.W.merge('invoices/' + inv.fy, {rows: {[inv.id]: null}, updated: Date.now()}).catch(() => {}); M.toast('Draft deleted'); onBack(); };
+    const remove = async () => { try { await ctx.W.merge('invoices/' + inv.fy, {rows: {[inv.id]: null}, updated: Date.now()}); } catch (e) { return; } M.toast('Draft deleted'); onBack(); };
     return html`<div class="stack" style=${{gap: '16px'}}>
       <div class="row between">
         <button type="button" class="linky nowrap" id="inv-back" onClick=${onBack}><${icons.chevL}/>All invoices</button>

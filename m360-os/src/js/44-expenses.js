@@ -385,7 +385,7 @@
       } catch (e) { M.toast('Could not save', true); }
       setBusy(false);
     };
-    const remove = async key => { const s = savedMap[key]; if (!s) return; await ctx.W.merge('expenses/' + s.month, {rows: {[key]: null}, updated: Date.now()}).catch(() => {}); dropRow(key); M.toast('Removed'); };
+    const remove = async key => { const s = savedMap[key]; if (!s) return; try { await ctx.W.merge('expenses/' + s.month, {rows: {[key]: null}, updated: Date.now()}); } catch (e) { return; } dropRow(key); M.toast('Removed'); };
 
     const cellProps = (r, c, key, f) => ({'data-r': r, 'data-c': c, onKeyDown: e => onKey(e, r, c, key, f), onPaste: e => onPaste(e, r, c, key, f)});
     const input = (r, c, key, row, f) => {
@@ -468,7 +468,7 @@
         M.toast('Saved'); onClose();
       } catch (e) { M.toast('Could not save', true); setBusy(false); }
     };
-    const remove = async () => { await ctx.W.merge('expenses/' + row.month, {rows: {[row.id]: null}, updated: Date.now()}).catch(() => {}); M.toast('Removed'); onClose(); };
+    const remove = async () => { try { await ctx.W.merge('expenses/' + row.month, {rows: {[row.id]: null}, updated: Date.now()}); } catch (e) { return; } M.toast('Removed'); onClose(); };
     const attach = e => {
       const file = e.target.files && e.target.files[0]; e.target.value = '';
       if (!file || !M.files || !M.files.upload) { M.toast('Receipts attach on the team site', true); return; }

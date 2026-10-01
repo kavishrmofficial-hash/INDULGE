@@ -48,8 +48,9 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET' || u.origin !== location.origin || u.pathname.startsWith('/api/')) return;
   /* the page itself is always asked for afresh (no-cache: the server confirms or replaces it); the rest may come from the HTTP cache */
   const fresh = e.request.mode === 'navigate' || /\\/(index\\.html|sw\\.js|version\\.json|manifest\\.json)?$/.test(u.pathname);
-  e.respondWith(fetch(fresh ? new Request(e.request, {cache: 'no-cache'}) : e.request).then(r => { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); return r; })
-    .catch(() => caches.match(e.request).then(m => m || caches.match('/index.html'))));
+  const cacheable = /^\\/(vendor\\/|icons\\/|icon\\.svg$|manifest\\.json$|index\\.html$|$)/.test(u.pathname) && !u.search;
+  e.respondWith(fetch(fresh ? new Request(e.request, {cache: 'no-cache'}) : e.request).then(r => { if (r.ok && cacheable) { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); } return r; })
+    .catch(() => caches.match(e.request).then(m => m || (e.request.mode === 'navigate' ? caches.match('/index.html') : Response.error()))));
 });
 '''
 

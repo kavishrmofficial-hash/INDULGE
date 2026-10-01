@@ -73,6 +73,21 @@ const U = M.U = (() => {
     for (const k of Object.keys(weeks || {})) if (k >= cut) out[k] = weeks[k];
     return out;
   };
+  /* the same, as a patch for merge: kept entries as they are, dropped keys as null. A merge cannot remove a
+     key by leaving it out, so the null is the removal; the server deletes it and the page drops it on read. */
+  const prunePatch = (map, keep, weekly) => {
+    const kept = weekly ? pruneWeeks(map, keep) : pruneDays(map, keep);
+    const out = {...kept};
+    for (const k of Object.keys(map || {})) if (!(k in kept)) out[k] = null;
+    return out;
+  };
+  /* a document as read: null values are tombstones and never reach the page */
+  const dropNulls = x => {
+    if (!x || typeof x !== 'object' || Array.isArray(x)) return x;
+    const out = {};
+    for (const k of Object.keys(x)) { const v = x[k]; if (v === null) continue; out[k] = (v && typeof v === 'object' && !Array.isArray(v)) ? dropNulls(v) : v; }
+    return out;
+  };
   /* inclusive ymd range for a scoring period */
   const periodRange = (period, d) => {
     d = d || new Date();
@@ -92,7 +107,7 @@ const U = M.U = (() => {
   const firstName = n => String(n || '').trim().split(/\s+/)[0] || '';
   return {pad, ymd, parseYmd, mondayOf, addDays, isoWeek, mondayOfWeekId, quarterId, monthId, isoLocal,
     haversine, hhmm, minutes, durText, fmtDate, fmtDay, timeAgo, inr, uid, clone, cap, daysBetween, todayStr, pct,
-    weekDays, pruneDays, pruneWeeks, periodRange, greeting, dateLabel, firstName, MONTHS, DAYS, DAYS_S};
+    weekDays, pruneDays, pruneWeeks, prunePatch, dropNulls, periodRange, greeting, dateLabel, firstName, MONTHS, DAYS, DAYS_S};
 })();
 
 /* ---------- boot ---------- */
@@ -221,7 +236,7 @@ M.useColl = function useColl(db, path) {
     try {
       un = db.collection(path).onSnapshot(q => {
         const m = {};
-        q.docs.forEach(d => { if (d.exists) m[d.id] = d.data(); });
+        q.docs.forEach(d => { if (d.exists) m[d.id] = M.U.dropNulls(d.data()); });
         /* a collection still arriving in rounds is not ready: nothing dedupes against half of it */
         set({ready: !(q.metadata && q.metadata.partial), map: m});
       }, e => set(x => ({...x, ready: true, err: e && e.code})));
@@ -241,7 +256,7 @@ M.useDoc = function useDoc(db, path) {
     if (!db || !path) return;
     let un;
     try {
-      un = db.doc(path).onSnapshot(d => set({ready: true, data: d.exists ? d.data() : null}),
+      un = db.doc(path).onSnapshot(d => set({ready: true, data: d.exists ? M.U.dropNulls(d.data()) : null}),
         e => set(x => ({...x, ready: true, err: e && e.code})));
     } catch (e) { set({ready: true, data: null}); }
     return () => { if (un) un(); };
@@ -268,8 +283,10 @@ M.useProfiles = function useProfiles(ids) {
   React.useSyncExternalStore(profSubscribe, profSnapshot, profSnapshot);
   React.useEffect(() => {
     if (!user || !key) return;
+    const missing = key.split(',').filter(id => !profCache[id]);
+    if (!missing.length) return;
     let live = true;
-    user.profiles(key.split(',')).then(ps => {
+    user.profiles(missing).then(ps => {
       if (!live) return;
       let changed = false;
       Object.keys(ps).forEach(id => {

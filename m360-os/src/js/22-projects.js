@@ -447,11 +447,12 @@
     const D = M.parts.TaskDrawer;
     const view = tab === 'board' ? BoardTab : tab === 'overview' ? OverviewTab : ListTab;
     return html`<${React.Fragment}>
-      <${UI.PageHead} micro=${linkName(ctx, project)} title=${project.name}>${back}<//>
+      <${UI.PageHead} micro=${linkName(ctx, project)} title=${project.name}>${back}${ctx.isFounder || project.owner === ctx.uid ? html`<${UI.Btn} kind="sec" sm onClick=${() => ctx.W.update('projects/' + id, {archived: !project.archived, archivedAt: project.archived ? null : Date.now(), updated: Date.now()}).then(() => M.toast(project.archived ? 'Back on the list' : 'Archived. Its tasks and numbers stay.')).catch(() => {})}>${project.archived ? 'Unarchive' : 'Archive'}<//>` : null}<//>
       <${UI.Card}>
         <div class="stack">
           <div class="row">
             <${StatusPill} status=${project.status}/>
+            ${project.archived ? html`<${UI.Pill} kind="ink">archived<//>` : null}
             <span class="row nowrap small"><${UI.Avatar} id=${project.owner} size=${24}/><${UI.Name} id=${project.owner}/></span>
             <${UI.AvatarRow} ids=${project.members || []} size=${24}/>
             <span class=${'small num' + (late ? ' flame-t' : ' sub')}>${project.due ? 'due ' + U.fmtDate(project.due) : 'no due date'}</span>

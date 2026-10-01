@@ -61,7 +61,7 @@
       const e = embedOf(link);
       if (!e) { M.toast('Paste a Spotify, Apple Music, YouTube or SoundCloud link', true); return; }
       const item = {id: U.uid(), title: (title.trim() || (e.kind + ' ' + e.label)).slice(0, 80), url: link.trim(), kind: e.kind, embed: e.embed, by: ctx.uid, at: Date.now()};
-      await ctx.W.merge(DOC, {items: items.concat([item]).slice(-200), updated: Date.now()}).catch(() => {});
+      try { await ctx.W.merge(DOC, {items: items.concat([item]).slice(-200), updated: Date.now()}); } catch (e) { return; }
       setLink(''); setTitle(''); M.toast('Added to the team list');
     };
     const remove = async it => { await ctx.W.merge(DOC, {items: items.filter(x => x.id !== it.id), updated: Date.now()}).catch(() => {}); };

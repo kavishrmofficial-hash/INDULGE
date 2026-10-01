@@ -765,7 +765,7 @@
         const entry = {in: now, out: null, mode, loc: {lat: null, lng: null, acc: null, dist: null, verified: false, place, src: 'self'}, outLoc: null};
         const mood = Number(input.mood); if (mood >= 1 && mood <= 5) entry.mood = mood;
         days[td] = entry;
-        await ctx.W.merge('checkin/' + uid, {days: U.pruneDays(days)});
+        await ctx.W.merge('checkin/' + uid, {days: U.prunePatch(days)});
         say('Checked in, ' + mode + (place ? ', ' + place : ''));
         return {ok: true, mode, place, at: U.hhmm(now), note: 'no GPS from here, so the place is as they said'};
       }
@@ -775,7 +775,7 @@
         if (!days[td] || !days[td].in) throw new Error('not checked in today');
         if (days[td].out) throw new Error('already checked out at ' + U.hhmm(days[td].out));
         days[td] = {...days[td], out: now, outLoc: null};
-        await ctx.W.merge('checkin/' + uid, {days: U.pruneDays(days)});
+        await ctx.W.merge('checkin/' + uid, {days: U.prunePatch(days)});
         say('Checked out');
         return {ok: true, at: U.hhmm(now)};
       }
@@ -786,7 +786,7 @@
         const td = today();
         const old = days[td] || null;
         days[td] = {shipped, next: cut(String(input.next || '').trim(), 600), blocked: cut(String(input.blocked || '').trim(), 600), at: old && old.at ? old.at : now, updated: now};
-        await ctx.W.merge('eod/' + uid, {days: U.pruneDays(days)});
+        await ctx.W.merge('eod/' + uid, {days: U.prunePatch(days)});
         say((old ? 'Updated' : 'Filed') + ' the EOD');
         return {ok: true, shipped: cut(shipped, 80)};
       }
@@ -799,7 +799,7 @@
         const old = all[wk] || {};
         const prev = old.items || [];
         all[wk] = {items: items.map(t => ({id: (prev.find(p => p.text === t) || {}).id || U.uid(), text: t})), at: old.at || now, updated: now};
-        await ctx.W.merge('plan/' + uid, {weeks: U.pruneWeeks(all)});
+        await ctx.W.merge('plan/' + uid, {weeks: U.prunePatch(all, 26, true)});
         say('Set ' + items.length + ' outcomes for the week');
         return {ok: true, items};
       }

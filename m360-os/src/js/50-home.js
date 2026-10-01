@@ -63,7 +63,7 @@
       const entry = {in: Date.now(), out: null, mode: m, loc, outLoc: null};
       if (mood) entry.mood = mood;
       days[U.todayStr()] = entry;
-      await ctx.W.merge('checkin/' + ctx.uid, {days: U.pruneDays(days)});
+      await ctx.W.merge('checkin/' + ctx.uid, {days: U.prunePatch(days)});
       M.burst(document.getElementById('tapin'));
       M.toast('Checked in at ' + U.hhmm(entry.in));
     }
@@ -107,7 +107,7 @@
       setBusy(true);
       const days = U.clone((ctx.coll.checkin.map[ctx.uid] || {}).days || {});
       const e = days[today];
-      if (e && e.out) { e.out = null; e.outLoc = null; days[today] = e; await ctx.W.merge('checkin/' + ctx.uid, {days: U.pruneDays(days)}).catch(() => {}); }
+      if (e && e.out) { e.out = null; e.outLoc = null; days[today] = e; await ctx.W.merge('checkin/' + ctx.uid, {days: U.prunePatch(days)}).catch(() => {}); }
       setBusy(false);
       M.toast('Day reopened');
     }
@@ -118,7 +118,7 @@
       const e = days[U.todayStr()] || {};
       e.out = Date.now(); e.outLoc = pos ? M.att.locFrom(pos, ctx.settings.office) : null;
       days[U.todayStr()] = e;
-      await ctx.W.merge('checkin/' + ctx.uid, {days: U.pruneDays(days)}).catch(() => {});
+      await ctx.W.merge('checkin/' + ctx.uid, {days: U.prunePatch(days)}).catch(() => {});
       setBusy(false);
       M.sound.play('done');
       M.toast('Checked out. See you tomorrow');
@@ -305,7 +305,7 @@
       if (!f.shipped.trim()) return;
       const days = U.clone(eods);
       days[td] = {shipped: f.shipped.trim(), next: f.next.trim(), blocked: f.blocked.trim(), at: Date.now()};
-      await ctx.W.merge('eod/' + ctx.uid, {days: U.pruneDays(days)});
+      await ctx.W.merge('eod/' + ctx.uid, {days: U.prunePatch(days)});
       setEdit(false);
       M.toast('Posted');
     }

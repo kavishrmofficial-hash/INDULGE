@@ -79,11 +79,7 @@
     const m = {id: U.uid(), at: Date.now(), text: t, mentions: mentions || []};
     if (fs.length) m.files = fs;
     let msgs = cur.concat([m]);
-    if (msgs.length > CAP) {
-      const old = msgs.slice(0, msgs.length - KEEP);
-      msgs = msgs.slice(msgs.length - KEEP);
-      await ctx.W.set('chatlog/' + key + ':' + Date.now(), {msgs: old, room, by: ctx.uid}).catch(() => {});
-    }
+    if (msgs.length > CAP) msgs = msgs.slice(msgs.length - KEEP);
     await ctx.W.merge('chat/' + key, {msgs, room, by: ctx.uid, updated: Date.now()});
     return m;
   }

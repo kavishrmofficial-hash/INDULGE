@@ -108,11 +108,11 @@
       const req = {kind: f.kind, date: okDate(f.date) ? f.date : '', field: fields.length ? f.field : '',
         want: reopen ? REOPEN_WANT : f.want.trim().slice(0, WANT_MAX), note: f.note.trim().slice(0, NOTE_MAX), at: Date.now(), status: 'pending',
         decidedAt: null, decidedNote: ''};
-      const cur = U.clone(reqsOf(ctx, ctx.uid));
+      const cur = reqsOf(ctx, ctx.uid);
       const keep = Object.keys(cur).sort((a, b) => (cur[b].at || 0) - (cur[a].at || 0)).slice(0, KEEP - 1);
       const reqs = {[id]: req};
-      keep.forEach(k => { reqs[k] = cur[k]; });
-      ctx.W.set('fixes/' + ctx.uid, {reqs})
+      Object.keys(cur).forEach(k => { if (!keep.includes(k)) reqs[k] = null; });
+      ctx.W.merge('fixes/' + ctx.uid, {reqs})
         .then(() => { M.toast('Sent to Kaavish'); onClose(); })
         .catch(() => setBusy(false));
     };
@@ -161,9 +161,7 @@
     const list = Object.keys(reqs).filter(id => reqs[id]).map(id => ({id, req: reqs[id]}))
       .sort((a, b) => (b.req.at || 0) - (a.req.at || 0));
     const withdraw = id => {
-      const cur = U.clone(reqs);
-      delete cur[id];
-      ctx.W.set('fixes/' + ctx.uid, {reqs: cur}).then(() => M.toast('Withdrawn')).catch(() => {});
+      ctx.W.merge('fixes/' + ctx.uid, {reqs: {[id]: null}}).then(() => M.toast('Withdrawn')).catch(() => {});
     };
     return html`<${UI.Card} id="fix-card" title="Something wrong?">
       <p class="small ink62" style=${{marginTop: 0}}>A check-in time, a leave day, a task or your roster line looks off? Ask for a correction and Kaavish decides.</p>
