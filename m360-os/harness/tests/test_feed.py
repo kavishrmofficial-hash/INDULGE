@@ -136,7 +136,7 @@ def test(h):
     # ---- reactions: 🔥 on, then off ----
     ann_card = page.locator('#feed-stream .card[data-key="%s"]' % ann_key)
     fire = ann_card.locator('.emoji-btn', has_text='🔥')
-    check(fire.count() == 1 and ann_card.locator('.emoji-btn').count() == 4, 'expected 4 reaction buttons')
+    check(fire.count() == 1 and ann_card.locator('.emoji-btn').count() == 7, 'expected 7 reaction buttons')
     fire.click()
     page.wait_for_timeout(250)
     reacts = page.evaluate('window.__db.get("reacts/u_founder")')

@@ -556,6 +556,11 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .sparks i.ink{background:var(--ink); border-radius:999px}
 @keyframes sparkfly{from{opacity:1; transform:translate(0,0) scale(var(--s)) rotate(0)} to{opacity:0; transform:translate(var(--dx),var(--dy)) scale(.2) rotate(200deg)}}
 .sparkline{color:var(--ink); display:block; overflow:visible}
+.rain{position:fixed; inset:0; z-index:121; pointer-events:none; overflow:hidden}
+.rain i{position:absolute; top:-56px; font-style:normal; font-size:var(--sz); line-height:1; opacity:0; animation:raindown 2s cubic-bezier(.3,.1,.65,1) forwards; will-change:transform,opacity}
+.rain b{position:absolute; font-weight:400; font-size:var(--sz); line-height:1; margin:-.5em 0 0 -.5em; animation:rainpop 1.15s cubic-bezier(.15,.7,.3,1) forwards; will-change:transform,opacity}
+@keyframes raindown{0%{opacity:0; transform:translate(0,0) rotate(0)} 10%{opacity:1} 100%{opacity:.85; transform:translate(var(--sway),calc(100vh + 90px)) rotate(var(--spin))}}
+@keyframes rainpop{0%{opacity:1; transform:translate(0,0) scale(.3)} 55%{opacity:1; transform:translate(var(--dx),var(--dy)) scale(1.15)} 100%{opacity:0; transform:translate(var(--dx),calc(var(--dy) + 140px)) scale(.9)}}
 .sparkline.hot{color:var(--flame)}
 
 /* ---------- command palette ---------- */
@@ -1533,24 +1538,17 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
 /* ==== 87-break.css ==== */
 /* ---------- break: the reset room ---------- */
 .brk-sparks .chipline b{font-size:15px}
-.brk-board{overflow-wrap:anywhere}
-.brk-word{display:flex; gap:6px; flex-wrap:wrap}
-.brk-tile{display:inline-flex; align-items:center; justify-content:center; min-width:34px; height:38px; padding:0 8px; border-radius:10px; background:var(--warm); border:1px solid var(--line); font-weight:600; font-size:17px; text-transform:uppercase; letter-spacing:.04em}
-.brk-tile.on{background:var(--ink); color:var(--on-ink); border-color:var(--ink)}
-.brk-tile.wide{text-transform:none; letter-spacing:0; font-size:15px; padding:0 12px}
-.brk-answer{max-width:260px}
-.brk-pixel{display:grid; grid-template-columns:56px repeat(5, 40px); grid-auto-rows:40px; gap:4px; align-items:stretch}
-.brk-clue{display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--ink62); font-weight:600}
-.brk-clue.col{flex-direction:column; justify-content:flex-end; line-height:1.1}
-.brk-clue.row{justify-content:flex-end; padding-right:6px}
-.brk-cell{border:1px solid var(--line2); border-radius:8px; background:var(--paper); cursor:pointer; padding:0}
-.brk-cell.on{background:var(--ink); border-color:var(--ink)}
-.brk-cell:hover{border-color:var(--ink)}
-.brk-row{padding:4px 0; border-bottom:1px solid var(--line)}
+.brk-row{padding:6px 0; border-bottom:1px solid var(--line)}
 .brk-row:last-child{border-bottom:0}
-.brk-run{position:relative; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--warm); touch-action:manipulation; user-select:none}
-.brk-run canvas{display:block; width:100%; height:auto}
-.brk-run-over{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; background:rgba(247,246,242,.82); text-align:center; padding:12px}
+.brk-row.mine{background:var(--warm); margin:0 -8px; padding:6px 8px; border-radius:10px}
+.brk-plan{border-left:3px solid var(--flame); padding:8px 12px; background:var(--warm); border-radius:0 10px 10px 0; font-size:14px; overflow-wrap:anywhere}
+.brk-sentence{gap:10px; align-items:center}
+.brk-sentence .small{flex:none; width:84px; color:var(--ink62)}
+.brk-sentence .input{flex:1; min-width:0}
+.brk-dim{border-radius:16px; padding:18px; background:var(--dark); color:#FFFFFF}
+.brk-dim .brk-ring .bg{stroke:rgba(255,255,255,.22)}
+.brk-dim .brk-ring .fg{stroke:#F53901}
+.brk-dim .ink62,.brk-dim .linky{color:rgba(255,255,255,.8)}
 .brk-timer{display:flex; flex-direction:column; align-items:center; gap:10px; padding:8px 0}
 .brk-ring{width:120px; height:120px; transform:rotate(-90deg)}
 .brk-ring circle{fill:none; stroke-width:6}
@@ -1559,23 +1557,82 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
 .brk-timer-mid{text-align:center; margin-top:-80px; margin-bottom:34px}
 .brk-left{font-size:26px; font-weight:600; letter-spacing:-.02em}
 .brk-prompt{text-align:center; max-width:46ch}
-.brk-sky{border-radius:16px; padding:18px; background:hsl(208 72% 46%); color:#fff}
-.brk-sky .brk-ring .bg{stroke:rgba(255,255,255,.3)}
-.brk-sky .brk-ring .fg{stroke:#fff}
-.brk-sky .ink62,.brk-sky .linky{color:rgba(255,255,255,.85)}
-.brk-doodle{width:100%; height:auto; border:1px solid var(--line); border-radius:14px; touch-action:none; cursor:crosshair; display:block}
+
+/* five, the word of the day */
+.five-grid{display:flex; flex-direction:column; gap:5px; width:max-content}
+.five-grid.shake{animation:fiveshake .4s}
+@keyframes fiveshake{0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)}}
+.five-row{display:flex; gap:5px}
+.five-cell{width:46px; height:46px; display:inline-flex; align-items:center; justify-content:center; border:2px solid var(--line); border-radius:10px; font-weight:700; font-size:22px; text-transform:uppercase; background:var(--paper); color:var(--ink); transition:transform .12s}
+.five-cell.typed{border-color:var(--ink); transform:scale(1.04)}
+.five-cell.ok{background:var(--flame); border-color:var(--flame); color:#FFFFFF}
+.five-cell.near{border-color:var(--flame); box-shadow:inset 0 0 0 3px var(--paper), inset 0 0 0 5px var(--flame)}
+.five-cell.out{background:var(--line); border-color:var(--line); color:var(--ink62)}
+.five-keys{display:flex; flex-direction:column; gap:6px; margin-top:6px}
+.five-krow{display:flex; gap:4px; justify-content:center; flex-wrap:nowrap}
+.key{min-width:30px; height:40px; padding:0 6px; border-radius:8px; border:1px solid var(--line); background:var(--warm); color:var(--ink); font:inherit; font-weight:600; text-transform:uppercase; font-size:13px; cursor:pointer; flex:none}
+.key:hover{border-color:var(--ink)}
+.key.wide{min-width:54px; text-transform:none; font-weight:500}
+.key.ok{background:var(--flame); border-color:var(--flame); color:#FFFFFF}
+.key.near{border-color:var(--flame); box-shadow:inset 0 0 0 2px var(--flame)}
+.key.out{background:var(--line); color:var(--ink62); border-color:var(--line)}
+.five-dist{display:flex; flex-direction:column; gap:6px}
+.five-bar{gap:8px; align-items:center}
+.five-lab{width:14px; text-align:right; color:var(--ink62)}
+.five-track{flex:1; height:12px; background:var(--warm); border-radius:999px; overflow:hidden; min-width:40px}
+.five-track i{display:block; height:100%; background:var(--flame); border-radius:999px; transition:width .35s}
+.five-card{border:1px solid var(--line); border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:8px; width:max-content}
+.five-mini{display:flex; flex-direction:column; gap:3px}
+.five-mrow{display:flex; gap:3px}
+.five-mrow i{width:16px; height:16px; border-radius:4px; background:var(--line)}
+.five-mrow i.ok{background:var(--flame)}
+.five-mrow i.near{background:var(--paper); box-shadow:inset 0 0 0 3px var(--flame)}
+
+/* doubles */
+.dbl-wrap{position:relative}
+.dbl-board{display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; padding:6px; background:var(--line); border-radius:14px; touch-action:none; user-select:none; max-width:320px}
+.dbl-cell{aspect-ratio:1; border-radius:10px; background:var(--paper); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:22px; color:var(--ink); transition:background .12s}
+.dbl-cell.light{color:#FFFFFF}
+.dbl-cell.big{font-size:17px}
+.dbl-over{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; background:rgba(247,246,242,.86); border-radius:14px; text-align:center; padding:12px; max-width:320px}
+.dbl-pad{gap:6px; margin-top:10px}
+
+/* the reaction check */
+.rt-pad{width:100%; min-height:220px; border-radius:16px; border:2px dashed var(--line2); background:var(--warm); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; cursor:pointer; font:inherit; color:var(--ink); user-select:none; touch-action:manipulation}
+.rt-pad.lit{background:var(--flame); border-color:var(--flame); border-style:solid; color:#FFFFFF}
+.rt-flame{width:72px; height:72px; border-radius:50%; background:#FFFFFF; box-shadow:0 0 0 12px rgba(255,255,255,.3)}
+.rt-wait{font-size:15px; color:var(--ink62)}
+.rt-time{font-size:14px}
+.rt-last{min-height:14px}
+
+/* shades, the incubation filler */
+.shade-grid{display:grid; grid-template-columns:repeat(6, 1fr); gap:6px; max-width:360px}
+.shade-tile{aspect-ratio:1; border-radius:10px; border:2px solid transparent; cursor:pointer; padding:0}
+.shade-tile.sel{border-color:var(--ink); transform:scale(.92)}
+
+/* care */
 .care-row{padding:6px 0; border-bottom:1px solid var(--line)}
 .care-row:last-child{border-bottom:0}
 .care-dot{width:10px; height:10px; border-radius:50%; background:var(--line2); flex:none}
 .care-dot.due{background:var(--flame)}
 .care-dot.done{background:var(--ink)}
 .care-dot.snoozed{background:var(--line2); outline:2px solid var(--flame); outline-offset:1px}
+
+/* reflect */
 .brk-stats{display:grid; grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); gap:8px}
 .brk-tile-stat{border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:flex; flex-direction:column; gap:2px}
 .brk-tile-stat b{font-size:22px; letter-spacing:-.02em}
-@media (max-width:600px){ .brk-pixel{grid-template-columns:44px repeat(5, 36px); grid-auto-rows:36px} .brk-tile{min-width:30px; height:34px; font-size:15px} }
+
+@media (max-width:600px){
+  .five-cell{width:38px; height:38px; font-size:18px; border-radius:8px}
+  .key{min-width:26px; height:38px; padding:0 4px; font-size:12px}
+  .key.wide{min-width:44px}
+  .brk-sentence .small{width:70px}
+  #five .split{grid-template-columns:minmax(0,1fr) !important}
+}
+:root[data-theme="dark"] .dbl-over{background:rgba(10,10,10,.82)}
 </style>
-<script>window.M360_BUILD = "69a2d7c+.261001-0056";</script><script>
+<script>window.M360_BUILD = "10bf9ce.261001-0737";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -2476,6 +2533,47 @@ M.spark = function spark(el, n) {
 };
 M.burst = function burst(el) { M.spark(el, 14); M.sound.play('chime'); };
 
+/* ---------- rain: the screen fills with one emoji, the way confetti falls, for a reaction or a win.
+   A fountain of a few from where it was tapped, then a sheet of them from the top edge. Reduced
+   motion gets the small spark. The layer takes no pointer events and removes itself. ---------- */
+M.rain = function rain(emoji, el, opts) {
+  const o = opts || {};
+  if (M.reduced()) { M.spark(el, 10); return; }
+  const w = window.innerWidth, h = window.innerHeight;
+  const n = o.n || (w < 600 ? 44 : 72);
+  const layer = document.createElement('div');
+  layer.className = 'rain';
+  layer.setAttribute('aria-hidden', 'true');
+  const r = el && el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+  const cx = r ? r.left + r.width / 2 : w / 2, cy = r ? r.top + r.height / 2 : h / 2;
+  const pops = o.pops == null ? 16 : o.pops;
+  for (let i = 0; i < pops; i++) {
+    const p = document.createElement('b');
+    p.textContent = emoji;
+    const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.4;
+    const d = 80 + Math.random() * 170;
+    p.style.setProperty('--dx', Math.cos(a) * d + 'px');
+    p.style.setProperty('--dy', Math.sin(a) * d + 'px');
+    p.style.setProperty('--sz', (16 + Math.random() * 18).toFixed(0) + 'px');
+    p.style.left = cx + 'px'; p.style.top = cy + 'px';
+    layer.appendChild(p);
+  }
+  for (let i = 0; i < n; i++) {
+    const p = document.createElement('i');
+    p.textContent = emoji;
+    p.style.left = (Math.random() * 100).toFixed(1) + 'vw';
+    p.style.setProperty('--sz', (14 + Math.random() * 26).toFixed(0) + 'px');
+    p.style.setProperty('--sway', ((Math.random() - 0.5) * 140).toFixed(0) + 'px');
+    p.style.setProperty('--spin', ((Math.random() - 0.5) * 560).toFixed(0) + 'deg');
+    p.style.animationDuration = (1.5 + Math.random() * 1.4).toFixed(2) + 's';
+    p.style.animationDelay = (Math.random() * 0.9).toFixed(2) + 's';
+    layer.appendChild(p);
+  }
+  document.body.appendChild(layer);
+  setTimeout(() => layer.remove(), 3600);
+  if (o.sound !== false) M.sound.play(o.sound || 'chime');
+};
+
 /* ---------- count up: numbers that roll to their value ---------- */
 M.useCountUp = function useCountUp(value, ms) {
   const n = Number(value);
@@ -3076,7 +3174,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       {k: 'feed', label: 'Feed', route: 'feed'}, {k: 'crew', label: 'Crew', route: 'people'},
       {k: 'pulse', label: 'Pulse and ideas', route: 'voice'}, {k: 'scores', label: 'Leaderboard', route: 'scores'}, {k: 'music', label: 'Music', route: 'music'}]},
     break: {label: 'Break', icon: 'breath', page: 'Break', tabs: [
-      {k: 'play', label: 'Play', route: 'play'}, {k: 'reset', label: 'Reset', route: 'reset'}, {k: 'care', label: 'Care', route: 'care'}, {k: 'reflect', label: 'Reflect', route: 'reflect'}]},
+      {k: 'play', label: 'Daily', route: 'play'}, {k: 'reset', label: 'Reset', route: 'reset'}, {k: 'care', label: 'Care', route: 'care'}, {k: 'reflect', label: 'Reflect', route: 'reflect'}]},
     base: {label: 'Base', icon: 'database', page: 'Base', tabs: [
       {k: 'people', label: 'People', route: 'base'}, {k: 'companies', label: 'Companies', route: 'companies'}, {k: 'import', label: 'Import', route: 'import'}]},
     chat: {label: 'Chat', icon: 'send', page: 'Chat'},
@@ -3111,8 +3209,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       case 'billing': return isOwner ? {s: 'books', t: 'billing', id} : {s: 'home'};
       case 'home': case 'today': return {s: 'home'};
       case 'map': case 'explore': case 'whats-here': case 'help': return {s: 'map', id};
-      case 'break': case 'wellness': case 'games': case 'play': return {s: 'break', t: 'play'};
-      case 'reset': case 'meditate': return {s: 'break', t: 'reset'};
+      case 'break': case 'wellness': case 'games': case 'play': case 'daily': case 'five': return {s: 'break', t: 'play'};
+      case 'reset': case 'meditate': case 'breathe': return {s: 'break', t: 'reset'};
       case 'care': case 'reminders': return {s: 'break', t: 'care'};
       case 'reflect': case 'wrapped': return {s: 'break', t: 'reflect'};
       case 'work': return {s: 'work', t: 'tasks'};
@@ -3287,7 +3385,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   /* ---------- the shortcut sheet ---------- */
   function Keys({onClose}) {
     const mod = M.isMac ? '\u2318' : 'Ctrl';
-    const rows = [[mod + ' K', 'Search or do anything'], ['/', 'Same, from anywhere'], ['n', 'New task'], ['i', 'Inbox'], ['f', 'Focus timer'], ['b', 'Take a breather'],
+    const rows = [[mod + ' K', 'Search or do anything'], ['/', 'Same, from anywhere'], ['n', 'New task'], ['i', 'Inbox'], ['f', 'Focus timer'], ['b', 'Slow breathing, five minutes'],
       ['g then h', 'Home'], ['g then w', 'Work'], ['g then a', 'Accounts'], ['g then v', 'Vibe'], ['g then m', 'Me'], ['g then c', 'Calendar'], ['g then r', 'Reviews'],
       ['Ctrl + Option, held', 'Talk to the cursor buddy'], ['?', 'This sheet']];
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Keyboard shortcuts">
@@ -3321,7 +3419,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const on = e => {
         if ((e.metaKey || e.ctrlKey) && String(e.key).toLowerCase() === 'k') { e.preventDefault(); setPalOpen(x => !x); return; }
         if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
-        if (document.querySelector('.drawer, .pal, .breathe')) return;
+        if (document.querySelector('.drawer, .pal, .breathe, [data-hotkeys]')) return;
         const k = e.key;
         if (g && Date.now() - g < 900) {
           g = 0;
@@ -3334,7 +3432,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         else if (k === 'n') { e.preventDefault(); setNewTask(true); }
         else if (k === 'i') { e.preventDefault(); setInboxOpen(true); }
         else if (k === 'f') { e.preventDefault(); M.focus && M.focus.open(); }
-        else if (k === 'b') { e.preventDefault(); M.breathe && M.breathe.open(); }
+        else if (k === 'b') { e.preventDefault(); M.breathe && M.breathe.open('slow'); }
         else if (k === '?') { e.preventDefault(); setKeysOpen(true); }
       };
       window.addEventListener('keydown', on);
@@ -5254,7 +5352,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   const EMPTY = {all: 'Nothing posted yet.', announce: 'No announcements yet.', win: 'No wins yet.', ship: 'Nothing shipped in the last two weeks. Finish a task and it lands here.', kudos: 'No kudos yet.'};
   const SHIP_DAYS = 14;
   const COMMENT_MAX = 400;
-  const EMOJIS = ['👍', '🔥', '👀', '✅'];
+  const EMOJIS = ['👍', '🔥', '❤️', '😂', '👏', '👀', '✅'];
   const KEEP_POSTS = 80;
   const KEEP_KUDOS = 60;
   const STREAM_CAP = 120;
@@ -5305,6 +5403,16 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       out.push({key: 's:' + id, type: 'ship', author: t.owner, id, text: String(t.title || ''), at: Number(t.doneAt) || 0, pinned: false,
         project: proj ? proj.name : '', client: cl ? cl.name : '', approvedBy: t.approvedBy || '', late: !!(t.due && U.ymd(new Date(t.doneAt)) > t.due)});
     }
+    /* every Five played in the last week is a card: the tries and the squares, never the letters */
+    const play = collMap(ctx, 'play');
+    for (const who of Object.keys(play)) {
+      const days = (play[who] || {}).days || {};
+      for (const ymd of Object.keys(days)) {
+        const f = days[ymd] && days[ymd].five;
+        if (!f || !f.at || f.at < Date.now() - 7 * 86400000) continue;
+        out.push({key: 'f:' + who + ':' + ymd, type: 'five', author: who, ymd, tries: Number(f.tries) || 0, rows: Array.isArray(f.rows) ? f.rows : [], ms: Number(f.ms) || 0, at: Number(f.at) || 0, pinned: false});
+      }
+    }
     out.sort((a, b) => ((b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)) || (b.at - a.at));
     return out.slice(0, STREAM_CAP);
   }
@@ -5345,7 +5453,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const [open, setOpen] = useState(!!openDefault);
     const [text, setText] = useState('');
     const list = open ? commentsOf(ctx, itKey) : [];
-    const send = () => { const t = text.trim(); if (!t) return; addComment(ctx, itKey, t).then(() => { setText(''); M.sound.play('soft'); }).catch(() => {}); };
+    const send = ev => { const t = text.trim(); if (!t) return; const el = ev && ev.currentTarget; addComment(ctx, itKey, t).then(() => { setText(''); M.rain('💬', el, {n: 18, pops: 8, sound: 'soft'}); }).catch(() => {}); };
     return html`<div class="comments">
       <button type="button" class="linky tiny" aria-expanded=${open} onClick=${() => setOpen(x => !x)}>${count ? count + (count === 1 ? ' comment' : ' comments') : 'Comment'}</button>
       ${open ? html`<div class="stack tight" style=${{marginTop: '8px'}}>
@@ -5356,7 +5464,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           ${c.by === ctx.uid ? html`<button type="button" class="linky tiny" onClick=${() => dropComment(ctx, itKey, c.id)}>Delete</button>` : null}
         </div>`)}
         <div class="row nowrap" style=${{gap: '8px'}}>
-          <input class="input" value=${text} placeholder="Say something nice" aria-label="Comment" onInput=${e => setText(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') send(); }}/>
+          <input class="input" value=${text} placeholder="Say something nice" aria-label="Comment" onInput=${e => setText(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') send(e); }}/>
           <${UI.Btn} sm=${true} disabled=${!text.trim()} onClick=${send}>Post<//>
         </div>
       </div>` : null}
@@ -5368,11 +5476,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   function ShipCard({it, counts, mine, names, nComments}) {
     const ctx = M.useCtx();
     const c = counts[it.key] || {};
-    const react = e => {
-      const r = myReacts(ctx, ctx.uid);
-      if (r[it.key] === e) { const doc = U.clone(collMap(ctx, 'reacts')[ctx.uid] || {}); doc.r = {...(doc.r || {})}; delete doc.r[it.key]; ctx.W.set('reacts/' + ctx.uid, doc).catch(() => {}); }
-      else ctx.W.merge('reacts/' + ctx.uid, {r: {[it.key]: e}}).then(() => M.sound.play('soft')).catch(() => {});
-    };
+    const react = reactOn(ctx, it.key);
     const cheer = CHEERS[Math.abs(String(it.id).split('').reduce((n, ch) => n + ch.charCodeAt(0), 0)) % CHEERS.length];
     return html`<section class="card ship" data-key=${it.key} data-kind="ship">
       <div class="row between post-head">
@@ -5389,13 +5493,34 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         <button type="button" class="linky tiny" onClick=${() => M.nav('#tasks/' + it.id)}>Open</button>
       </div>
       <div class="ship-title">${it.text}</div>
-      <div class="row" role="group" aria-label="Reactions">
-        ${EMOJIS.map(e => html`<button key=${e} type="button" class=${'emoji-btn' + (mine === e ? ' on' : '')}
-          aria-pressed=${mine === e} aria-label=${'React ' + e} onClick=${() => react(e)}>
-          <span>${e}</span>${c[e] ? html`<span class="num">${c[e]}</span>` : null}</button>`)}
-      </div>
+      <${Reactions} c=${c} mine=${mine} react=${react}/>
       <${Comments} itKey=${it.key} names=${names} count=${nComments || 0}/>
     </section>`;
+  }
+
+  /* the reaction row every card carries: tap one and the screen rains with it */
+  function Reactions({c, mine, react}) {
+    return html`<div class="row reacts" role="group" aria-label="Reactions">
+      ${EMOJIS.map(e => html`<button key=${e} type="button" class=${'emoji-btn' + (mine === e ? ' on' : '')}
+        aria-pressed=${mine === e} aria-label=${'React ' + e} onClick=${ev => react(e, ev.currentTarget)}>
+        <span>${e}</span>${c[e] ? html`<span class="num">${c[e]}</span>` : null}</button>`)}
+    </div>`;
+  }
+
+  /* set or clear my reaction on a card; setting one rains the emoji from where it was tapped */
+  function reactOn(ctx, key) {
+    return (e, el) => {
+      const r = myReacts(ctx, ctx.uid);
+      if (r[key] === e) {
+        /* the whole document goes back, so the comments in it stay */
+        const doc = U.clone(collMap(ctx, 'reacts')[ctx.uid] || {});
+        doc.r = {...(doc.r || {})}; delete doc.r[key];
+        ctx.W.set('reacts/' + ctx.uid, doc).catch(() => {});
+      } else {
+        M.rain(e, el);
+        ctx.W.merge('reacts/' + ctx.uid, {r: {[key]: e}}).catch(() => {});
+      }
+    };
   }
 
   /* reaction counts from every reacts document: {[postKey]: {[emoji]: n}} */
@@ -5508,6 +5633,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         await W.merge('kudos/' + uid, {given});
         setWhy('');
         setTo('');
+        M.rain('👏', document.querySelector('.drawer-foot'));
         M.toast('Kudos sent');
         onClose();
       } catch (e) { /* the write layer already toasted the failure */ }
@@ -5532,17 +5658,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const c = counts[it.key] || {};
     const isAuthor = it.author === uid;
 
-    const react = e => {
-      const r = myReacts(ctx, uid);
-      if (r[it.key] === e) {
-        /* the whole document goes back, so the comments in it stay */
-        const doc = U.clone(collMap(ctx, 'reacts')[uid] || {});
-        doc.r = {...(doc.r || {})}; delete doc.r[it.key];
-        W.set('reacts/' + uid, doc).catch(() => {});
-      } else {
-        W.merge('reacts/' + uid, {r: {[it.key]: e}}).catch(() => {});
-      }
-    };
+    const react = reactOn(ctx, it.key);
     const togglePin = () => {
       if (!founderUid) return;
       W.merge('feed/' + founderUid, {pinned: it.pinned ? null : it.key})
@@ -5605,16 +5721,38 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         })}
         <div class="tiny ink62 num">${pollVotes.total} ${pollVotes.total === 1 ? 'vote' : 'votes'}${pollVotes.total && (isAuthor || isFounder) ? html`. ${Object.keys(pollVotes.who).map(i => html`<span key=${i}>${(it.options || [])[i]}: <${UI.AvatarRow} ids=${pollVotes.who[i]} size=${16}/> </span>`)}` : ''}</div>
       </div>` : null}
-      <div class="row" role="group" aria-label="Reactions">
-        ${EMOJIS.map(e => html`<button key=${e} type="button" class=${'emoji-btn' + (mine === e ? ' on' : '')}
-          aria-pressed=${mine === e} aria-label=${'React ' + e} onClick=${() => react(e)}>
-          <span>${e}</span>${c[e] ? html`<span class="num">${c[e]}</span>` : null}</button>`)}
-      </div>
+      <${Reactions} c=${c} mine=${mine} react=${react}/>
       <${Comments} itKey=${it.key} names=${names} count=${nComments || 0}/>
     </section>`;
   }
 
-  function KudosCard({it, names, nComments}) {
+  /* a Five result: the squares and the count; the word stays hidden until the day is over */
+  function FiveCard({it, counts, mine, names, nComments}) {
+    const ctx = M.useCtx();
+    const c = counts[it.key] || {};
+    const react = reactOn(ctx, it.key);
+    const got = it.tries >= 1 && it.tries <= 6;
+    return html`<section class="card" data-key=${it.key} data-kind="five">
+      <div class="row nowrap">
+        <${UI.Avatar} id=${it.author} size=${32}/>
+        <div class="grow">
+          <div class="row">
+            <b><${UI.Name} id=${it.author} fallback=${names[it.author] || undefined}/> ${got ? (it.tries <= 2 ? 'cracked Five in ' + it.tries : 'got Five in ' + it.tries) : 'took the L on Five'}</b>
+            <${UI.Pill} kind="ink">five<//>
+          </div>
+          <div class="tiny sub num">${U.timeAgo(it.at)} · ${U.fmtDay(it.ymd)}${it.ms && got ? ' · ' + M.play.fmtMs(it.ms) : ''}</div>
+        </div>
+      </div>
+      <div class="five-mini" style=${{marginTop: '10px'}} aria-label="The result card">${it.rows.map((r, i) => html`<div key=${i} class="five-mrow">${String(r).split('').map((s, j) => html`<i key=${j} class=${s === '2' ? 'ok' : s === '1' ? 'near' : 'out'}/>`)}</div>`)}</div>
+      <${Reactions} c=${c} mine=${mine} react=${react}/>
+      <${Comments} itKey=${it.key} names=${names} count=${nComments || 0}/>
+    </section>`;
+  }
+
+  function KudosCard({it, counts, mine, names, nComments}) {
+    const ctx = M.useCtx();
+    const c = counts[it.key] || {};
+    const react = reactOn(ctx, it.key);
     return html`<section class="card" data-key=${it.key} data-kind="kudos">
       <div class="row nowrap">
         <${UI.Avatar} id=${it.giver} size=${32}/>
@@ -5627,6 +5765,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         </div>
       </div>
       <div style=${{overflowWrap: 'anywhere', marginTop: '12px'}}>${it.why}</div>
+      <${Reactions} c=${c} mine=${mine} react=${react}/>
       <${Comments} itKey=${it.key} names=${names} count=${nComments || 0}/>
     </section>`;
   }
@@ -5644,7 +5783,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const mine = myReacts(ctx, ctx.uid);
     const ids = [];
     for (const it of items) {
-      if (it.type === 'post' || it.type === 'ship') { ids.push(it.author); if (it.approvedBy) ids.push(it.approvedBy); }
+      if (it.type === 'post' || it.type === 'ship' || it.type === 'five') { ids.push(it.author); if (it.approvedBy) ids.push(it.approvedBy); }
       else { ids.push(it.giver); ids.push(it.to); }
     }
     Object.keys(collMap(ctx, 'reacts')).forEach(u => ids.push(u));
@@ -5665,8 +5804,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       </div>
       <div class="stack" id="feed-stream">
         ${shown.length ? shown.map(it => it.type === 'kudos'
-          ? html`<${KudosCard} key=${it.key} it=${it} names=${names} nComments=${nc[it.key]}/>`
+          ? html`<${KudosCard} key=${it.key} it=${it} counts=${counts} mine=${mine[it.key]} names=${names} nComments=${nc[it.key]}/>`
           : it.type === 'ship' ? html`<${ShipCard} key=${it.key} it=${it} counts=${counts} mine=${mine[it.key]} names=${names} nComments=${nc[it.key]}/>`
+          : it.type === 'five' ? html`<${FiveCard} key=${it.key} it=${it} counts=${counts} mine=${mine[it.key]} names=${names} nComments=${nc[it.key]}/>`
           : html`<${PostCard} key=${it.key} it=${it} counts=${counts} mine=${mine[it.key]} names=${names} nComments=${nc[it.key]}/>`)
           : html`<${UI.Empty} text=${ready ? EMPTY[filter] : 'Loading the feed.'}/>`}
       </div>
@@ -5771,7 +5911,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     if (!task || task.status === status) return;
     const {patch, msg} = statusPatch(task, status, ctx.uid);
     await ctx.W.update('tasks/' + task.id, patch).catch(() => {});
-    if (status === 'done') M.burst(el || document.body); else M.sound.play('tick');
+    if (status === 'done') M.rain('🔥', el || document.body, {n: 56}); else M.sound.play('tick');
     M.toast(msg);
   }
 
@@ -11311,47 +11451,24 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 })();
 
 /* ==== 37-break.js ==== */
-/* module: break. "Take a break": the reset room. Sparks are the wellness score (a daily puzzle, a run,
-   a breath, a creativity reset, the care list all earn them), a streak counts the days you showed up
-   for yourself, and levels name the climb. This file holds the engine, the section page and the Play
-   tab: one original daily puzzle (Scramble, a word with a clue on odd days; Pixel, a five by five
-   picture from number clues on even days) with the team's times, and Flame Run, the endless runner.
-   Nothing here touches work points: sparks are their own thing. */
+/* module: break. "Take a break": the reset room, rebuilt on what replicates. Sparks are the wellness
+   score; they count feedback, never prizes. The engagement rules come from the field trials: a weekly
+   budget that resets every Monday (the fresh start effect), a streak that counts workdays only and
+   covers one missed day a week for you, squads of three or four that compete as teams (the step-count
+   trials: comparison between small groups moved people, support alone did not), levels earned by weeks
+   shown up, every number hideable in one tap, and no claim anywhere that any of it makes anyone
+   smarter. This file holds the engine, the hero and the section page; the daily puzzles, the games and
+   the resets live in their own files. Nothing here touches work points: sparks are their own thing. */
 'use strict';
 (function () {
-  const {html, React, U, UI, icons} = M;
-  const {useState, useEffect, useRef, useMemo} = React;
+  const {html, React, U, UI} = M;
 
   const today = () => U.todayStr();
-  const yesterday = () => U.ymd(U.addDays(new Date(), -1));
-  const LEVELS = [[0, 'Spark'], [50, 'Ember'], [150, 'Flame'], [400, 'Blaze'], [1000, 'Supernova']];
-  const RUN_DAY_CAP = 5;
-
-  /* ---------- the engine ---------- */
-  const docOf = (ctx, uid) => (ctx.coll.play && ctx.coll.play.map[uid || ctx.uid]) || {};
-  const level = n => {
-    let cur = LEVELS[0], next = null;
-    for (let i = 0; i < LEVELS.length; i++) { if (n >= LEVELS[i][0]) cur = LEVELS[i]; else { next = LEVELS[i]; break; } }
-    return {name: cur[1], at: cur[0], next: next ? next[1] : '', nextAt: next ? next[0] : null, pct: next ? Math.round(100 * (n - cur[0]) / (next[0] - cur[0])) : 100};
-  };
-  /* +n sparks and the streak, in one write; what counts the day as shown up */
-  async function award(ctx, n, what) {
-    const d = U.clone(docOf(ctx));
-    const td = today();
-    const streak = d.lastDay === td ? (d.streak || 1) : d.lastDay === yesterday() ? (d.streak || 0) + 1 : 1;
-    const best = Math.max(Number(d.best) || 0, streak);
-    const log = {...(d.log || {})};
-    log[td] = {...(log[td] || {}), [what]: ((log[td] || {})[what] || 0) + 1};
-    const keys = Object.keys(log).sort();
-    while (keys.length > 120) delete log[keys.shift()];
-    await ctx.W.merge('play/' + ctx.uid, {sparks: (Number(d.sparks) || 0) + n, streak, best, lastDay: td, log, updated: Date.now()});
-    M.sound.play('done');
-    M.toast('+' + n + ' sparks, ' + what);
-    return streak;
-  }
-  const board = ctx => ctx.activeMembers.map(m => { const d = docOf(ctx, m.uid); return {uid: m.uid, sparks: Number(d.sparks) || 0, streak: d.lastDay === today() || d.lastDay === yesterday() ? (Number(d.streak) || 0) : 0, best: Number(d.best) || 0, level: level(Number(d.sparks) || 0).name}; })
-    .sort((a, b) => b.sparks - a.sparks || b.streak - a.streak);
-  const mine = ctx => { const d = docOf(ctx); const s = Number(d.sparks) || 0; return {sparks: s, level: level(s), streak: d.lastDay === today() || d.lastDay === yesterday() ? (Number(d.streak) || 0) : 0, best: Number(d.best) || 0, today: (d.log || {})[today()] || {}}; };
+  const weekOf = ymd => U.isoWeek(U.parseYmd(ymd));
+  const WEEK_GOAL = 30;
+  /* levels are weeks shown up (thirty sparks or more in a week), not lifetime points */
+  const LEVELS = [[0, 'Spark'], [2, 'Ember'], [5, 'Flame'], [12, 'Blaze'], [26, 'Supernova']];
+  const SQUAD_NAMES = ['Embers', 'Comets', 'Lanterns', 'Flares', 'Beacons', 'Sparklers'];
 
   /* ---------- seeded randomness: the same puzzle for everyone, every day ---------- */
   function rng(seedStr) {
@@ -11360,270 +11477,478 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     let a = h >>> 0;
     return () => { a += 0x6D2B79F5; let t = Math.imul(a ^ (a >>> 15), 1 | a); t ^= t + Math.imul(t ^ (t >>> 7), 61 | t); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   }
-  const dayNumber = ymd => Math.round(U.parseYmd(ymd).getTime() / 86400000);
-  const kindFor = ymd => dayNumber(ymd) % 2 ? 'word' : 'pixel';
+  const shuffle = (arr, r) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const fmtMs = ms => { const s = Math.max(0, Math.round(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 
-  /* ---------- Scramble: a word from the trade, with a clue ---------- */
-  const WORDS = [
-    ['storyboard', 'the film drawn frame by frame before anyone shoots'], ['moodboard', 'a wall of references that sets the vibe'], ['typography', 'the art of making letters behave'],
-    ['brandbook', 'the rules a logo lives by'], ['retainer', 'a client who pays every month, not per job'], ['deliverable', 'the thing the client actually receives'],
-    ['campaign', 'one big idea, many pieces, one window'], ['tagline', 'four words that outlive the ad'], ['influencer', 'a person whose feed is a channel'],
-    ['engagement', 'the likes, saves and shares, counted'], ['analytics', 'the numbers after the post'], ['briefing', 'the meeting before the meeting'],
-    ['moodfilm', 'a cut of other people\'s footage to sell a feeling'], ['callsheet', 'who is where at what hour on a shoot day'], ['voiceover', 'the words you hear but never see'],
-    ['storytelling', 'the oldest trick in marketing'], ['copywriting', 'words that have to earn their place'], ['narrative', 'the arc that holds a campaign together'],
-    ['audience', 'the people the work is actually for'], ['benchmark', 'the number to beat'], ['milestone', 'a date the project leans on'],
-    ['prototype', 'the rough version that answers the question'], ['wireframe', 'boxes before beauty'], ['keyframe', 'the pose the motion passes through'],
-    ['colourway', 'one design, a different palette'], ['lookbook', 'the collection, photographed'], ['packshot', 'the product, lit, alone'],
-    ['hashtag', 'a word with a fence in front'], ['carousel', 'swipe, swipe, swipe'], ['thumbnail', 'the tiny picture that decides the click'],
-    ['premiere', 'the first showing'], ['teaser', 'the ad for the ad'], ['billboard', 'the ad you cannot scroll past'],
-    ['sponsorship', 'a brand attached to someone else\'s moment'], ['activation', 'the brand, in the real world, for a weekend'], ['experiential', 'marketing you can walk into'],
-    ['luxury', 'the thing Mask360 knows best'], ['premium', 'a notch under luxury, a notch over everyone'], ['heritage', 'a brand\'s past, used as a selling point'],
-    ['artisan', 'made by hand, priced accordingly'], ['bespoke', 'made for one person'], ['curation', 'choosing, as a craft'],
-    ['penthouse', 'the top floor, in a brochure'], ['concierge', 'the person who gets you the table'], ['hospitality', 'the business of making people feel looked after'],
-    ['vineyard', 'where the wine starts'], ['distillery', 'where the whisky starts'], ['sommelier', 'the one who picks the bottle'],
-    ['fragrance', 'the invisible product'], ['skincare', 'the morning ritual, sold in steps'], ['jewellery', 'small, shiny, expensive'],
-    ['horology', 'the study of watches'], ['tourbillon', 'the fancy cage inside a fancy watch'], ['automotive', 'cars, as an industry'],
-    ['mandate', 'the account, once it is yours'], ['pitch', 'the meeting where you win or you don\'t'], ['proposal', 'the pitch, written down'],
-    ['retention', 'keeping the client you already have'], ['churn', 'the clients who leave'], ['pipeline', 'every deal that might happen'],
-    ['invoice', 'the paper that asks for the money'], ['payroll', 'everyone\'s salary, on a date'], ['compliance', 'the rules you file by'],
-    ['creativity', 'the thing this room is for'], ['momentum', 'what Monday morning needs'], ['discipline', 'doing it on the days you do not feel it'],
-    ['focus', 'the opposite of the feed'], ['clarity', 'what a good brief has'], ['brevity', 'the soul of the tagline'],
-    ['resonance', 'when the message lands and stays'], ['authentic', 'the word every brand overuses'], ['aesthetic', 'the vibe, as a noun'],
-    ['minimalism', 'less, on purpose'], ['maximalism', 'more, on purpose'], ['contrast', 'what makes the headline pop'],
-    ['composition', 'where things sit in the frame'], ['lighting', 'the real product on a shoot'], ['continuity', 'the glass is full in every take'],
-    ['montage', 'time, compressed to music'], ['sequence', 'the shots in order'], ['transition', 'how one shot becomes the next'],
-    ['playlist', 'the mood, in songs'], ['cadence', 'how often you post'], ['consistency', 'posting on the days you said you would'],
-    ['deadline', 'the date that makes the work exist'], ['feedback', 'what the client says after the first look'], ['revision', 'the second look'],
-    ['approval', 'the yes'], ['handover', 'the day it stops being yours'], ['launch', 'the day the public sees it']
-  ];
-  function wordPuzzle(ymd) {
-    const r = rng('scramble:' + ymd);
-    const [word, clue] = WORDS[Math.floor(r() * WORDS.length)];
-    let letters = word.split('');
-    for (let tries = 0; tries < 20; tries++) {
-      for (let i = letters.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [letters[i], letters[j]] = [letters[j], letters[i]]; }
-      if (letters.join('') !== word) break;
-    }
-    return {kind: 'word', word, clue, letters, title: 'Scramble', how: 'Unscramble the word. The clue is the trade.'};
-  }
-
-  /* ---------- Pixel: a five by five picture from number clues ---------- */
-  const N = 5;
-  const cluesOf = grid => {
-    const run = cells => { const out = []; let n = 0; cells.forEach(c => { if (c) n++; else if (n) { out.push(n); n = 0; } }); if (n) out.push(n); return out.length ? out : [0]; };
-    return {rows: grid.map(run), cols: Array.from({length: N}, (_, c) => run(grid.map(row => row[c])))};
+  /* ---------- workdays: a streak that ignores the weekend ---------- */
+  /* Monday to Friday count; a Saturday or Sunday folds into the Friday before it */
+  const workdayIndex = ymd => {
+    const d = U.parseYmd(ymd);
+    const mon = U.mondayOf(d);
+    const week = Math.round(mon.getTime() / 604800000);
+    return week * 5 + Math.min((d.getDay() + 6) % 7, 4);
   };
-  function pixelPuzzle(ymd) {
-    const r = rng('pixel:' + ymd);
-    let grid;
-    for (let tries = 0; tries < 50; tries++) {
-      grid = Array.from({length: N}, () => Array.from({length: N}, () => r() < .55 ? 1 : 0));
-      const ok = grid.every(row => row.some(Boolean)) && Array.from({length: N}, (_, c) => grid.some(row => row[c])).every(Boolean);
-      if (ok) break;
-    }
-    return {kind: 'pixel', grid, clues: cluesOf(grid), title: 'Pixel', how: 'Fill the squares so every row and column matches its numbers. A 2 1 means a run of two, a gap, then one.'};
-  }
-  const puzzleFor = ymd => kindFor(ymd) === 'word' ? wordPuzzle(ymd) : pixelPuzzle(ymd);
-  const sameClues = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const workdayBack = (ymd, n) => { let d = U.parseYmd(ymd); let left = n; while (left > 0) { d = U.addDays(d, -1); if (d.getDay() >= 1 && d.getDay() <= 5) left--; } return U.ymd(d); };
 
-  async function finish(ctx, puzzle, ms, hints) {
-    const td = today();
-    const score = ms + hints * 20000;
-    await ctx.W.merge('play/' + ctx.uid, {days: {[td]: {kind: puzzle.kind, ms: score, hints, at: Date.now()}}, updated: Date.now()});
-    const fast = score < 120000 && !hints;
-    await award(ctx, fast ? 15 : 10, fast ? 'puzzle, clean and quick' : 'puzzle');
+  /* ---------- the engine ---------- */
+  const docOf = (ctx, uid) => (ctx.coll.play && ctx.coll.play.map[uid || ctx.uid]) || {};
+  const weeksShown = d => Object.keys(d.weeks || {}).filter(w => (Number(d.weeks[w]) || 0) >= WEEK_GOAL).length;
+  const level = weeks => {
+    let cur = LEVELS[0], next = null;
+    for (let i = 0; i < LEVELS.length; i++) { if (weeks >= LEVELS[i][0]) cur = LEVELS[i]; else { next = LEVELS[i]; break; } }
+    return {name: cur[1], at: cur[0], next: next ? next[1] : '', nextAt: next ? next[0] : null, weeks};
+  };
+  /* where the streak stands if today counts: continues, covers one missed workday, or starts over */
+  function nextStreak(d, td) {
+    const cur = Number(d.streak) || 0;
+    if (!d.lastDay) return {streak: 1};
+    const gap = workdayIndex(td) - workdayIndex(d.lastDay);
+    if (gap <= 0) return {streak: Math.max(1, cur)};
+    if (gap === 1) return {streak: cur + 1};
+    const wk = weekOf(td);
+    if (gap === 2 && !(d.repairs || {})[wk]) return {streak: cur + 2, repaired: workdayBack(td, 1)};
+    return {streak: 1};
   }
-  const fmtMs = ms => { const s = Math.round(ms / 1000); return s < 60 ? s + 's' : Math.floor(s / 60) + 'm ' + (s % 60) + 's'; };
-
-  function Scramble({puzzle, done, onDone}) {
-    const [typed, setTyped] = useState('');
-    const [reveal, setReveal] = useState(0);
-    const [t0, setT0] = useState(0);
-    const [wrong, setWrong] = useState(0);
-    const [solved, setSolved] = useState(false);
-    const start = () => { if (!t0) setT0(Date.now()); };
-    const check = () => {
-      start();
-      if (typed.trim().toLowerCase() === puzzle.word) { setSolved(true); onDone(Date.now() - (t0 || Date.now()), reveal); }
-      else { setWrong(w => w + 1); M.sound.play('tick'); }
-    };
-    const hint = () => { start(); setReveal(r => Math.min(puzzle.word.length - 1, r + 1)); };
-    if (done || solved) return html`<div class="stack tight" id="puzzle-done">
-      <div class="brk-word">${puzzle.word.split('').map((ch, i) => html`<span key=${i} class="brk-tile on">${ch}</span>`)}</div>
-      <div class="small">${puzzle.clue}. ${done ? 'Solved in ' + fmtMs(done.ms) + (done.hints ? ' with ' + done.hints + (done.hints === 1 ? ' hint' : ' hints') : ', no hints') + '.' : 'Got it.'}</div>
-    </div>`;
-    return html`<div class="stack tight">
-      <div class="brk-word" aria-label="Scrambled letters">${puzzle.letters.map((ch, i) => html`<span key=${i} class="brk-tile">${ch}</span>`)}</div>
-      <div class="small ink62">${puzzle.clue}${reveal ? html`. Starts with <b>${puzzle.word.slice(0, reveal)}</b>` : ''}</div>
-      <div class="row nowrap" style=${{gap: '8px'}}>
-        <input class="input brk-answer" id="scramble-answer" value=${typed} placeholder="Your answer" autoCapitalize="none" autoComplete="off" aria-label="Your answer"
-          onFocus=${start} onInput=${e => { start(); setTyped(e.target.value); }} onKeyDown=${e => { if (e.key === 'Enter') check(); }}/>
-        <${UI.Btn} id="scramble-check" disabled=${!typed.trim()} onClick=${check}>Check<//>
-        <button type="button" class="linky tiny" id="scramble-hint" onClick=${hint}>Hint (+20s)</button>
-      </div>
-      ${wrong ? html`<div class="tiny flame-t">Not it. ${wrong > 2 ? 'The hint is right there.' : 'Go again.'}</div>` : null}
-    </div>`;
+  const streakAlive = (d, td) => !!d.lastDay && workdayIndex(td) - workdayIndex(d.lastDay) <= 1;
+  /* +n sparks, the week's total and the streak, in one write; `what` is the thing that earned them */
+  async function award(ctx, n, what) {
+    const d = U.clone(docOf(ctx));
+    const td = today(), wk = weekOf(td);
+    const {streak, repaired} = nextStreak(d, td);
+    const best = Math.max(Number(d.best) || 0, streak);
+    const weeks = {...(d.weeks || {})};
+    weeks[wk] = (Number(weeks[wk]) || 0) + n;
+    const wkeys = Object.keys(weeks).sort();
+    while (wkeys.length > 60) delete weeks[wkeys.shift()];
+    const log = {...(d.log || {})};
+    log[td] = {...(log[td] || {}), [what]: ((log[td] || {})[what] || 0) + 1};
+    const keys = Object.keys(log).sort();
+    while (keys.length > 120) delete log[keys.shift()];
+    const patch = {sparks: (Number(d.sparks) || 0) + n, weeks, streak, best, lastDay: td, log, updated: Date.now()};
+    if (repaired) patch.repairs = {...(d.repairs || {}), [wk]: repaired};
+    await ctx.W.merge('play/' + ctx.uid, patch);
+    M.sound.play('done');
+    M.toast('+' + n + ' sparks, ' + what + (repaired ? '. We covered ' + U.fmtDay(repaired) + ' for you, streak intact.' : ''));
+    return streak;
   }
-
-  function Pixel({puzzle, done, onDone}) {
-    const [grid, setGrid] = useState(() => Array.from({length: N}, () => Array(N).fill(0)));
-    const [t0, setT0] = useState(0);
-    const [hints, setHints] = useState(0);
-    const [solved, setSolved] = useState(false);
-    const start = () => { if (!t0) setT0(Date.now()); };
-    const toggle = (r, c) => {
-      if (solved || done) return;
-      start();
-      const g = grid.map(row => row.slice()); g[r][c] = g[r][c] ? 0 : 1; setGrid(g);
-      if (sameClues(cluesOf(g), puzzle.clues)) { setSolved(true); M.sound.play('chime'); onDone(Date.now() - (t0 || Date.now()), hints); }
-      else M.sound.play('soft');
-    };
-    const hint = () => {
-      if (solved || done) return;
-      start();
-      const r = grid.findIndex((row, i) => row.join('') !== puzzle.grid[i].join(''));
-      if (r < 0) return;
-      const g = grid.map(row => row.slice()); g[r] = puzzle.grid[r].slice(); setGrid(g); setHints(h => h + 1);
-      if (sameClues(cluesOf(g), puzzle.clues)) { setSolved(true); onDone(Date.now() - (t0 || Date.now()), hints + 1); }
-    };
-    const show = done || solved ? puzzle.grid : grid;
-    return html`<div class="stack tight">
-      <div class="brk-pixel" role="grid" aria-label="Pixel">
-        <div class="brk-corner"/>
-        ${puzzle.clues.cols.map((cl, c) => html`<div key=${'c' + c} class="brk-clue col num">${cl.join(' ')}</div>`)}
-        ${show.map((row, r) => html`<${React.Fragment} key=${'r' + r}>
-          <div class="brk-clue row num">${puzzle.clues.rows[r].join(' ')}</div>
-          ${row.map((v, c) => html`<button key=${c} type="button" role="gridcell" class=${'brk-cell' + (v ? ' on' : '')} aria-pressed=${!!v} aria-label=${'row ' + (r + 1) + ' column ' + (c + 1)} onClick=${() => toggle(r, c)}/>`)}
-        <//>`)}
-      </div>
-      ${done || solved ? html`<div class="small" id="puzzle-done">${done ? 'Solved in ' + fmtMs(done.ms) + (done.hints ? ' with ' + done.hints + (done.hints === 1 ? ' hint' : ' hints') : ', no hints') + '.' : 'Picture complete.'}</div>`
-        : html`<div class="row between"><span class="tiny ink62">Tap a square to fill it.</span><button type="button" class="linky tiny" id="pixel-hint" onClick=${hint}>Hint, one row (+20s)</button></div>`}
-    </div>`;
+  /* sparks once a day for a thing; false when it already counted */
+  const once = async (ctx, what, n) => {
+    if ((mine(ctx).today || {})[what]) { M.toast('Already counted today. Still worth it.'); return false; }
+    await award(ctx, n || 5, what);
+    return true;
+  };
+  function mine(ctx, uid) {
+    const d = docOf(ctx, uid);
+    const td = today(), wk = weekOf(td), lastWk = U.isoWeek(U.addDays(U.mondayOf(new Date()), -7));
+    const weeks = d.weeks || {};
+    return {sparks: Number(d.sparks) || 0, week: Number(weeks[wk]) || 0, lastWeek: Number(weeks[lastWk]) || 0, level: level(weeksShown(d)),
+      streak: streakAlive(d, td) ? (Number(d.streak) || 0) : 0, best: Number(d.best) || 0, today: (d.log || {})[td] || {},
+      covered: (d.repairs || {})[wk] || '', hide: !!d.hide, lastDay: d.lastDay || ''};
   }
+  const board = ctx => ctx.activeMembers.map(m => ({uid: m.uid, ...mine(ctx, m.uid)})).sort((a, b) => b.week - a.week || b.streak - a.streak);
 
-  function DailyPuzzle() {
+  /* ---------- squads: three or four people, drawn fresh every month, scored by the week ---------- */
+  function squads(ctx, ym) {
+    const ids = shuffle(ctx.activeMembers.map(m => m.uid).sort(), rng('squad:' + (ym || U.monthId(new Date()))));
+    const n = ids.length;
+    if (n < 6) return [{name: 'Everyone', ids}];
+    const count = Math.max(2, Math.round(n / 3.5));
+    const names = shuffle(SQUAD_NAMES, rng('names:' + (ym || U.monthId(new Date()))));
+    const out = Array.from({length: count}, (_, i) => ({name: names[i % names.length], ids: []}));
+    ids.forEach((id, i) => out[i % count].ids.push(id));
+    return out;
+  }
+  const squadBoard = ctx => squads(ctx).map(s => ({...s, week: s.ids.reduce((n, id) => n + mine(ctx, id).week, 0), mine: s.ids.indexOf(ctx.uid) >= 0}))
+    .sort((a, b) => b.week - a.week);
+  const setHide = (ctx, hide) => ctx.W.merge('play/' + ctx.uid, {hide: !!hide}).catch(() => {});
+
+  /* ---------- the hero: this week, the streak, the level, the squad ---------- */
+  function Sparks() {
     const ctx = M.useCtx();
-    const td = today();
-    const puzzle = useMemo(() => puzzleFor(td), [td]);
-    const done = (docOf(ctx).days || {})[td] || null;
-    const onDone = (ms, hints) => finish(ctx, puzzle, ms, hints).catch(() => {});
-    const rows = ctx.activeMembers.map(m => ({uid: m.uid, d: (docOf(ctx, m.uid).days || {})[td]})).filter(x => x.d).sort((a, b) => a.d.ms - b.d.ms);
-    return html`<${UI.Card} id="daily-puzzle" title=${html`<span class="row nowrap" style=${{gap: '8px'}}>${puzzle.title}<${UI.Pill}>today's puzzle<//></span>`} action=${html`<span class="tiny ink62">${puzzle.how}</span>`}>
-      ${puzzle.kind === 'word' ? html`<${Scramble} puzzle=${puzzle} done=${done} onDone=${onDone}/>` : html`<${Pixel} puzzle=${puzzle} done=${done} onDone=${onDone}/>`}
-      <div class="stack tight" style=${{marginTop: '14px'}} id="puzzle-board">
-        <div class="row between"><span class="micro">today's times</span><span class="tiny ink62">${rows.length ? rows.length + ' solved' : 'nobody yet, be first'}</span></div>
-        ${rows.map((r, i) => html`<div key=${r.uid} class="row between brk-row">
-          <span class="row nowrap"><span class="num tiny ink62" style=${{width: '20px'}}>${i + 1}</span><${UI.Avatar} id=${r.uid} size=${22}/><${UI.Name} id=${r.uid}/></span>
-          <span class="num small">${fmtMs(r.d.ms)}${r.d.hints ? html` <span class="tiny ink62">${r.d.hints}h</span>` : ''}</span>
+    const me = mine(ctx);
+    if (me.hide) return html`<div class="brk-sparks row" id="sparks" style=${{gap: '12px', alignItems: 'center'}}>
+      <span class="tiny ink62">Scoreboard hidden. Everything still counts.</span>
+      <button type="button" class="linky tiny" id="sparks-show" onClick=${() => setHide(ctx, false)}>Show it</button>
+    </div>`;
+    const sq = squadBoard(ctx);
+    const my = sq.find(s => s.mine), pos = sq.indexOf(my);
+    const place = pos === 0 ? 'leading' : pos === 1 ? 'second' : pos === 2 ? 'third' : 'fourth';
+    return html`<div class="brk-sparks row" style=${{gap: '14px', flexWrap: 'wrap', alignItems: 'center'}} id="sparks">
+      <span class="chipline"><b class="num">${me.week}</b> sparks this week <span class="tiny ink62 num">${me.lastWeek ? 'last week ' + me.lastWeek : WEEK_GOAL + ' shows up'}</span></span>
+      <span class="chipline"><b class="num">${me.streak}</b> workday streak${me.covered ? html` <span class="tiny ink62">${U.fmtDay(me.covered).split(' ')[0]} covered</span>` : me.best > me.streak ? html` <span class="tiny ink62 num">best ${me.best}</span>` : ''}</span>
+      <span class="chipline"><b>${me.level.name}</b> <span class="tiny ink62 num">${me.level.weeks} ${me.level.weeks === 1 ? 'week' : 'weeks'} shown up${me.level.next ? ', ' + me.level.next + ' at ' + me.level.nextAt : ''}</span></span>
+      ${my && sq.length > 1 ? html`<span class="chipline" id="squad-chip"><b>${my.name}</b> <span class="tiny ink62 num">${my.week} sparks, ${place}</span></span>` : null}
+      <button type="button" class="linky tiny" id="sparks-hide" onClick=${() => setHide(ctx, true)}>Hide</button>
+    </div>`;
+  }
+
+  /* the squads this month, this week's totals; a person sees their own squad's members, never a ranking of people */
+  function Squads() {
+    const ctx = M.useCtx();
+    const sq = squadBoard(ctx);
+    if (sq.length < 2) return html`<${UI.Card} title="The team this week" id="squads">
+      <div class="small">Squads start at six people. Until then it is everyone against the week: <b class="num">${sq[0] ? sq[0].week : 0}</b> sparks so far.</div>
+    <//>`;
+    return html`<${UI.Card} title="Squads this week" id="squads" action=${html`<span class="tiny ink62">drawn fresh every month, reset every Monday</span>`}>
+      <div class="stack tight">
+        ${sq.map((s, i) => html`<div key=${s.name} class=${'row between brk-row' + (s.mine ? ' mine' : '')}>
+          <span class="row nowrap"><b class="num">${i + 1}.</b> <b>${s.name}</b>${s.mine ? html` <span class="tiny flame-t">yours</span>` : null} <${UI.AvatarRow} ids=${s.ids} size=${20}/></span>
+          <span class="num">${s.week}</span>
         </div>`)}
       </div>
     <//>`;
   }
 
-  /* ---------- Flame Run: the endless runner ---------- */
-  function Runner() {
-    const ctx = M.useCtx();
-    const canvasRef = useRef(null);
-    const state = useRef(null);
-    const [score, setScore] = useState(0);
-    const [over, setOver] = useState(false);
-    const [running, setRunning] = useState(false);
-    const me = docOf(ctx).runner || {};
-    const best = Number(me.best) || 0;
-    const W = 360, H = 160, GROUND = 128;
-    const reset = () => ({t: 0, x: 0, y: GROUND, vy: 0, speed: 180, obs: [], next: 900, score: 0, alive: true, last: 0});
-    const jump = () => { const s = state.current; if (!s || !s.alive) return; if (s.y >= GROUND - 0.5) { s.vy = -420; M.sound.play('soft'); } };
-    const start = () => { state.current = reset(); setScore(0); setOver(false); setRunning(true); M.sound.play('start'); };
-    useEffect(() => {
-      if (!running) return;
-      const cv = canvasRef.current; if (!cv) return;
-      const g = cv.getContext('2d');
-      const ink = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim() || '#0E0E0E';
-      const paper = getComputedStyle(document.documentElement).getPropertyValue('--warm').trim() || '#F7F6F2';
-      let raf = 0;
-      const frame = now => {
-        const s = state.current; if (!s) return;
-        const dt = s.last ? Math.min(0.05, (now - s.last) / 1000) : 0; s.last = now;
-        if (s.alive) {
-          s.t += dt; s.speed = 180 + s.t * 9; s.score += dt * s.speed / 10;
-          s.vy += 1400 * dt; s.y = Math.min(GROUND, s.y + s.vy * dt); if (s.y >= GROUND) s.vy = 0;
-          s.next -= dt * s.speed;
-          if (s.next <= 0) { const h = 18 + Math.random() * 22, w = 12 + Math.random() * 16; s.obs.push({x: W + 20, w, h}); s.next = 220 + Math.random() * 360; }
-          s.obs.forEach(o => { o.x -= s.speed * dt; });
-          s.obs = s.obs.filter(o => o.x + o.w > -10);
-          const fx = 48, fr = 12;
-          for (const o of s.obs) { if (fx + fr > o.x && fx - fr < o.x + o.w && s.y + 2 > GROUND - o.h) { s.alive = false; M.sound.play('tick'); } }
-          if (!s.alive) {
-            setOver(true); setRunning(false);
-            const sc = Math.floor(s.score);
-            const d = U.clone(docOf(ctx).runner || {});
-            const td = today();
-            const games = d.day === td ? (Number(d.games) || 0) + 1 : 1;
-            ctx.W.merge('play/' + ctx.uid, {runner: {best: Math.max(Number(d.best) || 0, sc), day: td, games, last: sc, at: Date.now()}, updated: Date.now()}).catch(() => {});
-            if (games <= RUN_DAY_CAP) award(ctx, sc > (Number(d.best) || 0) ? 4 : 2, sc > (Number(d.best) || 0) ? 'a new best run' : 'a run').catch(() => {});
-          }
-          setScore(Math.floor(s.score));
-        }
-        /* draw */
-        g.fillStyle = paper; g.fillRect(0, 0, W, H);
-        g.strokeStyle = ink; g.lineWidth = 2; g.beginPath(); g.moveTo(0, GROUND + 1); g.lineTo(W, GROUND + 1); g.stroke();
-        g.fillStyle = ink; s.obs.forEach(o => g.fillRect(o.x, GROUND - o.h, o.w, o.h));
-        const fx = 48, fy = s.y;
-        g.fillStyle = '#F53901';
-        g.beginPath(); g.moveTo(fx, fy - 34); g.quadraticCurveTo(fx + 16, fy - 16, fx + 11, fy - 6); g.arc(fx, fy - 8, 11, 0.3, Math.PI - 0.3, false); g.quadraticCurveTo(fx - 16, fy - 16, fx, fy - 34); g.fill();
-        g.fillStyle = '#FFFFFF'; g.beginPath(); g.arc(fx - 4, fy - 12, 2.2, 0, Math.PI * 2); g.arc(fx + 4, fy - 12, 2.2, 0, Math.PI * 2); g.fill();
-        g.fillStyle = ink; g.font = '600 13px Space Grotesk, sans-serif'; g.textAlign = 'right'; g.fillText(String(Math.floor(s.score)), W - 10, 20);
-        if (s.alive) raf = requestAnimationFrame(frame);
-      };
-      raf = requestAnimationFrame(frame);
-      const key = e => { if (e.code === 'Space' || e.key === 'ArrowUp') { e.preventDefault(); jump(); } };
-      window.addEventListener('keydown', key);
-      const hide = () => { const s = state.current; if (s && document.hidden) s.last = 0; };
-      document.addEventListener('visibilitychange', hide);
-      return () => { cancelAnimationFrame(raf); window.removeEventListener('keydown', key); document.removeEventListener('visibilitychange', hide); };
-    }, [running]);
-    const rows = ctx.activeMembers.map(m => ({uid: m.uid, best: Number((docOf(ctx, m.uid).runner || {}).best) || 0})).filter(r => r.best > 0).sort((a, b) => b.best - a.best).slice(0, 6);
-    return html`<${UI.Card} id="flame-run" title="Flame Run" action=${html`<span class="tiny ink62 num">best ${best}</span>`}>
-      <div class="brk-run" onPointerDown=${e => { e.preventDefault(); if (!running) start(); else jump(); }}>
-        <canvas ref=${canvasRef} width=${W} height=${H} id="run-canvas" aria-label="Flame Run"/>
-        ${!running ? html`<div class="brk-run-over">
-          <div class="small" style=${{fontWeight: 600}}>${over ? 'Run over at ' + score + (score > best && best ? ', new best' : '') : 'Tap or press space to jump the blocks.'}</div>
-          <${UI.Btn} sm=${true} id="run-start" onClick=${e => { e.stopPropagation(); start(); }}>${over ? 'Run again' : 'Run'}<//>
-        </div>` : null}
-      </div>
-      <div class="row between" style=${{marginTop: '8px'}}><span class="tiny ink62">Five runs a day earn sparks, the rest are for the love of it.</span>
-        ${rows.length ? html`<span class="tiny num ink62">${rows.map(r => html`<span key=${r.uid}><${UI.Name} id=${r.uid}/> ${r.best}</span>`).reduce((a, b) => [a, ' · ', b])}</span>` : null}</div>
-    <//>`;
-  }
-
   /* ---------- the section ---------- */
-  const TABS = [{k: 'play', label: 'Play', route: 'play'}, {k: 'reset', label: 'Reset', route: 'reset'}, {k: 'care', label: 'Care', route: 'care'}, {k: 'reflect', label: 'Reflect', route: 'reflect'}];
-  function Sparks() {
-    const ctx = M.useCtx();
-    const me = mine(ctx);
-    const rows = board(ctx).slice(0, 5);
-    return html`<div class="brk-sparks row" style=${{gap: '14px', flexWrap: 'wrap', alignItems: 'center'}} id="sparks">
-      <span class="chipline"><b class="num">${me.sparks}</b> sparks</span>
-      <span class="chipline"><b>${me.level.name}</b>${me.level.next ? html` <span class="tiny ink62 num">${me.level.nextAt - me.sparks} to ${me.level.next}</span>` : ''}</span>
-      <span class="chipline"><b class="num">${me.streak}</b> day streak${me.best > me.streak ? html` <span class="tiny ink62 num">best ${me.best}</span>` : ''}</span>
-      ${rows.length ? html`<span class="tiny ink62 brk-board">${rows.map((r, i) => html`<span key=${r.uid} class="nowrap">${i + 1}. <${UI.Name} id=${r.uid}/> <span class="num">${r.sparks}</span></span>`).reduce((a, b) => [a, ' · ', b])}</span>` : null}
-    </div>`;
-  }
+  const TABS = [{k: 'play', label: 'Daily', route: 'play'}, {k: 'reset', label: 'Reset', route: 'reset'}, {k: 'care', label: 'Care', route: 'care'}, {k: 'reflect', label: 'Reflect', route: 'reflect'}];
   function Break({tab}) {
     const t = tab || 'play';
     const P = M.parts;
     return html`<div class="stack" style=${{gap: '20px'}} id="break">
-      <${M.SectionHero} micro="the reset room" title="Break" sub="Play a little, breathe a little, drink the water. Your brain does better work after, and the sparks prove you showed up.">
+      <${M.SectionHero} micro="the reset room" title="Break" sub="One shared puzzle, a five minute game, a breath that is actually five minutes, a walk with a problem in your pocket. Built on the trials that replicated, with the grade on every card.">
         <${Sparks}/>
       <//>
       <${M.SectionTabs} section="break" active=${t}/>
       ${t === 'reset' && P.BreakReset ? html`<${P.BreakReset}/>` : t === 'care' && P.BreakCare ? html`<${P.BreakCare}/>` : t === 'reflect' && P.BreakReflect ? html`<${P.BreakReflect}/>`
-        : html`<div class="split"><${DailyPuzzle}/><${Runner}/></div>`}
+        : html`<div class="stack" style=${{gap: '18px'}} id="break-daily">
+            ${P.Daily ? html`<${P.Daily}/>` : null}
+            <div class="split">${P.Doubles ? html`<${P.Doubles}/>` : null}${P.Reaction ? html`<${P.Reaction}/>` : null}</div>
+            <${Squads}/>
+          </div>`}
     </div>`;
   }
 
-  M.play = {LEVELS, level, award, board, mine, docOf, puzzleFor, cluesOf, rng, kindFor, WORDS, fmtMs, TABS};
+  M.play = {LEVELS, WEEK_GOAL, level, award, once, board, squads, squadBoard, mine, docOf, rng, shuffle, fmtMs, TABS, weekOf, workdayIndex, workdayBack, nextStreak, setHide};
   M.pages.Break = Break;
+})();
+
+/* ==== 37-daily.js ==== */
+/* module: daily. Five, the one shared puzzle of the day: a five letter word, six tries, the same word
+   for everyone, seeded by the date. Letters that are in the word and in place go flame, letters in
+   the word but elsewhere get a ring, the rest fade. The result card is spoiler free (a grid of
+   squares and the try count) and the team sees a distribution of tries, never a ranking of people.
+   One puzzle a day, no second one on demand: the ritual is the point, not the grind. */
+'use strict';
+(function () {
+  const {html, React, U, UI} = M;
+  const {useState, useEffect, useMemo} = React;
+
+  const WORDS = ('about above abuse actor acute admit adopt adult after again agent agree ahead alarm album alert alike alive allow alone along alter among angle angry apart apple apply arena argue arise array aside asset audio audit avoid award aware badly baker basic basis beach began begin being below bench birth black blame blank blend bless blind block blood board boost booth bound brain brand brave bread break breed brief bring broad broke brown build built buyer cable carry catch cause chain chair chaos charm chart chase cheap check chest chief child chose civil claim class clean clear click climb clock close cloud coach coast could count court cover craft crash crazy cream crime cross crowd crown crude curve cycle daily dance dated dealt death debut delay depth doubt dozen draft drama drawn dream dress drink drive drove dying eager early earth eight elite empty enemy enjoy enter entry equal error event every exact exist extra faith false fault fiber field fifth fifty fight final first fixed flash fleet floor fluid focus force forth forty forum found frame frank fraud fresh front fruit fully funny giant given glass globe going grace grade grand grant grass grave great gross group grown guard guess guest guide happy harsh heart heavy hence horse hotel house human ideal image index inner input issue joint judge juice known label large laser later laugh layer learn lease least leave legal level light limit links lives local logic loose lower lucky lunch magic major maker march match maybe mayor meant media metal might minor minus mixed model money month moral motor mount mouse mouth movie music needs never newly night noise north noted novel nurse occur ocean offer often order other ought paint panel paper party peace phase phone photo piece pilot pitch place plain plane plant plate point pound power press price pride prime print prior prize proof proud prove queen quick quiet quite radio raise range rapid ratio reach ready refer relax reply right rival river robot roman rough round route royal rural scale scene scope score sense serve seven shall shape share sharp sheet shelf shell shift shine shirt shock shoot short shown sight since sixth sixty sized skill sleep slide small smart smile smoke solid solve sorry sound south space spare speak speed spend spent split spoke sport staff stage stake stand start state steam steel stick still stock stone stood store storm story strip stuck study stuff style sugar suite super sweet table taken taste teach teeth thank theme there these thick thing think third those three threw throw tight times tired title today topic total touch tower track trade train treat trend trial tried tries truck truly trust truth twice under undue union unity until upper upset urban usage usual valid value video virus visit vital voice waste watch water wheel where which while white whole whose woman women world worry worse worst worth would wound write wrong wrote young youth quote merch viral reels edits logos tweak hinge pixel vibes flame spark ember blaze').split(' ');
+  const TRIES = 6;
+  const KEYS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
+  const today = () => U.todayStr();
+
+  /* the word of the day, the same for everyone */
+  const wordFor = ymd => WORDS[Math.floor(M.play.rng('five:' + ymd)() * WORDS.length)];
+  /* score a guess: 2 in place, 1 elsewhere in the word, 0 not in it; doubles handled the usual way */
+  function score(guess, word) {
+    const out = [0, 0, 0, 0, 0], left = {};
+    for (let i = 0; i < 5; i++) { if (guess[i] === word[i]) out[i] = 2; else left[word[i]] = (left[word[i]] || 0) + 1; }
+    for (let i = 0; i < 5; i++) { if (out[i] !== 2 && left[guess[i]]) { out[i] = 1; left[guess[i]]--; } }
+    return out.join('');
+  }
+  const myResult = (ctx, uid, ymd) => (((M.play.docOf(ctx, uid) || {}).days || {})[ymd || today()] || {}).five || null;
+  /* who has played today: tries per person, for the distribution */
+  const teamToday = ctx => ctx.activeMembers.map(m => ({uid: m.uid, r: myResult(ctx, m.uid)})).filter(x => x.r);
+
+  async function record(ctx, result) {
+    const td = today();
+    const doc = U.clone(M.play.docOf(ctx));
+    const days = {...(doc.days || {}), [td]: {...((doc.days || {})[td] || {}), five: result}};
+    const keys = Object.keys(days).sort();
+    if (keys.length > 90) { while (keys.length > 90) delete days[keys.shift()]; await ctx.W.set('play/' + ctx.uid, {...doc, days}); }
+    else await ctx.W.merge('play/' + ctx.uid, {days: {[td]: {five: result}}});
+    if (result.tries <= TRIES) await M.play.award(ctx, result.tries <= 3 ? 15 : 10, 'Five in ' + result.tries);
+    else await M.play.award(ctx, 3, 'showing up to Five');
+  }
+
+  function Five() {
+    const ctx = M.useCtx();
+    const td = today();
+    const word = useMemo(() => wordFor(td), [td]);
+    const done = myResult(ctx, ctx.uid);
+    const [guesses, setGuesses] = useState(() => { const s = M.prefs.get('five:' + td, ''); return s ? s.split(',').filter(g => g.length === 5) : []; });
+    const [cur, setCur] = useState('');
+    const [shake, setShake] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const rows = useMemo(() => guesses.map(g => score(g, word)), [guesses, word]);
+    const over = !!done || guesses.length >= TRIES || rows.some(r => r === '22222');
+    const keyState = useMemo(() => { const s = {}; guesses.forEach((g, gi) => { for (let i = 0; i < 5; i++) { const v = Number(rows[gi][i]); if ((s[g[i]] || -1) < v) s[g[i]] = v; } }); return s; }, [guesses, rows]);
+    const submit = () => {
+      if (over || busy) return;
+      if (cur.length !== 5) { setShake(true); setTimeout(() => setShake(false), 400); M.sound.play('tick'); return; }
+      const start = Number(M.prefs.get('five:start:' + td, '0')) || Date.now();
+      if (!guesses.length) M.prefs.set('five:start:' + td, String(start));
+      const next = guesses.concat(cur);
+      M.prefs.set('five:' + td, next.join(','));
+      setGuesses(next); setCur('');
+      const sc = score(cur, word);
+      if (sc === '22222' || next.length >= TRIES) {
+        setBusy(true);
+        const tries = sc === '22222' ? next.length : TRIES + 1;
+        record(ctx, {tries, ms: Date.now() - start, rows: next.map(g => score(g, word)), at: Date.now()})
+          .then(() => { if (sc === '22222') M.rain('🔥', document.getElementById('five-grid'), {n: tries <= 3 ? 72 : 40}); })
+          .catch(() => {}).then(() => setBusy(false));
+      } else M.sound.play('soft');
+    };
+    const press = k => {
+      if (over) return;
+      if (k === 'enter') submit();
+      else if (k === 'back') setCur(c => c.slice(0, -1));
+      else if (cur.length < 5 && /^[a-z]$/.test(k)) setCur(c => c + k);
+    };
+    useEffect(() => {
+      const h = e => {
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+        if (e.key === 'Enter') { e.preventDefault(); press('enter'); }
+        else if (e.key === 'Backspace') { e.preventDefault(); press('back'); }
+        else if (/^[a-zA-Z]$/.test(e.key)) press(e.key.toLowerCase());
+      };
+      window.addEventListener('keydown', h);
+      return () => window.removeEventListener('keydown', h);
+    });
+    const team = teamToday(ctx);
+    const dist = Array.from({length: TRIES + 1}, (_, i) => team.filter(t => t.r.tries === i + 1));
+    const mineTries = done ? done.tries : null;
+    const shown = done ? (done.rows || rows) : rows;
+    return html`<${UI.Card} id="five" title="Five" action=${html`<span class="tiny ink62 num">${U.fmtDay(td)} · ${team.length} of ${ctx.activeMembers.length} played</span>`}>
+      <div class="split" style=${{gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)'}}>
+        <div class="stack tight">
+          <div class="small">One word, five letters, six tries. Same word for everyone today. Flame means in place, a ring means in the word, faded means not in it.</div>
+          <div class=${'five-grid' + (shake ? ' shake' : '')} id="five-grid" role="grid" aria-label="Your tries" data-hotkeys=${over ? undefined : '1'}>
+            ${Array.from({length: TRIES}, (_, r) => html`<div key=${r} class="five-row" role="row">
+              ${Array.from({length: 5}, (_, c) => {
+                const g = r < guesses.length ? guesses[r] : (r === guesses.length && !over ? cur : '');
+                const st = r < shown.length ? shown[r][c] : '';
+                return html`<span key=${c} role="gridcell" class=${'five-cell' + (st === '2' ? ' ok' : st === '1' ? ' near' : st === '0' ? ' out' : g[c] ? ' typed' : '')}>${over && done && !guesses.length ? '' : (g[c] || '')}</span>`;
+              })}
+            </div>`)}
+          </div>
+          ${over ? html`<div class="small" id="five-done">${mineTries && mineTries <= TRIES ? html`Got it in <b class="num">${mineTries}</b>${done && done.ms ? html`, <span class="num">${M.play.fmtMs(done.ms)}</span>` : ''}. ${mineTries <= 2 ? 'Absurd.' : mineTries <= 3 ? 'Sharp today.' : mineTries <= 4 ? 'Solid.' : 'Made it.'} Tomorrow brings a new one.`
+            : html`Not today. It was <b>${word}</b>. Tomorrow brings a new one.`}</div>`
+          : html`<div class="five-keys" aria-label="Keyboard">
+            ${KEYS.map((row, ri) => html`<div key=${ri} class="five-krow">
+              ${ri === 2 ? html`<button type="button" class="key wide" onClick=${() => press('enter')}>Enter</button>` : null}
+              ${row.split('').map(k => html`<button type="button" key=${k} class=${'key' + (keyState[k] === 2 ? ' ok' : keyState[k] === 1 ? ' near' : keyState[k] === 0 ? ' out' : '')} onClick=${() => press(k)} aria-label=${k}>${k}</button>`)}
+              ${ri === 2 ? html`<button type="button" class="key wide" aria-label="Backspace" onClick=${() => press('back')}>Del</button>` : null}
+            </div>`)}
+          </div>`}
+        </div>
+        <div class="stack tight" id="five-team">
+          <div class="small"><b>The team today.</b> Tries, not names in order. Nobody sees your letters.</div>
+          <div class="five-dist">
+            ${dist.map((who, i) => html`<div key=${i} class="five-bar row nowrap">
+              <span class="tiny num five-lab">${i < TRIES ? i + 1 : 'X'}</span>
+              <span class="five-track"><i style=${{width: (team.length ? Math.round(100 * who.length / team.length) : 0) + '%'}}/></span>
+              <span class="row nowrap" style=${{gap: '2px'}}>${who.length ? html`<${UI.AvatarRow} ids=${who.map(w => w.uid)} size=${18}/>` : null}</span>
+            </div>`)}
+          </div>
+          ${done ? html`<div class="five-card" id="five-share" aria-label="Your result card">
+            <div class="tiny ink62">Your card</div>
+            <div class="five-mini">${(done.rows || []).map((r, i) => html`<div key=${i} class="five-mrow">${r.split('').map((s, j) => html`<i key=${j} class=${s === '2' ? 'ok' : s === '1' ? 'near' : 'out'}/>`)}</div>`)}</div>
+            <div class="tiny num">Five ${U.fmtDay(td)} · ${done.tries <= TRIES ? done.tries + '/' + TRIES : 'X/' + TRIES}</div>
+          </div>` : html`<div class="tiny ink62">Your card shows here once you are done. It goes to the feed, squares only.</div>`}
+        </div>
+      </div>
+    <//>`;
+  }
+
+  M.parts.Daily = Five;
+  M.play.five = {WORDS, TRIES, wordFor, score, myResult, teamToday};
+  M.play.puzzleFor = ymd => ({kind: 'five', word: wordFor(ymd)});
+  M.play.kindFor = () => 'five';
+})();
+
+/* ==== 37-games.js ==== */
+/* module: games. Two things on the Daily tab that are not the puzzle. Doubles, the easy five minute
+   game (slide tiles, equal numbers merge, the timer ends it, nobody loses): an easy casual game beat
+   guided relaxation for mood in a lab test, so it earns its place as a mood tool and claims nothing
+   else. And the reaction check, a three minute psychomotor vigilance test, the instrument sleep
+   researchers use: it mirrors how rested you are, never how able, and is compared only with your
+   own last two weeks. It lives in your private space. */
+'use strict';
+(function () {
+  const {html, React, U, UI} = M;
+  const {useState, useEffect, useRef} = React;
+
+  const today = () => U.todayStr();
+  const privPath = ctx => 'data/users/' + ctx.uid + '/break';
+
+  /* ---------- Doubles ---------- */
+  const N = 4;
+  const GAME = {seconds: 300};
+  const empty = () => Array.from({length: N * N}, () => 0);
+  const addTile = (b, r) => { const free = b.map((v, i) => v ? -1 : i).filter(i => i >= 0); if (!free.length) return b; const n = b.slice(); n[free[Math.floor(r() * free.length)]] = r() < 0.9 ? 2 : 4; return n; };
+  /* slide one row left, merging pairs once; returns the row and the points scored */
+  function slideRow(row) {
+    const xs = row.filter(Boolean), out = []; let pts = 0;
+    for (let i = 0; i < xs.length; i++) { if (xs[i] === xs[i + 1]) { out.push(xs[i] * 2); pts += xs[i] * 2; i++; } else out.push(xs[i]); }
+    while (out.length < N) out.push(0);
+    return {row: out, pts};
+  }
+  function move(b, dir) {
+    const get = (r, c) => dir === 'left' ? b[r * N + c] : dir === 'right' ? b[r * N + (N - 1 - c)] : dir === 'up' ? b[c * N + r] : b[(N - 1 - c) * N + r];
+    const nb = b.slice(); let pts = 0, moved = false;
+    for (let r = 0; r < N; r++) {
+      const row = Array.from({length: N}, (_, c) => get(r, c));
+      const {row: out, pts: p} = slideRow(row); pts += p;
+      for (let c = 0; c < N; c++) {
+        const idx = dir === 'left' ? r * N + c : dir === 'right' ? r * N + (N - 1 - c) : dir === 'up' ? c * N + r : (N - 1 - c) * N + r;
+        if (nb[idx] !== out[c]) moved = true;
+        nb[idx] = out[c];
+      }
+    }
+    return {board: nb, pts, moved};
+  }
+  const canMove = b => b.some(v => !v) || ['left', 'up'].some(d => move(b, d).moved);
+  const shade = v => { const k = Math.min(11, Math.round(Math.log2(v || 2))); return 'hsl(14 96% ' + (94 - k * 4.2).toFixed(0) + '%)'; };
+
+  function Doubles() {
+    const ctx = M.useCtx();
+    const rec = (M.play.docOf(ctx) || {}).game || {};
+    const [board, setBoard] = useState(empty);
+    const [score, setScore] = useState(0);
+    const [state, setState] = useState('idle');
+    const [left, setLeft] = useState(GAME.seconds);
+    const r = useRef(null), t0 = useRef(0), touch = useRef(null), stateRef = useRef('idle');
+    stateRef.current = state;
+    const start = () => {
+      r.current = M.play.rng('doubles:' + Date.now());
+      setBoard(addTile(addTile(empty(), r.current), r.current)); setScore(0); setLeft(GAME.seconds); t0.current = Date.now(); setState('on'); M.sound.play('start');
+    };
+    const finish = async (why, sc, b) => {
+      setState('over');
+      const best = Math.max(Number(rec.best) || 0, sc);
+      await ctx.W.merge('play/' + ctx.uid, {game: {best, games: (Number(rec.games) || 0) + 1, last: sc, at: Date.now()}}).catch(() => {});
+      if (sc > (Number(rec.best) || 0) && sc > 0) M.rain('🔥', document.getElementById('doubles-board'), {n: 48});
+      await M.play.once(ctx, 'a game break', 5);
+      void why; void b;
+    };
+    const go = dir => {
+      if (stateRef.current !== 'on') return;
+      setBoard(b => {
+        const m = move(b, dir);
+        if (!m.moved) return b;
+        const nb = addTile(m.board, r.current);
+        setScore(s => { const ns = s + m.pts; if (!canMove(nb)) setTimeout(() => finish('full', ns, nb), 50); return ns; });
+        if (m.pts) M.sound.play('soft');
+        return nb;
+      });
+    };
+    useEffect(() => {
+      if (state !== 'on') return undefined;
+      const id = setInterval(() => {
+        const l = Math.max(0, GAME.seconds - Math.round((Date.now() - t0.current) / 1000));
+        setLeft(l);
+        if (l <= 0) { clearInterval(id); setScore(s => { finish('time', s); return s; }); }
+      }, 500);
+      const keys = {ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', a: 'left', d: 'right', w: 'up', s: 'down'};
+      const h = e => { const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return; if (keys[e.key]) { e.preventDefault(); go(keys[e.key]); } };
+      window.addEventListener('keydown', h);
+      return () => { clearInterval(id); window.removeEventListener('keydown', h); };
+    }, [state]);
+    const down = e => { touch.current = [e.clientX, e.clientY]; };
+    const up = e => {
+      if (!touch.current) return;
+      const dx = e.clientX - touch.current[0], dy = e.clientY - touch.current[1]; touch.current = null;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 18) return;
+      go(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+    };
+    const mm = Math.floor(left / 60), ss = String(left % 60).padStart(2, '0');
+    return html`<${UI.Card} id="doubles" title="Doubles, five minutes" action=${html`<${UI.Pill} kind="ink">mood, one trial<//>`}>
+      <div class="small" style=${{marginBottom: '10px'}}>Slide, merge the equal numbers, see how far you get before the timer calls you back. An easy game for five minutes lifted mood more than guided relaxation in a lab test. It is a mood tool. It trains nothing, and we will not pretend it does.</div>
+      <div class="row between" style=${{marginBottom: '8px'}}>
+        <span class="small num"><b>${score}</b> points${rec.best ? html` <span class="ink62">· best ${rec.best}</span>` : ''}</span>
+        <span class="small num ink62">${state === 'on' ? mm + ':' + ss : rec.games ? rec.games + ' played' : ''}</span>
+      </div>
+      <div class="dbl-wrap">
+        <div class="dbl-board" id="doubles-board" role="grid" aria-label="The board" data-hotkeys=${state === 'on' ? '1' : undefined} onPointerDown=${down} onPointerUp=${up}>
+          ${board.map((v, i) => html`<div key=${i} role="gridcell" class=${'dbl-cell num' + (v >= 1024 ? ' big' : '') + (v >= 128 ? ' light' : '')} style=${v ? {background: shade(v)} : null}>${v || ''}</div>`)}
+        </div>
+        ${state !== 'on' ? html`<div class="dbl-over">
+          ${state === 'over' ? html`<div class="small"><b class="num">${score}</b> points. ${score >= (Number(rec.best) || 0) && score > 0 ? 'A new best.' : 'Nice run.'} Back to it.</div>` : html`<div class="small">Arrow keys or swipe.</div>`}
+          <${UI.Btn} id="doubles-start" onClick=${start}>${state === 'over' ? 'Once more' : 'Play'}<//>
+        </div>` : null}
+      </div>
+      <div class="row dbl-pad" aria-label="Move">
+        ${[['up', 'Up'], ['left', 'Left'], ['down', 'Down'], ['right', 'Right']].map(([d, l]) => html`<button type="button" key=${d} class="key wide" id=${'doubles-' + d} onClick=${() => go(d)}>${l}</button>`)}
+      </div>
+    <//>`;
+  }
+
+  /* ---------- the reaction check ---------- */
+  const RT = {seconds: 180, lapse: 355, minGap: 2000, maxGap: 10000};
+  function Reaction() {
+    const ctx = M.useCtx();
+    const priv = M.useDoc(ctx.db, ctx.uid ? privPath(ctx) : '');
+    const rt = (priv.data && priv.data.rt) || {};
+    const td = today();
+    const [state, setState] = useState('idle');
+    const [left, setLeft] = useState(RT.seconds);
+    const [shown, setShown] = useState(0);
+    const [count, setCount] = useState(0);
+    const [last, setLast] = useState(null);
+    const trials = useRef([]), falses = useRef(0), t0 = useRef(0), timer = useRef(0), stateRef = useRef('idle'), shownRef = useRef(0);
+    stateRef.current = state; shownRef.current = shown;
+    const schedule = () => {
+      const gap = RT.minGap + Math.random() * (RT.maxGap - RT.minGap);
+      timer.current = setTimeout(() => { if (stateRef.current === 'on') { setShown(performance.now()); M.sound.play('tick'); } }, gap);
+    };
+    const start = () => { trials.current = []; falses.current = 0; t0.current = Date.now(); setCount(0); setLast(null); setShown(0); setLeft(RT.seconds); setState('on'); schedule(); };
+    const finish = async () => {
+      clearTimeout(timer.current); setState('done'); setShown(0);
+      const xs = trials.current.slice().sort((a, b) => a - b);
+      if (!xs.length) return;
+      const mean = Math.round(xs.reduce((a, b) => a + b, 0) / xs.length);
+      const med = Math.round(xs[Math.floor(xs.length / 2)]);
+      const lapses = xs.filter(x => x > RT.lapse).length;
+      const entry = {mean, med, lapses, n: xs.length, falses: falses.current, at: Date.now()};
+      const keep = {...rt, [td]: entry};
+      const keys = Object.keys(keep).sort();
+      while (keys.length > 30) delete keep[keys.shift()];
+      await ctx.W.merge(privPath(ctx), {rt: keep, updated: Date.now()}).catch(() => {});
+      await M.play.once(ctx, 'a reaction check', 5);
+    };
+    const tap = () => {
+      if (stateRef.current !== 'on') return;
+      if (!shownRef.current) { falses.current++; M.sound.play('soft'); return; }
+      const ms = Math.round(performance.now() - shownRef.current);
+      trials.current.push(ms); setLast(ms); setCount(trials.current.length); setShown(0);
+      schedule();
+    };
+    useEffect(() => {
+      if (state !== 'on') return undefined;
+      const id = setInterval(() => { const l = Math.max(0, RT.seconds - Math.round((Date.now() - t0.current) / 1000)); setLeft(l); if (l <= 0) { clearInterval(id); finish(); } }, 250);
+      const h = e => { if (e.key === ' ' || e.key === 'Enter') { const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return; e.preventDefault(); tap(); } };
+      window.addEventListener('keydown', h);
+      return () => { clearInterval(id); window.removeEventListener('keydown', h); clearTimeout(timer.current); };
+    }, [state]);
+    const days = Object.keys(rt).sort().slice(-14);
+    const mine = rt[td];
+    const base = days.filter(d => d !== td).map(d => rt[d].mean).sort((a, b) => a - b);
+    const baseline = base.length ? base[Math.floor(base.length / 2)] : null;
+    const read = mine && baseline ? (mine.mean > baseline * 1.12 ? 'Slower than your usual. Sleep, water, or a walk before the hard thing.' : mine.mean < baseline * 0.92 ? 'Sharper than your usual. Good day for the hard thing.' : 'On your usual.') : mine ? 'First reads build your baseline. Come back tomorrow.' : '';
+    return html`<${UI.Card} id="reaction" title="Reaction check" action=${html`<${UI.Pill} kind="ink">the instrument, well validated<//>`}>
+      <div class="small" style=${{marginBottom: '10px'}}>Three minutes. Tap the moment the flame appears, as fast as you can. This is the vigilance test sleep labs use: it mirrors how rested you are, not how able. Compared with your own last two weeks only. Nobody else sees it.</div>
+      ${state === 'on' ? html`<button type="button" class=${'rt-pad' + (shown ? ' lit' : '')} id="rt-pad" data-hotkeys="1" onClick=${tap} aria-label="Tap when the flame appears">
+          <span class="rt-time num">${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</span>
+          ${shown ? html`<span class="rt-flame" aria-hidden="true"/>` : html`<span class="rt-wait">wait for it</span>`}
+          <span class="tiny num rt-last">${last ? last + ' ms' : ''}${count ? ' · ' + count : ''}</span>
+        </button>`
+      : html`<div class="row between" style=${{flexWrap: 'wrap', gap: '10px'}}>
+          <div class="stack tight">
+            ${mine ? html`<div class="small" id="rt-result">Today <b class="num">${mine.mean} ms</b> mean, <span class="num">${mine.lapses}</span> ${mine.lapses === 1 ? 'lapse' : 'lapses'} over ${RT.lapse} ms, <span class="num">${mine.n}</span> taps. ${read}</div>` : html`<div class="small">${days.length ? 'Not checked today.' : 'Nothing yet. One read a day is plenty.'}</div>`}
+            ${days.length >= 2 ? html`<div class="row nowrap" style=${{gap: '8px'}}><${UI.Spark} values=${days.map(d => -rt[d].mean)} width=${160} height=${30} hot=${true}/><span class="tiny ink62">last ${days.length} reads, up is faster</span></div>` : null}
+          </div>
+          <${UI.Btn} id="rt-start" kind=${mine ? 'sec' : undefined} onClick=${start}>${mine ? 'Check again' : 'Start'}<//>
+        </div>`}
+    <//>`;
+  }
+
+  M.parts.Doubles = Doubles;
+  M.parts.Reaction = Reaction;
+  M.games = {move, slideRow, canMove, GAME, RT, privPath};
 })();
 
 /* ==== 38-care.js ==== */
@@ -11756,167 +12081,285 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 })();
 
 /* ==== 38-reset.js ==== */
-/* module: reset. Break, the Reset tab: one tap of breathing, meditation timers with a bell, and five
-   creativity resets with the research behind each (the alternative uses test, remote associates, a
-   blue minute, doodling, a walk). Each earns sparks once a day. Nothing here needs the model. */
+/* module: reset. Break, the Reset tab: the things with real trials behind them, each with its grade on
+   the card. Paced breathing at six breaths a minute for five minutes (meta-analyses of randomised
+   trials; the sessions under five minutes were the ones that did nothing). One if-then plan for the
+   day (the largest cheap effect in the self-regulation literature). A free walk for energy, or a walk
+   with a problem in your pocket for ideas (replicated across labs for idea generation). Park it, the
+   incubation protocol with a light filler (a meta-analysis of 117 studies). The two-gear sprint, which
+   uses the oldest trick in creativity research: being told to be creative. Eyes off the screen for
+   five minutes. A ten minute nap, where there is a quiet spot. Nothing here claims to make anyone
+   smarter; it claims to make the next hour better, which is what the trials measured. */
 'use strict';
 (function () {
   const {html, React, U, UI} = M;
   const {useState, useEffect, useRef} = React;
 
-  const OBJECTS = ['a paperclip', 'a brick', 'a shoe', 'a coffee mug', 'a newspaper', 'a rubber band', 'a plastic bottle', 'a wooden spoon', 'a tote bag', 'a traffic cone', 'an old phone', 'a safety pin', 'a bedsheet', 'a tennis ball', 'a ladder'];
-  const TRIADS = [
-    [['cottage', 'swiss', 'cake'], 'cheese'], [['cream', 'skate', 'water'], 'ice'], [['loser', 'throat', 'spot'], 'sore'], [['show', 'life', 'row'], 'boat'],
-    [['night', 'wrist', 'stop'], 'watch'], [['duck', 'fold', 'dollar'], 'bill'], [['rocking', 'wheel', 'high'], 'chair'], [['dew', 'comb', 'bee'], 'honey'],
-    [['fountain', 'baking', 'pop'], 'soda'], [['preserve', 'ranger', 'tropical'], 'forest'], [['aid', 'rubber', 'wagon'], 'band'], [['flake', 'mobile', 'cone'], 'snow'],
-    [['cracker', 'fly', 'fighter'], 'fire'], [['safety', 'cushion', 'point'], 'pin'], [['cane', 'daddy', 'plum'], 'sugar'], [['dream', 'break', 'light'], 'day'],
-    [['fish', 'mine', 'rush'], 'gold'], [['political', 'surprise', 'line'], 'party'], [['measure', 'worm', 'video'], 'tape'], [['high', 'district', 'house'], 'school'],
-    [['sense', 'courtesy', 'place'], 'common'], [['worm', 'shelf', 'end'], 'book'], [['piece', 'mind', 'dating'], 'game'], [['flower', 'friend', 'scout'], 'girl'],
-    [['river', 'note', 'account'], 'bank'], [['print', 'berry', 'bird'], 'blue'], [['pie', 'luck', 'belly'], 'pot'], [['date', 'alley', 'fold'], 'blind'],
-    [['opera', 'hand', 'dish'], 'soap'], [['cadet', 'capsule', 'ship'], 'space'], [['fur', 'back', 'tail'], 'horse'], [['stick', 'maker', 'point'], 'match']
-  ];
-  const day = () => U.todayStr();
-  const onceToday = (ctx, what) => !!(M.play && M.play.mine(ctx).today[what]);
-  const earn = (ctx, what, n) => { if (onceToday(ctx, what)) { M.toast('Already counted today. Still worth it.'); return Promise.resolve(); } return M.play.award(ctx, n || 5, what); };
+  const today = () => U.todayStr();
+  const privPath = ctx => 'data/users/' + ctx.uid + '/break';
+  const earn = (ctx, what, n) => M.play.once(ctx, what, n);
+  const BRIEFS = ['twenty five wrong ways to launch a sunscreen', 'a reel that stops the scroll for a bank nobody likes', 'how a dentist gets ten thousand followers without dancing', 'a store opening nobody can ignore', 'a tagline for a watch brand for people who are always late', 'a campaign for a water bottle that is just a water bottle', 'what a hotel posts on a day with nothing to post', 'merch for a client that sells cement'];
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  const lines = t => String(t || '').split('\n').map(l => l.trim()).filter(Boolean);
 
-  /* a countdown with a ring and a bell */
-  function Timer({seconds, label, onDone, onStop, prompts}) {
-    const [left, setLeft] = useState(seconds);
+  /* a countdown with a ring and a bell; quick mode (tests) makes every timer two seconds */
+  function Timer({seconds, label, onDone, onStop, prompts, id}) {
+    const total = M.reset.quick ? 2 : seconds;
+    const [left, setLeft] = useState(total);
     const t0 = useRef(Date.now());
+    const fired = useRef(false);
     useEffect(() => {
-      const id = setInterval(() => {
-        const l = Math.max(0, seconds - Math.round((Date.now() - t0.current) / 1000));
+      const tick = setInterval(() => {
+        const l = Math.max(0, total - Math.round((Date.now() - t0.current) / 1000));
         setLeft(l);
-        if (l <= 0) { clearInterval(id); M.sound.play('chime'); onDone(); }
+        if (l <= 0 && !fired.current) { fired.current = true; clearInterval(tick); M.sound.play('chime'); onDone(); }
       }, 250);
-      return () => clearInterval(id);
-    }, [seconds]);
-    const r = 46, C = 2 * Math.PI * r, p = 1 - left / seconds;
-    const prompt = prompts && prompts.length ? prompts[Math.min(prompts.length - 1, Math.floor((seconds - left) / (seconds / prompts.length)))] : '';
-    return html`<div class="brk-timer" id="brk-timer">
+      return () => clearInterval(tick);
+    }, [total]);
+    const r = 46, C = 2 * Math.PI * r, p = 1 - left / total;
+    const prompt = prompts && prompts.length ? prompts[Math.min(prompts.length - 1, Math.floor((total - left) / (total / prompts.length)))] : '';
+    return html`<div class="brk-timer" id=${id || 'brk-timer'}>
       <svg viewBox="0 0 100 100" class="brk-ring" aria-hidden="true"><circle class="bg" cx="50" cy="50" r=${r}/><circle class="fg" cx="50" cy="50" r=${r} stroke-dasharray=${C} stroke-dashoffset=${C * (1 - p)}/></svg>
       <div class="brk-timer-mid"><div class="num brk-left">${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</div><div class="tiny ink62">${label}</div></div>
       ${prompt ? html`<div class="small brk-prompt">${prompt}</div>` : null}
-      <button type="button" class="linky tiny" onClick=${onStop}>Stop</button>
+      ${onStop ? html`<button type="button" class="linky tiny" onClick=${onStop}>Stop</button>` : null}
     </div>`;
   }
+  const Grade = ({g}) => html`<${UI.Pill} kind=${g === 'well supported' ? 'flame' : 'ink'}>${g}<//>`;
+  const keep = (ctx, priv, kind, brief, text) => {
+    const list = (((priv && priv.data) || {}).catches || []).concat([{at: Date.now(), kind, brief: String(brief || '').slice(0, 140), text: String(text || '').slice(0, 2000)}]).slice(-30);
+    return ctx.W.merge(privPath(ctx), {catches: list, updated: Date.now()});
+  };
 
-  function Meditate({ctx}) {
-    const [run, setRun] = useState(0);
-    if (run) return html`<${Timer} seconds=${run * 60} label=${run + ' minute sit'} onStop=${() => setRun(0)} onDone=${() => { setRun(0); earn(ctx, 'a sit', 5); }}
-      prompts=${['Sit back. Shoulders down. Jaw loose.', 'Breathe in through the nose, out through the mouth, slower than feels natural.', 'Thoughts will come. Let them pass like notifications you did not open.', 'Count the breaths from one to ten, then start over.', 'Last stretch. Notice three sounds in the room.', 'Nearly there. Come back slowly.']}/>`;
-    return html`<div class="row" style=${{gap: '8px', flexWrap: 'wrap'}}>
-      <${UI.Btn} id="breathe-now" onClick=${() => { if (M.breathe) M.breathe.open(); earn(ctx, 'a breath', 5); }}>Breathe, one minute<//>
-      ${[3, 5, 10].map(m => html`<${UI.Btn} key=${m} kind="sec" id=${'sit-' + m} onClick=${() => setRun(m)}>Sit ${m} min<//>`)}
-    </div>`;
-  }
-
-  /* the alternative uses test: two minutes, one object, every use you can think of */
-  function Uses({ctx}) {
-    const [obj] = useState(() => OBJECTS[Math.floor(Math.random() * OBJECTS.length)]);
-    const [on, setOn] = useState(false);
-    const [text, setText] = useState('');
-    const [result, setResult] = useState(null);
-    const count = text.split('\n').map(l => l.trim()).filter(Boolean).length;
-    const finish = () => { setOn(false); setResult(count); earn(ctx, 'thirty uses', 5 + (count >= 10 ? 5 : 0)); };
-    return html`<div class="stack tight">
-      <div class="small">List every use you can think of for <b>${obj}</b>. Normal ones, weird ones, illegal in some states ones. Fluency first, quality later.</div>
-      ${on ? html`<${Timer} seconds=${120} label="uses" onStop=${finish} onDone=${finish}/>` : null}
-      ${on || result != null ? html`<textarea class="input" rows="6" id="uses-text" placeholder="One per line" value=${text} onInput=${e => setText(e.target.value)} disabled=${!on}/>` : null}
-      <div class="row between">
-        ${result == null ? html`<${UI.Btn} id="uses-start" sm=${true} disabled=${on} onClick=${() => { setOn(true); setText(''); M.sound.play('start'); }}>${on ? 'Go' : 'Start two minutes'}<//>` : html`<span class="small"><b class="num">${result}</b> uses. ${result >= 15 ? 'That is a creative brain on a good day.' : result >= 8 ? 'Solid. The second minute is where the weird ones live.' : 'The first few are everyone\'s. Tomorrow, push past them.'}</span>`}
-        <span class="tiny ink62 num">${on ? count + ' so far' : ''}</span>
+  /* ---------- breathing: three protocols, the full screen orb ---------- */
+  function Breathe({ctx}) {
+    const [done, setDone] = useState('');
+    const P = M.breathe.PROTOCOLS;
+    const open = k => M.breathe.open(k, {onDone: () => { setDone(k); earn(ctx, P[k].name.toLowerCase(), k === 'slow' ? 10 : 5); }});
+    const t = M.play.mine(ctx).today;
+    return html`<${UI.Card} id="breathe-card" title="Breathe" action=${html`<${Grade} g="well supported"/>`}>
+      <div class="small" style=${{marginBottom: '10px'}}>Sit back, feet flat, hands loose, nose breathing. Five minutes is the dose: the trials that used under five found nothing. Slow breathing has meta-analyses behind it; the other two have one trial each, so they carry their grade.</div>
+      <div class="row" style=${{gap: '8px', flexWrap: 'wrap'}}>
+        <${UI.Btn} id="breathe-slow" onClick=${() => open('slow')}>Slow breathing, 5:00${t['slow breathing'] ? ' ✓' : ''}<//>
+        <${UI.Btn} id="breathe-box" kind="sec" onClick=${() => open('box')}>Before a pitch, box 3:00${t['box breathing'] ? ' ✓' : ''}<//>
+        <${UI.Btn} id="breathe-sigh" kind="sec" onClick=${() => open('sigh')}>Cyclic sighing, 5:00${t['cyclic sighing'] ? ' ✓' : ''}<//>
       </div>
-    </div>`;
+      <div class="tiny ink62" style=${{marginTop: '8px'}}>${done ? 'Stay seated for thirty seconds before you stand.' : 'Four in, six out, follow the orb. Press b anywhere in m360 for the slow one.'}</div>
+    <//>`;
   }
 
-  /* remote associates: three words, one word that goes with all three */
-  function Triads({ctx}) {
-    const [i, setI] = useState(() => Math.floor(Math.random() * TRIADS.length));
-    const [typed, setTyped] = useState('');
-    const [got, setGot] = useState(0);
-    const [state, setState] = useState('');
-    const [words, answer] = TRIADS[i];
-    const check = () => {
-      if (typed.trim().toLowerCase() === answer) { setState('yes'); setGot(g => g + 1); M.sound.play('done'); if (got + 1 === 3) earn(ctx, 'three triads', 5); }
-      else { setState('no'); M.sound.play('tick'); }
+  /* ---------- one if-then for the day ---------- */
+  function IfThen({ctx, priv}) {
+    const plan = ((priv && priv.data) || {}).plan;
+    const mine = plan && plan.day === today() ? plan : null;
+    const [when, setWhen] = useState(mine ? mine.when : '');
+    const [where, setWhere] = useState(mine ? mine.where : '');
+    const [will, setWill] = useState(mine ? mine.will : '');
+    const [editing, setEditing] = useState(!mine);
+    useEffect(() => { if (mine && !editing) { setWhen(mine.when); setWhere(mine.where); setWill(mine.will); } }, [mine && mine.at]);
+    const ok = when.trim() && will.trim();
+    const save = async () => {
+      if (!ok) return;
+      await ctx.W.merge(privPath(ctx), {plan: {day: today(), when: when.trim().slice(0, 80), where: where.trim().slice(0, 80), will: will.trim().slice(0, 160), at: Date.now()}, updated: Date.now()}).catch(() => {});
+      setEditing(false);
+      earn(ctx, 'an if-then', 5);
     };
-    const next = () => { setI(x => (x + 1 + Math.floor(Math.random() * (TRIADS.length - 1))) % TRIADS.length); setTyped(''); setState(''); };
-    return html`<div class="stack tight">
-      <div class="small">One word goes in front of or behind all three. Mednick's test, 1962: it measures how far your associations reach. Three right earns the sparks.</div>
-      <div class="brk-word">${words.map(w => html`<span key=${w} class="brk-tile wide">${w}</span>`)}</div>
-      <div class="row nowrap" style=${{gap: '8px'}}>
-        <input class="input brk-answer" id="triad-answer" value=${typed} placeholder="The word" autoCapitalize="none" autoComplete="off" aria-label="The word" onInput=${e => { setTyped(e.target.value); setState(''); }} onKeyDown=${e => { if (e.key === 'Enter') (state === 'yes' ? next() : check()); }}/>
-        ${state === 'yes' ? html`<${UI.Btn} sm=${true} id="triad-next" onClick=${next}>Next<//>` : html`<${UI.Btn} sm=${true} id="triad-check" disabled=${!typed.trim()} onClick=${check}>Check<//>`}
-        <button type="button" class="linky tiny" onClick=${() => { setState('show'); }}>Show me</button>
+    return html`<${UI.Card} id="ifthen" title="One if-then" action=${html`<${Grade} g="well supported"/>`}>
+      <div class="small" style=${{marginBottom: '10px'}}>The one task you most want to start today, written as a trigger and a first move under five minutes. Ninety four studies, a medium to large effect, and it costs two minutes. The sentence shape matters, so keep it.</div>
+      ${!editing && mine ? html`<div class="brk-plan" id="ifthen-plan"><b>If</b> it is ${mine.when}${mine.where ? html` <b>and</b> I am ${mine.where}` : ''}, <b>then</b> I will ${mine.will}.</div>
+        <div class="row" style=${{marginTop: '8px'}}><button type="button" class="linky tiny" onClick=${() => setEditing(true)}>Change it</button></div>`
+      : html`<div class="stack tight">
+        <div class="row nowrap brk-sentence"><span class="small">If it is</span><input class="input" id="ifthen-when" placeholder="11:00, or right after standup" value=${when} onInput=${e => setWhen(e.target.value)} aria-label="When"/></div>
+        <div class="row nowrap brk-sentence"><span class="small">and I am</span><input class="input" id="ifthen-where" placeholder="at my desk, coffee in hand" value=${where} onInput=${e => setWhere(e.target.value)} aria-label="Where"/></div>
+        <div class="row nowrap brk-sentence"><span class="small">then I will</span><input class="input" id="ifthen-will" placeholder="open the deck and write the first slide title" value=${will} onInput=${e => setWill(e.target.value)} aria-label="What" onKeyDown=${e => { if (e.key === 'Enter') save(); }}/></div>
+        <div class="row between"><span class="tiny ink62">Private. Shown back to you here and on Home.</span><${UI.Btn} id="ifthen-save" sm=${true} disabled=${!ok} onClick=${save}>Keep it<//></div>
+      </div>`}
+    <//>`;
+  }
+
+  /* ---------- walk: for energy, or with a problem in your pocket ---------- */
+  function Walk({ctx, priv}) {
+    const [mode, setMode] = useState('energy');
+    const [mins, setMins] = useState(5);
+    const [brief, setBrief] = useState('');
+    const [step, setStep] = useState('idle');
+    const [text, setText] = useState('');
+    const energy = (((priv && priv.data) || {}).energy || {})[today()] || [];
+    const rate = async n => {
+      const all = {...(((priv && priv.data) || {}).energy || {})};
+      all[today()] = energy.concat([n]).slice(-6);
+      const keys = Object.keys(all).sort(); while (keys.length > 30) delete all[keys.shift()];
+      await ctx.W.merge(privPath(ctx), {energy: all, updated: Date.now()}).catch(() => {});
+      setStep('idle'); earn(ctx, 'a walk', 5);
+    };
+    const keepIdeas = async () => { await keep(ctx, priv, 'walk', brief, text).catch(() => {}); setStep('idle'); setText(''); earn(ctx, 'a walk with a problem', 10); };
+    const b = brief.trim() || pick(BRIEFS);
+    return html`<${UI.Card} id="walk" title="Walk" action=${html`<${Grade} g="well supported"/>`}>
+      ${step === 'idle' ? html`<div class="stack tight">
+        <${UI.Seg} sm=${true} ariaLabel="Walk mode" value=${mode} onChange=${setMode} options=${[{v: 'energy', label: 'For energy'}, {v: 'dump', label: 'With a problem'}]}/>
+        ${mode === 'energy' ? html`<div class="small">Five to ten minutes, any route, your pace, no destination, no reading the phone. Stairs count. Short walks lift energy and mood for under an hour in the trials; a sharper brain needs eleven to twenty minutes.</div>
+          <div class="row between" style=${{flexWrap: 'wrap', gap: '8px'}}>
+            <${UI.Seg} sm=${true} ariaLabel="Minutes" value=${String(mins)} onChange=${v => setMins(Number(v))} options=${[{v: '5', label: '5 min'}, {v: '10', label: '10 min'}]}/>
+            <${UI.Btn} id="walk-start" sm=${true} onClick=${() => { setStep('walk'); M.sound.play('start'); }}>Start<//>
+          </div>
+          ${energy.length ? html`<div class="tiny ink62 num">Energy after walks today: ${energy.join(', ')} of 5</div>` : null}`
+        : html`<div class="small">Read the problem, then walk eight minutes with it, no fixed loop, no screen, ideas out loud if you like. Type everything the moment you sit down. Free walking lifted idea generation in four experiments and the labs that followed; it does nothing for judging or editing, so use it for generating only.</div>
+          <input class="input" id="walk-brief" placeholder=${'The problem. Or we pick one: ' + BRIEFS[0]} value=${brief} onInput=${e => setBrief(e.target.value)} aria-label="The problem"/>
+          <div class="row between"><span class="tiny ink62">8:00 walking, 3:00 typing</span><${UI.Btn} id="walk-dump-start" sm=${true} onClick=${() => { if (!brief.trim()) setBrief(b); setStep('walk'); M.sound.play('start'); }}>Start<//></div>`}
+      </div>`
+      : step === 'walk' ? html`<div class="stack tight">
+        ${mode === 'dump' ? html`<div class="small brk-plan">${b}</div>` : null}
+        <${Timer} id="walk-timer" seconds=${mode === 'energy' ? mins * 60 : 480} label=${mode === 'energy' ? 'walk' : 'walk with it'} onStop=${() => setStep('idle')} onDone=${() => setStep(mode === 'energy' ? 'rate' : 'type')}
+          prompts=${mode === 'energy' ? ['Phone in the pocket. Eyes up.', 'Change direction once for no reason.', 'Notice the thing you pass every day and never look at.', 'Head back when the bell goes.'] : ['Carry it lightly. Say the wrong answers out loud.', 'What would the laziest version be. The most expensive. The illegal one.', 'Who else has this problem and solved it badly.', 'Head back. Keep whatever is in your head.']}/>
+      </div>`
+      : step === 'rate' ? html`<div class="stack tight" id="walk-rate">
+        <div class="small">Energy now, one to five.</div>
+        <div class="row" style=${{gap: '6px'}}>${[1, 2, 3, 4, 5].map(n => html`<button type="button" key=${n} class="key wide num" id=${'walk-energy-' + n} onClick=${() => rate(n)}>${n}</button>`)}</div>
+      </div>`
+      : html`<div class="stack tight">
+        <div class="small brk-plan">${b}</div>
+        <${Timer} id="walk-type-timer" seconds=${180} label="type everything" onDone=${() => {}}/>
+        <textarea class="input" rows="6" id="walk-text" placeholder="One per line. Wrong ones welcome." value=${text} onInput=${e => setText(e.target.value)}/>
+        <div class="row between"><span class="tiny ink62 num">${lines(text).length} so far</span><${UI.Btn} id="walk-keep" sm=${true} disabled=${!text.trim()} onClick=${keepIdeas}>Keep these<//></div>
+      </div>`}
+    <//>`;
+  }
+
+  /* ---------- shades: a light, wordless filler for the incubation gap ---------- */
+  function Shades() {
+    const make = () => M.play.shuffle(Array.from({length: 12}, (_, i) => 40 + i * 4.5), M.play.rng('shades:' + Date.now()));
+    const [tiles, setTiles] = useState(make);
+    const [sel, setSel] = useState(-1);
+    const sorted = tiles.every((v, i) => !i || v >= tiles[i - 1]);
+    const tap = i => {
+      if (sorted) return;
+      if (sel < 0) { setSel(i); return; }
+      const t = tiles.slice(); [t[sel], t[i]] = [t[i], t[sel]]; setTiles(t); setSel(-1); M.sound.play('soft');
+    };
+    return html`<div class="stack tight" id="shades">
+      <div class="tiny ink62">${sorted ? 'Sorted. Shuffle and go again, or just sit.' : 'Tap two tiles to swap them. Light to dark, left to right. No rush.'}</div>
+      <div class="shade-grid">${tiles.map((l, i) => html`<button type="button" key=${i} class=${'shade-tile' + (sel === i ? ' sel' : '')} style=${{background: 'hsl(14 96% ' + l + '%)'}} onClick=${() => tap(i)} aria-label=${'tile ' + (i + 1)}/>`)}</div>
+      ${sorted ? html`<button type="button" class="linky tiny" onClick=${() => { setTiles(make()); setSel(-1); }}>Shuffle</button>` : null}
+    </div>`;
+  }
+
+  /* ---------- park it: read the brief, do something light, come back ---------- */
+  function ParkIt({ctx, priv}) {
+    const [brief, setBrief] = useState('');
+    const [step, setStep] = useState('idle');
+    const [text, setText] = useState('');
+    const b = brief.trim() || pick(BRIEFS);
+    const done = async () => { await keep(ctx, priv, 'park', b, text).catch(() => {}); setStep('idle'); setText(''); earn(ctx, 'parking it', 10); };
+    return html`<${UI.Card} id="park" title="Park it" action=${html`<${Grade} g="well supported"/>`}>
+      ${step === 'idle' ? html`<div class="stack tight">
+        <div class="small">Read the brief for a minute without solving it. Then five minutes of something light and wordless. Then back to it, ideas, go. A light filler beat both rest and hard work for incubation across 117 studies. Mind wandering is not the mechanism, so we do not sell it as one.</div>
+        <textarea class="input" rows="2" id="park-brief" placeholder=${'The brief, in a few lines. Or we pick one: ' + BRIEFS[1]} value=${brief} onInput=${e => setBrief(e.target.value)}/>
+        <div class="row between"><span class="tiny ink62">1:00 read, 5:00 filler, 3:00 back</span><${UI.Btn} id="park-start" sm=${true} onClick=${() => { if (!brief.trim()) setBrief(b); setStep('read'); M.sound.play('start'); }}>Start<//></div>
+      </div>`
+      : step === 'read' ? html`<div class="stack tight">
+        <div class="small brk-plan">${b}</div>
+        <${Timer} id="park-read" seconds=${60} label="read, do not solve" onStop=${() => setStep('idle')} onDone=${() => setStep('filler')} prompts=${['What is the real question under it.', 'Who is it for, really.', 'Leave it here. Something light now.']}/>
+      </div>`
+      : step === 'filler' ? html`<div class="stack tight">
+        <${Timer} id="park-filler" seconds=${300} label="something light" onStop=${() => setStep('idle')} onDone=${() => setStep('back')}/>
+        <${Shades}/>
+      </div>`
+      : html`<div class="stack tight">
+        <div class="small brk-plan">${b}</div>
+        <${Timer} id="park-back" seconds=${180} label="back to it, ideas, go" onDone=${() => {}}/>
+        <textarea class="input" rows="6" id="park-text" placeholder="One per line." value=${text} onInput=${e => setText(e.target.value)}/>
+        <div class="row between"><span class="tiny ink62 num">${lines(text).length} so far</span><${UI.Btn} id="park-keep" sm=${true} disabled=${!text.trim()} onClick=${done}>Keep these<//></div>
+      </div>`}
+    <//>`;
+  }
+
+  /* ---------- the two-gear sprint: quantity, then be creative ---------- */
+  function TwoGear({ctx, priv}) {
+    const [brief, setBrief] = useState('');
+    const [step, setStep] = useState('idle');
+    const [one, setOne] = useState('');
+    const [two, setTwo] = useState('');
+    const b = brief.trim() || pick(BRIEFS);
+    const done = async () => { await keep(ctx, priv, 'sprint', b, 'Gear one:\n' + one + '\n\nGear two:\n' + two).catch(() => {}); setStep('idle'); setOne(''); setTwo(''); earn(ctx, 'a two gear sprint', 10); };
+    return html`<${UI.Card} id="sprint" title="Two-gear sprint" action=${html`<${Grade} g="well supported"/>`}>
+      ${step === 'idle' ? html`<div class="stack tight">
+        <div class="small">Three minutes of as many angles as you can, no judging. Then three minutes of only the unusual, clever, uncommon ones, quality over quantity. Being told to be creative is the oldest effect in the field and one of the largest; the first gear clears the obvious out of the way.</div>
+        <input class="input" id="sprint-brief" placeholder=${'The brief. Or we pick one: ' + BRIEFS[2]} value=${brief} onInput=${e => setBrief(e.target.value)} aria-label="The brief"/>
+        <div class="row between"><span class="tiny ink62">3:00 and 3:00</span><${UI.Btn} id="sprint-start" sm=${true} onClick=${() => { if (!brief.trim()) setBrief(b); setStep('one'); M.sound.play('start'); }}>Start<//></div>
+      </div>`
+      : step === 'one' ? html`<div class="stack tight">
+        <div class="small brk-plan"><b>Gear one.</b> ${b}. As many angles as you can. Quantity only. Do not judge.</div>
+        <${Timer} id="sprint-one" seconds=${180} label="gear one, quantity" onStop=${() => setStep('idle')} onDone=${() => { setStep('two'); M.sound.play('start'); }}/>
+        <textarea class="input" rows="6" id="sprint-one-text" placeholder="One per line. Obvious is fine here." value=${one} onInput=${e => setOne(e.target.value)}/>
+        <div class="tiny ink62 num">${lines(one).length} so far</div>
+      </div>`
+      : html`<div class="stack tight">
+        <div class="small brk-plan"><b>Gear two.</b> ${b}. Now only unusual, clever, uncommon, surprising ones. Fewer is fine. Think the way an eccentric poet would.</div>
+        <${Timer} id="sprint-two" seconds=${180} label="gear two, be creative" onDone=${() => {}}/>
+        <textarea class="input" rows="6" id="sprint-two-text" placeholder="One per line. Weird is the brief." value=${two} onInput=${e => setTwo(e.target.value)}/>
+        <div class="row between"><span class="tiny ink62 num">${lines(one).length} in gear one, ${lines(two).length} in gear two</span><${UI.Btn} id="sprint-keep" sm=${true} disabled=${!two.trim()} onClick=${done}>Keep these<//></div>
+      </div>`}
+    <//>`;
+  }
+
+  /* ---------- eyes off, and the nap ---------- */
+  function EyesOff({ctx}) {
+    const [on, setOn] = useState(false);
+    return html`<${UI.Card} id="eyes" title="Eyes off" action=${html`<${Grade} g="well supported"/>`}>
+      ${on ? html`<div class="brk-dim"><${Timer} id="eyes-timer" seconds=${300} label="eyes off the screen" onStop=${() => setOn(false)} onDone=${() => { setOn(false); earn(ctx, 'eyes off', 5); }}
+          prompts=${['Look at the farthest thing you can see.', 'Window if there is one. Outside if you can.', 'No phone. That is the whole exercise.', 'Let the eyes wander. Notice what catches them.', 'Back when the bell goes.']}/></div>`
+      : html`<div class="row between" style=${{gap: '10px'}}><span class="small">Five minutes of passive rest, no screen, no task. Rest restores vigilance better than switching to another task, and short breaks lift energy with a medium effect across 22 studies. It does not raise output. It makes the next hour less of a slog.</span><${UI.Btn} id="eyes-start" sm=${true} kind="sec" onClick=${() => { setOn(true); M.sound.play('start'); }}>Start<//></div>`}
+    <//>`;
+  }
+  function Nap({ctx}) {
+    const [on, setOn] = useState(false);
+    const wake = () => { setOn(false); M.sound.play('chime'); setTimeout(() => M.sound.play('chime'), 700); setTimeout(() => M.sound.play('chime'), 1400); earn(ctx, 'a nap', 5); };
+    return html`<${UI.Card} id="nap" title="Ten minute nap" action=${html`<${Grade} g="one lab, several trials"/>`}>
+      ${on ? html`<div class="brk-dim"><${Timer} id="nap-timer" seconds=${600} label="sleep opportunity" onStop=${() => setOn(false)} onDone=${wake}/></div>`
+      : html`<div class="row between" style=${{gap: '10px'}}><span class="small">Only with a quiet, dim spot. Lie back, eyes closed, ten minutes, hard wake up. Ten helped for over two hours in the trials; twenty to thirty left people groggy for half an hour or more. The bell is loud.</span><${UI.Btn} id="nap-start" sm=${true} kind="sec" onClick=${() => { setOn(true); M.sound.play('start'); }}>Start<//></div>`}
+    <//>`;
+  }
+
+  /* ---------- what you kept: the last few catches ---------- */
+  function Catches({priv}) {
+    const list = (((priv && priv.data) || {}).catches || []).slice(-5).reverse();
+    if (!list.length) return null;
+    const KIND = {walk: 'walk', park: 'parked', sprint: 'sprint'};
+    return html`<${UI.Card} id="catches" title="Kept from your resets" action=${html`<span class="tiny ink62">private, last five</span>`}>
+      <div class="stack tight">
+        ${list.map(c => html`<div key=${c.at} class="brk-row">
+          <div class="tiny ink62 num">${KIND[c.kind] || c.kind} · ${U.timeAgo(c.at)}${c.brief ? ' · ' + c.brief : ''}</div>
+          <div class="small" style=${{whiteSpace: 'pre-wrap', overflowWrap: 'anywhere'}}>${lines(c.text).slice(0, 6).join('\n')}${lines(c.text).length > 6 ? '\n…' : ''}</div>
+        </div>`)}
       </div>
-      <div class="tiny ${state === 'no' ? 'flame-t' : 'ink62'}">${state === 'yes' ? 'Yes. ' + answer + '.' : state === 'no' ? 'Not that one.' : state === 'show' ? 'It was ' + answer + '. No sparks for that one, no shame either.' : got + ' of 3 today'}</div>
-    </div>`;
-  }
-
-  /* a blue minute: blue primes exploratory thinking (Mehta and Zhu, 2009); the eyes go far, then near */
-  function BlueMinute({ctx}) {
-    const [on, setOn] = useState(false);
-    if (!on) return html`<div class="row between"><span class="small">Sixty seconds of blue and a few instructions for the eyes. Blue nudges the brain toward exploring; a far gaze rests the part that has been staring at a screen.</span><${UI.Btn} sm=${true} id="blue-start" kind="sec" onClick=${() => setOn(true)}>Start<//></div>`;
-    return html`<div class="brk-sky">
-      <${Timer} seconds=${60} label="blue minute" onStop=${() => setOn(false)} onDone=${() => { setOn(false); earn(ctx, 'a blue minute', 5); }}
-        prompts=${['Look at the farthest thing you can see. Hold it.', 'Now something at arm\'s length. Then far again.', 'Unfocus. Let the screen blur.', 'Name one thing you can smell and one you can hear.', 'Back to the screen, slowly.']}/>
-    </div>`;
-  }
-
-  /* doodling for a minute keeps the mind from wandering off entirely (Andrade, 2009) */
-  function Doodle({ctx}) {
-    const ref = useRef(null);
-    const [on, setOn] = useState(false);
-    const drawing = useRef(false);
-    useEffect(() => {
-      if (!on) return;
-      const cv = ref.current; if (!cv) return;
-      const g = cv.getContext('2d');
-      g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--warm').trim() || '#F7F6F2'; g.fillRect(0, 0, cv.width, cv.height);
-      g.strokeStyle = '#F53901'; g.lineWidth = 3; g.lineCap = 'round'; g.lineJoin = 'round';
-      const pos = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height]; };
-      const down = e => { drawing.current = true; const [x, y] = pos(e); g.beginPath(); g.moveTo(x, y); cv.setPointerCapture(e.pointerId); };
-      const move = e => { if (!drawing.current) return; const [x, y] = pos(e); g.lineTo(x, y); g.stroke(); };
-      const up = () => { drawing.current = false; };
-      cv.addEventListener('pointerdown', down); cv.addEventListener('pointermove', move); cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
-      return () => { cv.removeEventListener('pointerdown', down); cv.removeEventListener('pointermove', move); cv.removeEventListener('pointerup', up); cv.removeEventListener('pointercancel', up); };
-    }, [on]);
-    if (!on) return html`<div class="row between"><span class="small">Draw nothing in particular for a minute. People who doodle through a dull call remember more of it; the hand keeps the mind in the room.</span><${UI.Btn} sm=${true} id="doodle-start" kind="sec" onClick=${() => setOn(true)}>Start<//></div>`;
-    return html`<div class="stack tight">
-      <canvas ref=${ref} width="600" height="260" class="brk-doodle" id="doodle-canvas" aria-label="Doodle pad"/>
-      <${Timer} seconds=${60} label="doodle" onStop=${() => setOn(false)} onDone=${() => { setOn(false); earn(ctx, 'a doodle', 5); }}/>
-    </div>`;
-  }
-
-  function Walk({ctx}) {
-    const [on, setOn] = useState(false);
-    if (!on) return html`<div class="row between"><span class="small">Five minutes on your feet. Walking lifts divergent thinking by about sixty percent in the lab (Oppezzo and Schwartz, 2014), and the effect lasts a while after you sit back down.</span><${UI.Btn} sm=${true} id="walk-start" kind="sec" onClick=${() => { setOn(true); M.sound.play('start'); }}>Start<//></div>`;
-    return html`<${Timer} seconds=${300} label="walk" onStop=${() => setOn(false)} onDone=${() => { setOn(false); earn(ctx, 'a walk', 5); }} prompts=${['Phone in the pocket. Eyes up.', 'Pick a problem from today and carry it, lightly.', 'Change direction once for no reason.', 'Notice the thing you walk past every day and never look at.', 'Head back. Write down the first idea that showed up.']}/>`;
+    <//>`;
   }
 
   function Reset() {
     const ctx = M.useCtx();
-    const t = M.play ? M.play.mine(ctx).today : {};
-    const did = Object.keys(t).length;
+    const priv = M.useDoc(ctx.db, ctx.uid ? privPath(ctx) : '');
+    const did = Object.keys(M.play.mine(ctx).today).length;
     return html`<div class="stack" style=${{gap: '16px'}} id="break-reset">
-      <${UI.Card} id="breathe-card" title="Breathe & reset" action=${html`<span class="tiny ink62">${did ? did + ' today' : 'nothing yet today'}</span>`}>
-        <div class="small" style=${{marginBottom: '10px'}}>One tap, one minute of box breathing. Or sit for longer with a bell at the end.</div>
-        <${Meditate} ctx=${ctx}/>
-      <//>
-      <div class="split">
-        <${UI.Card} id="uses-card" title="Thirty uses" action=${html`<span class="tiny ink62">Guilford, 1967</span>`}><${Uses} ctx=${ctx}/><//>
-        <${UI.Card} id="triads-card" title="Three words" action=${html`<span class="tiny ink62">Mednick, 1962</span>`}><${Triads} ctx=${ctx}/><//>
-        <${UI.Card} id="blue-card" title="Blue minute" action=${html`<span class="tiny ink62">Mehta & Zhu, 2009</span>`}><${BlueMinute} ctx=${ctx}/><//>
-        <${UI.Card} id="doodle-card" title="Doodle" action=${html`<span class="tiny ink62">Andrade, 2009</span>`}><${Doodle} ctx=${ctx}/><//>
-        <${UI.Card} id="walk-card" title="Walk it off" action=${html`<span class="tiny ink62">Oppezzo & Schwartz, 2014</span>`}><${Walk} ctx=${ctx}/><//>
-      </div>
-      <div class="hint">Each reset earns sparks once a day. The science is real; the sparks are the excuse.</div>
+      <div class="row between"><span class="small ink62">Each reset earns sparks once a day. The grade on the card is the honest one.</span><span class="tiny ink62 num">${did ? did + ' today' : 'nothing yet today'}</span></div>
+      <${Breathe} ctx=${ctx}/>
+      <div class="split"><${IfThen} ctx=${ctx} priv=${priv}/><${Walk} ctx=${ctx} priv=${priv}/></div>
+      <div class="split"><${ParkIt} ctx=${ctx} priv=${priv}/><${TwoGear} ctx=${ctx} priv=${priv}/></div>
+      <div class="split"><${EyesOff} ctx=${ctx}/><${Nap} ctx=${ctx}/></div>
+      <${Catches} priv=${priv}/>
     </div>`;
   }
 
+  /* the day's if-then, shown back on Home until the day is over */
+  function PlanToday() {
+    const ctx = M.useCtx();
+    const priv = M.useDoc(ctx.db, ctx.uid ? privPath(ctx) : '');
+    const plan = priv.data && priv.data.plan;
+    if (!plan || plan.day !== today()) return null;
+    return html`<div class="brk-plan" id="plan-today"><span class="tiny ink62">your if-then · </span><b>If</b> it is ${plan.when}${plan.where ? html` <b>and</b> I am ${plan.where}` : ''}, <b>then</b> I will ${plan.will}. <button type="button" class="linky tiny" onClick=${() => M.nav('#reset')}>Change</button></div>`;
+  }
+  M.parts.PlanToday = PlanToday;
   M.parts.BreakReset = Reset;
-  M.reset = {OBJECTS, TRIADS};
+  M.reset = {BRIEFS, earn, privPath, quick: false, Timer};
 })();
 
 /* ==== 39-reflect.js ==== */
@@ -16753,6 +17196,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       <${Announcement}/>
       ${Celebrate ? html`<${Celebrate}/>` : null}
       <${Quick} onTask=${() => setTask('new')}/>
+      ${M.parts.PlanToday ? html`<${M.parts.PlanToday}/>` : null}
       ${M.parts.SpotifyMini ? html`<${M.parts.SpotifyMini}/>` : null}
       <${InstallHint}/>
       <div class="split">
@@ -17505,7 +17949,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     ['radar', 'the latest trade press on Radar, by lane (people, accounts, launches, campaigns, awards) (team site)'],
     ['books', 'invoices due and overdue, this month\'s expenses, compliance dates (owner)'],
     ['handshake', 'the LinkedIn DM desk: who is ready, held, waiting on an accept, sent, skipped, flagged'],
-    ['break', 'the reset room: sparks, the streak, today\'s puzzle, the care reminders due'],
+    ['break', 'the reset room: sparks this week, the streak, Five (the word of the day), the squads, the care reminders due'],
     ['inbox', 'what is waiting in the inbox'],
     ['online', 'who has m360 open right now and where they are'],
     ['base', 'the Base, the contacts database, for a name, company, city or stage'],
@@ -17770,9 +18214,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       case 'break': case 'play': case 'wellness': {
         if (!M.play) return 'The reset room is not on this build.';
         const me = M.play.mine(ctx);
-        L.push('BREAK: ' + me.sparks + ' sparks, level ' + me.level.name + ', streak ' + me.streak + ' days (best ' + me.best + '), today: ' + (Object.keys(me.today).join(', ') || 'nothing yet'));
-        const d = M.play.docOf(ctx); L.push('TODAY\'S PUZZLE: ' + M.play.kindFor(td) + (d.days && d.days[td] ? ', solved in ' + M.play.fmtMs(d.days[td].ms) : ', not solved yet'));
-        L.push('TEAM: ' + list(M.play.board(ctx), 8).map(r => nameOf(nm, r.uid) + ' ' + r.sparks + ' (' + r.level + ', streak ' + r.streak + ')').join('; '));
+        L.push('BREAK: ' + me.week + ' sparks this week (last week ' + me.lastWeek + ', ' + me.sparks + ' ever), level ' + me.level.name + ' (' + me.level.weeks + ' weeks shown up), workday streak ' + me.streak + ' (best ' + me.best + '), today: ' + (Object.keys(me.today).join(', ') || 'nothing yet'));
+        const d = M.play.docOf(ctx); const f = ((d.days || {})[td] || {}).five; L.push('FIVE (the word of the day): ' + (f ? (f.tries <= 6 ? 'got it in ' + f.tries + ' tries, ' + M.play.fmtMs(f.ms) : 'missed it today') : 'not played yet'));
+        L.push('SQUADS THIS WEEK: ' + M.play.squadBoard(ctx).map(s => s.name + ' ' + s.week + (s.mine ? ' (mine)' : '')).join('; '));
         return L.join('\n');
       }
       case 'inbox': {
@@ -19674,9 +20118,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       {k: 'pulse', label: 'Pulse and ideas', route: 'voice', blurb: 'The anonymous weekly pulse (what is broken, what to change) and the ideas board with votes.'},
       {k: 'scores', label: 'Leaderboard', route: 'scores', blurb: 'Points by week, month, quarter and since joining, with what earned them.'},
       {k: 'music', label: 'Music', route: 'music', blurb: 'Spotify inside m360: search, play, playlists, the dock at the bottom.'}]},
-    {k: 'break', label: 'Break', icon: 'breath', route: 'break', blurb: 'The reset room: a daily puzzle and a runner with the team\'s times, breathing and creativity resets, your care reminders, and a read of your last months. Sparks and a streak for showing up.', tabs: [
-      {k: 'play', label: 'Play', route: 'play', blurb: 'Today\'s puzzle (Scramble on odd days, Pixel on even) and Flame Run, with the team\'s times and bests.', signal: ctx => { const d = M.play ? M.play.docOf(ctx) : {}; return (d.days || {})[td()] ? 'solved today' : 'puzzle open'; }},
-      {k: 'reset', label: 'Reset', route: 'reset', blurb: 'One minute of breathing, timed sits, and five creativity resets with the research behind each.'},
+    {k: 'break', label: 'Break', icon: 'breath', route: 'break', blurb: 'The reset room, built on the trials that replicated: Five, the shared word of the day, an easy five minute game, a reaction check, breathing that is actually five minutes, a walk with a problem in your pocket, your care reminders, and a read of your last months. Sparks by the week, squads, a streak that forgives.', tabs: [
+      {k: 'play', label: 'Daily', route: 'play', blurb: 'Five, the word of the day, the same for everyone, with the team\'s tries as a spread. Doubles, five minutes of an easy game. The reaction check, against your own baseline. Your squad\'s week.', signal: ctx => { const d = M.play ? M.play.docOf(ctx) : {}; return ((d.days || {})[td()] || {}).five ? 'Five done' : 'Five open'; }},
+      {k: 'reset', label: 'Reset', route: 'reset', blurb: 'Slow breathing for five minutes, one if-then for the day, a walk for energy or with a problem, park it, the two-gear sprint, eyes off, a ten minute nap. The evidence grade on every card.'},
       {k: 'care', label: 'Care', route: 'care', blurb: 'Your reminders: breakfast, water, lunch, supplements, dinner. Rung when due, snooze or tick.'},
       {k: 'reflect', label: 'Reflect', route: 'reflect', blurb: 'Your month, quarter, half year or year, read back: shipped, kudos, EODs, outcomes, and an era title.'}]},
     {k: 'base', label: 'Base', icon: 'database', route: 'base', blurb: 'The contacts database: everyone we know and the companies they work at.', tabs: [
@@ -19720,7 +20164,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     {label: 'Inbox', blurb: 'What needs you: assignments, reviews, mentions, kudos, decisions, announcements.', act: () => window.dispatchEvent(new CustomEvent('m360:inbox')), key: 'i'},
     {label: 'New', blurb: 'A task, project, pitch, client, post, kudos or note from one button.', act: () => M.intend('#tasks', 'newtask'), key: '+'},
     {label: 'Focus timer', blurb: 'A deep work session that counts toward your week.', act: () => M.focus && M.focus.open(), key: 'f'},
-    {label: 'Breathe', blurb: 'A minute to reset.', act: () => M.breathe && M.breathe.open(), key: ''},
+    {label: 'Breathe', blurb: 'Five minutes, six breaths a minute.', act: () => M.breathe && M.breathe.open('slow'), key: ''},
     {label: 'The tour', blurb: 'The buddy walks you through the place, out loud.', act: () => window.dispatchEvent(new CustomEvent('m360:tour')), key: ''},
     {label: 'Keyboard shortcuts', blurb: 'The whole sheet.', act: () => window.dispatchEvent(new CustomEvent('m360:keys')), key: '?'}
   ];
@@ -19992,7 +20436,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     ['Base', 'base', 'database'], ['Companies', 'companies', 'database'], ['Radar', 'radar', 'radar'],
     ['Me', 'me', 'people'], ['Leave', 'leave', 'leave'], ['Handbook', 'handbook', 'handbook'], ['Trophies', 'trophies', 'trophy'],
     ['HQ', 'hq', 'command', true], ['Dashboard', 'command', 'command', true], ['Hiring', 'hiring', 'hiring', true], ['Admin', 'admin', 'desk', true],
-    ['What\'s in m360', 'map', 'map'], ['Break', 'break', 'breath'], ['Today\'s puzzle', 'play', 'breath'], ['Care reminders', 'care', 'bell'], ['Reflect', 'reflect', 'review']
+    ['What\'s in m360', 'map', 'map'], ['Break', 'break', 'breath'], ['Five, the word of the day', 'play', 'breath'], ['Reset', 'reset', 'breath'], ['Care reminders', 'care', 'bell'], ['Reflect', 'reflect', 'review']
   ];
   /* the order headings appear in */
   const ORDER = ['people', 'companies', 'tasks', 'projects', 'clients', 'pitches', 'posts', 'handbook', 'inbox', 'leave', 'radar', 'log', 'go to', 'actions', 'more', 'ask'];
@@ -20018,7 +20462,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       ['Give kudos', 'scores', () => M.intend('#feed', 'kudos')],
       ['Request leave', 'leave', () => M.nav('#leave')],
       ['Start a focus session', 'timer', () => M.focus && M.focus.open()],
-      ['Take a breather', 'breath', () => M.breathe && M.breathe.open()],
+      ['Slow breathing, five minutes', 'breath', () => M.breathe && M.breathe.open('slow')],
       ['Show me around', 'send', () => window.dispatchEvent(new CustomEvent('m360:tour'))],
       ['Inbox', 'bell', () => window.dispatchEvent(new CustomEvent('m360:inbox'))],
       ['Keyboard shortcuts', 'cmd', () => window.dispatchEvent(new CustomEvent('m360:keys'))],
@@ -20753,51 +21197,66 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 })();
 
 /* ==== 68-breathe.js ==== */
-/* module: breathe. Sixty seconds of box breathing, full screen, in ink and flame.
-   Four in, four hold, four out, four hold, driven frame by frame so the orb always moves with
-   the count. Escape, Skip or a tap on the orb ends it. */
+/* module: breathe. Paced breathing, full screen, in ink and flame, driven frame by frame so the orb
+   always moves with the count. Three protocols, each with its evidence: slow breathing at six
+   breaths a minute for five minutes (the one with meta-analyses behind it), box breathing before
+   something stressful (one randomised trial), and cyclic sighing (one trial, no replication yet).
+   Escape, Skip or a tap on the orb ends it early; only a finished round calls onDone. */
 'use strict';
 (function () {
   const {html, React} = M;
   const {useState, useEffect, useRef} = React;
 
-  const PHASES = [['Breathe in', .45, .95], ['Hold', .95, .95], ['Breathe out', .95, .45], ['Hold', .45, .45]];
-  const STEP = 4000, TOTAL = 60000;
+  /* phases: label, orb size from, orb size to, milliseconds */
+  const PROTOCOLS = {
+    slow: {k: 'slow', name: 'Slow breathing', seconds: 300, grade: 'well supported', line: 'Four in, six out. Six breaths a minute for five minutes, the pace the heart rate variability trials use.',
+      phases: [['Breathe in', .45, .95, 4000], ['Breathe out', .95, .45, 6000]]},
+    box: {k: 'box', name: 'Box breathing', seconds: 180, grade: 'one trial', line: 'Four in, hold four, four out, hold four. Blunted the stress response before a hard task in one randomised trial.',
+      phases: [['Breathe in', .45, .95, 4000], ['Hold', .95, .95, 4000], ['Breathe out', .95, .45, 4000], ['Hold', .45, .45, 4000]]},
+    sigh: {k: 'sigh', name: 'Cyclic sighing', seconds: 300, grade: 'one trial', line: 'Two inhales through the nose, one long exhale through the mouth. Lifted mood most in a four-arm trial; nobody has replicated it yet.',
+      phases: [['Breathe in', .45, .8, 2000], ['Top up', .8, .95, 1000], ['Let it out', .95, .45, 6000]]}
+  };
   const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
   let openFn = null;
-  M.breathe = {open: () => { if (openFn) openFn(); }, _bind: fn => { openFn = fn; }, PHASES, STEP, TOTAL};
+  M.breathe = {open: (kind, opts) => { if (openFn) openFn(PROTOCOLS[kind] ? kind : 'slow', opts || {}); }, _bind: fn => { openFn = fn; }, PROTOCOLS};
 
-  /* the state of the minute at a given elapsed time */
-  function at(el) {
-    const e = Math.max(0, Math.min(TOTAL, el));
-    const phase = Math.floor(e / STEP) % 4;
-    const into = (e % STEP) / STEP;
-    const [label, from, to] = PHASES[phase];
-    return {phase, label, k: from + (to - from) * ease(into), count: 4 - Math.floor(into * 4), left: Math.ceil((TOTAL - e) / 1000), done: e >= TOTAL, progress: e / TOTAL};
+  /* the state of the round at a given elapsed time */
+  function at(p, total, el) {
+    const cycle = p.phases.reduce((n, ph) => n + ph[3], 0);
+    const e = Math.max(0, Math.min(total, el));
+    let into = e % cycle, phase = 0;
+    while (into >= p.phases[phase][3]) { into -= p.phases[phase][3]; phase++; }
+    const [label, from, to, ms] = p.phases[phase];
+    const f = into / ms;
+    return {phase, label, k: from + (to - from) * ease(f), count: Math.ceil((ms - into) / 1000), left: Math.ceil((total - e) / 1000), done: e >= total, progress: e / total};
   }
 
-  function Breathe({onClose}) {
+  function Breathe({kind, opts, onClose}) {
+    const p = PROTOCOLS[kind];
+    const total = Math.max(2, Number(opts.seconds) || p.seconds) * 1000;
     const [t0, setT0] = useState(() => Date.now());
-    const [s, setS] = useState(() => at(0));
+    const [s, setS] = useState(() => at(p, total, 0));
     const lastPhase = useRef(-1);
+    const fired = useRef(false);
     useEffect(() => {
       let raf = 0;
       const tick = () => {
-        const n = at(Date.now() - t0);
+        const n = at(p, total, Date.now() - t0);
         setS(n);
         if (n.phase !== lastPhase.current && !n.done) { lastPhase.current = n.phase; M.sound.play('tick'); }
         if (!n.done) raf = requestAnimationFrame(tick);
-        else M.sound.play('chime');
+        else if (!fired.current) { fired.current = true; M.sound.play('chime'); if (opts.onDone) opts.onDone(); }
       };
       raf = requestAnimationFrame(tick);
       return () => cancelAnimationFrame(raf);
     }, [t0]);
     useEffect(() => { const esc = e => { if (e.key === 'Escape') onClose(); }; window.addEventListener('keydown', esc); return () => window.removeEventListener('keydown', esc); }, []);
     const r = 46, C = 2 * Math.PI * r;
-    return html`<div class="breathe" role="dialog" aria-label="Breathe" id="breathe">
+    const mm = Math.floor(s.left / 60), ss = String(s.left % 60).padStart(2, '0');
+    return html`<div class="breathe" role="dialog" aria-label=${p.name} id="breathe" data-kind=${kind}>
       <${M.Mark} width="66px"/>
-      <div class="micro">${s.done ? 'done' : s.left + ' seconds'}</div>
-      <button type="button" class="orb" aria-label="End the breather" onClick=${onClose} style=${{'--k': s.done ? .7 : s.k}}>
+      <div class="micro">${s.done ? 'done' : p.name + ' · ' + mm + ':' + ss}</div>
+      <button type="button" class="orb" aria-label="End the round" onClick=${onClose} style=${{'--k': s.done ? .7 : s.k}}>
         <svg class="orb-ring" viewBox="0 0 100 100" aria-hidden="true">
           <circle class="bg" cx="50" cy="50" r=${r}/>
           <circle class="fg" cx="50" cy="50" r=${r} stroke-dasharray=${C} stroke-dashoffset=${C * (1 - (s.done ? 1 : s.progress))}/>
@@ -20805,19 +21264,19 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         <span class="orb-label">${s.done ? 'Nice' : s.label}</span>
         ${s.done ? null : html`<span class="orb-count num">${s.count}</span>`}
       </button>
-      <div class="orb-dots" aria-hidden="true">${PHASES.map((p, i) => html`<i key=${i} class=${i === s.phase && !s.done ? 'on' : ''}/>`)}</div>
-      <h2>${s.done ? 'Back to it.' : 'Slow down for a minute.'}</h2>
+      <div class="orb-dots" aria-hidden="true">${p.phases.map((ph, i) => html`<i key=${i} class=${i === s.phase && !s.done ? 'on' : ''}/>`)}</div>
+      <h2>${s.done ? 'Back to it.' : p.line}</h2>
       <div class="row" style=${{justifyContent: 'center', gap: '18px'}}>
-        ${s.done ? html`<button type="button" class="linky" onClick=${() => { lastPhase.current = -1; setT0(Date.now()); setS(at(0)); }}>Go again</button>` : null}
+        ${s.done ? html`<button type="button" class="linky" onClick=${() => { lastPhase.current = -1; fired.current = false; setT0(Date.now()); setS(at(p, total, 0)); }}>Go again</button>` : null}
         <button type="button" class="linky" onClick=${onClose}>${s.done ? 'Done' : 'Skip'}</button>
       </div>
     </div>`;
   }
 
   function BreatheHost() {
-    const [open, setOpen] = useState(false);
-    useEffect(() => { M.breathe._bind(() => setOpen(true)); return () => M.breathe._bind(null); }, []);
-    return open ? html`<${Breathe} onClose=${() => setOpen(false)}/>` : null;
+    const [open, setOpen] = useState(null);
+    useEffect(() => { M.breathe._bind((kind, opts) => setOpen({kind, opts})); return () => M.breathe._bind(null); }, []);
+    return open ? html`<${Breathe} kind=${open.kind} opts=${open.opts} onClose=${() => setOpen(null)}/>` : null;
   }
 
   M.parts.BreatheHost = BreatheHost;
