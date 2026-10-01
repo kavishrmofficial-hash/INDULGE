@@ -1,0 +1,43 @@
+/* ---------- break: the reset room ---------- */
+.brk-sparks .chipline b{font-size:15px}
+.brk-board{overflow-wrap:anywhere}
+.brk-word{display:flex; gap:6px; flex-wrap:wrap}
+.brk-tile{display:inline-flex; align-items:center; justify-content:center; min-width:34px; height:38px; padding:0 8px; border-radius:10px; background:var(--warm); border:1px solid var(--line); font-weight:600; font-size:17px; text-transform:uppercase; letter-spacing:.04em}
+.brk-tile.on{background:var(--ink); color:var(--on-ink); border-color:var(--ink)}
+.brk-tile.wide{text-transform:none; letter-spacing:0; font-size:15px; padding:0 12px}
+.brk-answer{max-width:260px}
+.brk-pixel{display:grid; grid-template-columns:56px repeat(5, 40px); grid-auto-rows:40px; gap:4px; align-items:stretch}
+.brk-clue{display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--ink62); font-weight:600}
+.brk-clue.col{flex-direction:column; justify-content:flex-end; line-height:1.1}
+.brk-clue.row{justify-content:flex-end; padding-right:6px}
+.brk-cell{border:1px solid var(--line2); border-radius:8px; background:var(--paper); cursor:pointer; padding:0}
+.brk-cell.on{background:var(--ink); border-color:var(--ink)}
+.brk-cell:hover{border-color:var(--ink)}
+.brk-row{padding:4px 0; border-bottom:1px solid var(--line)}
+.brk-row:last-child{border-bottom:0}
+.brk-run{position:relative; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--warm); touch-action:manipulation; user-select:none}
+.brk-run canvas{display:block; width:100%; height:auto}
+.brk-run-over{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; background:rgba(247,246,242,.82); text-align:center; padding:12px}
+.brk-timer{display:flex; flex-direction:column; align-items:center; gap:10px; padding:8px 0}
+.brk-ring{width:120px; height:120px; transform:rotate(-90deg)}
+.brk-ring circle{fill:none; stroke-width:6}
+.brk-ring .bg{stroke:var(--line)}
+.brk-ring .fg{stroke:var(--flame); stroke-linecap:round; transition:stroke-dashoffset .25s linear}
+.brk-timer-mid{text-align:center; margin-top:-80px; margin-bottom:34px}
+.brk-left{font-size:26px; font-weight:600; letter-spacing:-.02em}
+.brk-prompt{text-align:center; max-width:46ch}
+.brk-sky{border-radius:16px; padding:18px; background:hsl(208 72% 46%); color:#fff}
+.brk-sky .brk-ring .bg{stroke:rgba(255,255,255,.3)}
+.brk-sky .brk-ring .fg{stroke:#fff}
+.brk-sky .ink62,.brk-sky .linky{color:rgba(255,255,255,.85)}
+.brk-doodle{width:100%; height:auto; border:1px solid var(--line); border-radius:14px; touch-action:none; cursor:crosshair; display:block}
+.care-row{padding:6px 0; border-bottom:1px solid var(--line)}
+.care-row:last-child{border-bottom:0}
+.care-dot{width:10px; height:10px; border-radius:50%; background:var(--line2); flex:none}
+.care-dot.due{background:var(--flame)}
+.care-dot.done{background:var(--ink)}
+.care-dot.snoozed{background:var(--line2); outline:2px solid var(--flame); outline-offset:1px}
+.brk-stats{display:grid; grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); gap:8px}
+.brk-tile-stat{border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:flex; flex-direction:column; gap:2px}
+.brk-tile-stat b{font-size:22px; letter-spacing:-.02em}
+@media (max-width:600px){ .brk-pixel{grid-template-columns:44px repeat(5, 36px); grid-auto-rows:36px} .brk-tile{min-width:30px; height:34px; font-size:15px} }

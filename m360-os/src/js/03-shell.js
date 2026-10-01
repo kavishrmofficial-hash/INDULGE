@@ -37,6 +37,8 @@
     vibe: {label: 'Vibe', icon: 'feed', page: 'Vibe', tabs: [
       {k: 'feed', label: 'Feed', route: 'feed'}, {k: 'crew', label: 'Crew', route: 'people'},
       {k: 'pulse', label: 'Pulse and ideas', route: 'voice'}, {k: 'scores', label: 'Leaderboard', route: 'scores'}, {k: 'music', label: 'Music', route: 'music'}]},
+    break: {label: 'Break', icon: 'breath', page: 'Break', tabs: [
+      {k: 'play', label: 'Play', route: 'play'}, {k: 'reset', label: 'Reset', route: 'reset'}, {k: 'care', label: 'Care', route: 'care'}, {k: 'reflect', label: 'Reflect', route: 'reflect'}]},
     base: {label: 'Base', icon: 'database', page: 'Base', tabs: [
       {k: 'people', label: 'People', route: 'base'}, {k: 'companies', label: 'Companies', route: 'companies'}, {k: 'import', label: 'Import', route: 'import'}]},
     chat: {label: 'Chat', icon: 'send', page: 'Chat'},
@@ -71,6 +73,10 @@
       case 'billing': return isOwner ? {s: 'books', t: 'billing', id} : {s: 'home'};
       case 'home': case 'today': return {s: 'home'};
       case 'map': case 'explore': case 'whats-here': case 'help': return {s: 'map', id};
+      case 'break': case 'wellness': case 'games': case 'play': return {s: 'break', t: 'play'};
+      case 'reset': case 'meditate': return {s: 'break', t: 'reset'};
+      case 'care': case 'reminders': return {s: 'break', t: 'care'};
+      case 'reflect': case 'wrapped': return {s: 'break', t: 'reflect'};
       case 'work': return {s: 'work', t: 'tasks'};
       case 'projects': return {s: 'work', t: 'projects', id};
       case 'week': return {s: 'work', t: 'week'};
@@ -307,7 +313,7 @@
     const b = M.badges(ctx);
     const go = k => { setMoreOpen(false); M.nav('#' + k); };
 
-    const mainKeys = ['home', 'chat', 'work', 'accounts', 'workspace', 'base', 'radar', 'web', 'vibe', 'me'];
+    const mainKeys = ['home', 'chat', 'work', 'accounts', 'workspace', 'base', 'radar', 'web', 'vibe', 'break', 'me'];
     const founderKeys = ctx.isFounder ? (ctx.isOwner ? ['hq', 'books', 'admin'] : ['hq', 'admin']) : [];
     const item = k => {
       const s = SECTIONS[k];
@@ -329,7 +335,7 @@
       onTask=${() => setNewTask(true)} onAsk=${() => setAskOpen(true)}/>` : null;
 
     const tabKeys = ctx.isFounder ? ['home', 'chat', 'hq', 'work'] : ['home', 'chat', 'work', 'accounts', 'me'];
-    const moreKeys = (ctx.isFounder ? (ctx.isOwner ? ['accounts', 'workspace', 'base', 'radar', 'web', 'me', 'books', 'admin'] : ['accounts', 'workspace', 'base', 'radar', 'web', 'me', 'admin']) : ['workspace', 'base', 'radar', 'web']).concat(['map']);
+    const moreKeys = (ctx.isFounder ? (ctx.isOwner ? ['accounts', 'workspace', 'base', 'radar', 'web', 'vibe', 'break', 'me', 'books', 'admin'] : ['accounts', 'workspace', 'base', 'radar', 'web', 'vibe', 'break', 'me', 'admin']) : ['workspace', 'base', 'radar', 'web', 'break']).concat(['map']);
     const moreBadge = moreKeys.reduce((n, k) => n + (b[k] || 0), 0);
 
     return html`<div class="app">
@@ -417,6 +423,7 @@
       ${M.parts.HolidayWatch ? html`<${M.parts.HolidayWatch}/>` : null}
       ${M.parts.FixHost ? html`<${M.parts.FixHost}/>` : null}
       ${M.parts.BooksWatch ? html`<${M.parts.BooksWatch}/>` : null}
+      ${M.parts.CareWatch ? html`<${M.parts.CareWatch}/>` : null}
       ${M.parts.BreatheHost ? html`<${M.parts.BreatheHost}/>` : null}
       ${M.parts.ChatWatch ? html`<${M.parts.ChatWatch}/>` : null}
       ${M.parts.InboxWatch ? html`<${M.parts.InboxWatch}/>` : null}

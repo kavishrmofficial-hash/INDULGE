@@ -136,6 +136,7 @@
     ['radar', 'the latest trade press on Radar, by lane (people, accounts, launches, campaigns, awards) (team site)'],
     ['books', 'invoices due and overdue, this month\'s expenses, compliance dates (owner)'],
     ['handshake', 'the LinkedIn DM desk: who is ready, held, waiting on an accept, sent, skipped, flagged'],
+    ['break', 'the reset room: sparks, the streak, today\'s puzzle, the care reminders due'],
     ['inbox', 'what is waiting in the inbox'],
     ['online', 'who has m360 open right now and where they are'],
     ['base', 'the Base, the contacts database, for a name, company, city or stage'],
@@ -395,6 +396,14 @@
         ps.forEach(p => { st[p.state] = (st[p.state] || 0) + 1; });
         L.push('HANDSHAKE: ' + ps.length + ' people, ' + Object.keys(st).map(k => st[k] + ' ' + k).join(', '));
         list(ps.filter(p => p.state !== 'sent').sort((a, b) => (b.updated || 0) - (a.updated || 0)), 25).forEach(p => L.push('- ' + p.name + ', ' + (p.headline || '') + (p.company ? ' at ' + p.company : '') + ', ' + (p.bucket || 'unsorted') + ', ' + p.state + (p.hook && p.hook.line ? ', hook: ' + cut(p.hook.line, 100) : '') + (p.flags && p.flags.length ? ', FLAGS: ' + p.flags.join('; ') : '')));
+        return L.join('\n');
+      }
+      case 'break': case 'play': case 'wellness': {
+        if (!M.play) return 'The reset room is not on this build.';
+        const me = M.play.mine(ctx);
+        L.push('BREAK: ' + me.sparks + ' sparks, level ' + me.level.name + ', streak ' + me.streak + ' days (best ' + me.best + '), today: ' + (Object.keys(me.today).join(', ') || 'nothing yet'));
+        const d = M.play.docOf(ctx); L.push('TODAY\'S PUZZLE: ' + M.play.kindFor(td) + (d.days && d.days[td] ? ', solved in ' + M.play.fmtMs(d.days[td].ms) : ', not solved yet'));
+        L.push('TEAM: ' + list(M.play.board(ctx), 8).map(r => nameOf(nm, r.uid) + ' ' + r.sparks + ' (' + r.level + ', streak ' + r.streak + ')').join('; '));
         return L.join('\n');
       }
       case 'inbox': {

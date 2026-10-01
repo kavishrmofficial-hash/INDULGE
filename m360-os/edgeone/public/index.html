@@ -1529,8 +1529,53 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
 @media (max-width:600px){ .map-grid{grid-template-columns:1fr} }
 .map-card .card-title svg{width:20px; height:20px; flex:none; vertical-align:-4px}
 .map-card .card-title .pill{margin-left:4px}
+
+/* ==== 87-break.css ==== */
+/* ---------- break: the reset room ---------- */
+.brk-sparks .chipline b{font-size:15px}
+.brk-board{overflow-wrap:anywhere}
+.brk-word{display:flex; gap:6px; flex-wrap:wrap}
+.brk-tile{display:inline-flex; align-items:center; justify-content:center; min-width:34px; height:38px; padding:0 8px; border-radius:10px; background:var(--warm); border:1px solid var(--line); font-weight:600; font-size:17px; text-transform:uppercase; letter-spacing:.04em}
+.brk-tile.on{background:var(--ink); color:var(--on-ink); border-color:var(--ink)}
+.brk-tile.wide{text-transform:none; letter-spacing:0; font-size:15px; padding:0 12px}
+.brk-answer{max-width:260px}
+.brk-pixel{display:grid; grid-template-columns:56px repeat(5, 40px); grid-auto-rows:40px; gap:4px; align-items:stretch}
+.brk-clue{display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--ink62); font-weight:600}
+.brk-clue.col{flex-direction:column; justify-content:flex-end; line-height:1.1}
+.brk-clue.row{justify-content:flex-end; padding-right:6px}
+.brk-cell{border:1px solid var(--line2); border-radius:8px; background:var(--paper); cursor:pointer; padding:0}
+.brk-cell.on{background:var(--ink); border-color:var(--ink)}
+.brk-cell:hover{border-color:var(--ink)}
+.brk-row{padding:4px 0; border-bottom:1px solid var(--line)}
+.brk-row:last-child{border-bottom:0}
+.brk-run{position:relative; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--warm); touch-action:manipulation; user-select:none}
+.brk-run canvas{display:block; width:100%; height:auto}
+.brk-run-over{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; background:rgba(247,246,242,.82); text-align:center; padding:12px}
+.brk-timer{display:flex; flex-direction:column; align-items:center; gap:10px; padding:8px 0}
+.brk-ring{width:120px; height:120px; transform:rotate(-90deg)}
+.brk-ring circle{fill:none; stroke-width:6}
+.brk-ring .bg{stroke:var(--line)}
+.brk-ring .fg{stroke:var(--flame); stroke-linecap:round; transition:stroke-dashoffset .25s linear}
+.brk-timer-mid{text-align:center; margin-top:-80px; margin-bottom:34px}
+.brk-left{font-size:26px; font-weight:600; letter-spacing:-.02em}
+.brk-prompt{text-align:center; max-width:46ch}
+.brk-sky{border-radius:16px; padding:18px; background:hsl(208 72% 46%); color:#fff}
+.brk-sky .brk-ring .bg{stroke:rgba(255,255,255,.3)}
+.brk-sky .brk-ring .fg{stroke:#fff}
+.brk-sky .ink62,.brk-sky .linky{color:rgba(255,255,255,.85)}
+.brk-doodle{width:100%; height:auto; border:1px solid var(--line); border-radius:14px; touch-action:none; cursor:crosshair; display:block}
+.care-row{padding:6px 0; border-bottom:1px solid var(--line)}
+.care-row:last-child{border-bottom:0}
+.care-dot{width:10px; height:10px; border-radius:50%; background:var(--line2); flex:none}
+.care-dot.due{background:var(--flame)}
+.care-dot.done{background:var(--ink)}
+.care-dot.snoozed{background:var(--line2); outline:2px solid var(--flame); outline-offset:1px}
+.brk-stats{display:grid; grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); gap:8px}
+.brk-tile-stat{border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:flex; flex-direction:column; gap:2px}
+.brk-tile-stat b{font-size:22px; letter-spacing:-.02em}
+@media (max-width:600px){ .brk-pixel{grid-template-columns:44px repeat(5, 36px); grid-auto-rows:36px} .brk-tile{min-width:30px; height:34px; font-size:15px} }
 </style>
-<script>window.M360_BUILD = "56d6dc4+.261001-0022";</script><script>
+<script>window.M360_BUILD = "69a2d7c+.261001-0056";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -2840,7 +2885,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   M.RULE_IDS = ['R01','R02','R03','R04','R05','R06','R07','R08','R09','R10','R11','R12','R13','R14','R15','R16'];
 
   const COLLS = ['checkin','eod','plan','review','rocks','feed','reacts','acks','kudos','leave','leavedec',
-    'tasks','projects','pitches','clients','handbook','candidates','evals','pulse','ideas','votes','access','onboard','me','fixes','contacts','orgs','chat','chatrooms','dm'];
+    'tasks','projects','pitches','clients','handbook','candidates','evals','pulse','ideas','votes','access','onboard','me','fixes','contacts','orgs','chat','chatrooms','dm','play'];
 
   /* the books (invoices, expenses, payroll, HR letters, billing setup): the owner's alone, subscribed by nobody else */
   const BOOK_COLLS = ['books', 'invoices', 'expenses', 'payroll', 'hr'];
@@ -3030,6 +3075,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     vibe: {label: 'Vibe', icon: 'feed', page: 'Vibe', tabs: [
       {k: 'feed', label: 'Feed', route: 'feed'}, {k: 'crew', label: 'Crew', route: 'people'},
       {k: 'pulse', label: 'Pulse and ideas', route: 'voice'}, {k: 'scores', label: 'Leaderboard', route: 'scores'}, {k: 'music', label: 'Music', route: 'music'}]},
+    break: {label: 'Break', icon: 'breath', page: 'Break', tabs: [
+      {k: 'play', label: 'Play', route: 'play'}, {k: 'reset', label: 'Reset', route: 'reset'}, {k: 'care', label: 'Care', route: 'care'}, {k: 'reflect', label: 'Reflect', route: 'reflect'}]},
     base: {label: 'Base', icon: 'database', page: 'Base', tabs: [
       {k: 'people', label: 'People', route: 'base'}, {k: 'companies', label: 'Companies', route: 'companies'}, {k: 'import', label: 'Import', route: 'import'}]},
     chat: {label: 'Chat', icon: 'send', page: 'Chat'},
@@ -3064,6 +3111,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       case 'billing': return isOwner ? {s: 'books', t: 'billing', id} : {s: 'home'};
       case 'home': case 'today': return {s: 'home'};
       case 'map': case 'explore': case 'whats-here': case 'help': return {s: 'map', id};
+      case 'break': case 'wellness': case 'games': case 'play': return {s: 'break', t: 'play'};
+      case 'reset': case 'meditate': return {s: 'break', t: 'reset'};
+      case 'care': case 'reminders': return {s: 'break', t: 'care'};
+      case 'reflect': case 'wrapped': return {s: 'break', t: 'reflect'};
       case 'work': return {s: 'work', t: 'tasks'};
       case 'projects': return {s: 'work', t: 'projects', id};
       case 'week': return {s: 'work', t: 'week'};
@@ -3300,7 +3351,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const b = M.badges(ctx);
     const go = k => { setMoreOpen(false); M.nav('#' + k); };
 
-    const mainKeys = ['home', 'chat', 'work', 'accounts', 'workspace', 'base', 'radar', 'web', 'vibe', 'me'];
+    const mainKeys = ['home', 'chat', 'work', 'accounts', 'workspace', 'base', 'radar', 'web', 'vibe', 'break', 'me'];
     const founderKeys = ctx.isFounder ? (ctx.isOwner ? ['hq', 'books', 'admin'] : ['hq', 'admin']) : [];
     const item = k => {
       const s = SECTIONS[k];
@@ -3322,7 +3373,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       onTask=${() => setNewTask(true)} onAsk=${() => setAskOpen(true)}/>` : null;
 
     const tabKeys = ctx.isFounder ? ['home', 'chat', 'hq', 'work'] : ['home', 'chat', 'work', 'accounts', 'me'];
-    const moreKeys = (ctx.isFounder ? (ctx.isOwner ? ['accounts', 'workspace', 'base', 'radar', 'web', 'me', 'books', 'admin'] : ['accounts', 'workspace', 'base', 'radar', 'web', 'me', 'admin']) : ['workspace', 'base', 'radar', 'web']).concat(['map']);
+    const moreKeys = (ctx.isFounder ? (ctx.isOwner ? ['accounts', 'workspace', 'base', 'radar', 'web', 'vibe', 'break', 'me', 'books', 'admin'] : ['accounts', 'workspace', 'base', 'radar', 'web', 'vibe', 'break', 'me', 'admin']) : ['workspace', 'base', 'radar', 'web', 'break']).concat(['map']);
     const moreBadge = moreKeys.reduce((n, k) => n + (b[k] || 0), 0);
 
     return html`<div class="app">
@@ -3410,6 +3461,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       ${M.parts.HolidayWatch ? html`<${M.parts.HolidayWatch}/>` : null}
       ${M.parts.FixHost ? html`<${M.parts.FixHost}/>` : null}
       ${M.parts.BooksWatch ? html`<${M.parts.BooksWatch}/>` : null}
+      ${M.parts.CareWatch ? html`<${M.parts.CareWatch}/>` : null}
       ${M.parts.BreatheHost ? html`<${M.parts.BreatheHost}/>` : null}
       ${M.parts.ChatWatch ? html`<${M.parts.ChatWatch}/>` : null}
       ${M.parts.InboxWatch ? html`<${M.parts.InboxWatch}/>` : null}
@@ -5196,9 +5248,12 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     {v: 'all', label: 'All'},
     {v: 'announce', label: 'Announcements'},
     {v: 'win', label: 'Wins'},
+    {v: 'ship', label: 'Shipped'},
     {v: 'kudos', label: 'Kudos'}
   ];
-  const EMPTY = {all: 'Nothing posted yet.', announce: 'No announcements yet.', win: 'No wins yet.', kudos: 'No kudos yet.'};
+  const EMPTY = {all: 'Nothing posted yet.', announce: 'No announcements yet.', win: 'No wins yet.', ship: 'Nothing shipped in the last two weeks. Finish a task and it lands here.', kudos: 'No kudos yet.'};
+  const SHIP_DAYS = 14;
+  const COMMENT_MAX = 400;
   const EMOJIS = ['👍', '🔥', '👀', '✅'];
   const KEEP_POSTS = 80;
   const KEEP_KUDOS = 60;
@@ -5239,8 +5294,108 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           why: String(g.why || ''), at: Number(g.at) || 0, pinned: false});
       }
     }
+    /* every task finished in the last two weeks is a celebration card, written by nobody: it comes from the task itself */
+    const since = Date.now() - SHIP_DAYS * 86400000;
+    const tmap = (ctx.coll && ctx.coll.tasks && ctx.coll.tasks.map) || {};
+    for (const id of Object.keys(tmap)) {
+      const t = tmap[id];
+      if (!t || t.status !== 'done' || !t.doneAt || t.doneAt < since || !t.owner) continue;
+      const proj = t.project && ctx.coll.projects.map[t.project];
+      const cl = t.client && ctx.coll.clients.map[t.client];
+      out.push({key: 's:' + id, type: 'ship', author: t.owner, id, text: String(t.title || ''), at: Number(t.doneAt) || 0, pinned: false,
+        project: proj ? proj.name : '', client: cl ? cl.name : '', approvedBy: t.approvedBy || '', late: !!(t.due && U.ymd(new Date(t.doneAt)) > t.due)});
+    }
     out.sort((a, b) => ((b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)) || (b.at - a.at));
     return out.slice(0, STREAM_CAP);
+  }
+
+  /* comments live in each commenter's own reacts document: cm[postKey][id] = {t, at} */
+  function commentsOf(ctx, key) {
+    const out = [];
+    const reacts = collMap(ctx, 'reacts');
+    for (const who of Object.keys(reacts)) {
+      const cm = ((reacts[who] || {}).cm || {})[key] || {};
+      for (const id of Object.keys(cm)) { const c = cm[id]; if (c && c.t) out.push({id, by: who, t: String(c.t), at: Number(c.at) || 0}); }
+    }
+    return out.sort((a, b) => a.at - b.at);
+  }
+  function commentCounts(ctx) {
+    const n = {};
+    const reacts = collMap(ctx, 'reacts');
+    for (const who of Object.keys(reacts)) {
+      const cm = (reacts[who] || {}).cm || {};
+      for (const key of Object.keys(cm)) n[key] = (n[key] || 0) + Object.keys(cm[key] || {}).filter(id => cm[key][id] && cm[key][id].t).length;
+    }
+    return n;
+  }
+  async function addComment(ctx, key, text) {
+    const t = String(text || '').trim().slice(0, COMMENT_MAX);
+    if (!t) return;
+    await ctx.W.merge('reacts/' + ctx.uid, {cm: {[key]: {[U.uid()]: {t, at: Date.now()}}}});
+  }
+  async function dropComment(ctx, key, id) {
+    const r = U.clone(collMap(ctx, 'reacts')[ctx.uid] || {});
+    if (r.cm && r.cm[key]) { delete r.cm[key][id]; if (!Object.keys(r.cm[key]).length) delete r.cm[key]; }
+    await ctx.W.set('reacts/' + ctx.uid, r);
+  }
+
+  /* the thread under a card: a count, the comments, a box */
+  function Comments({itKey, names, count, open: openDefault}) {
+    const ctx = M.useCtx();
+    const [open, setOpen] = useState(!!openDefault);
+    const [text, setText] = useState('');
+    const list = open ? commentsOf(ctx, itKey) : [];
+    const send = () => { const t = text.trim(); if (!t) return; addComment(ctx, itKey, t).then(() => { setText(''); M.sound.play('soft'); }).catch(() => {}); };
+    return html`<div class="comments">
+      <button type="button" class="linky tiny" aria-expanded=${open} onClick=${() => setOpen(x => !x)}>${count ? count + (count === 1 ? ' comment' : ' comments') : 'Comment'}</button>
+      ${open ? html`<div class="stack tight" style=${{marginTop: '8px'}}>
+        ${list.map(c => html`<div key=${c.id} class="comment row nowrap" style=${{alignItems: 'flex-start'}}>
+          <${UI.Avatar} id=${c.by} size=${22}/>
+          <div class="grow"><b class="small"><${UI.Name} id=${c.by} fallback=${names[c.by] || undefined}/></b> <span class="tiny sub num">${U.timeAgo(c.at)}</span>
+            <div class="small" style=${{overflowWrap: 'anywhere'}}>${c.t}</div></div>
+          ${c.by === ctx.uid ? html`<button type="button" class="linky tiny" onClick=${() => dropComment(ctx, itKey, c.id)}>Delete</button>` : null}
+        </div>`)}
+        <div class="row nowrap" style=${{gap: '8px'}}>
+          <input class="input" value=${text} placeholder="Say something nice" aria-label="Comment" onInput=${e => setText(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') send(); }}/>
+          <${UI.Btn} sm=${true} disabled=${!text.trim()} onClick=${send}>Post<//>
+        </div>
+      </div>` : null}
+    </div>`;
+  }
+
+  /* a shipped task: the owner's name, the title, the project, a cheer line */
+  const CHEERS = ['shipped it', 'got it over the line', 'done and dusted', 'another one down', 'cleared it', 'nailed it', 'put it to bed', 'wrapped it'];
+  function ShipCard({it, counts, mine, names, nComments}) {
+    const ctx = M.useCtx();
+    const c = counts[it.key] || {};
+    const react = e => {
+      const r = myReacts(ctx, ctx.uid);
+      if (r[it.key] === e) { const doc = U.clone(collMap(ctx, 'reacts')[ctx.uid] || {}); doc.r = {...(doc.r || {})}; delete doc.r[it.key]; ctx.W.set('reacts/' + ctx.uid, doc).catch(() => {}); }
+      else ctx.W.merge('reacts/' + ctx.uid, {r: {[it.key]: e}}).then(() => M.sound.play('soft')).catch(() => {});
+    };
+    const cheer = CHEERS[Math.abs(String(it.id).split('').reduce((n, ch) => n + ch.charCodeAt(0), 0)) % CHEERS.length];
+    return html`<section class="card ship" data-key=${it.key} data-kind="ship">
+      <div class="row between post-head">
+        <div class="row nowrap grow">
+          <${UI.Avatar} id=${it.author} size=${32}/>
+          <div class="grow">
+            <div class="row">
+              <b><${UI.Name} id=${it.author} fallback=${names[it.author] || undefined}/> ${cheer}</b>
+              <${UI.Pill} kind="flame">shipped<//>
+            </div>
+            <div class="tiny sub num">${U.timeAgo(it.at)}${it.project ? ' · ' + it.project : ''}${it.client ? ' · ' + it.client : ''}${it.approvedBy ? html` · approved by <${UI.Name} id=${it.approvedBy} fallback=${names[it.approvedBy] || undefined}/>` : ''}</div>
+          </div>
+        </div>
+        <button type="button" class="linky tiny" onClick=${() => M.nav('#tasks/' + it.id)}>Open</button>
+      </div>
+      <div class="ship-title">${it.text}</div>
+      <div class="row" role="group" aria-label="Reactions">
+        ${EMOJIS.map(e => html`<button key=${e} type="button" class=${'emoji-btn' + (mine === e ? ' on' : '')}
+          aria-pressed=${mine === e} aria-label=${'React ' + e} onClick=${() => react(e)}>
+          <span>${e}</span>${c[e] ? html`<span class="num">${c[e]}</span>` : null}</button>`)}
+      </div>
+      <${Comments} itKey=${it.key} names=${names} count=${nComments || 0}/>
+    </section>`;
   }
 
   /* reaction counts from every reacts document: {[postKey]: {[emoji]: n}} */
@@ -5371,7 +5526,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   }
 
   /* ---------- cards ---------- */
-  function PostCard({it, counts, mine, names}) {
+  function PostCard({it, counts, mine, names, nComments}) {
     const ctx = M.useCtx();
     const {uid, isFounder, founderUid, W} = ctx;
     const c = counts[it.key] || {};
@@ -5380,9 +5535,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const react = e => {
       const r = myReacts(ctx, uid);
       if (r[it.key] === e) {
-        const next = {...r};
-        delete next[it.key];
-        W.set('reacts/' + uid, {r: next}).catch(() => {});
+        /* the whole document goes back, so the comments in it stay */
+        const doc = U.clone(collMap(ctx, 'reacts')[uid] || {});
+        doc.r = {...(doc.r || {})}; delete doc.r[it.key];
+        W.set('reacts/' + uid, doc).catch(() => {});
       } else {
         W.merge('reacts/' + uid, {r: {[it.key]: e}}).catch(() => {});
       }
@@ -5454,10 +5610,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           aria-pressed=${mine === e} aria-label=${'React ' + e} onClick=${() => react(e)}>
           <span>${e}</span>${c[e] ? html`<span class="num">${c[e]}</span>` : null}</button>`)}
       </div>
+      <${Comments} itKey=${it.key} names=${names} count=${nComments || 0}/>
     </section>`;
   }
 
-  function KudosCard({it, names}) {
+  function KudosCard({it, names, nComments}) {
     return html`<section class="card" data-key=${it.key} data-kind="kudos">
       <div class="row nowrap">
         <${UI.Avatar} id=${it.giver} size=${32}/>
@@ -5470,6 +5627,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         </div>
       </div>
       <div style=${{overflowWrap: 'anywhere', marginTop: '12px'}}>${it.why}</div>
+      <${Comments} itKey=${it.key} names=${names} count=${nComments || 0}/>
     </section>`;
   }
 
@@ -5482,16 +5640,18 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     M.useIntent('post', () => setTimeout(() => { const el = document.getElementById('feed-text'); if (el) el.focus(); }, 60));
     const items = stream(ctx);
     const counts = reactCounts(ctx);
+    const nc = commentCounts(ctx);
     const mine = myReacts(ctx, ctx.uid);
     const ids = [];
     for (const it of items) {
-      if (it.type === 'post') ids.push(it.author);
+      if (it.type === 'post' || it.type === 'ship') { ids.push(it.author); if (it.approvedBy) ids.push(it.approvedBy); }
       else { ids.push(it.giver); ids.push(it.to); }
     }
+    Object.keys(collMap(ctx, 'reacts')).forEach(u => ids.push(u));
     for (const m of (ctx.activeMembers || [])) ids.push(m.uid);
     const names = useNames(ctx, ids);
     const shown = items.filter(it => filter === 'all'
-      || (filter === 'kudos' ? it.type === 'kudos' : (it.type === 'post' && it.kind === filter)));
+      || (filter === 'kudos' ? it.type === 'kudos' : filter === 'ship' ? it.type === 'ship' : (it.type === 'post' && it.kind === filter)));
     const ready = !!(ctx.coll && ctx.coll.feed && ctx.coll.feed.ready && ctx.coll.kudos && ctx.coll.kudos.ready);
 
     return html`<${React.Fragment}>
@@ -5505,8 +5665,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       </div>
       <div class="stack" id="feed-stream">
         ${shown.length ? shown.map(it => it.type === 'kudos'
-          ? html`<${KudosCard} key=${it.key} it=${it} names=${names}/>`
-          : html`<${PostCard} key=${it.key} it=${it} counts=${counts} mine=${mine[it.key]} names=${names}/>`)
+          ? html`<${KudosCard} key=${it.key} it=${it} names=${names} nComments=${nc[it.key]}/>`
+          : it.type === 'ship' ? html`<${ShipCard} key=${it.key} it=${it} counts=${counts} mine=${mine[it.key]} names=${names} nComments=${nc[it.key]}/>`
+          : html`<${PostCard} key=${it.key} it=${it} counts=${counts} mine=${mine[it.key]} names=${names} nComments=${nc[it.key]}/>`)
           : html`<${UI.Empty} text=${ready ? EMPTY[filter] : 'Loading the feed.'}/>`}
       </div>
       <${KudosDrawer} open=${kudosOpen} onClose=${() => setKudosOpen(false)} names=${names}/>
@@ -5514,7 +5675,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   }
 
   M.pages.Feed = Feed;
-  M.feed = {stream, reactCounts};
+  M.feed = {stream, reactCounts, commentsOf, commentCounts, addComment};
 })();
 
 /* ==== 21-tasks.js ==== */
@@ -11149,6 +11310,739 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   M.leave = {pending, TYPES, okDate, dayCount, rangeText};
 })();
 
+/* ==== 37-break.js ==== */
+/* module: break. "Take a break": the reset room. Sparks are the wellness score (a daily puzzle, a run,
+   a breath, a creativity reset, the care list all earn them), a streak counts the days you showed up
+   for yourself, and levels name the climb. This file holds the engine, the section page and the Play
+   tab: one original daily puzzle (Scramble, a word with a clue on odd days; Pixel, a five by five
+   picture from number clues on even days) with the team's times, and Flame Run, the endless runner.
+   Nothing here touches work points: sparks are their own thing. */
+'use strict';
+(function () {
+  const {html, React, U, UI, icons} = M;
+  const {useState, useEffect, useRef, useMemo} = React;
+
+  const today = () => U.todayStr();
+  const yesterday = () => U.ymd(U.addDays(new Date(), -1));
+  const LEVELS = [[0, 'Spark'], [50, 'Ember'], [150, 'Flame'], [400, 'Blaze'], [1000, 'Supernova']];
+  const RUN_DAY_CAP = 5;
+
+  /* ---------- the engine ---------- */
+  const docOf = (ctx, uid) => (ctx.coll.play && ctx.coll.play.map[uid || ctx.uid]) || {};
+  const level = n => {
+    let cur = LEVELS[0], next = null;
+    for (let i = 0; i < LEVELS.length; i++) { if (n >= LEVELS[i][0]) cur = LEVELS[i]; else { next = LEVELS[i]; break; } }
+    return {name: cur[1], at: cur[0], next: next ? next[1] : '', nextAt: next ? next[0] : null, pct: next ? Math.round(100 * (n - cur[0]) / (next[0] - cur[0])) : 100};
+  };
+  /* +n sparks and the streak, in one write; what counts the day as shown up */
+  async function award(ctx, n, what) {
+    const d = U.clone(docOf(ctx));
+    const td = today();
+    const streak = d.lastDay === td ? (d.streak || 1) : d.lastDay === yesterday() ? (d.streak || 0) + 1 : 1;
+    const best = Math.max(Number(d.best) || 0, streak);
+    const log = {...(d.log || {})};
+    log[td] = {...(log[td] || {}), [what]: ((log[td] || {})[what] || 0) + 1};
+    const keys = Object.keys(log).sort();
+    while (keys.length > 120) delete log[keys.shift()];
+    await ctx.W.merge('play/' + ctx.uid, {sparks: (Number(d.sparks) || 0) + n, streak, best, lastDay: td, log, updated: Date.now()});
+    M.sound.play('done');
+    M.toast('+' + n + ' sparks, ' + what);
+    return streak;
+  }
+  const board = ctx => ctx.activeMembers.map(m => { const d = docOf(ctx, m.uid); return {uid: m.uid, sparks: Number(d.sparks) || 0, streak: d.lastDay === today() || d.lastDay === yesterday() ? (Number(d.streak) || 0) : 0, best: Number(d.best) || 0, level: level(Number(d.sparks) || 0).name}; })
+    .sort((a, b) => b.sparks - a.sparks || b.streak - a.streak);
+  const mine = ctx => { const d = docOf(ctx); const s = Number(d.sparks) || 0; return {sparks: s, level: level(s), streak: d.lastDay === today() || d.lastDay === yesterday() ? (Number(d.streak) || 0) : 0, best: Number(d.best) || 0, today: (d.log || {})[today()] || {}}; };
+
+  /* ---------- seeded randomness: the same puzzle for everyone, every day ---------- */
+  function rng(seedStr) {
+    let h = 1779033703 ^ seedStr.length;
+    for (let i = 0; i < seedStr.length; i++) { h = Math.imul(h ^ seedStr.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
+    let a = h >>> 0;
+    return () => { a += 0x6D2B79F5; let t = Math.imul(a ^ (a >>> 15), 1 | a); t ^= t + Math.imul(t ^ (t >>> 7), 61 | t); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+  const dayNumber = ymd => Math.round(U.parseYmd(ymd).getTime() / 86400000);
+  const kindFor = ymd => dayNumber(ymd) % 2 ? 'word' : 'pixel';
+
+  /* ---------- Scramble: a word from the trade, with a clue ---------- */
+  const WORDS = [
+    ['storyboard', 'the film drawn frame by frame before anyone shoots'], ['moodboard', 'a wall of references that sets the vibe'], ['typography', 'the art of making letters behave'],
+    ['brandbook', 'the rules a logo lives by'], ['retainer', 'a client who pays every month, not per job'], ['deliverable', 'the thing the client actually receives'],
+    ['campaign', 'one big idea, many pieces, one window'], ['tagline', 'four words that outlive the ad'], ['influencer', 'a person whose feed is a channel'],
+    ['engagement', 'the likes, saves and shares, counted'], ['analytics', 'the numbers after the post'], ['briefing', 'the meeting before the meeting'],
+    ['moodfilm', 'a cut of other people\'s footage to sell a feeling'], ['callsheet', 'who is where at what hour on a shoot day'], ['voiceover', 'the words you hear but never see'],
+    ['storytelling', 'the oldest trick in marketing'], ['copywriting', 'words that have to earn their place'], ['narrative', 'the arc that holds a campaign together'],
+    ['audience', 'the people the work is actually for'], ['benchmark', 'the number to beat'], ['milestone', 'a date the project leans on'],
+    ['prototype', 'the rough version that answers the question'], ['wireframe', 'boxes before beauty'], ['keyframe', 'the pose the motion passes through'],
+    ['colourway', 'one design, a different palette'], ['lookbook', 'the collection, photographed'], ['packshot', 'the product, lit, alone'],
+    ['hashtag', 'a word with a fence in front'], ['carousel', 'swipe, swipe, swipe'], ['thumbnail', 'the tiny picture that decides the click'],
+    ['premiere', 'the first showing'], ['teaser', 'the ad for the ad'], ['billboard', 'the ad you cannot scroll past'],
+    ['sponsorship', 'a brand attached to someone else\'s moment'], ['activation', 'the brand, in the real world, for a weekend'], ['experiential', 'marketing you can walk into'],
+    ['luxury', 'the thing Mask360 knows best'], ['premium', 'a notch under luxury, a notch over everyone'], ['heritage', 'a brand\'s past, used as a selling point'],
+    ['artisan', 'made by hand, priced accordingly'], ['bespoke', 'made for one person'], ['curation', 'choosing, as a craft'],
+    ['penthouse', 'the top floor, in a brochure'], ['concierge', 'the person who gets you the table'], ['hospitality', 'the business of making people feel looked after'],
+    ['vineyard', 'where the wine starts'], ['distillery', 'where the whisky starts'], ['sommelier', 'the one who picks the bottle'],
+    ['fragrance', 'the invisible product'], ['skincare', 'the morning ritual, sold in steps'], ['jewellery', 'small, shiny, expensive'],
+    ['horology', 'the study of watches'], ['tourbillon', 'the fancy cage inside a fancy watch'], ['automotive', 'cars, as an industry'],
+    ['mandate', 'the account, once it is yours'], ['pitch', 'the meeting where you win or you don\'t'], ['proposal', 'the pitch, written down'],
+    ['retention', 'keeping the client you already have'], ['churn', 'the clients who leave'], ['pipeline', 'every deal that might happen'],
+    ['invoice', 'the paper that asks for the money'], ['payroll', 'everyone\'s salary, on a date'], ['compliance', 'the rules you file by'],
+    ['creativity', 'the thing this room is for'], ['momentum', 'what Monday morning needs'], ['discipline', 'doing it on the days you do not feel it'],
+    ['focus', 'the opposite of the feed'], ['clarity', 'what a good brief has'], ['brevity', 'the soul of the tagline'],
+    ['resonance', 'when the message lands and stays'], ['authentic', 'the word every brand overuses'], ['aesthetic', 'the vibe, as a noun'],
+    ['minimalism', 'less, on purpose'], ['maximalism', 'more, on purpose'], ['contrast', 'what makes the headline pop'],
+    ['composition', 'where things sit in the frame'], ['lighting', 'the real product on a shoot'], ['continuity', 'the glass is full in every take'],
+    ['montage', 'time, compressed to music'], ['sequence', 'the shots in order'], ['transition', 'how one shot becomes the next'],
+    ['playlist', 'the mood, in songs'], ['cadence', 'how often you post'], ['consistency', 'posting on the days you said you would'],
+    ['deadline', 'the date that makes the work exist'], ['feedback', 'what the client says after the first look'], ['revision', 'the second look'],
+    ['approval', 'the yes'], ['handover', 'the day it stops being yours'], ['launch', 'the day the public sees it']
+  ];
+  function wordPuzzle(ymd) {
+    const r = rng('scramble:' + ymd);
+    const [word, clue] = WORDS[Math.floor(r() * WORDS.length)];
+    let letters = word.split('');
+    for (let tries = 0; tries < 20; tries++) {
+      for (let i = letters.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [letters[i], letters[j]] = [letters[j], letters[i]]; }
+      if (letters.join('') !== word) break;
+    }
+    return {kind: 'word', word, clue, letters, title: 'Scramble', how: 'Unscramble the word. The clue is the trade.'};
+  }
+
+  /* ---------- Pixel: a five by five picture from number clues ---------- */
+  const N = 5;
+  const cluesOf = grid => {
+    const run = cells => { const out = []; let n = 0; cells.forEach(c => { if (c) n++; else if (n) { out.push(n); n = 0; } }); if (n) out.push(n); return out.length ? out : [0]; };
+    return {rows: grid.map(run), cols: Array.from({length: N}, (_, c) => run(grid.map(row => row[c])))};
+  };
+  function pixelPuzzle(ymd) {
+    const r = rng('pixel:' + ymd);
+    let grid;
+    for (let tries = 0; tries < 50; tries++) {
+      grid = Array.from({length: N}, () => Array.from({length: N}, () => r() < .55 ? 1 : 0));
+      const ok = grid.every(row => row.some(Boolean)) && Array.from({length: N}, (_, c) => grid.some(row => row[c])).every(Boolean);
+      if (ok) break;
+    }
+    return {kind: 'pixel', grid, clues: cluesOf(grid), title: 'Pixel', how: 'Fill the squares so every row and column matches its numbers. A 2 1 means a run of two, a gap, then one.'};
+  }
+  const puzzleFor = ymd => kindFor(ymd) === 'word' ? wordPuzzle(ymd) : pixelPuzzle(ymd);
+  const sameClues = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+  async function finish(ctx, puzzle, ms, hints) {
+    const td = today();
+    const score = ms + hints * 20000;
+    await ctx.W.merge('play/' + ctx.uid, {days: {[td]: {kind: puzzle.kind, ms: score, hints, at: Date.now()}}, updated: Date.now()});
+    const fast = score < 120000 && !hints;
+    await award(ctx, fast ? 15 : 10, fast ? 'puzzle, clean and quick' : 'puzzle');
+  }
+  const fmtMs = ms => { const s = Math.round(ms / 1000); return s < 60 ? s + 's' : Math.floor(s / 60) + 'm ' + (s % 60) + 's'; };
+
+  function Scramble({puzzle, done, onDone}) {
+    const [typed, setTyped] = useState('');
+    const [reveal, setReveal] = useState(0);
+    const [t0, setT0] = useState(0);
+    const [wrong, setWrong] = useState(0);
+    const [solved, setSolved] = useState(false);
+    const start = () => { if (!t0) setT0(Date.now()); };
+    const check = () => {
+      start();
+      if (typed.trim().toLowerCase() === puzzle.word) { setSolved(true); onDone(Date.now() - (t0 || Date.now()), reveal); }
+      else { setWrong(w => w + 1); M.sound.play('tick'); }
+    };
+    const hint = () => { start(); setReveal(r => Math.min(puzzle.word.length - 1, r + 1)); };
+    if (done || solved) return html`<div class="stack tight" id="puzzle-done">
+      <div class="brk-word">${puzzle.word.split('').map((ch, i) => html`<span key=${i} class="brk-tile on">${ch}</span>`)}</div>
+      <div class="small">${puzzle.clue}. ${done ? 'Solved in ' + fmtMs(done.ms) + (done.hints ? ' with ' + done.hints + (done.hints === 1 ? ' hint' : ' hints') : ', no hints') + '.' : 'Got it.'}</div>
+    </div>`;
+    return html`<div class="stack tight">
+      <div class="brk-word" aria-label="Scrambled letters">${puzzle.letters.map((ch, i) => html`<span key=${i} class="brk-tile">${ch}</span>`)}</div>
+      <div class="small ink62">${puzzle.clue}${reveal ? html`. Starts with <b>${puzzle.word.slice(0, reveal)}</b>` : ''}</div>
+      <div class="row nowrap" style=${{gap: '8px'}}>
+        <input class="input brk-answer" id="scramble-answer" value=${typed} placeholder="Your answer" autoCapitalize="none" autoComplete="off" aria-label="Your answer"
+          onFocus=${start} onInput=${e => { start(); setTyped(e.target.value); }} onKeyDown=${e => { if (e.key === 'Enter') check(); }}/>
+        <${UI.Btn} id="scramble-check" disabled=${!typed.trim()} onClick=${check}>Check<//>
+        <button type="button" class="linky tiny" id="scramble-hint" onClick=${hint}>Hint (+20s)</button>
+      </div>
+      ${wrong ? html`<div class="tiny flame-t">Not it. ${wrong > 2 ? 'The hint is right there.' : 'Go again.'}</div>` : null}
+    </div>`;
+  }
+
+  function Pixel({puzzle, done, onDone}) {
+    const [grid, setGrid] = useState(() => Array.from({length: N}, () => Array(N).fill(0)));
+    const [t0, setT0] = useState(0);
+    const [hints, setHints] = useState(0);
+    const [solved, setSolved] = useState(false);
+    const start = () => { if (!t0) setT0(Date.now()); };
+    const toggle = (r, c) => {
+      if (solved || done) return;
+      start();
+      const g = grid.map(row => row.slice()); g[r][c] = g[r][c] ? 0 : 1; setGrid(g);
+      if (sameClues(cluesOf(g), puzzle.clues)) { setSolved(true); M.sound.play('chime'); onDone(Date.now() - (t0 || Date.now()), hints); }
+      else M.sound.play('soft');
+    };
+    const hint = () => {
+      if (solved || done) return;
+      start();
+      const r = grid.findIndex((row, i) => row.join('') !== puzzle.grid[i].join(''));
+      if (r < 0) return;
+      const g = grid.map(row => row.slice()); g[r] = puzzle.grid[r].slice(); setGrid(g); setHints(h => h + 1);
+      if (sameClues(cluesOf(g), puzzle.clues)) { setSolved(true); onDone(Date.now() - (t0 || Date.now()), hints + 1); }
+    };
+    const show = done || solved ? puzzle.grid : grid;
+    return html`<div class="stack tight">
+      <div class="brk-pixel" role="grid" aria-label="Pixel">
+        <div class="brk-corner"/>
+        ${puzzle.clues.cols.map((cl, c) => html`<div key=${'c' + c} class="brk-clue col num">${cl.join(' ')}</div>`)}
+        ${show.map((row, r) => html`<${React.Fragment} key=${'r' + r}>
+          <div class="brk-clue row num">${puzzle.clues.rows[r].join(' ')}</div>
+          ${row.map((v, c) => html`<button key=${c} type="button" role="gridcell" class=${'brk-cell' + (v ? ' on' : '')} aria-pressed=${!!v} aria-label=${'row ' + (r + 1) + ' column ' + (c + 1)} onClick=${() => toggle(r, c)}/>`)}
+        <//>`)}
+      </div>
+      ${done || solved ? html`<div class="small" id="puzzle-done">${done ? 'Solved in ' + fmtMs(done.ms) + (done.hints ? ' with ' + done.hints + (done.hints === 1 ? ' hint' : ' hints') : ', no hints') + '.' : 'Picture complete.'}</div>`
+        : html`<div class="row between"><span class="tiny ink62">Tap a square to fill it.</span><button type="button" class="linky tiny" id="pixel-hint" onClick=${hint}>Hint, one row (+20s)</button></div>`}
+    </div>`;
+  }
+
+  function DailyPuzzle() {
+    const ctx = M.useCtx();
+    const td = today();
+    const puzzle = useMemo(() => puzzleFor(td), [td]);
+    const done = (docOf(ctx).days || {})[td] || null;
+    const onDone = (ms, hints) => finish(ctx, puzzle, ms, hints).catch(() => {});
+    const rows = ctx.activeMembers.map(m => ({uid: m.uid, d: (docOf(ctx, m.uid).days || {})[td]})).filter(x => x.d).sort((a, b) => a.d.ms - b.d.ms);
+    return html`<${UI.Card} id="daily-puzzle" title=${html`<span class="row nowrap" style=${{gap: '8px'}}>${puzzle.title}<${UI.Pill}>today's puzzle<//></span>`} action=${html`<span class="tiny ink62">${puzzle.how}</span>`}>
+      ${puzzle.kind === 'word' ? html`<${Scramble} puzzle=${puzzle} done=${done} onDone=${onDone}/>` : html`<${Pixel} puzzle=${puzzle} done=${done} onDone=${onDone}/>`}
+      <div class="stack tight" style=${{marginTop: '14px'}} id="puzzle-board">
+        <div class="row between"><span class="micro">today's times</span><span class="tiny ink62">${rows.length ? rows.length + ' solved' : 'nobody yet, be first'}</span></div>
+        ${rows.map((r, i) => html`<div key=${r.uid} class="row between brk-row">
+          <span class="row nowrap"><span class="num tiny ink62" style=${{width: '20px'}}>${i + 1}</span><${UI.Avatar} id=${r.uid} size=${22}/><${UI.Name} id=${r.uid}/></span>
+          <span class="num small">${fmtMs(r.d.ms)}${r.d.hints ? html` <span class="tiny ink62">${r.d.hints}h</span>` : ''}</span>
+        </div>`)}
+      </div>
+    <//>`;
+  }
+
+  /* ---------- Flame Run: the endless runner ---------- */
+  function Runner() {
+    const ctx = M.useCtx();
+    const canvasRef = useRef(null);
+    const state = useRef(null);
+    const [score, setScore] = useState(0);
+    const [over, setOver] = useState(false);
+    const [running, setRunning] = useState(false);
+    const me = docOf(ctx).runner || {};
+    const best = Number(me.best) || 0;
+    const W = 360, H = 160, GROUND = 128;
+    const reset = () => ({t: 0, x: 0, y: GROUND, vy: 0, speed: 180, obs: [], next: 900, score: 0, alive: true, last: 0});
+    const jump = () => { const s = state.current; if (!s || !s.alive) return; if (s.y >= GROUND - 0.5) { s.vy = -420; M.sound.play('soft'); } };
+    const start = () => { state.current = reset(); setScore(0); setOver(false); setRunning(true); M.sound.play('start'); };
+    useEffect(() => {
+      if (!running) return;
+      const cv = canvasRef.current; if (!cv) return;
+      const g = cv.getContext('2d');
+      const ink = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim() || '#0E0E0E';
+      const paper = getComputedStyle(document.documentElement).getPropertyValue('--warm').trim() || '#F7F6F2';
+      let raf = 0;
+      const frame = now => {
+        const s = state.current; if (!s) return;
+        const dt = s.last ? Math.min(0.05, (now - s.last) / 1000) : 0; s.last = now;
+        if (s.alive) {
+          s.t += dt; s.speed = 180 + s.t * 9; s.score += dt * s.speed / 10;
+          s.vy += 1400 * dt; s.y = Math.min(GROUND, s.y + s.vy * dt); if (s.y >= GROUND) s.vy = 0;
+          s.next -= dt * s.speed;
+          if (s.next <= 0) { const h = 18 + Math.random() * 22, w = 12 + Math.random() * 16; s.obs.push({x: W + 20, w, h}); s.next = 220 + Math.random() * 360; }
+          s.obs.forEach(o => { o.x -= s.speed * dt; });
+          s.obs = s.obs.filter(o => o.x + o.w > -10);
+          const fx = 48, fr = 12;
+          for (const o of s.obs) { if (fx + fr > o.x && fx - fr < o.x + o.w && s.y + 2 > GROUND - o.h) { s.alive = false; M.sound.play('tick'); } }
+          if (!s.alive) {
+            setOver(true); setRunning(false);
+            const sc = Math.floor(s.score);
+            const d = U.clone(docOf(ctx).runner || {});
+            const td = today();
+            const games = d.day === td ? (Number(d.games) || 0) + 1 : 1;
+            ctx.W.merge('play/' + ctx.uid, {runner: {best: Math.max(Number(d.best) || 0, sc), day: td, games, last: sc, at: Date.now()}, updated: Date.now()}).catch(() => {});
+            if (games <= RUN_DAY_CAP) award(ctx, sc > (Number(d.best) || 0) ? 4 : 2, sc > (Number(d.best) || 0) ? 'a new best run' : 'a run').catch(() => {});
+          }
+          setScore(Math.floor(s.score));
+        }
+        /* draw */
+        g.fillStyle = paper; g.fillRect(0, 0, W, H);
+        g.strokeStyle = ink; g.lineWidth = 2; g.beginPath(); g.moveTo(0, GROUND + 1); g.lineTo(W, GROUND + 1); g.stroke();
+        g.fillStyle = ink; s.obs.forEach(o => g.fillRect(o.x, GROUND - o.h, o.w, o.h));
+        const fx = 48, fy = s.y;
+        g.fillStyle = '#F53901';
+        g.beginPath(); g.moveTo(fx, fy - 34); g.quadraticCurveTo(fx + 16, fy - 16, fx + 11, fy - 6); g.arc(fx, fy - 8, 11, 0.3, Math.PI - 0.3, false); g.quadraticCurveTo(fx - 16, fy - 16, fx, fy - 34); g.fill();
+        g.fillStyle = '#FFFFFF'; g.beginPath(); g.arc(fx - 4, fy - 12, 2.2, 0, Math.PI * 2); g.arc(fx + 4, fy - 12, 2.2, 0, Math.PI * 2); g.fill();
+        g.fillStyle = ink; g.font = '600 13px Space Grotesk, sans-serif'; g.textAlign = 'right'; g.fillText(String(Math.floor(s.score)), W - 10, 20);
+        if (s.alive) raf = requestAnimationFrame(frame);
+      };
+      raf = requestAnimationFrame(frame);
+      const key = e => { if (e.code === 'Space' || e.key === 'ArrowUp') { e.preventDefault(); jump(); } };
+      window.addEventListener('keydown', key);
+      const hide = () => { const s = state.current; if (s && document.hidden) s.last = 0; };
+      document.addEventListener('visibilitychange', hide);
+      return () => { cancelAnimationFrame(raf); window.removeEventListener('keydown', key); document.removeEventListener('visibilitychange', hide); };
+    }, [running]);
+    const rows = ctx.activeMembers.map(m => ({uid: m.uid, best: Number((docOf(ctx, m.uid).runner || {}).best) || 0})).filter(r => r.best > 0).sort((a, b) => b.best - a.best).slice(0, 6);
+    return html`<${UI.Card} id="flame-run" title="Flame Run" action=${html`<span class="tiny ink62 num">best ${best}</span>`}>
+      <div class="brk-run" onPointerDown=${e => { e.preventDefault(); if (!running) start(); else jump(); }}>
+        <canvas ref=${canvasRef} width=${W} height=${H} id="run-canvas" aria-label="Flame Run"/>
+        ${!running ? html`<div class="brk-run-over">
+          <div class="small" style=${{fontWeight: 600}}>${over ? 'Run over at ' + score + (score > best && best ? ', new best' : '') : 'Tap or press space to jump the blocks.'}</div>
+          <${UI.Btn} sm=${true} id="run-start" onClick=${e => { e.stopPropagation(); start(); }}>${over ? 'Run again' : 'Run'}<//>
+        </div>` : null}
+      </div>
+      <div class="row between" style=${{marginTop: '8px'}}><span class="tiny ink62">Five runs a day earn sparks, the rest are for the love of it.</span>
+        ${rows.length ? html`<span class="tiny num ink62">${rows.map(r => html`<span key=${r.uid}><${UI.Name} id=${r.uid}/> ${r.best}</span>`).reduce((a, b) => [a, ' · ', b])}</span>` : null}</div>
+    <//>`;
+  }
+
+  /* ---------- the section ---------- */
+  const TABS = [{k: 'play', label: 'Play', route: 'play'}, {k: 'reset', label: 'Reset', route: 'reset'}, {k: 'care', label: 'Care', route: 'care'}, {k: 'reflect', label: 'Reflect', route: 'reflect'}];
+  function Sparks() {
+    const ctx = M.useCtx();
+    const me = mine(ctx);
+    const rows = board(ctx).slice(0, 5);
+    return html`<div class="brk-sparks row" style=${{gap: '14px', flexWrap: 'wrap', alignItems: 'center'}} id="sparks">
+      <span class="chipline"><b class="num">${me.sparks}</b> sparks</span>
+      <span class="chipline"><b>${me.level.name}</b>${me.level.next ? html` <span class="tiny ink62 num">${me.level.nextAt - me.sparks} to ${me.level.next}</span>` : ''}</span>
+      <span class="chipline"><b class="num">${me.streak}</b> day streak${me.best > me.streak ? html` <span class="tiny ink62 num">best ${me.best}</span>` : ''}</span>
+      ${rows.length ? html`<span class="tiny ink62 brk-board">${rows.map((r, i) => html`<span key=${r.uid} class="nowrap">${i + 1}. <${UI.Name} id=${r.uid}/> <span class="num">${r.sparks}</span></span>`).reduce((a, b) => [a, ' · ', b])}</span>` : null}
+    </div>`;
+  }
+  function Break({tab}) {
+    const t = tab || 'play';
+    const P = M.parts;
+    return html`<div class="stack" style=${{gap: '20px'}} id="break">
+      <${M.SectionHero} micro="the reset room" title="Break" sub="Play a little, breathe a little, drink the water. Your brain does better work after, and the sparks prove you showed up.">
+        <${Sparks}/>
+      <//>
+      <${M.SectionTabs} section="break" active=${t}/>
+      ${t === 'reset' && P.BreakReset ? html`<${P.BreakReset}/>` : t === 'care' && P.BreakCare ? html`<${P.BreakCare}/>` : t === 'reflect' && P.BreakReflect ? html`<${P.BreakReflect}/>`
+        : html`<div class="split"><${DailyPuzzle}/><${Runner}/></div>`}
+    </div>`;
+  }
+
+  M.play = {LEVELS, level, award, board, mine, docOf, puzzleFor, cluesOf, rng, kindFor, WORDS, fmtMs, TABS};
+  M.pages.Break = Break;
+})();
+
+/* ==== 38-care.js ==== */
+/* module: care. Break, the Care tab: the small reminders that hold a day together (breakfast, lunch,
+   water, supplements, dinner, anything else), set by the person, kept in their private space. A watcher
+   rings each one when it is due: a notice in m360, the browser's notification when the tab is away,
+   a sound. Snooze pushes it fifteen minutes; Done ticks it. A day with every reminder done earns sparks. */
+'use strict';
+(function () {
+  const {html, React, U, UI, icons} = M;
+  const {useState, useEffect} = React;
+
+  const path = ctx => 'data/users/' + ctx.uid + '/care';
+  const USUAL = [['Breakfast', '09:00'], ['Supplements', '09:30'], ['Water', '11:30'], ['Lunch', '13:30'], ['Water', '16:00'], ['Dinner', '20:30']];
+  const SNOOZE_MS = 15 * 60000;
+  const okTime = t => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(t || ''));
+  const dueAt = (ymd, time) => { const [h, m] = time.split(':').map(Number); const d = U.parseYmd(ymd); d.setHours(h, m, 0, 0); return d.getTime(); };
+  const items = doc => (doc && Array.isArray(doc.items) ? doc.items : []).filter(x => x && x.id && okTime(x.time));
+  const todayLog = (doc, ymd) => ((doc && doc.log) || {})[ymd] || {};
+  /* the state of one reminder right now */
+  function stateOf(it, log, now, ymd) {
+    const l = log[it.id] || {};
+    if (l.done) return 'done';
+    const due = Math.max(dueAt(ymd, it.time), Number(l.snooze) || 0);
+    return now >= due ? 'due' : (l.snooze ? 'snoozed' : 'later');
+  }
+  async function mark(ctx, doc, id, patch) {
+    const ymd = U.todayStr();
+    const log = {...((doc && doc.log) || {})};
+    log[ymd] = {...(log[ymd] || {}), [id]: {...((log[ymd] || {})[id] || {}), ...patch}};
+    const keys = Object.keys(log).sort();
+    while (keys.length > 60) delete log[keys.shift()];
+    await ctx.W.merge(path(ctx), {log, updated: Date.now()});
+    /* every reminder done: the day is cared for */
+    const on = items(doc).filter(x => x.on !== false);
+    if (patch.done && on.length && on.every(x => x.id === id || (log[ymd][x.id] || {}).done) && M.play) {
+      if (!M.play.mine(ctx).today['the care list']) await M.play.award(ctx, 5, 'the care list');
+    }
+  }
+  async function save(ctx, doc, list) {
+    await ctx.W.merge(path(ctx), {items: list.map(x => ({id: x.id, label: String(x.label || '').trim().slice(0, 40), time: x.time, on: x.on !== false})), updated: Date.now()});
+  }
+
+  /* rings what is due, once per due moment, while m360 is open anywhere */
+  const rung = new Set();
+  function CareWatch() {
+    const ctx = M.useCtx();
+    const doc = M.useDoc(ctx.db, ctx.uid ? path(ctx) : '');
+    useEffect(() => {
+      if (!doc.ready || !doc.data || ctx.viewAs) return;
+      const check = () => {
+        const now = Date.now(), ymd = U.todayStr();
+        const log = todayLog(doc.data, ymd);
+        for (const it of items(doc.data)) {
+          if (it.on === false || stateOf(it, log, now, ymd) !== 'due') continue;
+          const key = 'care:' + it.id + ':' + ymd + ':' + (Number((log[it.id] || {}).snooze) || 0);
+          if (rung.has(key)) continue;
+          rung.add(key);
+          if (M.notices) M.notices.push({key, title: it.label, body: 'Time for ' + it.label.toLowerCase() + '. Tap to tick it off or snooze.', href: '#care', icon: 'bell', life: 60000});
+          M.sound.play('chime');
+        }
+      };
+      check();
+      const id = setInterval(check, 30000);
+      return () => clearInterval(id);
+    }, [doc.ready, doc.data, ctx.uid, ctx.viewAs]);
+    return null;
+  }
+
+  function Care() {
+    const ctx = M.useCtx();
+    const doc = M.useDoc(ctx.db, path(ctx));
+    const [label, setLabel] = useState('');
+    const [time, setTime] = useState('');
+    const [tick, setTick] = useState(0);
+    useEffect(() => { const id = setInterval(() => setTick(x => x + 1), 30000); return () => clearInterval(id); }, []);
+    const list = items(doc.data);
+    const ymd = U.todayStr(), now = Date.now();
+    const log = todayLog(doc.data, ymd);
+    const rows = list.map(it => ({it, st: stateOf(it, log, now, ymd), l: log[it.id] || {}})).sort((a, b) => a.it.time.localeCompare(b.it.time));
+    const done = rows.filter(r => r.it.on !== false && r.st === 'done').length, on = rows.filter(r => r.it.on !== false).length;
+    const add = () => {
+      if (!label.trim() || !okTime(time)) { M.toast('A name and a time, like 13:30', true); return; }
+      save(ctx, doc.data, list.concat([{id: U.uid(), label: label.trim(), time, on: true}])).then(() => { setLabel(''); setTime(''); M.sound.play('soft'); });
+    };
+    const usual = () => save(ctx, doc.data, list.concat(USUAL.filter(([l, t]) => !list.some(x => x.label === l && x.time === t)).map(([l, t]) => ({id: U.uid(), label: l, time: t, on: true}))));
+    const notif = M.notices ? M.notices.state() : 'none';
+    return html`<div class="stack" style=${{gap: '16px'}} id="break-care">
+      <${UI.Card} id="care-today" title="Today" action=${html`<span class="tiny ink62 num" data-tick=${tick}>${on ? done + ' of ' + on + ' done' : ''}</span>`}>
+        ${!list.length ? html`<div class="stack tight">
+          <div class="small">Nothing set yet. The usual five take one tap, then change the times to yours.</div>
+          <div><${UI.Btn} sm=${true} id="care-usual" onClick=${usual}>Add the usual<//></div>
+        </div>` : html`<div class="stack tight">
+          ${rows.filter(r => r.it.on !== false).map(r => html`<div key=${r.it.id} class=${'row between care-row ' + r.st} data-state=${r.st}>
+            <span class="row nowrap"><span class=${'care-dot ' + r.st}/><span class=${r.st === 'done' ? 'ink62' : ''} style=${r.st === 'done' ? {textDecoration: 'line-through'} : null}>${r.it.label}</span><span class="tiny num ink62">${r.it.time}${r.st === 'snoozed' ? ', until ' + U.hhmm(r.l.snooze) : ''}</span></span>
+            ${r.st === 'done' ? html`<button type="button" class="linky tiny" onClick=${() => mark(ctx, doc.data, r.it.id, {done: null})}>Undo</button>`
+              : html`<span class="row nowrap" style=${{gap: '6px'}}>
+                ${r.st === 'due' || r.st === 'snoozed' ? html`<button type="button" class="linky tiny" id=${'care-snooze-' + r.it.id} onClick=${() => mark(ctx, doc.data, r.it.id, {snooze: Date.now() + SNOOZE_MS})}>Snooze 15</button>` : null}
+                <${UI.Btn} sm=${true} kind=${r.st === 'due' ? undefined : 'sec'} id=${'care-done-' + r.it.id} onClick=${() => mark(ctx, doc.data, r.it.id, {done: Date.now(), snooze: null})}>Done<//>
+              </span>`}
+          </div>`)}
+        </div>`}
+        ${notif === 'default' ? html`<div class="row between" style=${{marginTop: '10px'}}><span class="tiny ink62">Let the browser ring these when m360 is in another tab.</span><button type="button" class="linky tiny" onClick=${() => M.notices.ask()}>Allow</button></div>` : null}
+      <//>
+      <${UI.Card} id="care-setup" title="The reminders">
+        <div class="stack tight">
+          ${list.map(it => html`<div key=${it.id} class="row between">
+            <span class="row nowrap"><input class="input" style=${{width: '150px', minHeight: '34px'}} value=${it.label} aria-label="Reminder name" onChange=${e => save(ctx, doc.data, list.map(x => x.id === it.id ? {...x, label: e.target.value} : x))}/>
+              <input class="input num" type="time" style=${{width: '110px', minHeight: '34px'}} value=${it.time} aria-label="Reminder time" onChange=${e => { if (okTime(e.target.value)) save(ctx, doc.data, list.map(x => x.id === it.id ? {...x, time: e.target.value} : x)); }}/></span>
+            <span class="row nowrap" style=${{gap: '8px'}}>
+              <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${it.on === false ? 'off' : 'on'} ariaLabel=${it.label + ' on or off'} onChange=${v => save(ctx, doc.data, list.map(x => x.id === it.id ? {...x, on: v === 'on'} : x))}/>
+              <button type="button" class="iconbtn" aria-label=${'Remove ' + it.label} onClick=${() => save(ctx, doc.data, list.filter(x => x.id !== it.id))}><${icons.x}/></button>
+            </span>
+          </div>`)}
+          <div class="row nowrap" style=${{gap: '8px'}}>
+            <input class="input" id="care-label" placeholder="Water, a stretch, the 4pm walk" value=${label} aria-label="New reminder" onInput=${e => setLabel(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') add(); }}/>
+            <input class="input num" id="care-time" type="time" style=${{width: '120px'}} value=${time} aria-label="New reminder time" onInput=${e => setTime(e.target.value)}/>
+            <${UI.Btn} sm=${true} id="care-add" onClick=${add}>Add<//>
+          </div>
+          ${list.length && USUAL.some(([l, t]) => !list.some(x => x.label === l && x.time === t)) ? html`<button type="button" class="linky tiny" style=${{alignSelf: 'flex-start'}} onClick=${usual}>Add the usual five</button>` : null}
+        </div>
+      <//>
+      <div class="hint">Yours alone: nobody else sees the list. A day with every reminder done earns five sparks.</div>
+    </div>`;
+  }
+
+  M.parts.BreakCare = Care;
+  M.parts.CareWatch = CareWatch;
+  M.care = {path, items, stateOf, USUAL, SNOOZE_MS};
+})();
+
+/* ==== 38-reset.js ==== */
+/* module: reset. Break, the Reset tab: one tap of breathing, meditation timers with a bell, and five
+   creativity resets with the research behind each (the alternative uses test, remote associates, a
+   blue minute, doodling, a walk). Each earns sparks once a day. Nothing here needs the model. */
+'use strict';
+(function () {
+  const {html, React, U, UI} = M;
+  const {useState, useEffect, useRef} = React;
+
+  const OBJECTS = ['a paperclip', 'a brick', 'a shoe', 'a coffee mug', 'a newspaper', 'a rubber band', 'a plastic bottle', 'a wooden spoon', 'a tote bag', 'a traffic cone', 'an old phone', 'a safety pin', 'a bedsheet', 'a tennis ball', 'a ladder'];
+  const TRIADS = [
+    [['cottage', 'swiss', 'cake'], 'cheese'], [['cream', 'skate', 'water'], 'ice'], [['loser', 'throat', 'spot'], 'sore'], [['show', 'life', 'row'], 'boat'],
+    [['night', 'wrist', 'stop'], 'watch'], [['duck', 'fold', 'dollar'], 'bill'], [['rocking', 'wheel', 'high'], 'chair'], [['dew', 'comb', 'bee'], 'honey'],
+    [['fountain', 'baking', 'pop'], 'soda'], [['preserve', 'ranger', 'tropical'], 'forest'], [['aid', 'rubber', 'wagon'], 'band'], [['flake', 'mobile', 'cone'], 'snow'],
+    [['cracker', 'fly', 'fighter'], 'fire'], [['safety', 'cushion', 'point'], 'pin'], [['cane', 'daddy', 'plum'], 'sugar'], [['dream', 'break', 'light'], 'day'],
+    [['fish', 'mine', 'rush'], 'gold'], [['political', 'surprise', 'line'], 'party'], [['measure', 'worm', 'video'], 'tape'], [['high', 'district', 'house'], 'school'],
+    [['sense', 'courtesy', 'place'], 'common'], [['worm', 'shelf', 'end'], 'book'], [['piece', 'mind', 'dating'], 'game'], [['flower', 'friend', 'scout'], 'girl'],
+    [['river', 'note', 'account'], 'bank'], [['print', 'berry', 'bird'], 'blue'], [['pie', 'luck', 'belly'], 'pot'], [['date', 'alley', 'fold'], 'blind'],
+    [['opera', 'hand', 'dish'], 'soap'], [['cadet', 'capsule', 'ship'], 'space'], [['fur', 'back', 'tail'], 'horse'], [['stick', 'maker', 'point'], 'match']
+  ];
+  const day = () => U.todayStr();
+  const onceToday = (ctx, what) => !!(M.play && M.play.mine(ctx).today[what]);
+  const earn = (ctx, what, n) => { if (onceToday(ctx, what)) { M.toast('Already counted today. Still worth it.'); return Promise.resolve(); } return M.play.award(ctx, n || 5, what); };
+
+  /* a countdown with a ring and a bell */
+  function Timer({seconds, label, onDone, onStop, prompts}) {
+    const [left, setLeft] = useState(seconds);
+    const t0 = useRef(Date.now());
+    useEffect(() => {
+      const id = setInterval(() => {
+        const l = Math.max(0, seconds - Math.round((Date.now() - t0.current) / 1000));
+        setLeft(l);
+        if (l <= 0) { clearInterval(id); M.sound.play('chime'); onDone(); }
+      }, 250);
+      return () => clearInterval(id);
+    }, [seconds]);
+    const r = 46, C = 2 * Math.PI * r, p = 1 - left / seconds;
+    const prompt = prompts && prompts.length ? prompts[Math.min(prompts.length - 1, Math.floor((seconds - left) / (seconds / prompts.length)))] : '';
+    return html`<div class="brk-timer" id="brk-timer">
+      <svg viewBox="0 0 100 100" class="brk-ring" aria-hidden="true"><circle class="bg" cx="50" cy="50" r=${r}/><circle class="fg" cx="50" cy="50" r=${r} stroke-dasharray=${C} stroke-dashoffset=${C * (1 - p)}/></svg>
+      <div class="brk-timer-mid"><div class="num brk-left">${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</div><div class="tiny ink62">${label}</div></div>
+      ${prompt ? html`<div class="small brk-prompt">${prompt}</div>` : null}
+      <button type="button" class="linky tiny" onClick=${onStop}>Stop</button>
+    </div>`;
+  }
+
+  function Meditate({ctx}) {
+    const [run, setRun] = useState(0);
+    if (run) return html`<${Timer} seconds=${run * 60} label=${run + ' minute sit'} onStop=${() => setRun(0)} onDone=${() => { setRun(0); earn(ctx, 'a sit', 5); }}
+      prompts=${['Sit back. Shoulders down. Jaw loose.', 'Breathe in through the nose, out through the mouth, slower than feels natural.', 'Thoughts will come. Let them pass like notifications you did not open.', 'Count the breaths from one to ten, then start over.', 'Last stretch. Notice three sounds in the room.', 'Nearly there. Come back slowly.']}/>`;
+    return html`<div class="row" style=${{gap: '8px', flexWrap: 'wrap'}}>
+      <${UI.Btn} id="breathe-now" onClick=${() => { if (M.breathe) M.breathe.open(); earn(ctx, 'a breath', 5); }}>Breathe, one minute<//>
+      ${[3, 5, 10].map(m => html`<${UI.Btn} key=${m} kind="sec" id=${'sit-' + m} onClick=${() => setRun(m)}>Sit ${m} min<//>`)}
+    </div>`;
+  }
+
+  /* the alternative uses test: two minutes, one object, every use you can think of */
+  function Uses({ctx}) {
+    const [obj] = useState(() => OBJECTS[Math.floor(Math.random() * OBJECTS.length)]);
+    const [on, setOn] = useState(false);
+    const [text, setText] = useState('');
+    const [result, setResult] = useState(null);
+    const count = text.split('\n').map(l => l.trim()).filter(Boolean).length;
+    const finish = () => { setOn(false); setResult(count); earn(ctx, 'thirty uses', 5 + (count >= 10 ? 5 : 0)); };
+    return html`<div class="stack tight">
+      <div class="small">List every use you can think of for <b>${obj}</b>. Normal ones, weird ones, illegal in some states ones. Fluency first, quality later.</div>
+      ${on ? html`<${Timer} seconds=${120} label="uses" onStop=${finish} onDone=${finish}/>` : null}
+      ${on || result != null ? html`<textarea class="input" rows="6" id="uses-text" placeholder="One per line" value=${text} onInput=${e => setText(e.target.value)} disabled=${!on}/>` : null}
+      <div class="row between">
+        ${result == null ? html`<${UI.Btn} id="uses-start" sm=${true} disabled=${on} onClick=${() => { setOn(true); setText(''); M.sound.play('start'); }}>${on ? 'Go' : 'Start two minutes'}<//>` : html`<span class="small"><b class="num">${result}</b> uses. ${result >= 15 ? 'That is a creative brain on a good day.' : result >= 8 ? 'Solid. The second minute is where the weird ones live.' : 'The first few are everyone\'s. Tomorrow, push past them.'}</span>`}
+        <span class="tiny ink62 num">${on ? count + ' so far' : ''}</span>
+      </div>
+    </div>`;
+  }
+
+  /* remote associates: three words, one word that goes with all three */
+  function Triads({ctx}) {
+    const [i, setI] = useState(() => Math.floor(Math.random() * TRIADS.length));
+    const [typed, setTyped] = useState('');
+    const [got, setGot] = useState(0);
+    const [state, setState] = useState('');
+    const [words, answer] = TRIADS[i];
+    const check = () => {
+      if (typed.trim().toLowerCase() === answer) { setState('yes'); setGot(g => g + 1); M.sound.play('done'); if (got + 1 === 3) earn(ctx, 'three triads', 5); }
+      else { setState('no'); M.sound.play('tick'); }
+    };
+    const next = () => { setI(x => (x + 1 + Math.floor(Math.random() * (TRIADS.length - 1))) % TRIADS.length); setTyped(''); setState(''); };
+    return html`<div class="stack tight">
+      <div class="small">One word goes in front of or behind all three. Mednick's test, 1962: it measures how far your associations reach. Three right earns the sparks.</div>
+      <div class="brk-word">${words.map(w => html`<span key=${w} class="brk-tile wide">${w}</span>`)}</div>
+      <div class="row nowrap" style=${{gap: '8px'}}>
+        <input class="input brk-answer" id="triad-answer" value=${typed} placeholder="The word" autoCapitalize="none" autoComplete="off" aria-label="The word" onInput=${e => { setTyped(e.target.value); setState(''); }} onKeyDown=${e => { if (e.key === 'Enter') (state === 'yes' ? next() : check()); }}/>
+        ${state === 'yes' ? html`<${UI.Btn} sm=${true} id="triad-next" onClick=${next}>Next<//>` : html`<${UI.Btn} sm=${true} id="triad-check" disabled=${!typed.trim()} onClick=${check}>Check<//>`}
+        <button type="button" class="linky tiny" onClick=${() => { setState('show'); }}>Show me</button>
+      </div>
+      <div class="tiny ${state === 'no' ? 'flame-t' : 'ink62'}">${state === 'yes' ? 'Yes. ' + answer + '.' : state === 'no' ? 'Not that one.' : state === 'show' ? 'It was ' + answer + '. No sparks for that one, no shame either.' : got + ' of 3 today'}</div>
+    </div>`;
+  }
+
+  /* a blue minute: blue primes exploratory thinking (Mehta and Zhu, 2009); the eyes go far, then near */
+  function BlueMinute({ctx}) {
+    const [on, setOn] = useState(false);
+    if (!on) return html`<div class="row between"><span class="small">Sixty seconds of blue and a few instructions for the eyes. Blue nudges the brain toward exploring; a far gaze rests the part that has been staring at a screen.</span><${UI.Btn} sm=${true} id="blue-start" kind="sec" onClick=${() => setOn(true)}>Start<//></div>`;
+    return html`<div class="brk-sky">
+      <${Timer} seconds=${60} label="blue minute" onStop=${() => setOn(false)} onDone=${() => { setOn(false); earn(ctx, 'a blue minute', 5); }}
+        prompts=${['Look at the farthest thing you can see. Hold it.', 'Now something at arm\'s length. Then far again.', 'Unfocus. Let the screen blur.', 'Name one thing you can smell and one you can hear.', 'Back to the screen, slowly.']}/>
+    </div>`;
+  }
+
+  /* doodling for a minute keeps the mind from wandering off entirely (Andrade, 2009) */
+  function Doodle({ctx}) {
+    const ref = useRef(null);
+    const [on, setOn] = useState(false);
+    const drawing = useRef(false);
+    useEffect(() => {
+      if (!on) return;
+      const cv = ref.current; if (!cv) return;
+      const g = cv.getContext('2d');
+      g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--warm').trim() || '#F7F6F2'; g.fillRect(0, 0, cv.width, cv.height);
+      g.strokeStyle = '#F53901'; g.lineWidth = 3; g.lineCap = 'round'; g.lineJoin = 'round';
+      const pos = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height]; };
+      const down = e => { drawing.current = true; const [x, y] = pos(e); g.beginPath(); g.moveTo(x, y); cv.setPointerCapture(e.pointerId); };
+      const move = e => { if (!drawing.current) return; const [x, y] = pos(e); g.lineTo(x, y); g.stroke(); };
+      const up = () => { drawing.current = false; };
+      cv.addEventListener('pointerdown', down); cv.addEventListener('pointermove', move); cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+      return () => { cv.removeEventListener('pointerdown', down); cv.removeEventListener('pointermove', move); cv.removeEventListener('pointerup', up); cv.removeEventListener('pointercancel', up); };
+    }, [on]);
+    if (!on) return html`<div class="row between"><span class="small">Draw nothing in particular for a minute. People who doodle through a dull call remember more of it; the hand keeps the mind in the room.</span><${UI.Btn} sm=${true} id="doodle-start" kind="sec" onClick=${() => setOn(true)}>Start<//></div>`;
+    return html`<div class="stack tight">
+      <canvas ref=${ref} width="600" height="260" class="brk-doodle" id="doodle-canvas" aria-label="Doodle pad"/>
+      <${Timer} seconds=${60} label="doodle" onStop=${() => setOn(false)} onDone=${() => { setOn(false); earn(ctx, 'a doodle', 5); }}/>
+    </div>`;
+  }
+
+  function Walk({ctx}) {
+    const [on, setOn] = useState(false);
+    if (!on) return html`<div class="row between"><span class="small">Five minutes on your feet. Walking lifts divergent thinking by about sixty percent in the lab (Oppezzo and Schwartz, 2014), and the effect lasts a while after you sit back down.</span><${UI.Btn} sm=${true} id="walk-start" kind="sec" onClick=${() => { setOn(true); M.sound.play('start'); }}>Start<//></div>`;
+    return html`<${Timer} seconds=${300} label="walk" onStop=${() => setOn(false)} onDone=${() => { setOn(false); earn(ctx, 'a walk', 5); }} prompts=${['Phone in the pocket. Eyes up.', 'Pick a problem from today and carry it, lightly.', 'Change direction once for no reason.', 'Notice the thing you walk past every day and never look at.', 'Head back. Write down the first idea that showed up.']}/>`;
+  }
+
+  function Reset() {
+    const ctx = M.useCtx();
+    const t = M.play ? M.play.mine(ctx).today : {};
+    const did = Object.keys(t).length;
+    return html`<div class="stack" style=${{gap: '16px'}} id="break-reset">
+      <${UI.Card} id="breathe-card" title="Breathe & reset" action=${html`<span class="tiny ink62">${did ? did + ' today' : 'nothing yet today'}</span>`}>
+        <div class="small" style=${{marginBottom: '10px'}}>One tap, one minute of box breathing. Or sit for longer with a bell at the end.</div>
+        <${Meditate} ctx=${ctx}/>
+      <//>
+      <div class="split">
+        <${UI.Card} id="uses-card" title="Thirty uses" action=${html`<span class="tiny ink62">Guilford, 1967</span>`}><${Uses} ctx=${ctx}/><//>
+        <${UI.Card} id="triads-card" title="Three words" action=${html`<span class="tiny ink62">Mednick, 1962</span>`}><${Triads} ctx=${ctx}/><//>
+        <${UI.Card} id="blue-card" title="Blue minute" action=${html`<span class="tiny ink62">Mehta & Zhu, 2009</span>`}><${BlueMinute} ctx=${ctx}/><//>
+        <${UI.Card} id="doodle-card" title="Doodle" action=${html`<span class="tiny ink62">Andrade, 2009</span>`}><${Doodle} ctx=${ctx}/><//>
+        <${UI.Card} id="walk-card" title="Walk it off" action=${html`<span class="tiny ink62">Oppezzo & Schwartz, 2014</span>`}><${Walk} ctx=${ctx}/><//>
+      </div>
+      <div class="hint">Each reset earns sparks once a day. The science is real; the sparks are the excuse.</div>
+    </div>`;
+  }
+
+  M.parts.BreakReset = Reset;
+  M.reset = {OBJECTS, TRIADS};
+})();
+
+/* ==== 39-reflect.js ==== */
+/* module: reflect. Break, the Reflect tab: your last month, three months, six months or year, read
+   back to you. The numbers come from your own records (tasks shipped and on time, kudos in and out,
+   points, outcomes hit, EODs filed, the sparks and streaks); the era title comes from the numbers; the
+   write-up comes from the model when it is on, in the house voice, and is kept in your private space
+   for the day. Share one line to Vibe if you feel like it. */
+'use strict';
+(function () {
+  const {html, React, U, UI} = M;
+  const {useState, useEffect} = React;
+
+  const PERIODS = [{k: 'month', label: 'This month', days: 30}, {k: 'quarter', label: 'Three months', days: 90}, {k: 'half', label: 'Six months', days: 180}, {k: 'year', label: 'The year', days: 365}];
+  const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  function stats(ctx, period) {
+    const p = PERIODS.find(x => x.k === period) || PERIODS[0];
+    const to = U.todayStr(), from = U.ymd(U.addDays(new Date(), -(p.days - 1)));
+    const inRange = ts => { const d = U.ymd(new Date(ts)); return d >= from && d <= to; };
+    const uid = ctx.uid;
+    const tasks = Object.keys(ctx.coll.tasks.map).map(id => ({id, ...ctx.coll.tasks.map[id]})).filter(t => t && t.owner === uid);
+    const shipped = tasks.filter(t => t.status === 'done' && t.doneAt && inRange(t.doneAt));
+    const onTime = shipped.filter(t => !t.due || U.ymd(new Date(t.doneAt)) <= t.due).length;
+    const revisions = shipped.reduce((n, t) => n + (Number(t.revisions) || 0), 0);
+    const byDay = {}; shipped.forEach(t => { const d = new Date(t.doneAt).getDay(); byDay[d] = (byDay[d] || 0) + 1; });
+    const bestDay = Object.keys(byDay).sort((a, b) => byDay[b] - byDay[a])[0];
+    const byProj = {}; shipped.forEach(t => { if (t.project) byProj[t.project] = (byProj[t.project] || 0) + 1; });
+    const topProj = Object.keys(byProj).sort((a, b) => byProj[b] - byProj[a])[0];
+    const kudosIn = [], kudosOut = [];
+    Object.keys(ctx.coll.kudos.map).forEach(giver => ((ctx.coll.kudos.map[giver] || {}).given || []).forEach(g => {
+      if (!g || !g.at || !inRange(g.at)) return;
+      if (g.to === uid) kudosIn.push({from: giver, why: g.why});
+      if (giver === uid) kudosOut.push({to: g.to});
+    }));
+    const eods = Object.keys((ctx.coll.eod.map[uid] || {}).days || {}).filter(d => d >= from && d <= to).length;
+    let working = 0; for (let d = U.parseYmd(from); U.ymd(d) <= to; d = U.addDays(d, 1)) if (ctx.isWorkingDay ? ctx.isWorkingDay(U.ymd(d), uid) : d.getDay() !== 0) working++;
+    const weeks = (ctx.coll.review.map[uid] || {}).weeks || {};
+    let hit = 0, miss = 0; Object.keys(weeks).forEach(w => { const mk = (weeks[w] || {}).marks || {}; Object.values(mk).forEach(v => { if (v === 'hit') hit++; else if (v === 'miss') miss++; }); });
+    const pts = M.points && M.points.pointsFor ? M.points.pointsFor(ctx, uid, from, to) : null;
+    const checkins = Object.keys((ctx.coll.checkin.map[uid] || {}).days || {}).filter(d => d >= from && d <= to).length;
+    const play = (M.play ? M.play.docOf(ctx) : {}) || {};
+    const log = play.log || {};
+    const playDays = Object.keys(log).filter(d => d >= from && d <= to);
+    const puzzles = Object.keys(play.days || {}).filter(d => d >= from && d <= to).length;
+    const breaths = playDays.reduce((n, d) => n + (log[d]['a breath'] || 0) + (log[d]['a sit'] || 0), 0);
+    const s = {period: p, from, to, shipped: shipped.length, onTime, onTimePct: shipped.length ? Math.round(100 * onTime / shipped.length) : null, revisions, bestDay: bestDay != null ? DAYS[bestDay] : '',
+      topProject: topProj ? (ctx.coll.projects.map[topProj] || {}).name || '' : '', topProjectN: topProj ? byProj[topProj] : 0, kudosIn: kudosIn.length, kudosOut: kudosOut.length,
+      kudosFrom: Array.from(new Set(kudosIn.map(k => k.from))), eods, working, hit, miss, points: pts ? pts.total : 0, checkins, playDays: playDays.length, puzzles, breaths, streakBest: Number(play.best) || 0};
+    s.era = eraOf(s);
+    return s;
+  }
+  /* the title the numbers earn */
+  function eraOf(s) {
+    if (!s.shipped && !s.kudosIn && !s.eods && !s.playDays) return {title: 'Quiet era', line: 'Not much on the record yet. The next one is yours to write.'};
+    const score = [
+      [s.shipped >= 12 && s.onTimePct >= 80 ? 3 : s.shipped >= 6 ? 2 : s.shipped ? 1 : 0, {title: 'Shipping era', line: 'Things left your desk and did not come back.'}],
+      [s.kudosIn >= 4 ? 3 : s.kudosIn >= 2 ? 2 : s.kudosIn ? 1 : 0, {title: 'Team glue era', line: 'People noticed, and said so.'}],
+      [s.working && s.eods / s.working >= .85 && s.checkins / s.working >= .85 ? 3 : s.working && s.eods / s.working >= .6 ? 2 : s.eods ? 1 : 0, {title: 'Locked in era', line: 'Showed up, wrote it down, every day it counted.'}],
+      [s.playDays >= 12 ? 3 : s.playDays >= 5 ? 2 : s.playDays ? 1 : 0, {title: 'Soft life era', line: 'Took the breaks. The work got better for it.'}],
+      [s.hit >= 6 && s.hit > s.miss * 2 ? 3 : s.hit >= 3 ? 2 : s.hit ? 1 : 0, {title: 'Said it, did it era', line: 'The outcomes you wrote on Monday were the ones you hit.'}]
+    ].sort((a, b) => b[0] - a[0]);
+    return score[0][0] ? score[0][1] : {title: 'Warm up era', line: 'A few things on the board. The streak starts now.'};
+  }
+
+  function narrativePrompt(s, name) {
+    return 'Write a short reflection for ' + name + ' on their last ' + s.period.label.toLowerCase() + ' at Mask360, from these numbers only. Voice: warm, playful, a little Gen Z (lowkey, no cap, main character, era), never cringe, never corporate, no emoji, no exclamation marks, no bullet points, no headings. Four to six sentences, under 110 words. Name the era once. Be honest about a soft spot without being harsh, and end on one specific thing to do next.\n\n' +
+      'ERA: ' + s.era.title + '\nSHIPPED: ' + s.shipped + ' tasks, ' + (s.onTimePct == null ? 'none dated' : s.onTimePct + '% on time') + ', ' + s.revisions + ' revisions\n' +
+      (s.bestDay ? 'BUSIEST DAY: ' + s.bestDay + '\n' : '') + (s.topProject ? 'BIGGEST PROJECT: ' + s.topProject + ' (' + s.topProjectN + ' tasks)\n' : '') +
+      'KUDOS: ' + s.kudosIn + ' received, ' + s.kudosOut + ' given\nEODS: ' + s.eods + ' of ' + s.working + ' working days\nCHECK-INS: ' + s.checkins + '\nOUTCOMES: ' + s.hit + ' hit, ' + s.miss + ' missed\nPOINTS: ' + s.points + '\n' +
+      'BREAKS: ' + s.playDays + ' days in the reset room, ' + s.puzzles + ' puzzles, ' + s.breaths + ' breaths, best streak ' + s.streakBest;
+  }
+  function fallback(s, first) {
+    const bits = [first + ', this was your ' + s.era.title.toLowerCase() + '. ' + s.era.line];
+    if (s.shipped) bits.push('You shipped ' + s.shipped + (s.shipped === 1 ? ' task' : ' tasks') + (s.onTimePct != null ? ', ' + s.onTimePct + ' percent on time' : '') + (s.topProject ? ', most of it on ' + s.topProject : '') + '.');
+    if (s.kudosIn) bits.push(s.kudosIn + (s.kudosIn === 1 ? ' kudos came your way' : ' kudos came your way') + (s.kudosOut ? ' and you sent ' + s.kudosOut : '') + '.');
+    if (s.working) bits.push('EODs on ' + s.eods + ' of ' + s.working + ' working days' + (s.eods / s.working >= .8 ? ', which is the habit doing its job.' : ', so that is the one to tighten.'));
+    if (s.playDays) bits.push(s.playDays + (s.playDays === 1 ? ' day' : ' days') + ' in the reset room. Keep that.');
+    return bits.join(' ');
+  }
+
+  function Reflect() {
+    const ctx = M.useCtx();
+    const [period, setPeriod] = useState('month');
+    const s = stats(ctx, period);
+    const cache = M.ai.useCache(ctx);
+    const cached = cache.data && cache.data.reflect && cache.data.reflect[period];
+    const fresh = cached && cached.date === U.todayStr() && cached.text;
+    const r = M.ai.useRun();
+    const [first, setFirst] = useState('');
+    useEffect(() => { M.ai.names(ctx).then(nm => setFirst(String(nm[ctx.uid] || '').split(' ')[0] || 'you')).catch(() => setFirst('you')); }, [ctx.uid]);
+    const write = () => r.run(o => M.ai.text(ctx, narrativePrompt(s, first || 'this person'), {signal: o.signal, onText: o.onText, tier: 'quick', cache: false}).then(t => { const text = String(t || '').replace(/\u2014|\u2013/g, ', ').replace(/!/g, '.'); M.ai.saveCache(ctx, 'reflect', {...((cache.data || {}).reflect || {}), [period]: {text, date: U.todayStr()}}); return text; }));
+    const text = r.text || fresh || '';
+    const share = () => {
+      const line = (text || fallback(s, first)).split(/(?<=\.)\s/)[0];
+      const id = U.uid();
+      const mine = ctx.coll.feed.map[ctx.uid] || {};
+      ctx.W.merge('feed/' + ctx.uid, {posts: [{id, kind: 'win', text: s.era.title + ': ' + line, at: Date.now()}].concat(U.clone(mine.posts || [])).slice(0, 80), pinned: mine.pinned || null}).then(() => M.toast('Posted to Vibe')).catch(() => {});
+    };
+    const tile = (v, l) => html`<div class="brk-tile-stat"><b class="num">${v}</b><span class="tiny ink62">${l}</span></div>`;
+    return html`<div class="stack" style=${{gap: '16px'}} id="break-reflect">
+      <${UI.Seg} ariaLabel="Period" value=${period} onChange=${v => { setPeriod(v); r.setText(''); }} options=${PERIODS.map(p => ({v: p.k, label: p.label}))}/>
+      <${UI.Card} id="reflect-era" flame=${true} title=${html`<span>${s.era.title}</span>`} action=${html`<span class="tiny ink62 num">${U.fmtDate(s.from)} to ${U.fmtDate(s.to)}</span>`}>
+        <div class="small" style=${{marginBottom: '12px'}}>${s.era.line}</div>
+        <div class="brk-stats">
+          ${tile(s.shipped, 'shipped')}${tile(s.onTimePct == null ? 'n/a' : s.onTimePct + '%', 'on time')}${tile(s.kudosIn, 'kudos in')}${tile(s.kudosOut, 'kudos out')}
+          ${tile(s.eods + '/' + s.working, 'EODs')}${tile(s.hit + '/' + (s.hit + s.miss), 'outcomes hit')}${tile(s.points, 'points')}${tile(s.playDays, 'break days')}
+        </div>
+        ${s.topProject ? html`<div class="tiny ink62" style=${{marginTop: '8px'}}>Biggest project: ${s.topProject}, ${s.topProjectN} tasks.${s.bestDay ? ' Busiest day: ' + s.bestDay + '.' : ''}${s.kudosFrom.length ? html` Kudos from ${s.kudosFrom.map((u, i) => html`<span key=${u}>${i ? ', ' : ''}<${UI.Name} id=${u}/></span>`)}.` : ''}</div>` : null}
+      <//>
+      <${UI.Card} id="reflect-text" title="The read">
+        ${text ? html`<${M.AIText} text=${text}/>` : html`<div class="small">${fallback(s, first || 'Hey')}</div>`}
+        <div class="row" style=${{gap: '10px', marginTop: '12px', flexWrap: 'wrap'}}>
+          ${M.ai.on(ctx) ? html`<${UI.Btn} sm=${true} id="reflect-write" disabled=${r.state === 'thinking' || r.state === 'streaming'} onClick=${write}>${r.state === 'thinking' || r.state === 'streaming' ? 'Writing' : text ? 'Write it again' : 'Write it for me'}<//>` : null}
+          <${UI.Btn} sm=${true} kind="sec" id="reflect-share" onClick=${share}>Share one line to Vibe<//>
+          ${r.state === 'error' ? html`<span class="tiny flame-t">${M.ai.errCopy(r.err)}</span>` : null}
+        </div>
+      <//>
+      <div class="hint">Numbers from your own records only; nobody else's. The era is earned, the write-up is for you.</div>
+    </div>`;
+  }
+
+  M.parts.BreakReflect = Reflect;
+  M.reflect = {PERIODS, stats, eraOf};
+})();
+
 /* ==== 40-command.js ==== */
 /* module: command (BRIEF section 11, Command). The founder's master dashboard. */
 'use strict';
@@ -16611,6 +17505,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     ['radar', 'the latest trade press on Radar, by lane (people, accounts, launches, campaigns, awards) (team site)'],
     ['books', 'invoices due and overdue, this month\'s expenses, compliance dates (owner)'],
     ['handshake', 'the LinkedIn DM desk: who is ready, held, waiting on an accept, sent, skipped, flagged'],
+    ['break', 'the reset room: sparks, the streak, today\'s puzzle, the care reminders due'],
     ['inbox', 'what is waiting in the inbox'],
     ['online', 'who has m360 open right now and where they are'],
     ['base', 'the Base, the contacts database, for a name, company, city or stage'],
@@ -16870,6 +17765,14 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         ps.forEach(p => { st[p.state] = (st[p.state] || 0) + 1; });
         L.push('HANDSHAKE: ' + ps.length + ' people, ' + Object.keys(st).map(k => st[k] + ' ' + k).join(', '));
         list(ps.filter(p => p.state !== 'sent').sort((a, b) => (b.updated || 0) - (a.updated || 0)), 25).forEach(p => L.push('- ' + p.name + ', ' + (p.headline || '') + (p.company ? ' at ' + p.company : '') + ', ' + (p.bucket || 'unsorted') + ', ' + p.state + (p.hook && p.hook.line ? ', hook: ' + cut(p.hook.line, 100) : '') + (p.flags && p.flags.length ? ', FLAGS: ' + p.flags.join('; ') : '')));
+        return L.join('\n');
+      }
+      case 'break': case 'play': case 'wellness': {
+        if (!M.play) return 'The reset room is not on this build.';
+        const me = M.play.mine(ctx);
+        L.push('BREAK: ' + me.sparks + ' sparks, level ' + me.level.name + ', streak ' + me.streak + ' days (best ' + me.best + '), today: ' + (Object.keys(me.today).join(', ') || 'nothing yet'));
+        const d = M.play.docOf(ctx); L.push('TODAY\'S PUZZLE: ' + M.play.kindFor(td) + (d.days && d.days[td] ? ', solved in ' + M.play.fmtMs(d.days[td].ms) : ', not solved yet'));
+        L.push('TEAM: ' + list(M.play.board(ctx), 8).map(r => nameOf(nm, r.uid) + ' ' + r.sparks + ' (' + r.level + ', streak ' + r.streak + ')').join('; '));
         return L.join('\n');
       }
       case 'inbox': {
@@ -17745,7 +18648,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   const wait = ms => new Promise(r => setTimeout(r, ms));
 
   const SECTIONS = ['home', 'tasks', 'projects', 'calendar', 'reviews', 'week', 'clients', 'pitches', 'crm', 'feed', 'people', 'voice', 'scores', 'music',
-    'chat', 'mail', 'gcal', 'drive', 'web', 'notes', 'base', 'companies', 'import', 'radar', 'awards', 'watch', 'me', 'trophies', 'leave', 'handbook', 'hiring',
+    'chat', 'mail', 'gcal', 'drive', 'web', 'notes', 'break', 'play', 'reset', 'care', 'reflect', 'base', 'companies', 'import', 'radar', 'awards', 'watch', 'me', 'trophies', 'leave', 'handbook', 'hiring',
     'handshake', 'map', 'hq', 'command', 'admin', 'books', 'invoices', 'expenses', 'payroll', 'letters', 'billing'];
   const FOUNDER_ONLY = ['hq', 'command', 'admin', 'hiring'];
   const OWNER_ONLY = ['books', 'invoices', 'expenses', 'payroll', 'letters', 'billing'];
@@ -18771,6 +19674,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       {k: 'pulse', label: 'Pulse and ideas', route: 'voice', blurb: 'The anonymous weekly pulse (what is broken, what to change) and the ideas board with votes.'},
       {k: 'scores', label: 'Leaderboard', route: 'scores', blurb: 'Points by week, month, quarter and since joining, with what earned them.'},
       {k: 'music', label: 'Music', route: 'music', blurb: 'Spotify inside m360: search, play, playlists, the dock at the bottom.'}]},
+    {k: 'break', label: 'Break', icon: 'breath', route: 'break', blurb: 'The reset room: a daily puzzle and a runner with the team\'s times, breathing and creativity resets, your care reminders, and a read of your last months. Sparks and a streak for showing up.', tabs: [
+      {k: 'play', label: 'Play', route: 'play', blurb: 'Today\'s puzzle (Scramble on odd days, Pixel on even) and Flame Run, with the team\'s times and bests.', signal: ctx => { const d = M.play ? M.play.docOf(ctx) : {}; return (d.days || {})[td()] ? 'solved today' : 'puzzle open'; }},
+      {k: 'reset', label: 'Reset', route: 'reset', blurb: 'One minute of breathing, timed sits, and five creativity resets with the research behind each.'},
+      {k: 'care', label: 'Care', route: 'care', blurb: 'Your reminders: breakfast, water, lunch, supplements, dinner. Rung when due, snooze or tick.'},
+      {k: 'reflect', label: 'Reflect', route: 'reflect', blurb: 'Your month, quarter, half year or year, read back: shipped, kudos, EODs, outcomes, and an era title.'}]},
     {k: 'base', label: 'Base', icon: 'database', route: 'base', blurb: 'The contacts database: everyone we know and the companies they work at.', tabs: [
       {k: 'people', label: 'People', route: 'base', blurb: 'Every contact, searchable by name, title, company, city or stage; anyone can edit, every edit is logged.', signal: ctx => { const n = size(ctx.coll.contacts.map); return n ? n + ' contacts' : ''; }},
       {k: 'companies', label: 'Companies', route: 'companies', blurb: 'The companies behind the people, mapped to client pages both ways.'},
@@ -18819,6 +19727,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   const DAY_ONE = [
     ['Check in on Home', 'home', 'Office or WFH, once a day. It counts.'],
     ['Set the week\'s three outcomes', 'week', 'Monday before noon.'],
+    ['Solve today\'s puzzle', 'play', 'Two minutes, and the streak starts.'],
     ['Post a hello on Vibe', 'feed', 'The team reads it.'],
     ['Read the handbook', 'handbook', 'How we work, in twenty minutes.'],
     ['File the EOD line', 'home', 'Three lines before the cut, every working day.'],
@@ -19083,7 +19992,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     ['Base', 'base', 'database'], ['Companies', 'companies', 'database'], ['Radar', 'radar', 'radar'],
     ['Me', 'me', 'people'], ['Leave', 'leave', 'leave'], ['Handbook', 'handbook', 'handbook'], ['Trophies', 'trophies', 'trophy'],
     ['HQ', 'hq', 'command', true], ['Dashboard', 'command', 'command', true], ['Hiring', 'hiring', 'hiring', true], ['Admin', 'admin', 'desk', true],
-    ['What\'s in m360', 'map', 'map']
+    ['What\'s in m360', 'map', 'map'], ['Break', 'break', 'breath'], ['Today\'s puzzle', 'play', 'breath'], ['Care reminders', 'care', 'bell'], ['Reflect', 'reflect', 'review']
   ];
   /* the order headings appear in */
   const ORDER = ['people', 'companies', 'tasks', 'projects', 'clients', 'pitches', 'posts', 'handbook', 'inbox', 'leave', 'radar', 'log', 'go to', 'actions', 'more', 'ask'];

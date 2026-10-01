@@ -34,6 +34,11 @@
       {k: 'pulse', label: 'Pulse and ideas', route: 'voice', blurb: 'The anonymous weekly pulse (what is broken, what to change) and the ideas board with votes.'},
       {k: 'scores', label: 'Leaderboard', route: 'scores', blurb: 'Points by week, month, quarter and since joining, with what earned them.'},
       {k: 'music', label: 'Music', route: 'music', blurb: 'Spotify inside m360: search, play, playlists, the dock at the bottom.'}]},
+    {k: 'break', label: 'Break', icon: 'breath', route: 'break', blurb: 'The reset room: a daily puzzle and a runner with the team\'s times, breathing and creativity resets, your care reminders, and a read of your last months. Sparks and a streak for showing up.', tabs: [
+      {k: 'play', label: 'Play', route: 'play', blurb: 'Today\'s puzzle (Scramble on odd days, Pixel on even) and Flame Run, with the team\'s times and bests.', signal: ctx => { const d = M.play ? M.play.docOf(ctx) : {}; return (d.days || {})[td()] ? 'solved today' : 'puzzle open'; }},
+      {k: 'reset', label: 'Reset', route: 'reset', blurb: 'One minute of breathing, timed sits, and five creativity resets with the research behind each.'},
+      {k: 'care', label: 'Care', route: 'care', blurb: 'Your reminders: breakfast, water, lunch, supplements, dinner. Rung when due, snooze or tick.'},
+      {k: 'reflect', label: 'Reflect', route: 'reflect', blurb: 'Your month, quarter, half year or year, read back: shipped, kudos, EODs, outcomes, and an era title.'}]},
     {k: 'base', label: 'Base', icon: 'database', route: 'base', blurb: 'The contacts database: everyone we know and the companies they work at.', tabs: [
       {k: 'people', label: 'People', route: 'base', blurb: 'Every contact, searchable by name, title, company, city or stage; anyone can edit, every edit is logged.', signal: ctx => { const n = size(ctx.coll.contacts.map); return n ? n + ' contacts' : ''; }},
       {k: 'companies', label: 'Companies', route: 'companies', blurb: 'The companies behind the people, mapped to client pages both ways.'},
@@ -82,6 +87,7 @@
   const DAY_ONE = [
     ['Check in on Home', 'home', 'Office or WFH, once a day. It counts.'],
     ['Set the week\'s three outcomes', 'week', 'Monday before noon.'],
+    ['Solve today\'s puzzle', 'play', 'Two minutes, and the streak starts.'],
     ['Post a hello on Vibe', 'feed', 'The team reads it.'],
     ['Read the handbook', 'handbook', 'How we work, in twenty minutes.'],
     ['File the EOD line', 'home', 'Three lines before the cut, every working day.'],

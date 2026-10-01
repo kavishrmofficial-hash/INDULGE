@@ -20,9 +20,12 @@
     {v: 'all', label: 'All'},
     {v: 'announce', label: 'Announcements'},
     {v: 'win', label: 'Wins'},
+    {v: 'ship', label: 'Shipped'},
     {v: 'kudos', label: 'Kudos'}
   ];
-  const EMPTY = {all: 'Nothing posted yet.', announce: 'No announcements yet.', win: 'No wins yet.', kudos: 'No kudos yet.'};
+  const EMPTY = {all: 'Nothing posted yet.', announce: 'No announcements yet.', win: 'No wins yet.', ship: 'Nothing shipped in the last two weeks. Finish a task and it lands here.', kudos: 'No kudos yet.'};
+  const SHIP_DAYS = 14;
+  const COMMENT_MAX = 400;
   const EMOJIS = ['👍', '🔥', '👀', '✅'];
   const KEEP_POSTS = 80;
   const KEEP_KUDOS = 60;
@@ -63,8 +66,108 @@
           why: String(g.why || ''), at: Number(g.at) || 0, pinned: false});
       }
     }
+    /* every task finished in the last two weeks is a celebration card, written by nobody: it comes from the task itself */
+    const since = Date.now() - SHIP_DAYS * 86400000;
+    const tmap = (ctx.coll && ctx.coll.tasks && ctx.coll.tasks.map) || {};
+    for (const id of Object.keys(tmap)) {
+      const t = tmap[id];
+      if (!t || t.status !== 'done' || !t.doneAt || t.doneAt < since || !t.owner) continue;
+      const proj = t.project && ctx.coll.projects.map[t.project];
+      const cl = t.client && ctx.coll.clients.map[t.client];
+      out.push({key: 's:' + id, type: 'ship', author: t.owner, id, text: String(t.title || ''), at: Number(t.doneAt) || 0, pinned: false,
+        project: proj ? proj.name : '', client: cl ? cl.name : '', approvedBy: t.approvedBy || '', late: !!(t.due && U.ymd(new Date(t.doneAt)) > t.due)});
+    }
     out.sort((a, b) => ((b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)) || (b.at - a.at));
     return out.slice(0, STREAM_CAP);
+  }
+
+  /* comments live in each commenter's own reacts document: cm[postKey][id] = {t, at} */
+  function commentsOf(ctx, key) {
+    const out = [];
+    const reacts = collMap(ctx, 'reacts');
+    for (const who of Object.keys(reacts)) {
+      const cm = ((reacts[who] || {}).cm || {})[key] || {};
+      for (const id of Object.keys(cm)) { const c = cm[id]; if (c && c.t) out.push({id, by: who, t: String(c.t), at: Number(c.at) || 0}); }
+    }
+    return out.sort((a, b) => a.at - b.at);
+  }
+  function commentCounts(ctx) {
+    const n = {};
+    const reacts = collMap(ctx, 'reacts');
+    for (const who of Object.keys(reacts)) {
+      const cm = (reacts[who] || {}).cm || {};
+      for (const key of Object.keys(cm)) n[key] = (n[key] || 0) + Object.keys(cm[key] || {}).filter(id => cm[key][id] && cm[key][id].t).length;
+    }
+    return n;
+  }
+  async function addComment(ctx, key, text) {
+    const t = String(text || '').trim().slice(0, COMMENT_MAX);
+    if (!t) return;
+    await ctx.W.merge('reacts/' + ctx.uid, {cm: {[key]: {[U.uid()]: {t, at: Date.now()}}}});
+  }
+  async function dropComment(ctx, key, id) {
+    const r = U.clone(collMap(ctx, 'reacts')[ctx.uid] || {});
+    if (r.cm && r.cm[key]) { delete r.cm[key][id]; if (!Object.keys(r.cm[key]).length) delete r.cm[key]; }
+    await ctx.W.set('reacts/' + ctx.uid, r);
+  }
+
+  /* the thread under a card: a count, the comments, a box */
+  function Comments({itKey, names, count, open: openDefault}) {
+    const ctx = M.useCtx();
+    const [open, setOpen] = useState(!!openDefault);
+    const [text, setText] = useState('');
+    const list = open ? commentsOf(ctx, itKey) : [];
+    const send = () => { const t = text.trim(); if (!t) return; addComment(ctx, itKey, t).then(() => { setText(''); M.sound.play('soft'); }).catch(() => {}); };
+    return html`<div class="comments">
+      <button type="button" class="linky tiny" aria-expanded=${open} onClick=${() => setOpen(x => !x)}>${count ? count + (count === 1 ? ' comment' : ' comments') : 'Comment'}</button>
+      ${open ? html`<div class="stack tight" style=${{marginTop: '8px'}}>
+        ${list.map(c => html`<div key=${c.id} class="comment row nowrap" style=${{alignItems: 'flex-start'}}>
+          <${UI.Avatar} id=${c.by} size=${22}/>
+          <div class="grow"><b class="small"><${UI.Name} id=${c.by} fallback=${names[c.by] || undefined}/></b> <span class="tiny sub num">${U.timeAgo(c.at)}</span>
+            <div class="small" style=${{overflowWrap: 'anywhere'}}>${c.t}</div></div>
+          ${c.by === ctx.uid ? html`<button type="button" class="linky tiny" onClick=${() => dropComment(ctx, itKey, c.id)}>Delete</button>` : null}
+        </div>`)}
+        <div class="row nowrap" style=${{gap: '8px'}}>
+          <input class="input" value=${text} placeholder="Say something nice" aria-label="Comment" onInput=${e => setText(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') send(); }}/>
+          <${UI.Btn} sm=${true} disabled=${!text.trim()} onClick=${send}>Post<//>
+        </div>
+      </div>` : null}
+    </div>`;
+  }
+
+  /* a shipped task: the owner's name, the title, the project, a cheer line */
+  const CHEERS = ['shipped it', 'got it over the line', 'done and dusted', 'another one down', 'cleared it', 'nailed it', 'put it to bed', 'wrapped it'];
+  function ShipCard({it, counts, mine, names, nComments}) {
+    const ctx = M.useCtx();
+    const c = counts[it.key] || {};
+    const react = e => {
+      const r = myReacts(ctx, ctx.uid);
+      if (r[it.key] === e) { const doc = U.clone(collMap(ctx, 'reacts')[ctx.uid] || {}); doc.r = {...(doc.r || {})}; delete doc.r[it.key]; ctx.W.set('reacts/' + ctx.uid, doc).catch(() => {}); }
+      else ctx.W.merge('reacts/' + ctx.uid, {r: {[it.key]: e}}).then(() => M.sound.play('soft')).catch(() => {});
+    };
+    const cheer = CHEERS[Math.abs(String(it.id).split('').reduce((n, ch) => n + ch.charCodeAt(0), 0)) % CHEERS.length];
+    return html`<section class="card ship" data-key=${it.key} data-kind="ship">
+      <div class="row between post-head">
+        <div class="row nowrap grow">
+          <${UI.Avatar} id=${it.author} size=${32}/>
+          <div class="grow">
+            <div class="row">
+              <b><${UI.Name} id=${it.author} fallback=${names[it.author] || undefined}/> ${cheer}</b>
+              <${UI.Pill} kind="flame">shipped<//>
+            </div>
+            <div class="tiny sub num">${U.timeAgo(it.at)}${it.project ? ' · ' + it.project : ''}${it.client ? ' · ' + it.client : ''}${it.approvedBy ? html` · approved by <${UI.Name} id=${it.approvedBy} fallback=${names[it.approvedBy] || undefined}/>` : ''}</div>
+          </div>
+        </div>
+        <button type="button" class="linky tiny" onClick=${() => M.nav('#tasks/' + it.id)}>Open</button>
+      </div>
+      <div class="ship-title">${it.text}</div>
+      <div class="row" role="group" aria-label="Reactions">
+        ${EMOJIS.map(e => html`<button key=${e} type="button" class=${'emoji-btn' + (mine === e ? ' on' : '')}
+          aria-pressed=${mine === e} aria-label=${'React ' + e} onClick=${() => react(e)}>
+          <span>${e}</span>${c[e] ? html`<span class="num">${c[e]}</span>` : null}</button>`)}
+      </div>
+      <${Comments} itKey=${it.key} names=${names} count=${nComments || 0}/>
+    </section>`;
   }
 
   /* reaction counts from every reacts document: {[postKey]: {[emoji]: n}} */
@@ -195,7 +298,7 @@
   }
 
   /* ---------- cards ---------- */
-  function PostCard({it, counts, mine, names}) {
+  function PostCard({it, counts, mine, names, nComments}) {
     const ctx = M.useCtx();
     const {uid, isFounder, founderUid, W} = ctx;
     const c = counts[it.key] || {};
@@ -204,9 +307,10 @@
     const react = e => {
       const r = myReacts(ctx, uid);
       if (r[it.key] === e) {
-        const next = {...r};
-        delete next[it.key];
-        W.set('reacts/' + uid, {r: next}).catch(() => {});
+        /* the whole document goes back, so the comments in it stay */
+        const doc = U.clone(collMap(ctx, 'reacts')[uid] || {});
+        doc.r = {...(doc.r || {})}; delete doc.r[it.key];
+        W.set('reacts/' + uid, doc).catch(() => {});
       } else {
         W.merge('reacts/' + uid, {r: {[it.key]: e}}).catch(() => {});
       }
@@ -278,10 +382,11 @@
           aria-pressed=${mine === e} aria-label=${'React ' + e} onClick=${() => react(e)}>
           <span>${e}</span>${c[e] ? html`<span class="num">${c[e]}</span>` : null}</button>`)}
       </div>
+      <${Comments} itKey=${it.key} names=${names} count=${nComments || 0}/>
     </section>`;
   }
 
-  function KudosCard({it, names}) {
+  function KudosCard({it, names, nComments}) {
     return html`<section class="card" data-key=${it.key} data-kind="kudos">
       <div class="row nowrap">
         <${UI.Avatar} id=${it.giver} size=${32}/>
@@ -294,6 +399,7 @@
         </div>
       </div>
       <div style=${{overflowWrap: 'anywhere', marginTop: '12px'}}>${it.why}</div>
+      <${Comments} itKey=${it.key} names=${names} count=${nComments || 0}/>
     </section>`;
   }
 
@@ -306,16 +412,18 @@
     M.useIntent('post', () => setTimeout(() => { const el = document.getElementById('feed-text'); if (el) el.focus(); }, 60));
     const items = stream(ctx);
     const counts = reactCounts(ctx);
+    const nc = commentCounts(ctx);
     const mine = myReacts(ctx, ctx.uid);
     const ids = [];
     for (const it of items) {
-      if (it.type === 'post') ids.push(it.author);
+      if (it.type === 'post' || it.type === 'ship') { ids.push(it.author); if (it.approvedBy) ids.push(it.approvedBy); }
       else { ids.push(it.giver); ids.push(it.to); }
     }
+    Object.keys(collMap(ctx, 'reacts')).forEach(u => ids.push(u));
     for (const m of (ctx.activeMembers || [])) ids.push(m.uid);
     const names = useNames(ctx, ids);
     const shown = items.filter(it => filter === 'all'
-      || (filter === 'kudos' ? it.type === 'kudos' : (it.type === 'post' && it.kind === filter)));
+      || (filter === 'kudos' ? it.type === 'kudos' : filter === 'ship' ? it.type === 'ship' : (it.type === 'post' && it.kind === filter)));
     const ready = !!(ctx.coll && ctx.coll.feed && ctx.coll.feed.ready && ctx.coll.kudos && ctx.coll.kudos.ready);
 
     return html`<${React.Fragment}>
@@ -329,8 +437,9 @@
       </div>
       <div class="stack" id="feed-stream">
         ${shown.length ? shown.map(it => it.type === 'kudos'
-          ? html`<${KudosCard} key=${it.key} it=${it} names=${names}/>`
-          : html`<${PostCard} key=${it.key} it=${it} counts=${counts} mine=${mine[it.key]} names=${names}/>`)
+          ? html`<${KudosCard} key=${it.key} it=${it} names=${names} nComments=${nc[it.key]}/>`
+          : it.type === 'ship' ? html`<${ShipCard} key=${it.key} it=${it} counts=${counts} mine=${mine[it.key]} names=${names} nComments=${nc[it.key]}/>`
+          : html`<${PostCard} key=${it.key} it=${it} counts=${counts} mine=${mine[it.key]} names=${names} nComments=${nc[it.key]}/>`)
           : html`<${UI.Empty} text=${ready ? EMPTY[filter] : 'Loading the feed.'}/>`}
       </div>
       <${KudosDrawer} open=${kudosOpen} onClose=${() => setKudosOpen(false)} names=${names}/>
@@ -338,5 +447,5 @@
   }
 
   M.pages.Feed = Feed;
-  M.feed = {stream, reactCounts};
+  M.feed = {stream, reactCounts, commentsOf, commentCounts, addComment};
 })();

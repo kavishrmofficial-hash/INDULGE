@@ -24,7 +24,7 @@
   const wait = ms => new Promise(r => setTimeout(r, ms));
 
   const SECTIONS = ['home', 'tasks', 'projects', 'calendar', 'reviews', 'week', 'clients', 'pitches', 'crm', 'feed', 'people', 'voice', 'scores', 'music',
-    'chat', 'mail', 'gcal', 'drive', 'web', 'notes', 'base', 'companies', 'import', 'radar', 'awards', 'watch', 'me', 'trophies', 'leave', 'handbook', 'hiring',
+    'chat', 'mail', 'gcal', 'drive', 'web', 'notes', 'break', 'play', 'reset', 'care', 'reflect', 'base', 'companies', 'import', 'radar', 'awards', 'watch', 'me', 'trophies', 'leave', 'handbook', 'hiring',
     'handshake', 'map', 'hq', 'command', 'admin', 'books', 'invoices', 'expenses', 'payroll', 'letters', 'billing'];
   const FOUNDER_ONLY = ['hq', 'command', 'admin', 'hiring'];
   const OWNER_ONLY = ['books', 'invoices', 'expenses', 'payroll', 'letters', 'billing'];
