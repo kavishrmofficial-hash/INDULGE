@@ -70,10 +70,27 @@
 
   const revNote = n => n > 0 ? n + (n === 1 ? ' revision' : ' revisions') : 'No revisions yet';
 
-  /* one status change, with the bookkeeping every path shares: review time, revisions, done time */
-  function statusPatch(task, status, uid) {
+  /* ---------- sign-off: done is a decision, not a self-declaration ----------
+     While it is on (Admin > Settings, on by default), only the founder or a reviewer of the task (someone on
+     its project who does not own it) marks work done. Anyone else asking for done sends it for sign-off
+     instead, and the sign-off makes it done, so points land only on work somebody else has seen. Work done
+     before the day sign-off began counts as it was. */
+  const SIGNOFF_SINCE = Date.UTC(2026, 9, 1);
+  const signoffOn = ctx => !!ctx && !!ctx.settings && ctx.settings.signoff !== false;
+  const canSign = (ctx, t) => !!ctx && (ctx.isFounder || !!(M.reviews && M.reviews.canReview(ctx, t || {})));
+  const gate = (ctx, t, status) => (status === 'done' && signoffOn(ctx) && !canSign(ctx, t || {owner: ctx.uid})) ? 'review' : status;
+  /* a done task that counts for points: signed off, or the founder's own, or from before sign-off, or sign-off is off */
+  const counted = (ctx, t) => !!t && t.status === 'done' && (!!t.approvedBy || !signoffOn(ctx) || t.owner === ctx.founderUid || (Number(t.doneAt) || 0) < SIGNOFF_SINCE);
+  /* the status options for one task as this person sees them */
+  const statusOpts = (ctx, t) => STATUSES.map(s => s.v === 'done' && signoffOn(ctx) && !canSign(ctx, t || {owner: ctx.uid}) ? {...s, label: 'Sign-off'} : s);
+
+  /* one status change, with the bookkeeping every path shares: the gate, review time, revisions, done
+     time, who signed it off. Pass ctx so the gate applies; without it the change is taken as asked. */
+  function statusPatch(task, status, uid, ctx) {
     const now = Date.now();
     const prev = (task && task.status) || 'todo';
+    const asked = status;
+    status = ctx ? gate(ctx, task, status) : status;
     const patch = {status, updated: now};
     let msg = 'Moved to ' + (STATUSES.find(x => x.v === status) || {label: status}).label.toLowerCase();
     if (prev === 'review' && (status === 'doing' || status === 'todo')) {
@@ -81,18 +98,24 @@
       patch.sentBackAt = now; patch.sentBackBy = uid;
       msg = 'Sent back, revision ' + patch.revisions;
     }
-    if (status === 'review' && prev !== 'review') patch.reviewAt = now;
-    if (status === 'done') { if (prev !== 'done' || !(task && task.doneAt)) patch.doneAt = now; msg = 'Shipped'; }
-    else patch.doneAt = null;
-    return {patch, msg};
+    if (status === 'review' && prev !== 'review') { patch.reviewAt = now; if (asked === 'done') msg = 'Sent for sign-off'; }
+    if (status === 'done') {
+      if (prev !== 'done' || !(task && task.doneAt)) patch.doneAt = now;
+      msg = 'Shipped';
+      if (ctx && canSign(ctx, task)) { patch.approvedBy = uid; patch.approvedAt = now; }
+    } else { patch.doneAt = null; patch.approvedBy = null; patch.approvedAt = null; }
+    return {patch, msg, status};
   }
   async function moveTask(ctx, task, status, el) {
     if (!task || task.status === status) return;
-    const {patch, msg} = statusPatch(task, status, ctx.uid);
+    const {patch, msg, status: st} = statusPatch(task, status, ctx.uid, ctx);
+    if (task.status === st) { M.toast(st === 'review' ? 'Waiting for sign-off' : msg); return; }
     await ctx.W.update('tasks/' + task.id, patch).catch(() => {});
-    if (status === 'done') M.rain('🔥', el || document.body, {n: 56}); else M.sound.play('tick');
+    if (st === 'done') M.rain('🔥', el || document.body, {n: 56}); else M.sound.play('tick');
     M.toast(msg);
   }
+  /* a task is never erased by its owner: it goes to the founder's bin, with who and when, and can come back */
+  const binTask = (ctx, id) => ctx.W.update('tasks/' + id, {deleted: true, deletedBy: ctx.uid, deletedAt: Date.now(), updated: Date.now()});
 
   /* @mentions: names in a comment become ids the inbox can use */
   function useMentions(text, setText) {
@@ -273,21 +296,26 @@
       try {
         if (isNew) {
           const id = U.uid();
+          const draft = {owner: f.owner, project: f.project};
+          const st = gate(ctx, draft, f.status);
           await W.set('tasks/' + id, {
             title, owner: f.owner, client: f.client, project: f.project, section: f.section, due: f.due,
-            status: f.status, priority: f.priority, link: f.link.trim(), revisions: 0, shown20: !!f.shown20,
+            status: st, priority: f.priority, link: f.link.trim(), revisions: 0, shown20: !!f.shown20,
             subtasks: localSubs, comments: {}, by: uid, created: now, updated: now,
-            doneAt: f.status === 'done' ? now : null
+            doneAt: st === 'done' ? now : null, ...(st === 'done' && canSign(ctx, draft) ? {approvedBy: uid, approvedAt: now} : {}), ...(st === 'review' ? {reviewAt: now} : {})
           });
-          M.toast('Task created');
+          M.toast(st === 'review' && f.status === 'done' ? 'Task created, sent for sign-off' : 'Task created');
         } else {
           const prev = (task && task.status) || 'todo';
-          const sp = prev === f.status ? {patch: {doneAt: (task && task.doneAt) || null}, msg: 'Saved'} : statusPatch(task, f.status, uid);
+          const sp = prev === f.status ? {patch: {doneAt: (task && task.doneAt) || null}, msg: 'Saved', status: prev} : statusPatch(task, f.status, uid, ctx);
+          const logs = {};
+          if ((task.due || '') !== (f.due || '')) logs.dueLog = (Array.isArray(task.dueLog) ? task.dueLog : []).slice(-9).concat([{from: task.due || '', to: f.due || '', by: uid, at: now}]);
+          if ((task.owner || '') !== (f.owner || '')) logs.ownerLog = (Array.isArray(task.ownerLog) ? task.ownerLog : []).slice(-9).concat([{from: task.owner || '', to: f.owner || '', by: uid, at: now}]);
           await W.update(path, {
             title, owner: f.owner, client: f.client, project: f.project, section: f.section, due: f.due,
-            status: f.status, priority: f.priority, link: f.link.trim(), shown20: !!f.shown20, ...sp.patch, updated: now
+            priority: f.priority, link: f.link.trim(), shown20: !!f.shown20, ...logs, ...sp.patch, status: sp.status, updated: now
           });
-          if (f.status === 'done' && prev !== 'done') M.burst(document.querySelector('.drawer-foot'));
+          if (sp.status === 'done' && prev !== 'done') M.burst(document.querySelector('.drawer-foot'));
           M.toast(sp.msg);
         }
         ok = true;
@@ -299,8 +327,8 @@
     const canDelete = !isNew && !!task && (task.by === uid || ctx.isFounder);
     const delTask = async () => {
       try {
-        await W.del(path);
-        M.toast('Task deleted');
+        await binTask(ctx, taskId);
+        M.toast(ctx.isFounder ? 'Task deleted. It sits in the bin on Admin for thirty days.' : 'Task deleted. The founder can bring it back.');
         onClose();
       } catch (e) { /* the write layer toasts the failure */ }
     };
@@ -322,7 +350,7 @@
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${isNew ? 'New task' : 'Task'} footer=${footer}>
       <${UI.Input} id="task-title" label="title" value=${f.title} onChange=${set('title')} placeholder="What needs to happen"/>
       <${UI.Field} label="status">
-        <${UI.Seg} options=${STATUSES} value=${f.status} onChange=${set('status')} ariaLabel="Status"/>
+        <${UI.Seg} options=${statusOpts(ctx, isNew ? {owner: f.owner, project: f.project} : task)} value=${f.status} onChange=${set('status')} ariaLabel="Status"/>
       <//>
       <div class="grid2">
         <${UI.Select} id="task-owner" label="owner" value=${f.owner} onChange=${set('owner')} options=${ownerOpts}/>
@@ -477,5 +505,5 @@
 
   M.pages.Tasks = Tasks;
   M.parts.TaskDrawer = TaskDrawer;
-  M.tasks = {isOverdue, progress, open, STATUSES, PRIORITIES, dueLabel, revNote, moveTask, statusPatch};
+  M.tasks = {isOverdue, progress, open, STATUSES, PRIORITIES, dueLabel, revNote, moveTask, statusPatch, gate, canSign, counted, signoffOn, statusOpts, binTask, SIGNOFF_SINCE};
 })();

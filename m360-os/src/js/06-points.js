@@ -90,6 +90,8 @@
   /* ---------- pointsFor ---------- */
   /* {total, output, discipline, parts, counts, badges}. parts[key] = weights[key] * counts[key] for every
      weight key. counts.qualityMult is the sum of weekly quality scores in range. */
+  /* a done task that counts: signed off under the sign-off rule (21-tasks.js decides) */
+  const cnt = (ctx, t) => (M.tasks && M.tasks.counted) ? M.tasks.counted(ctx, t) : isDone(t);
   function pointsFor(ctx, uid, fromYmd, toYmd) {
     const w = weightsOf(ctx);
     const counts = zeroMap();
@@ -157,7 +159,7 @@
     /* tasks owned: done in range, revisions on those, 20% shown, open overdue at the end */
     let dueInRangeDone = 0, dueInRangeLate = 0;
     for (const t of ownedTasks(ctx, uid)) {
-      const done = isDone(t);
+      const done = cnt(ctx, t);
       const dy = doneYmd(t);
       if (done && inRange(dy, from, to)) {
         if (doneOnTime(t)) counts.taskOnTime++; else counts.taskLate++;
@@ -212,9 +214,9 @@
     for (const t of ownedTasks(ctx, uid)) {
       if (inRange(t.due, from, to)) {
         out.due++;
-        if (isDone(t) && doneOnTime(t)) dueOnTime++;
+        if (cnt(ctx, t) && doneOnTime(t)) dueOnTime++;
       }
-      if (isDone(t) && inRange(doneYmd(t), from, to)) {
+      if (cnt(ctx, t) && inRange(doneYmd(t), from, to)) {
         doneN++;
         revs += Math.max(0, Math.round(Number(t.revisions) || 0));
       }

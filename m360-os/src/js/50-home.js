@@ -390,7 +390,7 @@
       return {open: open.slice(0, 6), more: Math.max(0, open.length - 6), doneToday};
     }, [ctx.coll.tasks.map, ctx.uid, td]);
 
-    const complete = t => ctx.W.update('tasks/' + t.id, {status: 'done', doneAt: Date.now(), updated: Date.now()}).then(() => M.toast('Done. Nice')).catch(() => {});
+    const complete = t => { const sp = M.tasks.statusPatch(t, 'done', ctx.uid, ctx); return ctx.W.update('tasks/' + t.id, sp.patch).then(() => M.toast(sp.status === 'done' ? 'Done. Nice' : 'Sent for sign-off')).catch(() => {}); };
     const reopen = t => ctx.W.update('tasks/' + t.id, {status: 'doing', doneAt: null, updated: Date.now()}).catch(() => {});
 
     async function add() {

@@ -75,7 +75,7 @@
     if (compact && !mine.length) return null;
     return html`<${UI.Card} id="reviews" title=${compact ? 'Waiting on your review' : 'Reviews'}
       action=${html`<span class=${'pill ' + (mine.length ? 'flame' : 'warm')}>${mine.length} on you</span>`}>
-      ${!compact ? html`<p class="small ink62" style=${{marginTop: 0}}>Work in review, oldest first. Approve ships it, send back counts a revision and tells the owner why.</p>` : null}
+      ${!compact ? html`<p class="small ink62" style=${{marginTop: 0}}>Work in review, oldest first. Approve ships it, send back counts a revision and tells the owner why.${M.tasks && M.tasks.signoffOn(ctx) ? ' Sign-off is on: nothing counts as done until someone here approves it.' : ''}</p>` : null}
       ${list.length ? list.map(t => html`<${Row} key=${t.id} t=${t} onOpen=${setOpen}/>`)
         : html`<${UI.Empty} text=${theirs.length ? 'Nothing waiting on you. ' + theirs.length + ' of yours ' + (theirs.length === 1 ? 'is' : 'are') + ' with the reviewers.' : 'Nothing in review right now.'}/>`}
       ${open && D ? html`<${D} taskId=${open} onClose=${() => setOpen(null)}/>` : null}

@@ -40,6 +40,24 @@
         if (mentioned || mine) push('cm:' + cid, 'feed', c.at || 0, T`${nm(c.by)}${mentioned ? ' mentioned you on ' : ' commented on '}${t.title}`, '#tasks/' + id, c.by, mentioned);
       }
     }
+    /* the founder's flags: what somebody did to the record that deserves a look */
+    if (ctx.isFounder && M.tasks) {
+      const founder = ctx.founderUid;
+      const since0 = M.tasks.SIGNOFF_SINCE || 0;
+      const dayOf = ts => U.ymd(new Date(ts));
+      for (const id of Object.keys(tmap)) {
+        const t = tmap[id];
+        if (!t || t.owner === founder) continue;
+        const doneAt = Number(t.doneAt) || 0;
+        if (t.status === 'done' && doneAt >= since0 && !t.approvedBy && !M.tasks.signoffOn(ctx)) push('flag:unsigned:' + id, 'flag', doneAt, T`${nm(t.owner)} marked ${t.title} done with no sign-off`, '#tasks/' + id, t.owner, true);
+        if (t.status === 'done' && doneAt && t.due && dayOf(doneAt) > t.due) { const late = U.daysBetween(t.due, dayOf(doneAt)); push('flag:late:' + id, 'flag', doneAt, T`${nm(t.owner)} shipped ${t.title} ${late} ${late === 1 ? 'day' : 'days'} late`, '#tasks/' + id, t.owner); }
+        if (t.status === 'done' && doneAt && t.created && doneAt - t.created < 600000 && t.by === t.owner) push('flag:rushed:' + id, 'flag', doneAt, T`${nm(t.owner)} created and finished ${t.title} within ${Math.max(1, Math.round((doneAt - t.created) / 60000))} min`, '#tasks/' + id, t.owner, true);
+        for (const d of (Array.isArray(t.dueLog) ? t.dueLog : [])) if (d && d.by === t.owner && d.to > d.from) push('flag:due:' + id + ':' + d.at, 'flag', d.at || 0, T`${nm(d.by)} moved the due date of ${t.title} from ${d.from ? U.fmtDate(d.from) : 'none'} to ${U.fmtDate(d.to)}`, '#tasks/' + id, d.by, true);
+        for (const o of (Array.isArray(t.ownerLog) ? t.ownerLog : [])) if (o && o.by !== founder) push('flag:owner:' + id + ':' + o.at, 'flag', o.at || 0, T`${nm(o.by)} handed ${t.title} ${o.to ? 'to ' : 'off'}${o.to ? nm(o.to) : ''}`, '#tasks/' + id, o.by);
+      }
+      const trash = (ctx.coll.tasks && ctx.coll.tasks.trash) || {};
+      for (const id of Object.keys(trash)) { const t = trash[id]; if (t && t.deletedBy && t.deletedBy !== founder) push('flag:del:' + id, 'flag', Number(t.deletedAt) || 0, T`${nm(t.deletedBy)} deleted ${t.title}. It is in the bin on Admin`, '#admin', t.deletedBy, true); }
+    }
     /* kudos to me */
     const kmap = ctx.coll.kudos.map;
     for (const giver of Object.keys(kmap)) for (const k of (kmap[giver].given || [])) {
@@ -95,7 +113,7 @@
   const seenAt = ctx => Number(((ctx.coll.me.map[ctx.uid] || {}).inboxSeen) || 0);
   const unread = ctx => items(ctx).filter(i => i.at > seenAt(ctx)).length;
 
-  const KIND_ICON = {tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift', fix: 'fix', chat: 'send', books: 'log'};
+  const KIND_ICON = {tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift', fix: 'fix', chat: 'send', books: 'log', flag: 'shield'};
 
   function Inbox({onClose}) {
     const ctx = M.useCtx();
@@ -124,7 +142,7 @@
      notification when m360 sits in another window. Chat lines have their own watcher. The mark of
      the newest item seen lives in this browser, per person; the first load on a device sets it, so
      a backlog never rains down. ---------- */
-  const TITLE = {tasks: 'Work', review: 'Review', feed: 'Feed', scores: 'Kudos', leave: 'Leave', people: 'Team', gift: 'Today', fix: 'Correction', books: 'Books'};
+  const TITLE = {tasks: 'Work', review: 'Review', feed: 'Feed', scores: 'Kudos', leave: 'Leave', people: 'Team', gift: 'Today', fix: 'Correction', books: 'Books', flag: 'Flag'};
   function InboxWatch() {
     const ctx = M.useCtx();
     const uid = ctx.uid;

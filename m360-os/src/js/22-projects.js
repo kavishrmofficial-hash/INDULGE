@@ -215,8 +215,10 @@
     const toggle = checked => {
       const now = Date.now();
       setShown(checked);
-      ctx.W.update('tasks/' + t.id, checked ? {status: 'done', doneAt: now, updated: now} : {status: 'todo', doneAt: null, updated: now})
-        .then(() => M.toast(checked ? 'Task done' : 'Task reopened'), () => setShown(null));
+      const sp = M.tasks.statusPatch(t, checked ? 'done' : 'todo', ctx.uid, ctx);
+      if (checked && sp.status !== 'done') setShown(null);
+      ctx.W.update('tasks/' + t.id, sp.patch)
+        .then(() => M.toast(checked ? (sp.status === 'done' ? 'Task done' : 'Sent for sign-off') : 'Task reopened'), () => setShown(null));
     };
     return html`<div class="listrow trow">
       <label class="checkline"><input type="checkbox" data-task=${t.id} checked=${shown} aria-label=${'Done: ' + t.title}

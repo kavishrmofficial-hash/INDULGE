@@ -10,7 +10,7 @@
     office: null, start: '10:30', grace: 15, eodCut: '19:30', mondayCut: '12:00',
     wfhCap: 2, revCap: 2, ackHours: 48, blockerDays: 2, holidays: [],
     rules: {}, points: {}, leaderboardIncludesFounder: false,
-    locked: false, lockNote: '', joinPolicy: 'open', alert: null
+    locked: false, lockNote: '', joinPolicy: 'open', alert: null, signoff: true
   };
 
   /* view as: the founder previews the app as one member. Held in memory only, never persisted. */
@@ -63,6 +63,13 @@
     React.useEffect(() => { if (!remoteBase) return; const f = n => { if (n > 0) setBaseOn(true); }; M.baseNeed.subs.add(f); return () => M.baseNeed.subs.delete(f); }, []);
     const coll = {};
     for (const c of COLLS) coll[c] = M.useColl(db, (c === 'contacts' || c === 'orgs') && !baseOn ? null : c);
+    /* a deleted task leaves every list and sits in the bin (coll.tasks.trash) until the founder settles it */
+    const rawTasks = coll.tasks;
+    coll.tasks = React.useMemo(() => {
+      const map = {}, trash = {};
+      for (const id of Object.keys(rawTasks.map || {})) { const t = rawTasks.map[id]; if (t && t.deleted) trash[id] = t; else map[id] = t; }
+      return {...rawTasks, map, trash};
+    }, [rawTasks]);
     if (!baseOn) { coll.contacts = OFF_COLL; coll.orgs = OFF_COLL; }
     /* join requests: only the founder lists them; everyone else reads their own */
     const rm = ((rosterDoc.data || {}).members || {})[realUid];

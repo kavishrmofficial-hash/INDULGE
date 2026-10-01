@@ -113,7 +113,8 @@ def seed(h, page):
             'subtasks': {'st1': {'t': 'First pass', 'done': True, 'o': M1}} if i == 0 else {},
             'comments': {'c1': {'by': M2, 't': 'Looks good.', 'at': ms(d(1))}} if i == 0 else {},
             'by': F, 'created': ms(mon), 'updated': ms(d(2)),
-            'doneAt': ms(now - timedelta(days=3), 16, 0) if status == 'done' else None})
+            'doneAt': ms(now - timedelta(days=3), 16, 0) if status == 'done' else None,
+            'approvedBy': F if status == 'done' else None, 'approvedAt': ms(now - timedelta(days=3), 16, 5) if status == 'done' else None})
 
     h.seed_doc(page, 'pitches/pi1', {'brand': 'Aurelia Jewels', 'category': 'Luxury retail', 'contact': 'Nisha, marketing head',
                                      'source': 'Referral', 'stage': 'proposal', 'stageAt': ms(now - timedelta(days=6)),

@@ -244,8 +244,10 @@ def test(h):
     pm.click('.drawer-foot button:has-text("Tap again to confirm")')
     pm.wait_for_selector('.drawer', state='detached')
     pm.wait_for_timeout(250)
-    assert get_doc(pm, 'tasks/t_m1') is None, 'tap again deletes'
+    binned = get_doc(pm, 'tasks/t_m1')
+    assert binned and binned.get('deleted') is True and binned.get('deletedBy') == 'u_m1', 'tap again sends the task to the bin: %r' % binned
     assert pm.locator('.tcard').count() == 1
+    assert h.ctx(pm, 'Object.keys(M.lastCtx.coll.tasks.trash).length') == 1, 'the bin holds it'
 
     # ---- phone width: the board scrolls inside its card, the page never overflows ----
     p3 = open_in(h, page, 'founder', 390, '#tasks')

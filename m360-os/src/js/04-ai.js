@@ -273,12 +273,13 @@
         const st = ['todo', 'doing', 'review', 'done'].indexOf(input.status) >= 0 ? input.status : null;
         if (!st) throw new Error('unknown status');
         /* the same bookkeeping a hand move does: review and send back stamps, revisions, the inbox */
-        const sp = (M.tasks && M.tasks.statusPatch) ? M.tasks.statusPatch(t, st, ctx.uid) : null;
+        const sp = (M.tasks && M.tasks.statusPatch) ? M.tasks.statusPatch(t, st, ctx.uid, ctx) : null;
         const patch = sp && sp.patch ? sp.patch : {status: st, updated: Date.now(), doneAt: st === 'done' ? Date.now() : null};
         if (!sp && t.status === 'review' && (st === 'doing' || st === 'todo')) patch.revisions = (t.revisions || 0) + 1;
+        const landed = sp && sp.status ? sp.status : st;
         await ctx.W.update('tasks/' + t.id, patch);
-        say('Moved "' + t.title + '" to ' + st);
-        return {ok: true, task: t.title, status: st};
+        say(landed !== st ? 'Sent "' + t.title + '" for sign-off' : 'Moved "' + t.title + '" to ' + st);
+        return {ok: true, task: t.title, status: landed};
       }
     }];
     tools.push({

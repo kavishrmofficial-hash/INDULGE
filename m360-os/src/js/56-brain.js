@@ -587,10 +587,10 @@
         if (t.owner !== uid && !ctx.isFounder) throw new Error('only the owner or the founder can move this task');
         const st = ['todo', 'doing', 'review', 'done'].indexOf(input.status) >= 0 ? input.status : null;
         if (!st) throw new Error('status is todo, doing, review or done');
-        const sp = M.tasks && M.tasks.statusPatch ? M.tasks.statusPatch(t, st, uid) : {patch: {status: st, updated: now, doneAt: st === 'done' ? now : null}};
+        const sp = M.tasks && M.tasks.statusPatch ? M.tasks.statusPatch(t, st, uid, ctx) : {patch: {status: st, updated: now, doneAt: st === 'done' ? now : null}, status: st};
         await ctx.W.update('tasks/' + t.id, sp.patch);
-        say('Moved "' + t.title + '" to ' + st);
-        return {ok: true, task: t.title, status: st};
+        say(sp.status !== st ? 'Sent "' + t.title + '" for sign-off' : 'Moved "' + t.title + '" to ' + st);
+        return {ok: true, task: t.title, status: sp.status, note: sp.status !== st ? 'done needs a sign-off from the founder or someone on the project; it is in review' : undefined};
       }
       case 'reassign_task': {
         const t = needTask();

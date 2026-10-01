@@ -144,7 +144,7 @@
       start: s.start, grace: String(s.grace), eodCut: s.eodCut, mondayCut: s.mondayCut,
       wfhCap: String(s.wfhCap), revCap: String(s.revCap), ackHours: String(s.ackHours), blockerDays: String(s.blockerDays),
       holidays: (s.holidays || []).slice(), rules: {...s.rules}, points: {...s.points},
-      leaderboardIncludesFounder: !!s.leaderboardIncludesFounder, newHoliday: ''
+      leaderboardIncludesFounder: !!s.leaderboardIncludesFounder, signoff: s.signoff === false ? 'no' : 'yes', newHoliday: ''
     }));
     const set = (k, v) => setF(x => ({...x, [k]: v}));
     const names = (M.rules && M.rules.NAMES) || {};
@@ -165,7 +165,7 @@
         office, start: f.start, grace: Number(f.grace) || 0, eodCut: f.eodCut, mondayCut: f.mondayCut,
         wfhCap: Number(f.wfhCap) || 0, revCap: Number(f.revCap) || 0, ackHours: Number(f.ackHours) || 0,
         blockerDays: Number(f.blockerDays) || 0, holidays: f.holidays, rules: f.rules, points,
-        leaderboardIncludesFounder: f.leaderboardIncludesFounder, updated: Date.now()
+        leaderboardIncludesFounder: f.leaderboardIncludesFounder, signoff: f.signoff !== 'no', updated: Date.now()
       });
       M.toast('Settings saved');
     }
@@ -225,6 +225,10 @@
       <${UI.Card} title="Leaderboard">
         <${UI.Check} label="Leaderboard includes the founder" checked=${f.leaderboardIncludesFounder}
           onChange=${v => set('leaderboardIncludesFounder', v)}/>
+        <div style=${{marginTop: '10px'}}>
+          <${UI.Check} label="Done needs a sign-off" checked=${f.signoff !== 'no'} onChange=${v => set('signoff', v ? 'yes' : 'no')}/>
+          <div class="tiny ink62" style=${{marginTop: '4px'}}>On: a member marking their own work done sends it for sign-off; you or someone on the project ships it, and only then do the points land. Off: anyone can mark done, and each one shows up in your inbox as a flag.</div>
+        </div>
       <//>
 
       <div class="row"><${UI.Btn} onClick=${save}>Save settings<//></div>
