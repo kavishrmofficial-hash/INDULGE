@@ -302,6 +302,14 @@ Accounts, Handshake (founder only, route `#handshake`, `49-handshake.js`, `edgeo
 - **The way in on Home:** for the first two weeks after joining, a card that opens the map, the tour or the buddy; close it once and it stays closed.
 - Tests: `harness/tests/test_map.py` (the page for the founder and for a member, the numbers, the hero link, the tooltip, the palette, the More sheet, the phone, the Home card and its close).
 
+## What is in v22.1: four things opened to the team
+
+- **Handshake is the team's.** Everyone sees the Accounts tab and the shared desk (so nobody on the team DMs the same person twice). Each message is written in the first person as whoever runs the batch, with their name and title; the founder's own history line (real estate) is kept out of a member's proof bank. The proof bank and the hold hours stay the founder's to edit.
+- **Reassigning a task** is open to everyone, in the task drawer as before and now through the buddy and Ask m360.
+- **Radar channels and refresh.** On the team site anyone adds or removes a YouTube channel and forces a refresh of the news and the channels. On the claude.ai page the settings document belongs to the founder, so members still suggest a channel there.
+- **Reviews.** A task in review can be approved or sent back by the founder or by anyone on its project (the owner or a member), never by the person who owns the task. The inbox, Home and the buddy follow the same rule.
+- Kept with the founder: HQ, hiring, leave decisions, announcements, handbook editing, the Base import, pipeline money, everyone's private attendance and points detail, the fixes desk, the log, offboarding, Admin, and the Books (owner).
+
 ## Launch day
 
 1. Admin > Team: invite each person by email. They get a link, type their email and pick a password. Without an email key the invite shows a link to copy instead.

@@ -146,7 +146,7 @@
         </div>
       <//>
       <${M.SectionTabs} section="accounts" active=${t}/>
-      ${t === 'pipeline' ? html`<${Embed} page="Pitches"/>` : t === 'crm' && M.parts.CRM ? html`<${M.parts.CRM}/>` : t === 'handshake' && ctx.isFounder ? html`<${Embed} page="Handshake"/>` : html`<${Embed} page="Clients"/>`}
+      ${t === 'pipeline' ? html`<${Embed} page="Pitches"/>` : t === 'crm' && M.parts.CRM ? html`<${M.parts.CRM}/>` : t === 'handshake' ? html`<${Embed} page="Handshake"/>` : html`<${Embed} page="Clients"/>`}
     </div>`;
   }
 

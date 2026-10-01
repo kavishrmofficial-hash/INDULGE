@@ -142,9 +142,9 @@ def artifact_part(h):
     h.go(p, 'm2', hash='#home', width=1280)
     p.wait_for_selector('.buddy-home')
     cat = h.ctx(p, 'M.brain.catalog(ctx)')
-    check('hiring' not in cat and 'reassign_task' not in cat and 'decide_leave' not in cat and 'create_task' in cat, 'a member catalog: %s' % cat[:80])
-    err = p.evaluate('() => M.brain.act(M.lastCtx, {}, null, "reassign_task", {task: "Cut the teaser", owner: "Ishaan"}).then(() => "ok", e => e.message)')
-    check('founder' in err, 'a member cannot reassign: %r' % err)
+    check('hiring' not in cat and 'decide_leave' not in cat and 'reassign_task' in cat and 'create_task' in cat, 'a member catalog: %s' % cat[:80])
+    err = p.evaluate('() => M.brain.act(M.lastCtx, {}, null, "decide_leave", {person: "Ishaan", status: "approved"}).then(() => "ok", e => e.message)')
+    check('founder' in err, 'a member cannot decide leave: %r' % err)
     errs = [e for e in h.errors() if 'AudioContext' not in str(e) and 'play()' not in str(e)]
     check(not errs, 'console errors: %r' % errs[:3])
     return fails

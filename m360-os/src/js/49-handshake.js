@@ -7,7 +7,8 @@
    under the copy rules, then checked by code. The founder at a company goes first and the rest wait
    48 hours; two people at one company get different angles; a pending connection waits for the accept.
    Every message ships as the name in bold with the text in a copy block, then the skip list and the
-   flags. Nothing is sent from here: Copy, paste into LinkedIn, tap Sent. */
+   flags. Nothing is sent from here: Copy, paste into LinkedIn, tap Sent. The desk is the team's: each
+   message is written as the person running it, and the founder's own proof lines stay his. */
 'use strict';
 (function () {
   const {html, React, U, UI, icons} = M;
@@ -30,7 +31,7 @@
     proofs: [
       {k: 'fmcg', label: 'FMCG and beverage', line: 'DRINK BUBZ, PICKLE SODA, THE WHOLE TRUTH, KLAW, JIMMY\'S, MEE MEE'},
       {k: 'jewellery', label: 'Jewellery', line: 'the ZORÁE Middle East mandate'},
-      {k: 'realestate', label: 'Real estate', line: 'I come from real estate on the builder side'},
+      {k: 'realestate', label: 'Real estate', line: 'I come from real estate on the builder side', personal: true},
       {k: 'luxury', label: 'Luxury, alcobev and wealth', line: 'the experiential arm: small rooms, UHNI and HNI experiences'},
       {k: 'unilever', label: 'Unilever and big FMCG', line: 'the Unilever creator stat'}
     ],
@@ -48,6 +49,8 @@
   /* ---------- the records ---------- */
   const people = ctx => Object.keys(ctx.coll.dm.map).filter(id => id !== 'settings').map(id => ({id, ...ctx.coll.dm.map[id]})).filter(p => p && p.name);
   const settings = ctx => ({...DEFAULTS, ...((ctx.coll.dm.map.settings) || {})});
+  /* the lines a person may claim: the founder's own history stays his */
+  const proofsFor = (ctx, s) => (s.proofs || []).filter(x => ctx.isFounder || !(x.personal || (DEFAULTS.proofs.find(d => d.k === x.k) || {}).personal));
   const sameCompany = (a, b) => norm(a) && norm(a) === norm(b);
   const messaged = (ctx, name) => people(ctx).find(p => norm(p.name) === norm(name) && (p.state === 'sent' || p.message));
 
@@ -135,15 +138,15 @@
   }
 
   /* ---------- write: triage, hook, proof, five beats, one ask ---------- */
-  function rules(s) {
+  function rules(s, who) {
     return [
-      'You write LinkedIn DMs for Kaavish, founder of Mask360. ' + s.about,
+      'You write LinkedIn DMs for ' + who.name + ', ' + who.title + ' at Mask360, in the first person as them. ' + s.about,
       'BUCKETS decide the message: decision (founders, MDs, CMOs, CBOs, brand heads: ask for 20 minutes), marketer (brand managers, social or comms leads at a named company: ask for a quick call), partner (agencies, PR firms, production houses, NPD studios: the angle is referral or collaboration, ask for a coffee), creator (ask for a media kit), talent (open-to-work profiles that fit Mask360: ask for a CV), skip (recruiters, job seekers with no fit, people selling the same service as Mask360, profiles with no headline).',
       'VERIFY: a fact from their own headline can be used as is. Anything beyond the headline must appear in the VERIFIED block for that person (news or site); when it does not, do not name it and ask a question in its place ("Which brand are you on?"). Flag conflicts: a possible IONIQ investor, a competitor to Kaavish\'s own ventures, someone clearly on their way out.',
       'HOOK, one, strongest first: 1 fresh news (a deal, a round, an appointment from VERIFIED); 2 a true specific line about their company (from VERIFIED or the headline); 3 their career run (from the headline); 4 their role; 5 a question, when nothing can be verified.',
-      'PROOF, one line, only when it fits the category: ' + s.proofs.map(x => x.label + ': ' + x.line).join('; ') + '. Always: ' + s.always + '. Only claim work that exists in that list.',
+      'PROOF, one line, only when it fits the category: ' + who.proofs.map(x => x.label + ': ' + x.line).join('; ') + '. Always: ' + s.always + '. Only claim work that exists in that list.',
       'FIVE BEATS: 1 opener, "thanks for connecting" or "good to connect", alternate them across the batch; 2 the hook, one line about them; 3 the bridge, their problem in one line then what Mask360 does for it; 4 the proof, one line, only if it fits; 5 one ask set by the bucket.',
-      'COPY RULES: 3 to 5 sentences, 40 to 70 words. Proper case, brand names in CAPS, & for and. No em dashes, no en dashes, no hyphen used as a dash. No "X, not Y", no "rather than", no "instead of", no parallel contrast pairs. One idea and one ask. Never invent a number: numbers come from their headline or VERIFIED only. No pricing, decks or links. Never mention Open to Work badges, health or anything personal. Their company is the hero; Mask360 gets one sentence. Plain sentences in Kaavish\'s voice, first person, nothing that sounds like a template or a LinkedIn guru. No exclamation marks. No emoji.',
+      'COPY RULES: 3 to 5 sentences, 40 to 70 words. Proper case, brand names in CAPS, & for and. No em dashes, no en dashes, no hyphen used as a dash. No "X, not Y", no "rather than", no "instead of", no parallel contrast pairs. One idea and one ask. Never invent a number: numbers come from their headline or VERIFIED only. No pricing, decks or links. Never mention Open to Work badges, health or anything personal. Their company is the hero; Mask360 gets one sentence. Plain sentences in ' + who.name.split(' ')[0] + '\'s voice, first person, nothing that sounds like a template or a LinkedIn guru. No exclamation marks. No emoji.',
       'SEQUENCE: when SENIOR names someone at the same company, this is the junior message: a different angle from the senior\'s, and it names the senior once ("I have reached out to Saransh on the Mumbai side too").',
       'For a skip, write no message and give the reason in skip.'
     ].join('\n');
@@ -151,6 +154,8 @@
   async function write(ctx, ids) {
     if (!ctx.sample || !ctx.sample.json) throw new Error('AI is off here');
     const s = settings(ctx);
+    const nm = await M.ai.names(ctx).catch(() => ({}));
+    const who = {name: nm[ctx.uid] || (ctx.member && ctx.member.name) || 'the sender', title: (ctx.member && ctx.member.title) || (ctx.isFounder ? 'founder' : 'team member'), proofs: proofsFor(ctx, s)};
     const all = people(ctx);
     const batch = ids.map(id => all.find(p => p.id === id)).filter(Boolean);
     if (!batch.length) return [];
@@ -168,9 +173,9 @@
       const vb = v.none ? 'VERIFIED: nothing found online for ' + (p.company || 'this company') + '. Use the headline only, or ask.'
         : 'VERIFIED for ' + p.company + ':' + (v.site ? '\n  site: ' + [v.site.title, v.site.description, cut(v.site.text, 600)].filter(Boolean).join(' | ') : '') + ((v.news || []).length ? '\n  news: ' + v.news.map(n => (n.at ? U.ymd(new Date(n.at)) + ' ' : '') + n.title + ' (' + n.source + ')' + (n.summary ? ': ' + cut(n.summary, 160) : '')).join('\n  news: ') : '');
       const sr = (p.senior ? all.find(x => x.id === p.senior) : null) || seniorOf(p);
-      return 'PERSON ' + (i + 1) + ': ' + p.name + '\nHEADLINE: ' + (p.headline || '(none)') + '\nCOMPANY: ' + (p.company || '(none)') + '\nCONNECTION: ' + p.status + (p.note ? '\nNOTE FROM KAAVISH: ' + p.note : '') + (p.bucket ? '\nBUCKET SET BY KAAVISH: ' + p.bucket : '') + '\n' + vb + (sr ? '\nSENIOR: ' + sr.name + ' (' + (sr.headline || sr.bucket) + ') is being messaged first at this company.' : '');
+      return 'PERSON ' + (i + 1) + ': ' + p.name + '\nHEADLINE: ' + (p.headline || '(none)') + '\nCOMPANY: ' + (p.company || '(none)') + '\nCONNECTION: ' + p.status + (p.note ? '\nNOTE FROM THE SENDER: ' + p.note : '') + (p.bucket ? '\nBUCKET SET BY THE SENDER: ' + p.bucket : '') + '\n' + vb + (sr ? '\nSENIOR: ' + sr.name + ' (' + (sr.headline || sr.bucket) + ') is being messaged first at this company.' : '');
     }).join('\n\n');
-    const prompt = 'HANDSHAKE WRITE:\n' + rules(s) + '\n\nOPENERS: alternate "Thanks for connecting" and "Good to connect" starting with ' + (people(ctx).filter(p => p.message).length % 2 ? '"Good to connect"' : '"Thanks for connecting"') + '.\n\n' + block +
+    const prompt = 'HANDSHAKE WRITE:\n' + rules(s, who) + '\n\nOPENERS: alternate "Thanks for connecting" and "Good to connect" starting with ' + (people(ctx).filter(p => p.message).length % 2 ? '"Good to connect"' : '"Thanks for connecting"') + '.\n\n' + block +
       '\n\nReply with JSON only: {"people": [{"name": "", "bucket": "decision|marketer|partner|creator|talent|skip", "why": "one line on the bucket", "hookKind": "news|company|career|role|question", "hookLine": "the one line about them", "proof": "the proof line used or empty", "message": "the DM, or empty for a skip", "flags": ["conflict or caution, or none"], "skip": "reason when bucket is skip"}]}';
     const out = await ctx.sample.json(prompt, {cache: false, modelTier: 'complex'});
     const list = Array.isArray(out) ? out : (out && out.people) || [];
@@ -247,6 +252,7 @@
             <b class="hs-name">${p.name}</b>
             ${bucket ? html`<${UI.Pill} kind=${p.bucket === 'decision' ? 'flame' : 'ink'}>${bucket.label}<//>` : null}
             ${p.status === 'pending' ? html`<${UI.Pill}>pending<//>` : null}
+            ${p.by && p.by !== ctx.uid ? html`<span class="tiny ink62">by <${UI.Name} id=${p.by}/></span>` : null}
             ${p.hook && p.hook.kind ? html`<span class="tiny ink62">hook: ${HOOK_LABEL[p.hook.kind] || p.hook.kind}</span>` : null}
           </div>
           <div class="small ink62">${p.headline || 'no headline'}${p.company ? ' · ' + p.company : ''}</div>
@@ -338,11 +344,10 @@
     const ctx = M.useCtx();
     const [tick, setTick] = useState(0);
     const [showSent, setShowSent] = useState(false);
-    const all = ctx.isFounder ? people(ctx) : [];
+    const all = people(ctx);
     useEffect(() => { const t = setInterval(() => setTick(x => x + 1), 60000); return () => clearInterval(t); }, []);
     /* a hold that has run out is ready now */
     useEffect(() => { all.filter(p => p.state === 'hold' && p.holdUntil && p.holdUntil <= Date.now()).forEach(p => ctx.W.update('dm/' + p.id, {state: 'ready', updated: Date.now()}).catch(() => {})); }, [tick, all.length]);
-    if (!ctx.isFounder) return html`<${UI.Card} title="Handshake"><div class="small ink62">The DM desk is the founder's.</div><//>`;
     const by = st => all.filter(p => p.state === st).sort((a, b) => (RANK[a.bucket] == null ? 5 : RANK[a.bucket]) - (RANK[b.bucket] == null ? 5 : RANK[b.bucket]) || (b.updated || 0) - (a.updated || 0));
     const ready = by('ready'), hold = by('hold'), waiting = by('waiting'), fresh = by('new'), skipped = by('skipped'), sent = by('sent').sort((a, b) => (b.sentAt || 0) - (a.sentAt || 0));
     const flagged = all.filter(p => p.flags && p.flags.length && p.state !== 'sent');
@@ -377,7 +382,7 @@
         ${showSent ? html`<div class="stack">${sent.map(p => html`<${Person} key=${p.id} p=${p} ctx=${ctx} all=${all}/>`)}</div>` : html`<div class="small ink62">${sent.slice(0, 8).map(p => p.name).join(', ')}${sent.length > 8 ? ' & ' + (sent.length - 8) + ' more' : ''}</div>`}
       <//>` : null}
       ${!all.length ? html`<${UI.Empty} text="Nobody in the desk yet. Drop the screenshots above."/>` : null}
-      <${Setup} ctx=${ctx}/>
+      ${ctx.isFounder ? html`<${Setup} ctx=${ctx}/>` : null}
       <div class="hint">The flow: intake, triage into a bucket, verify the company online, pick one hook, match the proof, write in five beats, sequence (the founder first, the team held ${settings(ctx).hold} hours, pending connections after the accept), QC, then Copy and paste into LinkedIn and tap Sent. Ask m360 takes "DM:" with screenshots too.</div>
     </div>`;
   }

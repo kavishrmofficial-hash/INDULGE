@@ -70,7 +70,7 @@ def part(h):
     p.wait_for_selector('#map')
     check(p.locator('#map-day-one').count() == 1 and p.locator('#map-day-one .map-tab').count() == 6, 'the day-one list for a new joiner')
     check(p.locator('#map-hq').count() == 0 and p.locator('#map-books').count() == 0 and p.locator('#map-admin').count() == 0, 'no founder places for a member')
-    check('Handshake' not in p.inner_text('#map-accounts'), 'no Handshake for a member')
+    check('Handshake' in p.inner_text('#map-accounts'), 'Handshake is on the member map too')
     check('Hiring' in p.inner_text('#map-me'), 'a member sees Hiring under Me')
     h.go(p, 'm1', hash='#home', width=1280)
     p.wait_for_selector('#find-your-way')

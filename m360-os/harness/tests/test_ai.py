@@ -76,7 +76,7 @@ def test(h):
     check(page.locator('.bubble.act').count() >= 1, 'action bubble shows what the AI did')
     calls = page.evaluate('window.__sampleCalls')
     askp = [c for c in calls if c.get('tools')]
-    check(askp and 'reassign_task' not in askp[-1]['tools'], 'members never get the reassign tool')
+    check(askp and 'act' in askp[-1]['tools'], 'members get the brain tools too')
     # privacy: a member prompt never carries teammates' lateness, location checks, points or money
     mp = askp[-1]['text'] if askp else ''
     aanya = [ln for ln in mp.split('\n') if ln.startswith('- Aanya')]

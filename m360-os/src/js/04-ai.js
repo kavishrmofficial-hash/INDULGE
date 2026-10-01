@@ -281,7 +281,7 @@
         return {ok: true, task: t.title, status: st};
       }
     }];
-    if (ctx.isFounder) tools.push({
+    tools.push({
       name: 'reassign_task',
       description: 'Give an existing task to a different teammate. Find it by its title. Returns the new owner.',
       inputSchema: {type: 'object', properties: {

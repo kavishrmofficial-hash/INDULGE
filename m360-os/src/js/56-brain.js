@@ -135,7 +135,7 @@
     ['scores', 'the leaderboard for a period (week, month, quarter, all) and the points behind it'],
     ['radar', 'the latest trade press on Radar, by lane (people, accounts, launches, campaigns, awards) (team site)'],
     ['books', 'invoices due and overdue, this month\'s expenses, compliance dates (owner)'],
-    ['handshake', 'the LinkedIn DM desk: who is ready, held, waiting on an accept, sent, skipped, flagged (founder)'],
+    ['handshake', 'the LinkedIn DM desk: who is ready, held, waiting on an accept, sent, skipped, flagged'],
     ['inbox', 'what is waiting in the inbox'],
     ['online', 'who has m360 open right now and where they are'],
     ['base', 'the Base, the contacts database, for a name, company, city or stage'],
@@ -147,7 +147,7 @@
     ['memory', 'what you have been asked to remember'],
     ['help', 'this list']
   ];
-  const AREA_WHO = {hiring: 'founder', handshake: 'founder', books: 'owner', radar: 'site', web: 'site'};
+  const AREA_WHO = {hiring: 'founder', books: 'owner', radar: 'site', web: 'site'};
   function areasFor(ctx) {
     return AREAS.filter(([k]) => {
       const w = AREA_WHO[k];
@@ -389,7 +389,7 @@
         return L.join('\n');
       }
       case 'handshake': case 'dm': case 'dms': {
-        if (!ctx.isFounder || !M.handshake) return 'The DM desk is the founder\'s.';
+        if (!M.handshake) return 'The DM desk is not on this build.';
         const ps = M.handshake.people(ctx).filter(p => !q || has(p.name + ' ' + p.company + ' ' + p.headline + ' ' + p.state, q));
         const st = {};
         ps.forEach(p => { st[p.state] = (st[p.state] || 0) + 1; });
@@ -490,9 +490,9 @@
   /* ---------- the actions act runs ---------- */
   const ACTIONS = [
     ['create_task', '{title, owner?, due? YYYY-MM-DD, priority? low|normal|high, project?, client?, subtasks? [text], link?}', 'a task, assigned'],
-    ['update_task', '{task, title?, due?, priority?, project?, client?, link?, owner?}', 'change a task (owner needs the founder)'],
+    ['update_task', '{task, title?, due?, priority?, project?, client?, link?, owner?}', 'change a task'],
     ['set_task_status', '{task, status todo|doing|review|done}', 'move a task'],
-    ['reassign_task', '{task, owner}', 'hand a task to someone (founder)'],
+    ['reassign_task', '{task, owner}', 'hand a task to someone'],
     ['add_subtask', '{task, text}', 'a subtask'],
     ['tick_subtask', '{task, subtask, done? true}', 'tick or untick a subtask'],
     ['comment_task', '{task, text}', 'a comment on a task, @Name mentions people'],
@@ -523,7 +523,7 @@
     ['send_mail', '{to, subject, text, cc?}', 'an email from their Gmail (team site, waits for a tap)'],
     ['add_meeting', '{title, start ISO, end ISO, attendees? [emails], description?, meet? true}', 'a Google Calendar event (team site, waits for a tap)']
   ];
-  const ACTION_WHO = {reassign_task: 'founder', decide_leave: 'founder', send_mail: 'site', add_meeting: 'site'};
+  const ACTION_WHO = {decide_leave: 'founder', send_mail: 'site', add_meeting: 'site'};
   function actionsFor(ctx) {
     return ACTIONS.filter(([k]) => {
       const w = ACTION_WHO[k];
@@ -568,7 +568,7 @@
         if (input.link !== undefined) patch.link = cut(String(input.link || '').trim(), 400);
         if (input.project) { const p = findProject(ctx, input.project); if (!p) throw new Error('no project matches ' + input.project); patch.project = p.id; patch.section = (p.sections && p.sections[0] && p.sections[0].id) || ''; if (p.client) patch.client = p.client; }
         if (input.client) { const c = findClient(ctx, input.client); if (!c) throw new Error('no client matches ' + input.client); patch.client = c.id; }
-        if (input.owner) { if (!ctx.isFounder) throw new Error('only the founder hands tasks to others; use reassign_task as the founder'); patch.owner = who(input.owner, t.owner); }
+        if (input.owner) patch.owner = who(input.owner, t.owner);
         await ctx.W.update('tasks/' + t.id, patch);
         say('Updated "' + t.title + '"');
         return {ok: true, task: patch.title || t.title, changed: Object.keys(patch).filter(k => k !== 'updated')};
@@ -584,7 +584,6 @@
         return {ok: true, task: t.title, status: st};
       }
       case 'reassign_task': {
-        if (!ctx.isFounder) throw new Error('only the founder hands tasks to others');
         const t = needTask();
         const owner = who(input.owner, null);
         if (!owner) throw new Error('say who should own it');
@@ -622,7 +621,7 @@
       case 'approve_task': case 'send_back_task': {
         const t = needTask();
         if (t.status !== 'review') throw new Error('"' + t.title + '" is not in review');
-        if (!(M.reviews && M.reviews.canReview(ctx, t))) throw new Error('only the founder or the project owner reviews this one');
+        if (!(M.reviews && M.reviews.canReview(ctx, t))) throw new Error('only someone on the project, not the task\'s owner, reviews this one');
         if (a === 'approve_task') return hold('Approve "' + cut(t.title, 40) + '"', 'Marks it done, approved by you.', () => ctx.W.update('tasks/' + t.id, {status: 'done', doneAt: Date.now(), approvedBy: uid, approvedAt: Date.now(), updated: Date.now()}));
         const note = cut(String(input.note || '').trim(), 240);
         return hold('Send back "' + cut(t.title, 40) + '"', note || 'No note.', () => {

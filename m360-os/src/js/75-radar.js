@@ -397,7 +397,7 @@
         <div class="grow" style=${{maxWidth: '360px'}}><${UI.Input} id="radar-search" value=${q} onChange=${setQ} placeholder="Search the stream"/></div>
         ${isLive ? html`<div class="row nowrap" style=${{gap: '10px'}}>
           <span class="tiny sub num" id="radar-updated">${news.data && news.data.at ? 'updated ' + U.timeAgo(news.data.at) : (busy ? 'fetching' : '')}${news.data && news.data.stale ? ', feeds slow' : ''}</span>
-          <${UI.Btn} kind="sec" sm disabled=${busy} onClick=${() => news.load(ctx.isFounder ? {force: true} : {})} id="radar-refresh">${busy ? 'Refreshing' : 'Refresh'}<//>
+          <${UI.Btn} kind="sec" sm disabled=${busy} onClick=${() => news.load({force: true})} id="radar-refresh">${busy ? 'Refreshing' : 'Refresh'}<//>
         </div>` : null}
       </div>
       ${errors.length ? html`<div class="tiny ink62" id="radar-errors">${errors.length} ${errors.length === 1 ? 'source' : 'sources'} did not answer: ${errors.map(e => names[e.id] || e.id).join(', ')}.</div>` : null}
@@ -492,11 +492,13 @@
     const openVideo = v => { setOpen(v); setWatching(ctx, v); };
     const busyList = channels.state === 'loading' || channels.state === 'refreshing';
 
+    /* on the team site the server keeps the channel list, so anyone adds or drops one; on the claude.ai page the settings document is the founder's, so members suggest */
+    const canEdit = ctx.isFounder || isLive;
     async function submit() {
       if (!add.trim() || busy) return;
       setBusy(true);
       try {
-        if (ctx.isFounder) { if (await addChannel(ctx, add)) { setAdd(''); if (isLive) channels.load({force: true}); } }
+        if (canEdit) { if (await addChannel(ctx, add)) { setAdd(''); if (isLive) channels.load({force: true}); } }
         else {
           const h = handleFrom(add);
           if (!h) M.toast('Paste a YouTube handle or channel link', true);
@@ -513,18 +515,18 @@
       </div>` : null}
       <div class="row between">
         <div class="row nowrap grow" style=${{gap: '8px', maxWidth: '520px'}}>
-          <div class="grow"><${UI.Input} id="radar-channel" value=${add} onChange=${setAdd} onEnter=${submit} placeholder=${ctx.isFounder ? 'Handle or channel link, then Add' : 'Handle or channel link, then Suggest'}/></div>
-          <${UI.Btn} kind="sec" disabled=${busy || !add.trim()} onClick=${submit} id="radar-channel-go">${ctx.isFounder ? 'Add a channel' : 'Suggest a channel'}<//>
+          <div class="grow"><${UI.Input} id="radar-channel" value=${add} onChange=${setAdd} onEnter=${submit} placeholder=${canEdit ? 'Handle or channel link, then Add' : 'Handle or channel link, then Suggest'}/></div>
+          <${UI.Btn} kind="sec" disabled=${busy || !add.trim()} onClick=${submit} id="radar-channel-go">${canEdit ? 'Add a channel' : 'Suggest a channel'}<//>
         </div>
         ${isLive ? html`<div class="row nowrap" style=${{gap: '10px'}}>
           <span class="tiny sub num">${channels.data && channels.data.at ? 'updated ' + U.timeAgo(channels.data.at) : (busyList ? 'fetching' : '')}</span>
-          <${UI.Btn} kind="sec" sm disabled=${busyList} onClick=${() => channels.load(ctx.isFounder ? {force: true} : {})}>${busyList ? 'Refreshing' : 'Refresh'}<//>
+          <${UI.Btn} kind="sec" sm disabled=${busyList} onClick=${() => channels.load({force: true})}>${busyList ? 'Refreshing' : 'Refresh'}<//>
         </div>` : null}
       </div>
       ${errors.length ? html`<div class="tiny ink62" id="watch-errors">${errors.length} ${errors.length === 1 ? 'channel' : 'channels'} did not answer: ${errors.map(e => '@' + e.id).join(', ')}.</div>` : null}
       ${channels.state === 'error' ? html`<div class="small flame-t">The channels did not load: ${channels.err}. Tap Refresh to try again.</div>` : null}
       <div class="rd-channels" id="radar-channels">
-        ${list.map(c => html`<${ChannelCard} key=${c.handle || c.id} c=${c} live=${isLive} founder=${ctx.isFounder} onOpen=${openVideo}
+        ${list.map(c => html`<${ChannelCard} key=${c.handle || c.id} c=${c} live=${isLive} founder=${canEdit} onOpen=${openVideo}
           onDrop=${x => dropChannel(ctx, x).then(() => { if (isLive) channels.load({force: true}); }).catch(() => {})}/>`)}
       </div>
       ${open ? html`<${VideoDrawer} v=${open} onClose=${() => setOpen(null)}/>` : null}

@@ -4,7 +4,7 @@ the batch is sorted into buckets, the founder at a company is ready while the ju
 with a message that names the senior, a recruiter lands on the skip list, a pending connection waits
 on the accept, a flag shows in the flags card, the copy rules are checked by code, Sent moves a person
 to the sent log, a second intake of the same name is refused, the brain reads the desk, and a member
-cannot reach it. On the team site (the dev stand-in): "DM:" with a screenshot in Ask m360 runs the
+has it too, writing as themselves. On the team site (the dev stand-in): "DM:" with a screenshot in Ask m360 runs the
 desk, the company is verified on the fake press so the hook is the news, and the image reached the model.
 
 Run: cd m360-os && python3 harness/tests/test_handshake.py
@@ -94,10 +94,16 @@ def artifact_part(h):
     check(txt.startswith('HANDSHAKE: 4 people') and 'Priya Mehta' in txt, 'the brain area: ' + txt[:80])
     # the settings hold
     check(p.locator('#handshake input[type="number"]').count() == 1 and 'ZORÁE' in p.evaluate('() => Array.from(document.querySelectorAll("#handshake input")).map(i => i.value).join("|")'), 'the proof bank fields with the defaults')
-    # a member cannot reach the desk
+    # a member has the desk too, sees the founder's batch, and writes as themselves without the founder's own line
     h.go(p, 'm1', hash='#handshake', width=1280)
-    p.wait_for_timeout(600)
-    check(p.locator('#hs-intake').count() == 0 and p.locator('.section-tabs .tab:has-text("Handshake")').count() == 0, 'a member landed on the desk')
+    p.wait_for_selector('#hs-intake')
+    check(p.locator('.section-tabs .tab:has-text("Handshake")').count() == 1 and 'Priya Mehta' in p.inner_text('#handshake'), 'a member reaches the shared desk')
+    check(p.locator('#hs-setup').count() == 0 and p.locator('#handshake input[type="number"]').count() == 0, 'the proof bank is the founder\'s to edit')
+    p.fill('#hs-lines', 'Sana Iyer | Social Lead, KLAW | Klaw | 1st')
+    p.click('#hs-run')
+    p.wait_for_function('() => { const x = M.handshake.people(M.lastCtx).find(y => y.name === "Sana Iyer"); return x && x.state !== "new"; }', timeout=30000)
+    wr = p.evaluate('() => window.__sampleCalls.filter(c => /HANDSHAKE WRITE/.test(c.text)).pop().text')
+    check('for Durvesh Patil' in wr and 'builder side' not in wr and 'Durvesh\'s voice' in wr, 'written as the member, without the founder\'s own line: %r' % wr[:160])
     errs = [e for e in h.errors() if 'AudioContext' not in str(e) and 'play()' not in str(e)]
     check(not errs, 'console errors: %r' % errs[:3])
     return fails

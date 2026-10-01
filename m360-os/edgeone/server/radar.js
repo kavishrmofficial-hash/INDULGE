@@ -362,7 +362,7 @@ export function radarActions(h) {
     /* the news stream: cached 30 minutes, keyword hits applied at serve time */
     async news(v, body) {
       const level = await need(v, LEVEL.interact);
-      const force = !!(body && body.force) && level >= LEVEL.admin;
+      const force = !!(body && body.force) && level >= LEVEL.interact;
       const radar = await radarOf();
       const cached = await getJ('n/news').catch(() => null);
       let out = cached, stale = false;
@@ -378,7 +378,7 @@ export function radarActions(h) {
     /* channels and their latest videos: cached 30 minutes */
     async channels(v, body) {
       const level = await need(v, LEVEL.interact);
-      const force = !!(body && body.force) && level >= LEVEL.admin;
+      const force = !!(body && body.force) && level >= LEVEL.interact;
       const radar = await radarOf();
       const cached = await getJ('n/videos').catch(() => null);
       let out = cached, stale = false;
@@ -392,9 +392,9 @@ export function radarActions(h) {
       return {at: out.at, channels: out.channels || [], errors: out.errors || [], stale};
     },
 
-    /* the founder adds a channel by handle: resolved first, so a typo never lands in settings */
+    /* anyone on the team adds a channel by handle: resolved first, so a typo never lands in settings */
     async addchannel(v, body) {
-      await need(v, LEVEL.admin);
+      await need(v, LEVEL.interact);
       const handle = String((body && body.handle) || '').replace(/^@/, '').trim();
       if (!HANDLE_OK.test(handle)) throw new HttpError(400, 'invalid_argument', 'That does not look like a YouTube handle.');
       let id;
@@ -411,7 +411,7 @@ export function radarActions(h) {
       return {ok: true, id, handle, name};
     },
     async dropchannel(v, body) {
-      await need(v, LEVEL.admin);
+      await need(v, LEVEL.interact);
       const handle = String((body && body.handle) || '').replace(/^@/, '').trim();
       if (!HANDLE_OK.test(handle)) throw new HttpError(400, 'invalid_argument', 'bad handle');
       const key = handle.toLowerCase();

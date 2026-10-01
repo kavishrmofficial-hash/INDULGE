@@ -30,7 +30,7 @@
       if (mine && t.by && t.by !== me) push('assign:' + id, 'tasks', t.created || 0, T`${nm(t.by)} handed you ${t.title}`, '#tasks/' + id, t.by);
       if (mine && t.status === 'done' && t.doneAt && t.approvedBy && t.approvedBy !== me) push('ok:' + id, 'review', t.doneAt, T`${nm(t.approvedBy)} approved ${t.title}`, '#tasks/' + id, t.approvedBy);
       if (mine && t.sentBackAt && t.sentBackBy && t.sentBackBy !== me) push('back:' + id, 'review', t.sentBackAt, T`${nm(t.sentBackBy)} sent ${t.title} back${t.sentBackNote ? ': ' + t.sentBackNote : ''}`, '#tasks/' + id, t.sentBackBy, true);
-      if (!mine && t.status === 'review' && t.reviewAt && (ctx.isFounder || (t.project && ctx.coll.projects.map[t.project] && ctx.coll.projects.map[t.project].owner === me)))
+      if (!mine && t.status === 'review' && t.reviewAt && (M.reviews ? M.reviews.canReview(ctx, t) : ctx.isFounder))
         push('rev:' + id, 'review', t.reviewAt, T`${nm(t.owner)} put ${t.title} up for review`, '#reviews', t.owner);
       const cs = t.comments || {};
       for (const cid of Object.keys(cs)) {

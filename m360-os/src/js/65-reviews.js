@@ -6,7 +6,13 @@
   const {html, React, U, UI, icons} = M;
   const {useState} = React;
 
-  const canReview = (ctx, t) => ctx.isFounder || (t.project && ctx.coll.projects.map[t.project] && ctx.coll.projects.map[t.project].owner === ctx.uid);
+  /* the founder, or anyone on the task's project (its owner or a member) who does not own the task */
+  const canReview = (ctx, t) => {
+    if (ctx.isFounder) return true;
+    if (!t || t.owner === ctx.uid || !t.project) return false;
+    const p = ctx.coll.projects.map[t.project];
+    return !!p && (p.owner === ctx.uid || (Array.isArray(p.members) && p.members.indexOf(ctx.uid) >= 0));
+  };
 
   function queue(ctx) {
     const map = ctx.coll.tasks.map;

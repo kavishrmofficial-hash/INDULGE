@@ -30,7 +30,7 @@ export function handshakeActions(h) {
   return {
     /* {company, site?}: what the press said in the last ninety days, and the site as text when known */
     async dmverify(v, body) {
-      if (!v || (await levelOf(v.uid)) < LEVEL.admin) throw new HttpError(403, 'not_granted');
+      if (!v || (await levelOf(v.uid)) < LEVEL.interact) throw new HttpError(403, 'not_granted');
       const company = String((body && body.company) || '').trim().replace(/\s+/g, ' ').slice(0, 120);
       if (company.length < 2) throw new HttpError(400, 'invalid_argument', 'a company name is needed');
       const site = String((body && body.site) || '').trim().slice(0, 300);
