@@ -90,7 +90,7 @@
     if (!task || task.status === status) return;
     const {patch, msg} = statusPatch(task, status, ctx.uid);
     await ctx.W.update('tasks/' + task.id, patch).catch(() => {});
-    if (status === 'done') M.burst(el || document.body); else M.sound.play('tick');
+    if (status === 'done') M.rain('🔥', el || document.body, {n: 56}); else M.sound.play('tick');
     M.toast(msg);
   }
 

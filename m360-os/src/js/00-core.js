@@ -469,6 +469,47 @@ M.spark = function spark(el, n) {
 };
 M.burst = function burst(el) { M.spark(el, 14); M.sound.play('chime'); };
 
+/* ---------- rain: the screen fills with one emoji, the way confetti falls, for a reaction or a win.
+   A fountain of a few from where it was tapped, then a sheet of them from the top edge. Reduced
+   motion gets the small spark. The layer takes no pointer events and removes itself. ---------- */
+M.rain = function rain(emoji, el, opts) {
+  const o = opts || {};
+  if (M.reduced()) { M.spark(el, 10); return; }
+  const w = window.innerWidth, h = window.innerHeight;
+  const n = o.n || (w < 600 ? 44 : 72);
+  const layer = document.createElement('div');
+  layer.className = 'rain';
+  layer.setAttribute('aria-hidden', 'true');
+  const r = el && el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+  const cx = r ? r.left + r.width / 2 : w / 2, cy = r ? r.top + r.height / 2 : h / 2;
+  const pops = o.pops == null ? 16 : o.pops;
+  for (let i = 0; i < pops; i++) {
+    const p = document.createElement('b');
+    p.textContent = emoji;
+    const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.4;
+    const d = 80 + Math.random() * 170;
+    p.style.setProperty('--dx', Math.cos(a) * d + 'px');
+    p.style.setProperty('--dy', Math.sin(a) * d + 'px');
+    p.style.setProperty('--sz', (16 + Math.random() * 18).toFixed(0) + 'px');
+    p.style.left = cx + 'px'; p.style.top = cy + 'px';
+    layer.appendChild(p);
+  }
+  for (let i = 0; i < n; i++) {
+    const p = document.createElement('i');
+    p.textContent = emoji;
+    p.style.left = (Math.random() * 100).toFixed(1) + 'vw';
+    p.style.setProperty('--sz', (14 + Math.random() * 26).toFixed(0) + 'px');
+    p.style.setProperty('--sway', ((Math.random() - 0.5) * 140).toFixed(0) + 'px');
+    p.style.setProperty('--spin', ((Math.random() - 0.5) * 560).toFixed(0) + 'deg');
+    p.style.animationDuration = (1.5 + Math.random() * 1.4).toFixed(2) + 's';
+    p.style.animationDelay = (Math.random() * 0.9).toFixed(2) + 's';
+    layer.appendChild(p);
+  }
+  document.body.appendChild(layer);
+  setTimeout(() => layer.remove(), 3600);
+  if (o.sound !== false) M.sound.play(o.sound || 'chime');
+};
+
 /* ---------- count up: numbers that roll to their value ---------- */
 M.useCountUp = function useCountUp(value, ms) {
   const n = Number(value);

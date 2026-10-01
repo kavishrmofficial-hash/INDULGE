@@ -552,6 +552,11 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .sparks i.ink{background:var(--ink); border-radius:999px}
 @keyframes sparkfly{from{opacity:1; transform:translate(0,0) scale(var(--s)) rotate(0)} to{opacity:0; transform:translate(var(--dx),var(--dy)) scale(.2) rotate(200deg)}}
 .sparkline{color:var(--ink); display:block; overflow:visible}
+.rain{position:fixed; inset:0; z-index:121; pointer-events:none; overflow:hidden}
+.rain i{position:absolute; top:-56px; font-style:normal; font-size:var(--sz); line-height:1; opacity:0; animation:raindown 2s cubic-bezier(.3,.1,.65,1) forwards; will-change:transform,opacity}
+.rain b{position:absolute; font-weight:400; font-size:var(--sz); line-height:1; margin:-.5em 0 0 -.5em; animation:rainpop 1.15s cubic-bezier(.15,.7,.3,1) forwards; will-change:transform,opacity}
+@keyframes raindown{0%{opacity:0; transform:translate(0,0) rotate(0)} 10%{opacity:1} 100%{opacity:.85; transform:translate(var(--sway),calc(100vh + 90px)) rotate(var(--spin))}}
+@keyframes rainpop{0%{opacity:1; transform:translate(0,0) scale(.3)} 55%{opacity:1; transform:translate(var(--dx),var(--dy)) scale(1.15)} 100%{opacity:0; transform:translate(var(--dx),calc(var(--dy) + 140px)) scale(.9)}}
 .sparkline.hot{color:var(--flame)}
 
 /* ---------- command palette ---------- */

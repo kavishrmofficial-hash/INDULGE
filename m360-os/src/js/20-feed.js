@@ -26,7 +26,7 @@
   const EMPTY = {all: 'Nothing posted yet.', announce: 'No announcements yet.', win: 'No wins yet.', ship: 'Nothing shipped in the last two weeks. Finish a task and it lands here.', kudos: 'No kudos yet.'};
   const SHIP_DAYS = 14;
   const COMMENT_MAX = 400;
-  const EMOJIS = ['👍', '🔥', '👀', '✅'];
+  const EMOJIS = ['👍', '🔥', '❤️', '😂', '👏', '👀', '✅'];
   const KEEP_POSTS = 80;
   const KEEP_KUDOS = 60;
   const STREAM_CAP = 120;
@@ -117,7 +117,7 @@
     const [open, setOpen] = useState(!!openDefault);
     const [text, setText] = useState('');
     const list = open ? commentsOf(ctx, itKey) : [];
-    const send = () => { const t = text.trim(); if (!t) return; addComment(ctx, itKey, t).then(() => { setText(''); M.sound.play('soft'); }).catch(() => {}); };
+    const send = ev => { const t = text.trim(); if (!t) return; const el = ev && ev.currentTarget; addComment(ctx, itKey, t).then(() => { setText(''); M.rain('💬', el, {n: 18, pops: 8, sound: 'soft'}); }).catch(() => {}); };
     return html`<div class="comments">
       <button type="button" class="linky tiny" aria-expanded=${open} onClick=${() => setOpen(x => !x)}>${count ? count + (count === 1 ? ' comment' : ' comments') : 'Comment'}</button>
       ${open ? html`<div class="stack tight" style=${{marginTop: '8px'}}>
@@ -128,7 +128,7 @@
           ${c.by === ctx.uid ? html`<button type="button" class="linky tiny" onClick=${() => dropComment(ctx, itKey, c.id)}>Delete</button>` : null}
         </div>`)}
         <div class="row nowrap" style=${{gap: '8px'}}>
-          <input class="input" value=${text} placeholder="Say something nice" aria-label="Comment" onInput=${e => setText(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') send(); }}/>
+          <input class="input" value=${text} placeholder="Say something nice" aria-label="Comment" onInput=${e => setText(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') send(e); }}/>
           <${UI.Btn} sm=${true} disabled=${!text.trim()} onClick=${send}>Post<//>
         </div>
       </div>` : null}
@@ -140,11 +140,7 @@
   function ShipCard({it, counts, mine, names, nComments}) {
     const ctx = M.useCtx();
     const c = counts[it.key] || {};
-    const react = e => {
-      const r = myReacts(ctx, ctx.uid);
-      if (r[it.key] === e) { const doc = U.clone(collMap(ctx, 'reacts')[ctx.uid] || {}); doc.r = {...(doc.r || {})}; delete doc.r[it.key]; ctx.W.set('reacts/' + ctx.uid, doc).catch(() => {}); }
-      else ctx.W.merge('reacts/' + ctx.uid, {r: {[it.key]: e}}).then(() => M.sound.play('soft')).catch(() => {});
-    };
+    const react = reactOn(ctx, it.key);
     const cheer = CHEERS[Math.abs(String(it.id).split('').reduce((n, ch) => n + ch.charCodeAt(0), 0)) % CHEERS.length];
     return html`<section class="card ship" data-key=${it.key} data-kind="ship">
       <div class="row between post-head">
@@ -161,13 +157,34 @@
         <button type="button" class="linky tiny" onClick=${() => M.nav('#tasks/' + it.id)}>Open</button>
       </div>
       <div class="ship-title">${it.text}</div>
-      <div class="row" role="group" aria-label="Reactions">
-        ${EMOJIS.map(e => html`<button key=${e} type="button" class=${'emoji-btn' + (mine === e ? ' on' : '')}
-          aria-pressed=${mine === e} aria-label=${'React ' + e} onClick=${() => react(e)}>
-          <span>${e}</span>${c[e] ? html`<span class="num">${c[e]}</span>` : null}</button>`)}
-      </div>
+      <${Reactions} c=${c} mine=${mine} react=${react}/>
       <${Comments} itKey=${it.key} names=${names} count=${nComments || 0}/>
     </section>`;
+  }
+
+  /* the reaction row every card carries: tap one and the screen rains with it */
+  function Reactions({c, mine, react}) {
+    return html`<div class="row reacts" role="group" aria-label="Reactions">
+      ${EMOJIS.map(e => html`<button key=${e} type="button" class=${'emoji-btn' + (mine === e ? ' on' : '')}
+        aria-pressed=${mine === e} aria-label=${'React ' + e} onClick=${ev => react(e, ev.currentTarget)}>
+        <span>${e}</span>${c[e] ? html`<span class="num">${c[e]}</span>` : null}</button>`)}
+    </div>`;
+  }
+
+  /* set or clear my reaction on a card; setting one rains the emoji from where it was tapped */
+  function reactOn(ctx, key) {
+    return (e, el) => {
+      const r = myReacts(ctx, ctx.uid);
+      if (r[key] === e) {
+        /* the whole document goes back, so the comments in it stay */
+        const doc = U.clone(collMap(ctx, 'reacts')[ctx.uid] || {});
+        doc.r = {...(doc.r || {})}; delete doc.r[key];
+        ctx.W.set('reacts/' + ctx.uid, doc).catch(() => {});
+      } else {
+        M.rain(e, el);
+        ctx.W.merge('reacts/' + ctx.uid, {r: {[key]: e}}).catch(() => {});
+      }
+    };
   }
 
   /* reaction counts from every reacts document: {[postKey]: {[emoji]: n}} */
@@ -280,6 +297,7 @@
         await W.merge('kudos/' + uid, {given});
         setWhy('');
         setTo('');
+        M.rain('👏', document.querySelector('.drawer-foot'));
         M.toast('Kudos sent');
         onClose();
       } catch (e) { /* the write layer already toasted the failure */ }
@@ -304,17 +322,7 @@
     const c = counts[it.key] || {};
     const isAuthor = it.author === uid;
 
-    const react = e => {
-      const r = myReacts(ctx, uid);
-      if (r[it.key] === e) {
-        /* the whole document goes back, so the comments in it stay */
-        const doc = U.clone(collMap(ctx, 'reacts')[uid] || {});
-        doc.r = {...(doc.r || {})}; delete doc.r[it.key];
-        W.set('reacts/' + uid, doc).catch(() => {});
-      } else {
-        W.merge('reacts/' + uid, {r: {[it.key]: e}}).catch(() => {});
-      }
-    };
+    const react = reactOn(ctx, it.key);
     const togglePin = () => {
       if (!founderUid) return;
       W.merge('feed/' + founderUid, {pinned: it.pinned ? null : it.key})
@@ -377,16 +385,15 @@
         })}
         <div class="tiny ink62 num">${pollVotes.total} ${pollVotes.total === 1 ? 'vote' : 'votes'}${pollVotes.total && (isAuthor || isFounder) ? html`. ${Object.keys(pollVotes.who).map(i => html`<span key=${i}>${(it.options || [])[i]}: <${UI.AvatarRow} ids=${pollVotes.who[i]} size=${16}/> </span>`)}` : ''}</div>
       </div>` : null}
-      <div class="row" role="group" aria-label="Reactions">
-        ${EMOJIS.map(e => html`<button key=${e} type="button" class=${'emoji-btn' + (mine === e ? ' on' : '')}
-          aria-pressed=${mine === e} aria-label=${'React ' + e} onClick=${() => react(e)}>
-          <span>${e}</span>${c[e] ? html`<span class="num">${c[e]}</span>` : null}</button>`)}
-      </div>
+      <${Reactions} c=${c} mine=${mine} react=${react}/>
       <${Comments} itKey=${it.key} names=${names} count=${nComments || 0}/>
     </section>`;
   }
 
-  function KudosCard({it, names, nComments}) {
+  function KudosCard({it, counts, mine, names, nComments}) {
+    const ctx = M.useCtx();
+    const c = counts[it.key] || {};
+    const react = reactOn(ctx, it.key);
     return html`<section class="card" data-key=${it.key} data-kind="kudos">
       <div class="row nowrap">
         <${UI.Avatar} id=${it.giver} size=${32}/>
@@ -399,6 +406,7 @@
         </div>
       </div>
       <div style=${{overflowWrap: 'anywhere', marginTop: '12px'}}>${it.why}</div>
+      <${Reactions} c=${c} mine=${mine} react=${react}/>
       <${Comments} itKey=${it.key} names=${names} count=${nComments || 0}/>
     </section>`;
   }
@@ -437,7 +445,7 @@
       </div>
       <div class="stack" id="feed-stream">
         ${shown.length ? shown.map(it => it.type === 'kudos'
-          ? html`<${KudosCard} key=${it.key} it=${it} names=${names} nComments=${nc[it.key]}/>`
+          ? html`<${KudosCard} key=${it.key} it=${it} counts=${counts} mine=${mine[it.key]} names=${names} nComments=${nc[it.key]}/>`
           : it.type === 'ship' ? html`<${ShipCard} key=${it.key} it=${it} counts=${counts} mine=${mine[it.key]} names=${names} nComments=${nc[it.key]}/>`
           : html`<${PostCard} key=${it.key} it=${it} counts=${counts} mine=${mine[it.key]} names=${names} nComments=${nc[it.key]}/>`)
           : html`<${UI.Empty} text=${ready ? EMPTY[filter] : 'Loading the feed.'}/>`}
