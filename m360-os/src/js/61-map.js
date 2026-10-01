@@ -34,9 +34,9 @@
       {k: 'pulse', label: 'Pulse and ideas', route: 'voice', blurb: 'The anonymous weekly pulse (what is broken, what to change) and the ideas board with votes.'},
       {k: 'scores', label: 'Leaderboard', route: 'scores', blurb: 'Points by week, month, quarter and since joining, with what earned them.'},
       {k: 'music', label: 'Music', route: 'music', blurb: 'Spotify inside m360: search, play, playlists, the dock at the bottom.'}]},
-    {k: 'break', label: 'Break', icon: 'breath', route: 'break', blurb: 'The reset room: a daily puzzle and a runner with the team\'s times, breathing and creativity resets, your care reminders, and a read of your last months. Sparks and a streak for showing up.', tabs: [
-      {k: 'play', label: 'Play', route: 'play', blurb: 'Today\'s puzzle (Scramble on odd days, Pixel on even) and Flame Run, with the team\'s times and bests.', signal: ctx => { const d = M.play ? M.play.docOf(ctx) : {}; return (d.days || {})[td()] ? 'solved today' : 'puzzle open'; }},
-      {k: 'reset', label: 'Reset', route: 'reset', blurb: 'One minute of breathing, timed sits, and five creativity resets with the research behind each.'},
+    {k: 'break', label: 'Break', icon: 'breath', route: 'break', blurb: 'The reset room, built on the trials that replicated: Five, the shared word of the day, an easy five minute game, a reaction check, breathing that is actually five minutes, a walk with a problem in your pocket, your care reminders, and a read of your last months. Sparks by the week, squads, a streak that forgives.', tabs: [
+      {k: 'play', label: 'Daily', route: 'play', blurb: 'Five, the word of the day, the same for everyone, with the team\'s tries as a spread. Doubles, five minutes of an easy game. The reaction check, against your own baseline. Your squad\'s week.', signal: ctx => { const d = M.play ? M.play.docOf(ctx) : {}; return ((d.days || {})[td()] || {}).five ? 'Five done' : 'Five open'; }},
+      {k: 'reset', label: 'Reset', route: 'reset', blurb: 'Slow breathing for five minutes, one if-then for the day, a walk for energy or with a problem, park it, the two-gear sprint, eyes off, a ten minute nap. The evidence grade on every card.'},
       {k: 'care', label: 'Care', route: 'care', blurb: 'Your reminders: breakfast, water, lunch, supplements, dinner. Rung when due, snooze or tick.'},
       {k: 'reflect', label: 'Reflect', route: 'reflect', blurb: 'Your month, quarter, half year or year, read back: shipped, kudos, EODs, outcomes, and an era title.'}]},
     {k: 'base', label: 'Base', icon: 'database', route: 'base', blurb: 'The contacts database: everyone we know and the companies they work at.', tabs: [
@@ -80,7 +80,7 @@
     {label: 'Inbox', blurb: 'What needs you: assignments, reviews, mentions, kudos, decisions, announcements.', act: () => window.dispatchEvent(new CustomEvent('m360:inbox')), key: 'i'},
     {label: 'New', blurb: 'A task, project, pitch, client, post, kudos or note from one button.', act: () => M.intend('#tasks', 'newtask'), key: '+'},
     {label: 'Focus timer', blurb: 'A deep work session that counts toward your week.', act: () => M.focus && M.focus.open(), key: 'f'},
-    {label: 'Breathe', blurb: 'A minute to reset.', act: () => M.breathe && M.breathe.open(), key: ''},
+    {label: 'Breathe', blurb: 'Five minutes, six breaths a minute.', act: () => M.breathe && M.breathe.open('slow'), key: ''},
     {label: 'The tour', blurb: 'The buddy walks you through the place, out loud.', act: () => window.dispatchEvent(new CustomEvent('m360:tour')), key: ''},
     {label: 'Keyboard shortcuts', blurb: 'The whole sheet.', act: () => window.dispatchEvent(new CustomEvent('m360:keys')), key: '?'}
   ];

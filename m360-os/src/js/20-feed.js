@@ -77,6 +77,16 @@
       out.push({key: 's:' + id, type: 'ship', author: t.owner, id, text: String(t.title || ''), at: Number(t.doneAt) || 0, pinned: false,
         project: proj ? proj.name : '', client: cl ? cl.name : '', approvedBy: t.approvedBy || '', late: !!(t.due && U.ymd(new Date(t.doneAt)) > t.due)});
     }
+    /* every Five played in the last week is a card: the tries and the squares, never the letters */
+    const play = collMap(ctx, 'play');
+    for (const who of Object.keys(play)) {
+      const days = (play[who] || {}).days || {};
+      for (const ymd of Object.keys(days)) {
+        const f = days[ymd] && days[ymd].five;
+        if (!f || !f.at || f.at < Date.now() - 7 * 86400000) continue;
+        out.push({key: 'f:' + who + ':' + ymd, type: 'five', author: who, ymd, tries: Number(f.tries) || 0, rows: Array.isArray(f.rows) ? f.rows : [], ms: Number(f.ms) || 0, at: Number(f.at) || 0, pinned: false});
+      }
+    }
     out.sort((a, b) => ((b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)) || (b.at - a.at));
     return out.slice(0, STREAM_CAP);
   }
@@ -390,6 +400,29 @@
     </section>`;
   }
 
+  /* a Five result: the squares and the count; the word stays hidden until the day is over */
+  function FiveCard({it, counts, mine, names, nComments}) {
+    const ctx = M.useCtx();
+    const c = counts[it.key] || {};
+    const react = reactOn(ctx, it.key);
+    const got = it.tries >= 1 && it.tries <= 6;
+    return html`<section class="card" data-key=${it.key} data-kind="five">
+      <div class="row nowrap">
+        <${UI.Avatar} id=${it.author} size=${32}/>
+        <div class="grow">
+          <div class="row">
+            <b><${UI.Name} id=${it.author} fallback=${names[it.author] || undefined}/> ${got ? (it.tries <= 2 ? 'cracked Five in ' + it.tries : 'got Five in ' + it.tries) : 'took the L on Five'}</b>
+            <${UI.Pill} kind="ink">five<//>
+          </div>
+          <div class="tiny sub num">${U.timeAgo(it.at)} · ${U.fmtDay(it.ymd)}${it.ms && got ? ' · ' + M.play.fmtMs(it.ms) : ''}</div>
+        </div>
+      </div>
+      <div class="five-mini" style=${{marginTop: '10px'}} aria-label="The result card">${it.rows.map((r, i) => html`<div key=${i} class="five-mrow">${String(r).split('').map((s, j) => html`<i key=${j} class=${s === '2' ? 'ok' : s === '1' ? 'near' : 'out'}/>`)}</div>`)}</div>
+      <${Reactions} c=${c} mine=${mine} react=${react}/>
+      <${Comments} itKey=${it.key} names=${names} count=${nComments || 0}/>
+    </section>`;
+  }
+
   function KudosCard({it, counts, mine, names, nComments}) {
     const ctx = M.useCtx();
     const c = counts[it.key] || {};
@@ -424,7 +457,7 @@
     const mine = myReacts(ctx, ctx.uid);
     const ids = [];
     for (const it of items) {
-      if (it.type === 'post' || it.type === 'ship') { ids.push(it.author); if (it.approvedBy) ids.push(it.approvedBy); }
+      if (it.type === 'post' || it.type === 'ship' || it.type === 'five') { ids.push(it.author); if (it.approvedBy) ids.push(it.approvedBy); }
       else { ids.push(it.giver); ids.push(it.to); }
     }
     Object.keys(collMap(ctx, 'reacts')).forEach(u => ids.push(u));
@@ -447,6 +480,7 @@
         ${shown.length ? shown.map(it => it.type === 'kudos'
           ? html`<${KudosCard} key=${it.key} it=${it} counts=${counts} mine=${mine[it.key]} names=${names} nComments=${nc[it.key]}/>`
           : it.type === 'ship' ? html`<${ShipCard} key=${it.key} it=${it} counts=${counts} mine=${mine[it.key]} names=${names} nComments=${nc[it.key]}/>`
+          : it.type === 'five' ? html`<${FiveCard} key=${it.key} it=${it} counts=${counts} mine=${mine[it.key]} names=${names} nComments=${nc[it.key]}/>`
           : html`<${PostCard} key=${it.key} it=${it} counts=${counts} mine=${mine[it.key]} names=${names} nComments=${nc[it.key]}/>`)
           : html`<${UI.Empty} text=${ready ? EMPTY[filter] : 'Loading the feed.'}/>`}
       </div>

@@ -1,23 +1,16 @@
 /* ---------- break: the reset room ---------- */
 .brk-sparks .chipline b{font-size:15px}
-.brk-board{overflow-wrap:anywhere}
-.brk-word{display:flex; gap:6px; flex-wrap:wrap}
-.brk-tile{display:inline-flex; align-items:center; justify-content:center; min-width:34px; height:38px; padding:0 8px; border-radius:10px; background:var(--warm); border:1px solid var(--line); font-weight:600; font-size:17px; text-transform:uppercase; letter-spacing:.04em}
-.brk-tile.on{background:var(--ink); color:var(--on-ink); border-color:var(--ink)}
-.brk-tile.wide{text-transform:none; letter-spacing:0; font-size:15px; padding:0 12px}
-.brk-answer{max-width:260px}
-.brk-pixel{display:grid; grid-template-columns:56px repeat(5, 40px); grid-auto-rows:40px; gap:4px; align-items:stretch}
-.brk-clue{display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--ink62); font-weight:600}
-.brk-clue.col{flex-direction:column; justify-content:flex-end; line-height:1.1}
-.brk-clue.row{justify-content:flex-end; padding-right:6px}
-.brk-cell{border:1px solid var(--line2); border-radius:8px; background:var(--paper); cursor:pointer; padding:0}
-.brk-cell.on{background:var(--ink); border-color:var(--ink)}
-.brk-cell:hover{border-color:var(--ink)}
-.brk-row{padding:4px 0; border-bottom:1px solid var(--line)}
+.brk-row{padding:6px 0; border-bottom:1px solid var(--line)}
 .brk-row:last-child{border-bottom:0}
-.brk-run{position:relative; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--warm); touch-action:manipulation; user-select:none}
-.brk-run canvas{display:block; width:100%; height:auto}
-.brk-run-over{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; background:rgba(247,246,242,.82); text-align:center; padding:12px}
+.brk-row.mine{background:var(--warm); margin:0 -8px; padding:6px 8px; border-radius:10px}
+.brk-plan{border-left:3px solid var(--flame); padding:8px 12px; background:var(--warm); border-radius:0 10px 10px 0; font-size:14px; overflow-wrap:anywhere}
+.brk-sentence{gap:10px; align-items:center}
+.brk-sentence .small{flex:none; width:84px; color:var(--ink62)}
+.brk-sentence .input{flex:1; min-width:0}
+.brk-dim{border-radius:16px; padding:18px; background:var(--dark); color:#FFFFFF}
+.brk-dim .brk-ring .bg{stroke:rgba(255,255,255,.22)}
+.brk-dim .brk-ring .fg{stroke:#F53901}
+.brk-dim .ink62,.brk-dim .linky{color:rgba(255,255,255,.8)}
 .brk-timer{display:flex; flex-direction:column; align-items:center; gap:10px; padding:8px 0}
 .brk-ring{width:120px; height:120px; transform:rotate(-90deg)}
 .brk-ring circle{fill:none; stroke-width:6}
@@ -26,18 +19,77 @@
 .brk-timer-mid{text-align:center; margin-top:-80px; margin-bottom:34px}
 .brk-left{font-size:26px; font-weight:600; letter-spacing:-.02em}
 .brk-prompt{text-align:center; max-width:46ch}
-.brk-sky{border-radius:16px; padding:18px; background:hsl(208 72% 46%); color:#fff}
-.brk-sky .brk-ring .bg{stroke:rgba(255,255,255,.3)}
-.brk-sky .brk-ring .fg{stroke:#fff}
-.brk-sky .ink62,.brk-sky .linky{color:rgba(255,255,255,.85)}
-.brk-doodle{width:100%; height:auto; border:1px solid var(--line); border-radius:14px; touch-action:none; cursor:crosshair; display:block}
+
+/* five, the word of the day */
+.five-grid{display:flex; flex-direction:column; gap:5px; width:max-content}
+.five-grid.shake{animation:fiveshake .4s}
+@keyframes fiveshake{0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)}}
+.five-row{display:flex; gap:5px}
+.five-cell{width:46px; height:46px; display:inline-flex; align-items:center; justify-content:center; border:2px solid var(--line); border-radius:10px; font-weight:700; font-size:22px; text-transform:uppercase; background:var(--paper); color:var(--ink); transition:transform .12s}
+.five-cell.typed{border-color:var(--ink); transform:scale(1.04)}
+.five-cell.ok{background:var(--flame); border-color:var(--flame); color:#FFFFFF}
+.five-cell.near{border-color:var(--flame); box-shadow:inset 0 0 0 3px var(--paper), inset 0 0 0 5px var(--flame)}
+.five-cell.out{background:var(--line); border-color:var(--line); color:var(--ink62)}
+.five-keys{display:flex; flex-direction:column; gap:6px; margin-top:6px}
+.five-krow{display:flex; gap:4px; justify-content:center; flex-wrap:nowrap}
+.key{min-width:30px; height:40px; padding:0 6px; border-radius:8px; border:1px solid var(--line); background:var(--warm); color:var(--ink); font:inherit; font-weight:600; text-transform:uppercase; font-size:13px; cursor:pointer; flex:none}
+.key:hover{border-color:var(--ink)}
+.key.wide{min-width:54px; text-transform:none; font-weight:500}
+.key.ok{background:var(--flame); border-color:var(--flame); color:#FFFFFF}
+.key.near{border-color:var(--flame); box-shadow:inset 0 0 0 2px var(--flame)}
+.key.out{background:var(--line); color:var(--ink62); border-color:var(--line)}
+.five-dist{display:flex; flex-direction:column; gap:6px}
+.five-bar{gap:8px; align-items:center}
+.five-lab{width:14px; text-align:right; color:var(--ink62)}
+.five-track{flex:1; height:12px; background:var(--warm); border-radius:999px; overflow:hidden; min-width:40px}
+.five-track i{display:block; height:100%; background:var(--flame); border-radius:999px; transition:width .35s}
+.five-card{border:1px solid var(--line); border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:8px; width:max-content}
+.five-mini{display:flex; flex-direction:column; gap:3px}
+.five-mrow{display:flex; gap:3px}
+.five-mrow i{width:16px; height:16px; border-radius:4px; background:var(--line)}
+.five-mrow i.ok{background:var(--flame)}
+.five-mrow i.near{background:var(--paper); box-shadow:inset 0 0 0 3px var(--flame)}
+
+/* doubles */
+.dbl-wrap{position:relative}
+.dbl-board{display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; padding:6px; background:var(--line); border-radius:14px; touch-action:none; user-select:none; max-width:320px}
+.dbl-cell{aspect-ratio:1; border-radius:10px; background:var(--paper); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:22px; color:var(--ink); transition:background .12s}
+.dbl-cell.light{color:#FFFFFF}
+.dbl-cell.big{font-size:17px}
+.dbl-over{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; background:rgba(247,246,242,.86); border-radius:14px; text-align:center; padding:12px; max-width:320px}
+.dbl-pad{gap:6px; margin-top:10px}
+
+/* the reaction check */
+.rt-pad{width:100%; min-height:220px; border-radius:16px; border:2px dashed var(--line2); background:var(--warm); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; cursor:pointer; font:inherit; color:var(--ink); user-select:none; touch-action:manipulation}
+.rt-pad.lit{background:var(--flame); border-color:var(--flame); border-style:solid; color:#FFFFFF}
+.rt-flame{width:72px; height:72px; border-radius:50%; background:#FFFFFF; box-shadow:0 0 0 12px rgba(255,255,255,.3)}
+.rt-wait{font-size:15px; color:var(--ink62)}
+.rt-time{font-size:14px}
+.rt-last{min-height:14px}
+
+/* shades, the incubation filler */
+.shade-grid{display:grid; grid-template-columns:repeat(6, 1fr); gap:6px; max-width:360px}
+.shade-tile{aspect-ratio:1; border-radius:10px; border:2px solid transparent; cursor:pointer; padding:0}
+.shade-tile.sel{border-color:var(--ink); transform:scale(.92)}
+
+/* care */
 .care-row{padding:6px 0; border-bottom:1px solid var(--line)}
 .care-row:last-child{border-bottom:0}
 .care-dot{width:10px; height:10px; border-radius:50%; background:var(--line2); flex:none}
 .care-dot.due{background:var(--flame)}
 .care-dot.done{background:var(--ink)}
 .care-dot.snoozed{background:var(--line2); outline:2px solid var(--flame); outline-offset:1px}
+
+/* reflect */
 .brk-stats{display:grid; grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); gap:8px}
 .brk-tile-stat{border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:flex; flex-direction:column; gap:2px}
 .brk-tile-stat b{font-size:22px; letter-spacing:-.02em}
-@media (max-width:600px){ .brk-pixel{grid-template-columns:44px repeat(5, 36px); grid-auto-rows:36px} .brk-tile{min-width:30px; height:34px; font-size:15px} }
+
+@media (max-width:600px){
+  .five-cell{width:38px; height:38px; font-size:18px; border-radius:8px}
+  .key{min-width:26px; height:38px; padding:0 4px; font-size:12px}
+  .key.wide{min-width:44px}
+  .brk-sentence .small{width:70px}
+  #five .split{grid-template-columns:minmax(0,1fr) !important}
+}
+:root[data-theme="dark"] .dbl-over{background:rgba(10,10,10,.82)}

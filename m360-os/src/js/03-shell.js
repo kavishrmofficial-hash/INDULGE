@@ -38,7 +38,7 @@
       {k: 'feed', label: 'Feed', route: 'feed'}, {k: 'crew', label: 'Crew', route: 'people'},
       {k: 'pulse', label: 'Pulse and ideas', route: 'voice'}, {k: 'scores', label: 'Leaderboard', route: 'scores'}, {k: 'music', label: 'Music', route: 'music'}]},
     break: {label: 'Break', icon: 'breath', page: 'Break', tabs: [
-      {k: 'play', label: 'Play', route: 'play'}, {k: 'reset', label: 'Reset', route: 'reset'}, {k: 'care', label: 'Care', route: 'care'}, {k: 'reflect', label: 'Reflect', route: 'reflect'}]},
+      {k: 'play', label: 'Daily', route: 'play'}, {k: 'reset', label: 'Reset', route: 'reset'}, {k: 'care', label: 'Care', route: 'care'}, {k: 'reflect', label: 'Reflect', route: 'reflect'}]},
     base: {label: 'Base', icon: 'database', page: 'Base', tabs: [
       {k: 'people', label: 'People', route: 'base'}, {k: 'companies', label: 'Companies', route: 'companies'}, {k: 'import', label: 'Import', route: 'import'}]},
     chat: {label: 'Chat', icon: 'send', page: 'Chat'},
@@ -73,8 +73,8 @@
       case 'billing': return isOwner ? {s: 'books', t: 'billing', id} : {s: 'home'};
       case 'home': case 'today': return {s: 'home'};
       case 'map': case 'explore': case 'whats-here': case 'help': return {s: 'map', id};
-      case 'break': case 'wellness': case 'games': case 'play': return {s: 'break', t: 'play'};
-      case 'reset': case 'meditate': return {s: 'break', t: 'reset'};
+      case 'break': case 'wellness': case 'games': case 'play': case 'daily': case 'five': return {s: 'break', t: 'play'};
+      case 'reset': case 'meditate': case 'breathe': return {s: 'break', t: 'reset'};
       case 'care': case 'reminders': return {s: 'break', t: 'care'};
       case 'reflect': case 'wrapped': return {s: 'break', t: 'reflect'};
       case 'work': return {s: 'work', t: 'tasks'};
@@ -249,7 +249,7 @@
   /* ---------- the shortcut sheet ---------- */
   function Keys({onClose}) {
     const mod = M.isMac ? '\u2318' : 'Ctrl';
-    const rows = [[mod + ' K', 'Search or do anything'], ['/', 'Same, from anywhere'], ['n', 'New task'], ['i', 'Inbox'], ['f', 'Focus timer'], ['b', 'Take a breather'],
+    const rows = [[mod + ' K', 'Search or do anything'], ['/', 'Same, from anywhere'], ['n', 'New task'], ['i', 'Inbox'], ['f', 'Focus timer'], ['b', 'Slow breathing, five minutes'],
       ['g then h', 'Home'], ['g then w', 'Work'], ['g then a', 'Accounts'], ['g then v', 'Vibe'], ['g then m', 'Me'], ['g then c', 'Calendar'], ['g then r', 'Reviews'],
       ['Ctrl + Option, held', 'Talk to the cursor buddy'], ['?', 'This sheet']];
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Keyboard shortcuts">
@@ -283,7 +283,7 @@
       const on = e => {
         if ((e.metaKey || e.ctrlKey) && String(e.key).toLowerCase() === 'k') { e.preventDefault(); setPalOpen(x => !x); return; }
         if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
-        if (document.querySelector('.drawer, .pal, .breathe')) return;
+        if (document.querySelector('.drawer, .pal, .breathe, [data-hotkeys]')) return;
         const k = e.key;
         if (g && Date.now() - g < 900) {
           g = 0;
@@ -296,7 +296,7 @@
         else if (k === 'n') { e.preventDefault(); setNewTask(true); }
         else if (k === 'i') { e.preventDefault(); setInboxOpen(true); }
         else if (k === 'f') { e.preventDefault(); M.focus && M.focus.open(); }
-        else if (k === 'b') { e.preventDefault(); M.breathe && M.breathe.open(); }
+        else if (k === 'b') { e.preventDefault(); M.breathe && M.breathe.open('slow'); }
         else if (k === '?') { e.preventDefault(); setKeysOpen(true); }
       };
       window.addEventListener('keydown', on);

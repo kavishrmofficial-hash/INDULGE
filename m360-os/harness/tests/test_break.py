@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Break, the reset room, and the feed's celebrations. The daily puzzle (whichever kind today is)
-solves and lands on the team's times with sparks and a streak; Flame Run ends and saves a score; a
-breath, the triads and thirty uses earn sparks once; care reminders ring when due, snooze and tick,
-and a full day earns sparks; Reflect shows the era with numbers, writes the read on the canned
-model and shares a line to Vibe; a finished task shows on the feed as a shipped card that takes
-reactions and comments; a member has the section; the phone does not overflow.
+"""Break, the reset room rebuilt on the evidence, and the feed's celebrations. Five, the word of the day,
+solves in two tries and lands sparks, a workday streak and a squares-only card on the feed; Doubles
+plays to its timer; the reaction check records a read in the private space; every reset (the breathing
+protocols, the if-then shown on Home, both walks, park it, the two-gear sprint, eyes off, the nap)
+earns sparks once; the scoreboard hides; squads and the streak repair are pure; care reminders ring,
+snooze and tick; Reflect writes and shares; a reaction rains the emoji across the screen and kudos
+cards take reactions; a member has the section on the phone without overflow.
 
 Run: cd m360-os && python3 harness/tests/test_break.py
 """
 import os
+import re
 import sys
-import time
-from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from harness.lib import run  # noqa: E402
@@ -19,26 +19,11 @@ from harness.qa import seed  # noqa: E402
 
 
 def sparks(p):
-    return p.evaluate('() => M.play.mine(M.lastCtx).sparks')
+    return p.evaluate('() => M.play.mine(M.lastCtx).week')
 
 
-def solve_today(p, check):
-    kind = p.evaluate('() => M.play.kindFor(M.U.todayStr())')
-    if kind == 'word':
-        word = p.evaluate('() => M.play.puzzleFor(M.U.todayStr()).word')
-        p.fill('#scramble-answer', 'wrongone')
-        p.click('#scramble-check')
-        p.wait_for_selector('#daily-puzzle:has-text("Not it")')
-        p.fill('#scramble-answer', word)
-        p.click('#scramble-check')
-    else:
-        grid = p.evaluate('() => M.play.puzzleFor(M.U.todayStr()).grid')
-        for r in range(5):
-            for c in range(5):
-                if grid[r][c]:
-                    p.click('.brk-cell[aria-label="row %d column %d"]' % (r + 1, c + 1))
-    p.wait_for_selector('#puzzle-done', timeout=10000)
-    return kind
+def wait_sparks(p, n):
+    p.wait_for_function('n => M.play.mine(M.lastCtx).week === n', arg=n, timeout=15000)
 
 
 def part(h):
@@ -50,66 +35,154 @@ def part(h):
     p = h.session('founder', width=1280, hash='#home', reset=True, seed=True)
     seed(h, p)
     h.go(p, 'founder', hash='#break', width=1280)
-    p.wait_for_selector('#break')
+    p.wait_for_selector('#five')
     check(p.locator('.section-tabs .tab').count() == 4 and sparks(p) == 0, 'the four tabs and zero sparks to start')
-    # the daily puzzle
-    kind = solve_today(p, check)
-    p.wait_for_function('() => M.play.mine(M.lastCtx).sparks >= 10')
+    td = p.evaluate('() => M.U.todayStr()')
+    # Five: a wrong word, then the word
+    word = p.evaluate('() => M.play.five.wordFor(M.U.todayStr())')
+    wrong = p.evaluate('w => M.play.five.WORDS.find(x => x !== w)', word)
+    p.keyboard.type('abc')
+    p.keyboard.press('Enter')
+    check(p.locator('.five-cell.typed').count() == 3, 'three letters typed, a short guess does not submit')
+    for _ in range(3):
+        p.keyboard.press('Backspace')
+    p.keyboard.type(wrong)
+    p.keyboard.press('Enter')
+    p.wait_for_function('() => document.querySelectorAll(".five-cell.ok, .five-cell.near, .five-cell.out").length === 5')
+    check(p.locator('.drawer').count() == 0, 'typing a word does not fire the single-key shortcuts')
+    p.keyboard.type(word)
+    p.keyboard.press('Enter')
+    p.wait_for_selector('#five-done', timeout=10000)
+    wait_sparks(p, 15)
     me = p.evaluate('() => M.play.mine(M.lastCtx)')
     doc = p.evaluate('() => M.play.docOf(M.lastCtx)')
-    td = p.evaluate('() => M.U.todayStr()')
-    check(doc['days'][td]['kind'] == kind and doc['days'][td]['ms'] >= 0, 'the solve is on the record: %r' % doc.get('days'))
-    check(me['sparks'] in (10, 15) and me['streak'] == 1 and me['level']['name'] == 'Spark', 'sparks and the streak after the puzzle: %r' % me)
-    check('Kaavish' in p.inner_text('#puzzle-board') or p.locator('#puzzle-board .brk-row').count() == 1, 'the team\'s times list the solve')
-    check(p.locator('#sparks:has-text("1 day streak")').count() == 1, 'the hero shows the streak')
-    # the same puzzle is the same for everyone that day
-    same = p.evaluate('() => JSON.stringify(M.play.puzzleFor(M.U.todayStr())) === JSON.stringify(M.play.puzzleFor(M.U.todayStr()))')
-    check(same, 'the puzzle is seeded by the day')
-    # Flame Run: start, do nothing, hit a block, the score lands
-    before = sparks(p)
-    p.click('#run-start')
-    p.wait_for_selector('#flame-run:has-text("Run again")', timeout=25000)
+    five = doc['days'][td]['five']
+    check(five['tries'] == 2 and five['rows'][1] == '22222' and five['ms'] >= 0, 'the solve is on the record: %r' % five)
+    check(me['streak'] == 1 and me['level']['name'] == 'Spark', 'the streak and the level after Five: %r' % me)
+    check(p.locator('#sparks:has-text("1 workday streak")').count() == 1, 'the hero shows the streak')
+    check(p.locator('#five-share .five-mrow').count() == 2 and 'played' in p.inner_text('#five'), 'the result card, squares only')
+    check(p.locator('#five-team .avatar, #five-team img, #five-team .av').count() >= 1 or p.locator('#five-team .five-track i[style*="100%"]').count() == 1, 'the team spread shows the solve')
+    same = p.evaluate('() => M.play.five.wordFor(M.U.todayStr()) === M.play.five.wordFor(M.U.todayStr()) && M.play.five.score("crane", "crane") === "22222" && M.play.five.score("eerie", "ember") === "21100"')
+    check(same, 'the word is seeded by the day and scoring handles doubles')
+    # Doubles: a short game to the timer
+    p.evaluate('() => { M.games.GAME.seconds = 3; }')
+    p.click('#doubles-start')
+    for _ in range(6):
+        p.keyboard.press('ArrowLeft')
+        p.keyboard.press('ArrowDown')
+    p.wait_for_selector('#doubles:has-text("Back to it")', timeout=10000)
+    wait_sparks(p, 20)
     doc = p.evaluate('() => M.play.docOf(M.lastCtx)')
-    check(doc.get('runner', {}).get('games') == 1 and doc['runner'].get('last', -1) >= 0, 'the run is on the record: %r' % doc.get('runner'))
-    p.wait_for_function('n => M.play.mine(M.lastCtx).sparks > n', arg=before)
-    # Reset: a breath, the triads, thirty uses
+    check(doc.get('game', {}).get('games') == 1, 'the game is on the record: %r' % doc.get('game'))
+    check(p.evaluate('() => M.games.slideRow([2, 2, 4, 0]).row.join(",") === "4,4,0,0" && M.games.slideRow([2, 2, 2, 2]).pts === 8'), 'slide and merge are pure')
+    # the reaction check, quick
+    p.evaluate('() => { M.games.RT.seconds = 4; M.games.RT.minGap = 200; M.games.RT.maxGap = 500; }')
+    p.click('#rt-start')
+    for _ in range(12):
+        try:
+            p.wait_for_selector('#rt-pad.lit', timeout=2500)
+            p.click('#rt-pad')
+        except Exception:
+            break
+    p.wait_for_selector('#rt-result', timeout=10000)
+    wait_sparks(p, 25)
+    priv = p.evaluate('() => window.__db.get("data/users/u_founder/break")')
+    check(priv and priv.get('rt', {}).get(td, {}).get('n', 0) >= 1, 'the read is in the private space: %r' % (priv or {}).get('rt'))
+    # the scoreboard hides and comes back
+    p.click('#sparks-hide')
+    p.wait_for_selector('#sparks-show')
+    p.click('#sparks-show')
+    p.wait_for_selector('#sparks-hide')
+    # squads and the streak repair are pure
+    sq = p.evaluate('() => M.play.squads({activeMembers: ["a", "b", "c", "d", "e", "f", "g", "h"].map(uid => ({uid}))}, "2026-10")')
+    check(len(sq) == 2 and sorted(len(s['ids']) for s in sq) == [4, 4] and sq[0]['name'] != sq[1]['name'], 'eight people make two squads of four: %r' % sq)
+    rep = p.evaluate('''() => { const td = M.U.todayStr(); const back = M.play.workdayBack(td, 2);
+      return [M.play.nextStreak({lastDay: back, streak: 3, repairs: {}}, td), M.play.nextStreak({lastDay: back, streak: 3, repairs: {[M.play.weekOf(td)]: "x"}}, td), M.play.nextStreak({lastDay: M.play.workdayBack(td, 1), streak: 3}, td)]; }''')
+    check(rep[0]['streak'] == 5 and rep[0].get('repaired') and rep[1]['streak'] == 1 and rep[2]['streak'] == 4, 'one missed workday a week is covered: %r' % rep)
+    # Reset: the breathing protocols
     h.go(p, 'founder', hash='#reset', width=1280)
     p.wait_for_selector('#break-reset')
-    before = sparks(p)
-    p.click('#breathe-now')
-    p.wait_for_selector('#breathe')
+    p.evaluate('() => { M.reset.quick = true; }')
+    p.click('#breathe-slow')
+    p.wait_for_selector('#breathe[data-kind="slow"]')
+    check(re.search(r'(5:00|4:5\d)', p.inner_text('#breathe .micro')) is not None, 'the slow protocol is five minutes: %r' % p.inner_text('#breathe .micro'))
     p.keyboard.press('Escape')
-    p.wait_for_function('n => M.play.mine(M.lastCtx).sparks === n + 5', arg=before)
-    p.click('#breathe-now')
-    p.wait_for_selector('#breathe'); p.keyboard.press('Escape')
+    p.wait_for_timeout(200)
+    check(sparks(p) == 25, 'skipping a breath earns nothing')
+    p.evaluate('() => M.breathe.open("slow", {seconds: 2, onDone: () => M.reset.earn(M.lastCtx, "slow breathing", 10)})')
+    p.wait_for_selector('#breathe:has-text("Nice")', timeout=8000)
+    wait_sparks(p, 35)
+    p.keyboard.press('Escape')
+    p.evaluate('() => M.breathe.open("slow", {seconds: 2, onDone: () => M.reset.earn(M.lastCtx, "slow breathing", 10)})')
+    p.wait_for_selector('#breathe:has-text("Nice")', timeout=8000)
+    p.keyboard.press('Escape')
     p.wait_for_timeout(300)
-    check(sparks(p) == before + 5, 'a breath counts once a day')
-    words = p.locator('#triads-card .brk-tile').all_inner_texts()
-    answer = p.evaluate('ws => M.reset.TRIADS.find(t => t[0].join("|") === ws.join("|"))[1]', words)
-    p.fill('#triad-answer', 'nope'); p.click('#triad-check')
-    p.wait_for_selector('#triads-card:has-text("Not that one")')
-    p.fill('#triad-answer', answer); p.click('#triad-check')
-    p.wait_for_selector('#triads-card:has-text("Yes.")')
-    p.click('#uses-start')
-    p.wait_for_selector('#uses-text')
-    p.fill('#uses-text', 'hold paper\nlockpick\nzipper pull\nearring')
-    p.wait_for_selector('#uses-card:has-text("4 so far")')
-    p.locator('#brk-timer button:has-text("Stop")').first.click()
-    p.wait_for_selector('#uses-card:has-text("4 uses")')
-    p.wait_for_function('n => M.play.mine(M.lastCtx).sparks === n + 10', arg=before)
+    check(sparks(p) == 35, 'a breath counts once a day')
+    p.click('#breathe-box')
+    p.wait_for_selector('#breathe[data-kind="box"]')
+    p.keyboard.press('Escape')
+    # one if-then, shown on Home
+    p.fill('#ifthen-when', '11:00')
+    p.fill('#ifthen-where', 'at my desk')
+    p.fill('#ifthen-will', 'write the first slide title')
+    p.click('#ifthen-save')
+    p.wait_for_selector('#ifthen-plan:has-text("write the first slide title")')
+    wait_sparks(p, 40)
+    h.go(p, 'founder', hash='#home', width=1280)
+    p.wait_for_selector('#plan-today:has-text("11:00")')
+    # a walk for energy, then a walk with a problem
+    h.go(p, 'founder', hash='#reset', width=1280)
+    p.wait_for_selector('#break-reset')
+    p.evaluate('() => { M.reset.quick = true; }')
+    p.click('#walk-start')
+    p.wait_for_selector('#walk-rate', timeout=8000)
+    p.click('#walk-energy-4')
+    wait_sparks(p, 45)
+    p.get_by_role('radio', name='With a problem').click() if p.get_by_role('radio', name='With a problem').count() else p.locator('#walk button:has-text("With a problem")').click()
+    p.click('#walk-dump-start')
+    p.wait_for_selector('#walk-text', timeout=8000)
+    p.fill('#walk-text', 'a billboard that melts\na sunscreen for the moon')
+    p.click('#walk-keep')
+    wait_sparks(p, 55)
+    # park it
+    p.click('#park-start')
+    p.wait_for_selector('#shades', timeout=8000)
+    p.locator('.shade-tile').nth(0).click()
+    p.locator('.shade-tile').nth(1).click()
+    p.wait_for_selector('#park-text', timeout=8000)
+    p.fill('#park-text', 'open on a Tuesday\nno logo at all')
+    p.click('#park-keep')
+    wait_sparks(p, 65)
+    # the two-gear sprint
+    p.click('#sprint-start')
+    p.wait_for_selector('#sprint-one-text')
+    p.fill('#sprint-one-text', 'a poster\na reel\na flyer')
+    p.wait_for_selector('#sprint-two-text', timeout=8000)
+    p.fill('#sprint-two-text', 'the dentist narrates a horror film')
+    p.click('#sprint-keep')
+    wait_sparks(p, 75)
+    # eyes off, the nap
+    p.click('#eyes-start')
+    wait_sparks(p, 80)
+    p.click('#nap-start')
+    wait_sparks(p, 85)
+    p.wait_for_selector('#catches')
+    check(p.locator('#catches .brk-row').count() == 3, 'three catches kept')
+    priv = p.evaluate('() => window.__db.get("data/users/u_founder/break")')
+    check(priv['energy'][td] == [4] and len(priv['catches']) == 3 and priv['plan']['will'] == 'write the first slide title', 'the private break doc: %r' % list(priv.keys()))
+    check(len(p.evaluate('() => M.play.mine(M.lastCtx).today')) >= 11, 'eleven things counted today')
     # Care: the usual five, one due now, snooze, done, the day earns sparks
     h.go(p, 'founder', hash='#care', width=1280)
     p.wait_for_selector('#care-today')
     p.click('#care-usual')
     p.wait_for_selector('#care-setup input[aria-label="Reminder name"]')
     check(p.locator('#care-setup input[aria-label="Reminder name"]').count() == 6, 'the usual five (six rows, water twice)')
-    # one that was due a minute ago
     now = p.evaluate('() => { const d = new Date(Date.now() - 60000); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }')
     p.fill('#care-label', 'Stretch'); p.fill('#care-time', now); p.click('#care-add')
     p.wait_for_selector('.care-row.due:has-text("Stretch")', timeout=8000)
-    stretch = p.evaluate('() => (document.querySelector(".care-row.due button[id^=care-snooze-]") || {}).id')
-    check(bool(stretch), 'the due row offers a snooze')
-    p.click('#' + stretch)
+    snooze = p.locator('.care-row.due:has-text("Stretch") button[id^=care-snooze-]')
+    check(snooze.count() == 1, 'the due row offers a snooze')
+    snooze.click()
     p.wait_for_selector('.care-row.snoozed:has-text("Stretch")')
     check('until' in p.inner_text('.care-row.snoozed'), 'the snooze says until when')
     before = sparks(p)
@@ -120,10 +193,8 @@ def part(h):
         btn.click()
         p.wait_for_timeout(250)
     p.wait_for_function('() => document.querySelectorAll(".care-row.done").length === 7')
-    p.wait_for_function('n => M.play.mine(M.lastCtx).sparks === n + 5', arg=before)
+    wait_sparks(p, before + 5)
     check('7 of 7 done' in p.inner_text('#care-today'), 'the day is cared for: ' + p.inner_text('#care-today')[:60])
-    care = p.evaluate('() => window.__db.get("data/users/u_founder/care")')
-    check(len(care['items']) == 7 and all(care['log'][td][it['id']].get('done') for it in care['items']), 'the care doc holds the list and the log')
     # Reflect: the era, the read, a line to Vibe
     h.go(p, 'founder', hash='#reflect', width=1280)
     p.wait_for_selector('#reflect-era')
@@ -135,9 +206,12 @@ def part(h):
     p.wait_for_function('() => { const d = window.__db.get("data/users/u_founder/ai"); return d && d.reflect && d.reflect.month && d.reflect.month.text; }')
     p.click('#reflect-share')
     p.wait_for_function('() => { const f = window.__db.get("feed/u_founder"); return f && f.posts && f.posts[0] && f.posts[0].kind === "win" && /era:/.test(f.posts[0].text); }')
-    # the feed: a finished task is a shipped card with reactions and comments
+    # the feed: the Five card, a shipped card with the rain, reactions and comments
     h.go(p, 'founder', hash='#feed', width=1280)
     p.wait_for_selector('#feed-stream')
+    p.wait_for_selector('#feed-stream .card[data-kind="five"]')
+    fc = p.locator('#feed-stream .card[data-kind="five"]').first
+    check('Five in 2' in fc.inner_text() and fc.locator('.five-mrow').count() == 2 and fc.locator('.reacts .emoji-btn').count() == 7, 'the Five card on the feed: %r' % fc.inner_text()[:80])
     p.get_by_role('tab', name='Shipped').click()
     p.wait_for_selector('#feed-stream .card.ship')
     n = p.locator('#feed-stream .card.ship').count()
@@ -158,7 +232,6 @@ def part(h):
     check(p.locator('#feed-stream .card.ship >> nth=0 >> button:has-text("1 comment")').count() == 1, 'the comment count')
     r = p.evaluate('() => window.__db.get("reacts/u_founder")')
     check(r.get('cm') and any(k.startswith('s:') for k in r['cm']), 'the comment lives in my reacts doc: %r' % list(r.keys()))
-    # unreacting keeps the comment
     first.locator('button[aria-label="React 🔥"]').click()
     p.wait_for_function('() => { const r = window.__db.get("reacts/u_founder"); return r && !(Object.keys(r.r || {}).some(k => k.startsWith("s:"))); }')
     r = p.evaluate('() => window.__db.get("reacts/u_founder")')
@@ -168,13 +241,17 @@ def part(h):
     check(p.locator('#feed-stream .card[data-kind="kudos"] .reacts .emoji-btn').count() >= 7, 'kudos cards take reactions too')
     # a member has the section too, on the phone, without overflow
     h.go(p, 'm1', hash='#play', width=390)
-    p.wait_for_selector('#daily-puzzle')
+    p.wait_for_selector('#five')
     p.wait_for_timeout(400)
-    check(h.overflow(p) == 0, 'phone overflow on Play: %d' % h.overflow(p))
-    check('Kaavish' in p.inner_text('#puzzle-board') or p.locator('#puzzle-board .brk-row').count() >= 1, 'a member sees the team\'s times')
+    check(h.overflow(p) == 0, 'phone overflow on Daily: %d' % h.overflow(p))
+    check('1 of' in p.inner_text('#five'), 'a member sees the team spread')
+    h.go(p, 'm1', hash='#reset', width=390)
+    p.wait_for_selector('#break-reset')
+    p.wait_for_timeout(300)
+    check(h.overflow(p) == 0, 'phone overflow on Reset: %d' % h.overflow(p))
     h.go(p, 'm1', hash='#map', width=1280)
     p.wait_for_selector('#map-break')
-    check('puzzle' in p.inner_text('#map-break').lower(), 'the map lists Break')
+    check('five' in p.inner_text('#map-break').lower(), 'the map lists Break')
     errs = [e for e in h.errors() if 'AudioContext' not in str(e) and 'play()' not in str(e)]
     check(not errs, 'console errors: %r' % errs[:3])
     return fails

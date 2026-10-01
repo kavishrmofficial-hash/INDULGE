@@ -136,7 +136,7 @@
     ['radar', 'the latest trade press on Radar, by lane (people, accounts, launches, campaigns, awards) (team site)'],
     ['books', 'invoices due and overdue, this month\'s expenses, compliance dates (owner)'],
     ['handshake', 'the LinkedIn DM desk: who is ready, held, waiting on an accept, sent, skipped, flagged'],
-    ['break', 'the reset room: sparks, the streak, today\'s puzzle, the care reminders due'],
+    ['break', 'the reset room: sparks this week, the streak, Five (the word of the day), the squads, the care reminders due'],
     ['inbox', 'what is waiting in the inbox'],
     ['online', 'who has m360 open right now and where they are'],
     ['base', 'the Base, the contacts database, for a name, company, city or stage'],
@@ -401,9 +401,9 @@
       case 'break': case 'play': case 'wellness': {
         if (!M.play) return 'The reset room is not on this build.';
         const me = M.play.mine(ctx);
-        L.push('BREAK: ' + me.sparks + ' sparks, level ' + me.level.name + ', streak ' + me.streak + ' days (best ' + me.best + '), today: ' + (Object.keys(me.today).join(', ') || 'nothing yet'));
-        const d = M.play.docOf(ctx); L.push('TODAY\'S PUZZLE: ' + M.play.kindFor(td) + (d.days && d.days[td] ? ', solved in ' + M.play.fmtMs(d.days[td].ms) : ', not solved yet'));
-        L.push('TEAM: ' + list(M.play.board(ctx), 8).map(r => nameOf(nm, r.uid) + ' ' + r.sparks + ' (' + r.level + ', streak ' + r.streak + ')').join('; '));
+        L.push('BREAK: ' + me.week + ' sparks this week (last week ' + me.lastWeek + ', ' + me.sparks + ' ever), level ' + me.level.name + ' (' + me.level.weeks + ' weeks shown up), workday streak ' + me.streak + ' (best ' + me.best + '), today: ' + (Object.keys(me.today).join(', ') || 'nothing yet'));
+        const d = M.play.docOf(ctx); const f = ((d.days || {})[td] || {}).five; L.push('FIVE (the word of the day): ' + (f ? (f.tries <= 6 ? 'got it in ' + f.tries + ' tries, ' + M.play.fmtMs(f.ms) : 'missed it today') : 'not played yet'));
+        L.push('SQUADS THIS WEEK: ' + M.play.squadBoard(ctx).map(s => s.name + ' ' + s.week + (s.mine ? ' (mine)' : '')).join('; '));
         return L.join('\n');
       }
       case 'inbox': {

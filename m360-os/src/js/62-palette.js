@@ -17,7 +17,7 @@
     ['Base', 'base', 'database'], ['Companies', 'companies', 'database'], ['Radar', 'radar', 'radar'],
     ['Me', 'me', 'people'], ['Leave', 'leave', 'leave'], ['Handbook', 'handbook', 'handbook'], ['Trophies', 'trophies', 'trophy'],
     ['HQ', 'hq', 'command', true], ['Dashboard', 'command', 'command', true], ['Hiring', 'hiring', 'hiring', true], ['Admin', 'admin', 'desk', true],
-    ['What\'s in m360', 'map', 'map'], ['Break', 'break', 'breath'], ['Today\'s puzzle', 'play', 'breath'], ['Care reminders', 'care', 'bell'], ['Reflect', 'reflect', 'review']
+    ['What\'s in m360', 'map', 'map'], ['Break', 'break', 'breath'], ['Five, the word of the day', 'play', 'breath'], ['Reset', 'reset', 'breath'], ['Care reminders', 'care', 'bell'], ['Reflect', 'reflect', 'review']
   ];
   /* the order headings appear in */
   const ORDER = ['people', 'companies', 'tasks', 'projects', 'clients', 'pitches', 'posts', 'handbook', 'inbox', 'leave', 'radar', 'log', 'go to', 'actions', 'more', 'ask'];
@@ -43,7 +43,7 @@
       ['Give kudos', 'scores', () => M.intend('#feed', 'kudos')],
       ['Request leave', 'leave', () => M.nav('#leave')],
       ['Start a focus session', 'timer', () => M.focus && M.focus.open()],
-      ['Take a breather', 'breath', () => M.breathe && M.breathe.open()],
+      ['Slow breathing, five minutes', 'breath', () => M.breathe && M.breathe.open('slow')],
       ['Show me around', 'send', () => window.dispatchEvent(new CustomEvent('m360:tour'))],
       ['Inbox', 'bell', () => window.dispatchEvent(new CustomEvent('m360:inbox'))],
       ['Keyboard shortcuts', 'cmd', () => window.dispatchEvent(new CustomEvent('m360:keys'))],

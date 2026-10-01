@@ -686,6 +686,7 @@
       <${Announcement}/>
       ${Celebrate ? html`<${Celebrate}/>` : null}
       <${Quick} onTask=${() => setTask('new')}/>
+      ${M.parts.PlanToday ? html`<${M.parts.PlanToday}/>` : null}
       ${M.parts.SpotifyMini ? html`<${M.parts.SpotifyMini}/>` : null}
       <${InstallHint}/>
       <div class="split">
