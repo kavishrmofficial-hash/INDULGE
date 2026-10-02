@@ -644,12 +644,23 @@
       if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = 0; tapHome(); return; }
       if (rec.current && mode === 'listening') { try { rec.current.stop(); } catch (e) { /* stopped */ } }
     };
+    const phone = coarse() && !fine() && !!M.parts.OrbScreen;
     const tapHome = () => {
       if (mode !== 'idle') { reset(); return; }
+      if (phone) {
+        /* the orb: the screen opens and listens at once; no mic means the screen opens to typing */
+        M.haptic.buzz('tick');
+        spoke.current = true;
+        if (!listen({follow: false})) { spoke.current = false; setMode('asking'); setQ(''); }
+        return;
+      }
       spoke.current = false;
       const r = homeRef.current ? homeRef.current.getBoundingClientRect() : {left: window.innerWidth - 200, top: window.innerHeight - 80};
       openAt(r.left, r.top - 10);
     };
+    /* the orb screen's own controls: talk again, done talking */
+    const orbTalk = () => { stopListening(); if (M.speech) M.speech.stop(); setAnswer(''); setErr(''); setHeard(''); spoke.current = true; if (!listen({follow: false})) { spoke.current = false; setMode('asking'); } };
+    const orbStop = () => { if (rec.current) { try { rec.current.stop(); } catch (e) { /* stopped */ } } };
 
     /* bubble placement, kept inside the viewport */
     const bw = Math.min(340, window.innerWidth - 32);
@@ -661,11 +672,14 @@
     const cls = 'buddy' + (mode === 'listening' || followUp ? ' listening' : '') + (mode === 'thinking' ? ' thinking' : '') + (talking ? ' talking' : '');
     const stopHere = stops[step];
 
+    const orbUp = phone && mode !== 'idle' && mode !== 'tour' && mode !== 'welcome' && mode !== 'hello';
     return html`<div>
       ${showPointer ? html`<div ref=${el => { trailRef.current[1] = el; }} class="buddy-trail"/><div ref=${el => { trailRef.current[0] = el; }} class="buddy-trail"/>` : null}
       ${showPointer ? html`<div ref=${pointerRef} class=${cls}><${Face}/></div>` : null}
       ${ring ? html`<div class="buddy-ring" style=${{left: ring.left + 'px', top: ring.top + 'px', width: ring.width + 'px', height: ring.height + 'px'}}/>` : null}
-      ${mode !== 'idle' ? html`<div class=${'buddy-bubble' + (mode === 'tour' ? ' tour' : '')} role="dialog" aria-label="Ask m360" style=${{left: left + 'px', top: top + 'px'}}>
+      ${orbUp ? html`<${M.parts.OrbScreen} mode=${mode} heard=${heard} answer=${answer} err=${err} acts=${acts} followUp=${followUp} q=${q} setQ=${setQ}
+        onAsk=${t => { spoke.current = false; setQ(''); ask(t); }} onTalk=${orbTalk} onStop=${orbStop} onClose=${reset} onTour=${startTour}/>` : null}
+      ${mode !== 'idle' && !orbUp ? html`<div class=${'buddy-bubble' + (mode === 'tour' ? ' tour' : '')} role="dialog" aria-label="Ask m360" style=${{left: left + 'px', top: top + 'px'}}>
         <div class="row between" style=${{marginBottom: '8px'}}>
           <span class="micro">${mode === 'listening' ? 'listening, let go to send' : mode === 'thinking' ? 'thinking' : mode === 'tour' ? (stopHere ? stopHere.title : 'the tour') : mode === 'welcome' || mode === 'hello' ? 'hello' : followUp ? 'listening for a follow up' : 'ask m360'}</span>
           <button type="button" class="iconbtn" style=${{color: '#fff', width: '26px', height: '26px'}} aria-label="Close" onClick=${mode === 'tour' ? () => finishTour('skipped') : mode === 'welcome' ? () => { M.tour.mark(ctx, 'asked'); reset(); } : reset}><${M.icons.x}/></button>
@@ -713,10 +727,10 @@
           <button type="button" class="linky tiny" onClick=${() => { store.set('buddyHidden', hidden ? '0' : '1'); setHidden(!hidden); reset(); }}>${hidden ? 'Show pointer' : 'Hide pointer'}</button>
         </div>` : null}
       </div>` : null}
-      <button ref=${homeRef} type="button" class=${'buddy-home' + (mode === 'listening' ? ' live' : '')} aria-label="Ask m360"
+      <button ref=${homeRef} type="button" class=${'buddy-home' + (mode === 'listening' ? ' live' : '') + (phone ? ' orb-home' : '')} aria-label="Ask m360"
         onPointerDown=${homeDown} onPointerUp=${homeUp} onPointerCancel=${() => { if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = 0; } }}
         onKeyDown=${e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tapHome(); } }} onContextMenu=${e => e.preventDefault()}>
-        <${M.Mark} width="46px"/><span class="lbl">ask</span> <span class="k">${coarse() && !fine() ? 'hold to talk' : 'hold ⌃⌥'}</span>
+        ${phone ? html`<${M.parts.OrbMark}/>` : html`<${M.Mark} width="46px"/>`}<span class="lbl">ask</span> <span class="k">${coarse() && !fine() ? 'hold to talk' : 'hold ⌃⌥'}</span>
       </button>
     </div>`;
   }

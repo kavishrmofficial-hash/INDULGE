@@ -44,9 +44,9 @@
       const tick = () => {
         const n = at(p, total, Date.now() - t0);
         setS(n);
-        if (n.phase !== lastPhase.current && !n.done) { lastPhase.current = n.phase; M.sound.play('tick'); }
+        if (n.phase !== lastPhase.current && !n.done) { lastPhase.current = n.phase; M.sound.play('tick'); M.haptic.buzz('tick'); }
         if (!n.done) raf = requestAnimationFrame(tick);
-        else if (!fired.current) { fired.current = true; M.sound.play('chime'); if (opts.onDone) opts.onDone(); }
+        else if (!fired.current) { fired.current = true; M.sound.play('chime'); M.haptic.buzz('done'); if (opts.onDone) opts.onDone(); }
       };
       raf = requestAnimationFrame(tick);
       return () => cancelAnimationFrame(raf);

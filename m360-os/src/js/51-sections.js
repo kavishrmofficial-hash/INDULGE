@@ -253,6 +253,7 @@
   function Prefs() {
     const theme = M.useTheme();
     const [sound, setSound] = useState(M.sound.on());
+    const [haptic, setHaptic] = useState(M.haptic.on());
     const [voiceOn, setVoiceOn] = useState(() => M.prefs.get('buddyVoice') !== '0');
     const [previews, setPreviews] = useState(() => M.notices ? M.notices.previews() : true);
     const [allRooms, setAllRooms] = useState(() => M.prefs.get('noticeAll', '0') === '1');
@@ -278,6 +279,11 @@
           <span>The buddy speaks</span>
           <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${voiceOn ? 'on' : 'off'} ariaLabel="Buddy voice"
             onChange=${v => { M.prefs.set('buddyVoice', v === 'on' ? '1' : '0'); setVoiceOn(v === 'on'); if (v === 'on' && M.speech) M.speech.say('Hi, I am here whenever you need me.'); }}/>
+        </div>
+        <div class="row between">
+          <span>Nudges on the phone</span>
+          <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${haptic ? 'on' : 'off'} ariaLabel="Haptics"
+            onChange=${v => { M.haptic.set(v === 'on'); setHaptic(v === 'on'); if (v === 'on') M.haptic.buzz('done'); }}/>
         </div>
         <div class="row between">
           <span>Message previews in notices</span>

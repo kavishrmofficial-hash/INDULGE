@@ -73,7 +73,7 @@ These apply to every string in the app, every seed, and every reply you send Kaa
 - Cards: white, 1px --line border, 22px padding (18px on phone).
 - Logo: the m360 mark in Appendix A, inline SVG with fill currentColor, always black (#000), sitting directly on light grounds with no plate, never recoloured, never flame. Sidebar mark 84px wide with a small "os" micro label beside it. Phone top bar mark 66px. Gate screens 110px.
 - Icons: simple 24px line icons, stroke width 1.7, round caps and joins, drawn inline as SVG.
-- Motion: hover background changes only. No scroll animations, parallax or confetti.
+- Motion: one easing family (--ease, --spring), transforms and opacity only, nothing over 400ms. Things arrive (rise), give under a press (scale .96), and celebrate on purpose (sparks, the rain). On a phone a tap answers with a short nudge (M.haptic). Every animation steps aside for prefers-reduced-motion. No parallax, no scroll-jacking.
 - Desktop layout: white sidebar 252px wide with a right hairline. Main area on --warm with 36px by 40px padding. Content max width 1000px; 1180px for wide pages (My tasks, Projects, Pitches, The week, Command). Two-column card grids collapse to one column under 860px, with min-width 0 on grid children.
 - Phone layout (under 860px): sticky white top bar 56px (mark left, avatar right). Bottom tab bar with five items and env(safe-area-inset-bottom) padding. Drawers become bottom sheets with max height 92vh and a 22px top radius. Content padding 20px by 16px. Toasts sit above the tab bar. No page-level horizontal scroll at 390px wide; wide tables and boards scroll inside their own card.
 - Head: `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` and color-scheme light.

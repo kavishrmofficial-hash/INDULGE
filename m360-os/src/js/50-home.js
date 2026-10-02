@@ -122,7 +122,9 @@
       setBusy(false);
       M.sound.play('done');
       M.toast('Checked out. See you tomorrow');
+      if (M.dayrate) M.dayrate.open();
     }
+    const rated = a.out && M.dayrate ? M.dayrate.todayOf(ctx, ctx.uid) : null;
     return html`<div class="row between" style=${{alignItems: 'flex-end'}}>
       <div>
         <div class="display" style=${{fontSize: '26px'}}>${a.out ? 'Done for today' : 'In since ' + U.hhmm(a.in)}</div>
@@ -131,7 +133,9 @@
           ${a.late ? html` <span class="flame-t">Late.</span>` : null}
         </div>
       </div>
-      ${a.out ? null : html`<button type="button" class="btn on-dark sec sm" disabled=${busy} onClick=${out}>Check out</button>`}
+      ${a.out ? (rated != null ? html`<span class="pill on-dark" id="home-rated" title="How your day went">${M.dayrate.faceFor(rated)[1]} ${M.dayrate.faceFor(rated)[2]}</span>`
+        : (M.dayrate ? html`<button type="button" class="btn on-dark sec sm" id="home-rate" onClick=${() => M.dayrate.open()}>How did it go?</button>` : null))
+        : html`<button type="button" class="btn on-dark sec sm" disabled=${busy} onClick=${out}>Check out</button>`}
     </div>
     ${a.out ? (reopenSent
       ? html`<div class="small" id="home-reopen-sent" style=${{color: 'rgba(255,255,255,.7)', marginTop: '12px'}}><span class="dotflame"/> Asked Kaavish to reopen the day. It opens again when he approves; the answer lands in your inbox.</div>`
@@ -515,6 +519,7 @@
             <span class="grow"><span style=${{fontWeight: 500}}><${UI.Name} id=${m.uid}/></span>
               <div class="tiny ink62">${st ? st.text : where}${a.in ? ', ' + U.hhmm(a.in) : ''}</div></span>
             ${a.late && ctx.canSee(m.uid) ? html`<span class="pill flame-o">late</span>` : null}
+            ${M.dayrate && a.out && M.dayrate.todayOf(ctx, m.uid) != null ? html`<span class="crew-face" title=${'rated the day ' + M.dayrate.faceFor(M.dayrate.todayOf(ctx, m.uid))[2].toLowerCase()} aria-label=${'rated the day ' + M.dayrate.faceFor(M.dayrate.todayOf(ctx, m.uid))[2].toLowerCase()}>${M.dayrate.faceFor(M.dayrate.todayOf(ctx, m.uid))[1]}</span>` : null}
             <span class=${'pill ' + (a.status === 'office' ? 'ink' : a.status === 'leave' ? 'warm' : '')}>${where}</span>
           </button>`;
         })}
@@ -684,6 +689,7 @@
       ${M.parts.JoinBanner ? html`<${M.parts.JoinBanner}/>` : null}
       ${M.parts.FindYourWay ? html`<${M.parts.FindYourWay}/>` : null}
       <${Announcement}/>
+      ${M.parts.Quote ? html`<${M.parts.Quote}/>` : null}
       ${Celebrate ? html`<${Celebrate}/>` : null}
       <${Quick} onTask=${() => setTask('new')}/>
       ${M.parts.PlanToday ? html`<${M.parts.PlanToday}/>` : null}

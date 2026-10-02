@@ -391,7 +391,7 @@
       </div>
 
       <main class="main">
-        <div class=${'content' + (['work', 'accounts', 'hq'].indexOf(r.s) >= 0 ? ' wide' : '')}>
+        <div key=${r.s} class=${'content view' + (['work', 'accounts', 'hq'].indexOf(r.s) >= 0 ? ' wide' : '')}>
           <${PreviewBar}/>
           <${AlertBanner}/>
           <${LockBanner}/>
@@ -401,12 +401,12 @@
 
       ${M.parts.Buddy ? html`<${M.parts.Buddy} onOpenChat=${() => setAskOpen(true)}/>` : null}
 
-      <nav class="tabbar">
+      <nav class="tabbar" style=${{'--tn': tabKeys.length + (moreKeys.length ? 1 : 0), '--ti': Math.max(0, tabKeys.indexOf(r.s) >= 0 ? tabKeys.indexOf(r.s) : (moreKeys.indexOf(r.s) >= 0 ? tabKeys.length : -1))}} data-mark=${tabKeys.indexOf(r.s) >= 0 || moreKeys.indexOf(r.s) >= 0 ? '1' : '0'}>
         ${tabKeys.map(k => html`<button key=${k} type="button"
-          class=${'tab-item' + (r.s === k ? ' active' : '')} onClick=${() => go(k)}>
+          class=${'tab-item' + (r.s === k ? ' active' : '')} onClick=${() => { M.haptic.buzz('tick'); go(k); }}>
           <${M.icons[SECTIONS[k].icon]}/><span>${SECTIONS[k].label}</span><${Badge} n=${b[k] || 0}/>
         </button>`)}
-        ${moreKeys.length ? html`<button type="button" class=${'tab-item' + (moreKeys.indexOf(r.s) >= 0 ? ' active' : '')} onClick=${() => setMoreOpen(true)}>
+        ${moreKeys.length ? html`<button type="button" class=${'tab-item' + (moreKeys.indexOf(r.s) >= 0 ? ' active' : '')} onClick=${() => { M.haptic.buzz('tick'); setMoreOpen(true); }}>
           <${M.icons.more}/><span>More</span><${Badge} n=${moreBadge}/>
         </button>` : null}
       </nav>
@@ -425,6 +425,7 @@
       ${M.parts.BooksWatch ? html`<${M.parts.BooksWatch}/>` : null}
       ${M.parts.CareWatch ? html`<${M.parts.CareWatch}/>` : null}
       ${M.parts.BreatheHost ? html`<${M.parts.BreatheHost}/>` : null}
+      ${M.parts.DayRateHost ? html`<${M.parts.DayRateHost}/>` : null}
       ${M.parts.ChatWatch ? html`<${M.parts.ChatWatch}/>` : null}
       ${M.parts.InboxWatch ? html`<${M.parts.InboxWatch}/>` : null}
       <${NewerBuild}/>

@@ -48,7 +48,8 @@
       ['Inbox', 'bell', () => window.dispatchEvent(new CustomEvent('m360:inbox'))],
       ['Keyboard shortcuts', 'cmd', () => window.dispatchEvent(new CustomEvent('m360:keys'))],
       [M.theme.resolved() === 'dark' ? 'Switch to light mode' : 'Switch to dark mode', M.theme.resolved() === 'dark' ? 'sun' : 'moon', () => M.theme.set(M.theme.resolved() === 'dark' ? 'light' : 'dark')],
-      [M.sound.on() ? 'Turn sounds off' : 'Turn sounds on', 'play', () => M.sound.set(!M.sound.on())]
+      [M.sound.on() ? 'Turn sounds off' : 'Turn sounds on', 'play', () => M.sound.set(!M.sound.on())],
+      [M.haptic.on() ? 'Turn phone nudges off' : 'Turn phone nudges on', 'play', () => M.haptic.set(!M.haptic.on())]
     ];
     if (window.M360_STANDALONE) acts.push(['Sign out', 'out', () => window.M360_API('logout').then(() => location.reload(), () => location.reload())]);
     acts.forEach(([label, icon, fn], i) => { if (!q.length ? i < 5 : matches(q, label)) go(fn, 'actions', label, icon, '', 'a' + i); });

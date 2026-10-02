@@ -462,6 +462,36 @@ M.sound = {
   }
 };
 
+/* ---------- haptics: on a phone, a tap answers with a nudge. Patterns are short so they read as
+   texture, never as an alarm. Every call is noted on window.__haptics so a test can see it; the phone
+   only buzzes when the preference is on and the device has a vibration motor. ---------- */
+const BUZZ = {tap: 8, tick: 14, pick: [12, 30, 12], done: [18, 40, 28], big: [30, 40, 30, 40, 60], warn: [50, 30, 50]};
+M.haptic = {
+  on: () => M.prefs.get('haptic', '1') !== '0',
+  set: v => M.prefs.set('haptic', v ? '1' : '0'),
+  can() {
+    try { return typeof navigator.vibrate === 'function' && (navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches); } catch (e) { return false; }
+  },
+  last: 0,
+  buzz(name) {
+    const pat = BUZZ[name] || BUZZ.tap;
+    try { window.__haptics = (window.__haptics || []).concat([name]).slice(-60); } catch (e) { /* frozen window */ }
+    if (!M.haptic.on() || !M.haptic.can()) return false;
+    const now = Date.now();
+    if (name === 'tap' && now - M.haptic.last < 70) return true;   /* a richer nudge just went: the tap rides on it */
+    M.haptic.last = now;
+    try { return !!navigator.vibrate(pat); } catch (e) { return false; }
+  }
+};
+/* every real tap on a button nudges, whichever module drew it; a disabled button stays silent */
+try {
+  document.addEventListener('click', e => {
+    if (!e.isTrusted) return;
+    const b = e.target && e.target.closest ? e.target.closest('button, a.btn, [role="button"], [role="tab"]') : null;
+    if (b && !b.disabled && b.getAttribute('aria-disabled') !== 'true') M.haptic.buzz('tap');
+  }, true);
+} catch (e) { /* no document */ }
+
 /* ---------- spark: a burst of flame from an element, the m360 way to celebrate ---------- */
 M.spark = function spark(el, n) {
   if (M.reduced()) return;
@@ -484,14 +514,14 @@ M.spark = function spark(el, n) {
   document.body.appendChild(wrap);
   setTimeout(() => wrap.remove(), 900);
 };
-M.burst = function burst(el) { M.spark(el, 14); M.sound.play('chime'); };
+M.burst = function burst(el) { M.spark(el, 14); M.sound.play('chime'); M.haptic.buzz('done'); };
 
 /* ---------- rain: the screen fills with one emoji, the way confetti falls, for a reaction or a win.
    A fountain of a few from where it was tapped, then a sheet of them from the top edge. Reduced
    motion gets the small spark. The layer takes no pointer events and removes itself. ---------- */
 M.rain = function rain(emoji, el, opts) {
   const o = opts || {};
-  if (M.reduced()) { M.spark(el, 10); return; }
+  if (M.reduced()) { M.spark(el, 10); M.haptic.buzz('big'); return; }
   const w = window.innerWidth, h = window.innerHeight;
   const n = o.n || (w < 600 ? 44 : 72);
   const layer = document.createElement('div');
@@ -525,6 +555,7 @@ M.rain = function rain(emoji, el, opts) {
   document.body.appendChild(layer);
   setTimeout(() => layer.remove(), 3600);
   if (o.sound !== false) M.sound.play(o.sound || 'chime');
+  M.haptic.buzz('big');
 };
 
 /* ---------- count up: numbers that roll to their value ---------- */

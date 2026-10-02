@@ -156,7 +156,7 @@
         if (!live.current) return;
         const outLoc = pos ? locFrom(pos, ctxRef.current.settings.office) : null;
         const entry = {...U.clone(current), out: Date.now(), outLoc};
-        return writeDay(entry, 'Checked out').then(done);
+        return writeDay(entry, 'Checked out').then(done).then(() => { if (M.dayrate) M.dayrate.open(); });
       });
     };
 
@@ -204,6 +204,7 @@
         <div class="row">
           <span class="num">In ${U.hhmm(ds.in)}, out ${U.hhmm(ds.out)}, ${U.durText(ds.hours)}.</span>
           ${latePill}
+          ${M.dayrate && M.dayrate.todayOf(ctx, uid) != null ? html`<span class="pill warm" id="checkin-rated">${M.dayrate.faceFor(M.dayrate.todayOf(ctx, uid))[1]} ${M.dayrate.faceFor(M.dayrate.todayOf(ctx, uid))[2].toLowerCase()} day</span>` : null}
         </div>
         <div class="sub small">${U.cap(modeLabel(ds.entry.mode))}. ${placeText(ds.loc)}</div>
         ${sent ? html`<div class="sub small" id="checkin-reopen-sent"><span class="dotflame"/> Asked Kaavish to reopen the day. It opens again when he approves; the answer lands in your inbox.</div>`
