@@ -116,7 +116,7 @@ img{max-width:100%}
 .side-foot{border-top:1px solid var(--line); padding:14px 18px; display:flex; gap:11px; align-items:center}
 .side-foot .nm{font-weight:500; font-size:14px; line-height:1.25}
 .side-foot .ti{font-size:12px; color:var(--ink62)}
-.main{flex:1; min-width:0; padding:36px 40px 100px}
+.main{flex:1; min-width:0; padding:36px 40px 140px}
 .content{max-width:1080px; margin:0 auto; display:flex; flex-direction:column; gap:18px}
 .content.wide{max-width:1200px}
 .page-head{display:flex; flex-direction:column; gap:2px; margin-bottom:4px}
@@ -445,7 +445,7 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 }
 @media (max-width:860px){
   :root{--r-card:18px; --pad-card:18px}
-  .app{display:block; padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+  .app{display:block; padding-bottom:calc(140px + env(safe-area-inset-bottom))}
   .sidebar{display:none}
   .topbar{display:flex; position:sticky; top:env(safe-area-inset-top,0px); z-index:50; height:56px; background:var(--paper); border-bottom:1px solid var(--line); align-items:center; justify-content:space-between; padding:0 16px}
   .topbar .mark{width:66px; color:var(--mark)}
@@ -764,7 +764,7 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .chat-composer{padding:12px 18px; border-top:1px solid var(--line)}
 .chat-composer textarea{resize:none; min-height:44px; max-height:160px}
 .chat-empty{padding:40px 0}
-@media (max-width:860px){
+@media (max-width:700px){
   .chat{grid-template-columns:minmax(0,1fr); min-height:0}
   .chat-list,.chat-pane{position:static; max-height:none}
   .chat.show-pane .chat-list{display:none}
@@ -1258,6 +1258,15 @@ a.pill.prof-link svg{width:13px; height:13px; flex:none}
 }
 @keyframes boardpos{from{background-position:0% 50%, 0 50%} to{background-position:100% 50%, 0 50%}}
 
+/* fingers: nothing tappable under 40px on a phone */
+@media (max-width:600px){
+  .key{min-width:30px; height:42px}
+  .section-tabs .tab{min-height:40px}
+  .iconbtn{min-width:40px; min-height:40px}
+  .web-tab-close{min-width:32px; min-height:32px}
+  .emoji-btn{height:36px; padding:0 10px}
+}
+
 /* ==== 78-fold.css ==== */
 /* ---------- folds: phone sections behind a one line summary ---------- */
 .fold{border:1px solid var(--line); border-radius:var(--r-card); background:var(--card, var(--paper)); overflow:hidden}
@@ -1633,7 +1642,7 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
 }
 :root[data-theme="dark"] .dbl-over{background:rgba(10,10,10,.82)}
 </style>
-<script>window.M360_BUILD = "66bfa11+.261001-2317";</script><script>
+<script>window.M360_BUILD = "f0e96af.261001-2329";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -2788,31 +2797,32 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       ${hint ? html`<div class="hint">${hint}</div>` : null}
     </div>`;
   };
-  UI.Input = function Input({label, hint, value, onChange, type, placeholder, id, min, max, step, disabled, onEnter, onFocus}) {
+  UI.Input = function Input({label, hint, value, onChange, type, placeholder, id, min, max, step, disabled, onEnter, onFocus, ariaLabel}) {
     const iid = React.useMemo(() => id || ('f' + (++fieldSeq)), [id]);
     return html`<div class="field">
       ${label ? html`<label for=${iid}>${label}</label>` : null}
-      <input id=${iid} class="input" type=${type || 'text'} value=${value == null ? '' : value} placeholder=${placeholder}
+      <input id=${iid} class="input" type=${type || 'text'} value=${value == null ? '' : value} placeholder=${placeholder} aria-label=${label ? undefined : (ariaLabel || placeholder)}
         min=${min} max=${max} step=${step} disabled=${disabled}
         onInput=${e => onChange && onChange(e.target.value)} onFocus=${onFocus}
         onKeyDown=${e => { if (onEnter && e.key === 'Enter') onEnter(e.target.value); }}/>
       ${hint ? html`<div class="hint">${hint}</div>` : null}
     </div>`;
   };
-  UI.TextArea = function TextArea({label, hint, value, onChange, placeholder, rows, id}) {
+  UI.TextArea = function TextArea({label, hint, value, onChange, placeholder, rows, id, ariaLabel}) {
     const iid = React.useMemo(() => id || ('f' + (++fieldSeq)), [id]);
     return html`<div class="field">
       ${label ? html`<label for=${iid}>${label}</label>` : null}
-      <textarea id=${iid} class="input" rows=${rows || 3} placeholder=${placeholder}
+      <textarea id=${iid} class="input" rows=${rows || 3} placeholder=${placeholder} aria-label=${label ? undefined : (ariaLabel || placeholder)}
         value=${value == null ? '' : value} onInput=${e => onChange && onChange(e.target.value)}/>
       ${hint ? html`<div class="hint">${hint}</div>` : null}
     </div>`;
   };
-  UI.Select = function Select({label, value, onChange, options, id, hint}) {
+  UI.Select = function Select({label, value, onChange, options, id, hint, ariaLabel}) {
     const iid = React.useMemo(() => id || ('f' + (++fieldSeq)), [id]);
+    const first = options && options[0] ? String(options[0].label || '') : '';
     return html`<div class="field">
       ${label ? html`<label for=${iid}>${label}</label>` : null}
-      <select id=${iid} class="input" value=${value == null ? '' : value} onChange=${e => onChange && onChange(e.target.value)}>
+      <select id=${iid} class="input" value=${value == null ? '' : value} aria-label=${label ? undefined : (ariaLabel || first)} onChange=${e => onChange && onChange(e.target.value)}>
         ${options.map(o => html`<option key=${o.v} value=${o.v}>${o.label}</option>`)}
       </select>
       ${hint ? html`<div class="hint">${hint}</div>` : null}
@@ -6280,6 +6290,20 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   function Tasks({id}) {
     const ctx = M.useCtx();
     const [who, setWho] = useState('mine');
+    /* a board with nothing of yours on it opens on everyone's work; on the phone it starts at the first column with cards */
+    const settled = useRef(false);
+    useEffect(() => {
+      if (settled.current || !ctx.coll.tasks.ready) return;
+      settled.current = true;
+      const all = Object.keys(ctx.coll.tasks.map).map(k => ctx.coll.tasks.map[k]);
+      if (!all.some(t => t && t.owner === ctx.uid && t.status !== 'done') && all.length) setWho('all');
+    }, [ctx.coll.tasks.ready]);
+    useEffect(() => {
+      const wrap = document.querySelector('.board-wrap');
+      if (!wrap || wrap.scrollWidth <= wrap.clientWidth) return;
+      const col = Array.from(wrap.querySelectorAll('.colm')).find(c => c.querySelector('.tcard'));
+      if (col && col.offsetLeft > 8) wrap.scrollTo({left: col.offsetLeft - 6, behavior: 'auto'});
+    }, [who, ctx.coll.tasks.ready]);
     const [proj, setProj] = useState('');
     const [client, setClient] = useState('');
     const [drawer, setDrawer] = useState(() => (id ? {id} : null));
@@ -6356,8 +6380,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       <div class="row between task-filters">
         <${UI.Seg} options=${WHO} value=${who} onChange=${setWho} ariaLabel="Whose tasks"/>
         <div class="row grow" style=${{justifyContent: 'flex-end'}}>
-          <div style=${SEL_STYLE}><${UI.Select} id="task-filter-project" value=${proj} onChange=${setProj} options=${projOpts}/></div>
-          <div style=${SEL_STYLE}><${UI.Select} id="task-filter-client" value=${client} onChange=${setClient} options=${clientOpts}/></div>
+          <div style=${SEL_STYLE}><${UI.Select} id="task-filter-project" ariaLabel="Project" value=${proj} onChange=${setProj} options=${projOpts}/></div>
+          <div style=${SEL_STYLE}><${UI.Select} id="task-filter-client" ariaLabel="Client" value=${client} onChange=${setClient} options=${clientOpts}/></div>
         </div>
       </div>
       <${UI.Card}>
@@ -7097,13 +7121,13 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       setBusy(true);
       const now = Date.now();
       const same = M.clients && M.clients.sameName ? M.clients.sameName(ctx, pitch.brand, null) : null;
-      if (same) { M.toast('A client called ' + same.name + ' is already here. Linking the pitch to it.'); W.merge('pitches/' + pitch.id, {client: same.id, updated: now}).then(() => { onClose(); M.nav('#clients/' + same.id); }, () => setBusy(false)); return; }
+      if (same) { M.toast('A client called ' + same.name + ' is already here. Linking the pitch to it.'); W.merge('pitches/' + pitchId, {client: same.id, updated: now}).then(() => { onClose(); M.nav('#clients/' + same.id); }, () => setBusy(false)); return; }
       let cid = U.uid();
       let p = pitch.org && M.base && M.base.makeClientFromOrg
         ? M.base.makeClientFromOrg(ctx, pitch.org).then(made => { if (made) cid = made; else return W.set('clients/' + cid, {name: pitch.brand || 'Client', status: 'live', pod: '', owner: pitch.owner || ctx.uid, memory: '', approvals: '', never: '', links: '', updated: now, by: ctx.uid}); })
         : W.set('clients/' + cid, {name: pitch.brand || 'Client', status: 'live', pod: '', owner: pitch.owner || ctx.uid,
           memory: '', approvals: '', never: '', links: '', updated: now, by: ctx.uid});
-      p = p.then(() => W.merge('pitches/' + pitch.id, {client: cid, updated: now}));
+      p = p.then(() => W.merge('pitches/' + pitchId, {client: cid, updated: now}));
       /* the founder's private monthly revenue starts from the pitch value */
       if (ctx.isFounder && valueOf(fe) > 0) p = p.then(() => W.merge(financePath(ctx), {clients: {[cid]: {monthly: valueOf(fe)}}}));
       p.then(() => { M.toast('Client page created'); onClose(); M.nav('#clients'); }, () => setBusy(false));
@@ -12340,7 +12364,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       : html`<div class="stack tight">
         <div class="small brk-plan">${b}</div>
         <${Timer} id="walk-type-timer" seconds=${180} label="type everything" onDone=${() => {}}/>
-        <textarea class="input" rows="6" id="walk-text" placeholder="One per line. Wrong ones welcome." value=${text} onInput=${e => setText(e.target.value)}/>
+        <textarea class="input" rows="6" id="walk-text" aria-label="Ideas" placeholder="One per line. Wrong ones welcome." value=${text} onInput=${e => setText(e.target.value)}/>
         <div class="row between"><span class="tiny ink62 num">${lines(text).length} so far</span><${UI.Btn} id="walk-keep" sm=${true} disabled=${!text.trim()} onClick=${keepIdeas}>Keep these<//></div>
       </div>`}
     <//>`;
@@ -12374,7 +12398,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     return html`<${UI.Card} id="park" title="Park it" action=${html`<${Grade} g="well supported"/>`}>
       ${step === 'idle' ? html`<div class="stack tight">
         <div class="small">Read the brief for a minute without solving it. Then five minutes of something light and wordless. Then back to it, ideas, go. A light filler beat both rest and hard work for incubation across 117 studies. Mind wandering is not the mechanism, so we do not sell it as one.</div>
-        <textarea class="input" rows="2" id="park-brief" placeholder=${'The brief, in a few lines. Or we pick one: ' + BRIEFS[1]} value=${brief} onInput=${e => setBrief(e.target.value)}/>
+        <textarea class="input" rows="2" id="park-brief" aria-label="The brief" placeholder=${'The brief, in a few lines. Or we pick one: ' + BRIEFS[1]} value=${brief} onInput=${e => setBrief(e.target.value)}/>
         <div class="row between"><span class="tiny ink62">1:00 read, 5:00 filler, 3:00 back</span><${UI.Btn} id="park-start" sm=${true} onClick=${() => { if (!brief.trim()) setBrief(b); setStep('read'); M.sound.play('start'); }}>Start<//></div>
       </div>`
       : step === 'read' ? html`<div class="stack tight">
@@ -12388,7 +12412,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       : html`<div class="stack tight">
         <div class="small brk-plan">${b}</div>
         <${Timer} id="park-back" seconds=${180} label="back to it, ideas, go" onDone=${() => {}}/>
-        <textarea class="input" rows="6" id="park-text" placeholder="One per line." value=${text} onInput=${e => setText(e.target.value)}/>
+        <textarea class="input" rows="6" id="park-text" aria-label="Ideas" placeholder="One per line." value=${text} onInput=${e => setText(e.target.value)}/>
         <div class="row between"><span class="tiny ink62 num">${lines(text).length} so far</span><${UI.Btn} id="park-keep" sm=${true} disabled=${!text.trim()} onClick=${done}>Keep these<//></div>
       </div>`}
     <//>`;
@@ -12411,13 +12435,13 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       : step === 'one' ? html`<div class="stack tight">
         <div class="small brk-plan"><b>Gear one.</b> ${b}. As many angles as you can. Quantity only. Do not judge.</div>
         <${Timer} id="sprint-one" seconds=${180} label="gear one, quantity" onStop=${() => setStep('idle')} onDone=${() => { setStep('two'); M.sound.play('start'); }}/>
-        <textarea class="input" rows="6" id="sprint-one-text" placeholder="One per line. Obvious is fine here." value=${one} onInput=${e => setOne(e.target.value)}/>
+        <textarea class="input" rows="6" id="sprint-one-text" aria-label="Gear one ideas" placeholder="One per line. Obvious is fine here." value=${one} onInput=${e => setOne(e.target.value)}/>
         <div class="tiny ink62 num">${lines(one).length} so far</div>
       </div>`
       : html`<div class="stack tight">
         <div class="small brk-plan"><b>Gear two.</b> ${b}. Now only unusual, clever, uncommon, surprising ones. Fewer is fine. Think the way an eccentric poet would.</div>
         <${Timer} id="sprint-two" seconds=${180} label="gear two, be creative" onDone=${() => {}}/>
-        <textarea class="input" rows="6" id="sprint-two-text" placeholder="One per line. Weird is the brief." value=${two} onInput=${e => setTwo(e.target.value)}/>
+        <textarea class="input" rows="6" id="sprint-two-text" aria-label="Gear two ideas" placeholder="One per line. Weird is the brief." value=${two} onInput=${e => setTwo(e.target.value)}/>
         <div class="row between"><span class="tiny ink62 num">${lines(one).length} in gear one, ${lines(two).length} in gear two</span><${UI.Btn} id="sprint-keep" sm=${true} disabled=${!two.trim()} onClick=${done}>Keep these<//></div>
       </div>`}
     <//>`;

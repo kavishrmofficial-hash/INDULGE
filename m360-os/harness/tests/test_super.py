@@ -8,6 +8,7 @@ Run: cd m360-os && python3 harness/tests/test_super.py
 """
 import json
 import os
+import re
 import sys
 from datetime import timedelta
 
@@ -54,7 +55,7 @@ def t(h):
     line = p.inner_text('#lock-banner')
     check('m360 is locked for changes right now.' in line and 'Payroll run, back by 3pm' in line, 'lock line: ' + line)
     p.wait_for_selector('.drawer #task-title')
-    p.locator('.drawer').get_by_role('tab', name='Done', exact=True).click()
+    p.locator('.drawer').get_by_role('tab', name=re.compile('^(Done|Sign-off)$')).click()
     p.locator('.drawer').get_by_role('button', name='Save', exact=True).click()
     p.wait_for_selector('.toast:has-text("m360 is locked right now. Try again later.")')
     p.wait_for_timeout(200)
@@ -74,9 +75,10 @@ def t(h):
     h.go(p, 'm1', hash='#tasks/t1', width=1280)
     check(p.locator('#lock-banner').count() == 0, 'lock line still showing after unlock')
     p.wait_for_selector('.drawer #task-title')
-    p.locator('.drawer').get_by_role('tab', name='Done', exact=True).click()
+    p.locator('.drawer').get_by_role('tab', name=re.compile('^(Done|Sign-off)$')).click()
     p.locator('.drawer').get_by_role('button', name='Save', exact=True).click()
-    p.wait_for_function('() => window.__db.get("tasks/t1").status === "done"')
+    # with sign-off on, a member's done goes to review; the point is that the change went through
+    p.wait_for_function('() => ["done", "review"].indexOf(window.__db.get("tasks/t1").status) >= 0')
 
     # ---- alert: everyone sees it, each person dismisses it for the day ----
     open_super(p)
