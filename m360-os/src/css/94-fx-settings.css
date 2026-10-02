@@ -39,8 +39,6 @@
 /* a metal number: the plain copy keeps the text in place for the instant the metal is still hidden,
    then steps aside once the metal shows (or when the plain stand in is used) */
 .fx-num{position:relative; display:inline-flex; align-items:center; max-width:100%}
-.fx-num-copy{position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap}
-.fx-num:has(.metal-fx-root[style*="visibility: visible"]) .fx-num-copy,.fx-num:has(.metal-text-plain) .fx-num-copy{display:none}
 
 /* the notes search box in a beam */
 .fx-notes-q{min-width:0; display:block}

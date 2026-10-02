@@ -67,8 +67,6 @@
     const [busy, setBusy] = useState(false);
     const [live, setLive] = useState('');
     const [micLive, setMicLive] = useState(false);
-    /* the Talk pill wakes once the effects have settled: its microphone hook must be there from its first render */
-    const fxSettled = M.fx && M.fx.useSettled ? M.fx.useSettled() : true;
     const VoiceWrap = M.fx && M.fx.has() ? M.fx.Voice : ({children}) => children;
     const mic = window.FX && window.FX.useMicrophone ? window.FX.useMicrophone() : null;
     useEffect(() => { if (!mic) return; if (micLive) mic.start().catch(() => {}); else mic.stop(); }, [micLive]);
@@ -168,7 +166,7 @@
           <button type="button" class="iconbtn" aria-label="Attach an image" title="A photo or a screenshot" onClick=${() => fileRef.current && fileRef.current.click()}><${M.icons.plus}/></button>` : null}
         <input id=${inline ? 'ask-inline' : 'ask-input'} class="input" value=${q} placeholder=${ctx.isFounder ? 'Ask HQ anything…' : 'Ask m360 anything…'}
           onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') send(); }} onPaste=${e => { const fs = Array.from((e.clipboardData && e.clipboardData.files) || []).filter(f => /^image\//.test(f.type)); if (fs.length && canImg) { e.preventDefault(); attach(fs); } }} aria-label="Ask m360"/>
-        ${M.parts.MicButton && (fxSettled || !M.fx.has()) ? html`<${M.parts.MicButton} sm=${true} label="Talk" onLive=${setMicLive} onText=${(t, lg) => { lang.current = lg || 'en'; send(t); }}/>` : null}
+        ${M.parts.MicButton ? html`<${M.parts.MicButton} sm=${true} label="Talk" onLive=${setMicLive} onText=${(t, lg) => { lang.current = lg || 'en'; send(t); }}/>` : null}
         <button type="button" class=${'iconbtn' + (aloud ? ' on' : '')} id=${inline ? 'ask-aloud-inline' : 'ask-aloud'} aria-pressed=${aloud} aria-label="Read replies aloud" title=${aloud ? 'Replies are read aloud' : 'Read replies aloud'}
           onClick=${() => { const v = !aloud; setAloud(v); M.prefs.set('askAloud', v ? '1' : '0'); if (!v && M.speech) M.speech.stop(); }}><${M.icons.voice}/></button>
         ${busy ? html`<${UI.Btn} kind="sec" onClick=${() => ctl.current && ctl.current.abort()}>Stop<//>`

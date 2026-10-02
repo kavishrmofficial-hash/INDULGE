@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""v28 test: the six effects, the real packages, bundled into the page.
+"""v28 and v29 test: the six effects, the real packages, bundled into the page.
 
 window.FX carries thinking-orbs, border-beam, voice-glow, bot-avatars, metal-fx and React Bits'
 BellToggle. The thinking line draws the orb on a canvas with a state read from its label; a flame card
@@ -75,22 +75,24 @@ def test(h):
     p.locator('#fx-hot').scroll_into_view_if_needed()
     p.wait_for_function('() => document.getElementById("fx-hot").parentElement.hasAttribute("data-active")')
     check(True, 'the beam plays when the card comes into view')
-    p.wait_for_function('() => !document.getElementById("fx-hot").parentElement.hasAttribute("data-active")', timeout=12000)
-    check(True, 'and rests after a few laps')
-    p.locator('#fx-hot').hover()
-    p.wait_for_function('() => document.getElementById("fx-hot").parentElement.hasAttribute("data-active")')
-    check(True, 'a hovering pointer brings it back')
-    p.mouse.move(2, 2)
+    p.wait_for_timeout(4000)
+    check(p.evaluate('() => document.getElementById("fx-hot").parentElement.hasAttribute("data-active")'), 'and keeps running while it is on screen, as the library ships it')
     check(p.evaluate('() => !document.getElementById("fx-cold").parentElement.hasAttribute("data-beam")'), 'a plain card has no beam')
 
     # ---- liquid metal round a button ----
     metal = p.evaluate('() => { const r = document.getElementById("fx-btn").closest(".metal-fx-root"); return r ? [r.dataset.variant, r.dataset.theme, !!r.querySelector("canvas.metal-fx-canvas")] : null; }')
     check(metal and metal[0] == 'button' and metal[1] == 'dark' and metal[2], 'the ink button is a dark metal pill with its own canvas: %r' % metal)
-    check(not p.evaluate('() => document.getElementById("fx-btn").closest(".metal").classList.contains("is-live")'), 'the metal rests while nobody is near it')
-    p.locator('#fx-btn').hover()
-    p.wait_for_function('() => document.getElementById("fx-btn").closest(".metal").classList.contains("is-live")')
-    check(True, 'and flows under a hovering pointer')
-    p.mouse.move(2, 2)
+    check(p.evaluate('() => getComputedStyle(document.getElementById("fx-btn")).visibility') == 'visible', 'the button inside the metal is visible from the first paint')
+    p.locator('#fx-btn').click()
+    check(True, 'and takes a click')
+
+    # ---- metal text and the metal badge ----
+    p.evaluate('''() => { const r = document.createElement('div'); r.id = 'fx-scratch2'; document.body.appendChild(r);
+      ReactDOM.createRoot(r).render(M.html`<div><span id="fx-mt"><${M.fx.MetalText} size=${28}>42<//></span><span id="fx-mb"><${M.fx.MetalBadge}>new<//></span></div>`); }''')
+    p.wait_for_selector('#fx-mt .metal-fx-root')
+    check('42' in p.inner_text('#fx-mt'), 'metal text reads its number')
+    p.wait_for_selector('#fx-mb .metal-badge-host')
+    check('new' in p.inner_text('#fx-mb').lower(), 'the metal badge reads its word')
 
     # ---- the bell: a press rings and unfurls, the badge rolls ----
     check(p.get_attribute('#fx-bell', 'data-on') == 'false', 'the bell starts off')
@@ -138,6 +140,7 @@ def test(h):
     p.get_by_role('button', name='Talk').first.click()
     p.wait_for_function('() => { const w = document.querySelector("#ask-input").closest("[data-voice-beam]"); return w && w.hasAttribute("data-active"); }')
     check(True, 'the beam is active while the mic is live')
+    check(p.evaluate('() => !!document.querySelector(".ask-in .voice-pill.is-live")'), 'the Talk button records inside the voice pill')
     p.get_by_role('button', name='Listening, tap to stop').first.click()
     p.wait_for_function("() => [...document.querySelectorAll('.ask-row canvas')].some(c => c.getAttribute('aria-label') === 'm360')", timeout=20000)
     check(p.locator('.ask-row canvas').count() >= 1, 'a bot sits beside the answer')

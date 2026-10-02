@@ -106,15 +106,18 @@
   }
 
   /* the recording pill: a Talk button wrapped in the pill beam, fed by its own microphone while live */
+  /* the microphone hook is called on every render, settled or not, so the hook order never changes;
+     window.FX is fixed for the page's life (the bundle loads before this file) */
+  const useMic = window.FX && window.FX.useMicrophone ? window.FX.useMicrophone : () => null;
   function VoicePill({live, children}) {
     useSettled();
     const fx = FX();
-    const mic = fx && fx.useMicrophone ? fx.useMicrophone() : null;
+    const mic = useMic();
     React.useEffect(() => {
-      if (!mic) return undefined;
+      if (!mic || !fx) return undefined;
       if (live) mic.start().catch(() => {}); else mic.stop();
       return () => mic.stop();
-    }, [live, !!mic]);
+    }, [live, !!mic, !!fx]);
     if (!fx) return children;
     return html`<span class=${'voice-pill' + (live ? ' is-live' : '')}><${Voice} type="pill" on=${!!live} stream=${live && mic ? mic.stream : null}>${children}<//></span>`;
   }

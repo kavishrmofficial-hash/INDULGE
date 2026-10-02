@@ -3,8 +3,8 @@
 'use strict';
 (function () {
   const {html, React, U, UI} = M;
-  /* a number in metal (metal-fx MetalText); a quiet copy of the text holds its place while the metal readies */
-  const MetalNum = ({children, size, weight, color}) => html`<span class="fx-num"><span class="fx-num-copy" aria-hidden="true">${children}</span><${M.fx.MetalText} size=${size} weight=${weight} color=${color}>${children}<//></span>`;
+  /* a number in metal (metal-fx MetalText) */
+  const MetalNum = ({children, size, weight, color}) => html`<span class="fx-num"><${M.fx.MetalText} size=${size} weight=${weight} color=${color}>${children}<//></span>`;
   const {useState, useMemo} = React;
 
   const Embed = ({page, id}) => {

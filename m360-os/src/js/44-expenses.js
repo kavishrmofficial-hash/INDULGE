@@ -6,8 +6,8 @@
 'use strict';
 (function () {
   const {html, React, U, UI, icons} = M;
-  /* a number in metal (metal-fx MetalText); a quiet copy of the text holds its place while the metal readies */
-  const MetalNum = ({children, size, weight, color}) => html`<span class="fx-num"><span class="fx-num-copy" aria-hidden="true">${children}</span><${M.fx.MetalText} size=${size} weight=${weight} color=${color}>${children}<//></span>`;
+  /* a number in metal (metal-fx MetalText) */
+  const MetalNum = ({children, size, weight, color}) => html`<span class="fx-num"><${M.fx.MetalText} size=${size} weight=${weight} color=${color}>${children}<//></span>`;
   const {useState, useEffect, useMemo, useRef} = React;
 
   const CATS = ['Salaries', 'Rent', 'Software and tools', 'Freelancers', 'Production', 'Travel', 'Meals and client', 'Marketing', 'Professional fees', 'Bank and taxes', 'Equipment', 'Other'];

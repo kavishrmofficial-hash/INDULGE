@@ -95,3 +95,7 @@
 .beam-host.inline{display:inline-block}
 /* the metal's glow halo stays within 16px of its button, so a button at the edge never widens the page */
 .metal-host{overflow:clip; overflow-clip-margin:16px}
+/* metal-fx keeps its box hidden until its first WebGL frame has been copied; a slow start (a busy phone,
+   a throttled tab) would hide the control inside with it. The control shows from the first paint and
+   the metal lands over it when its frame is ready. */
+.metal-fx-root{visibility:visible !important; opacity:1 !important}

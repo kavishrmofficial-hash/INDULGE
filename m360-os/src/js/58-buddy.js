@@ -109,8 +109,6 @@
     const [auto, setAuto] = useState(() => store.get('buddyAuto') !== '0');
     const [talking, setTalking] = useState(false);
     const [followUp, setFollowUp] = useState(false);
-    /* the Talk pill wakes once the effects have settled: its microphone hook must be there from its first render */
-    const fxSettled = M.fx && M.fx.useSettled ? M.fx.useSettled() : true;
     const pointerRef = useRef(null);
     const trailRef = useRef([]);
     const mouse = useRef({x: window.innerWidth - 90, y: window.innerHeight - 90});
@@ -699,7 +697,7 @@
             onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') ask(q); }} aria-label="Ask m360"/><//>
           <div class="row between"><span class="tiny" style=${{color: 'rgba(255,255,255,.6)'}}>${coarse() && !fine() ? 'Hold the button to talk' : 'Hold Ctrl + Option to talk'}</span>
             <span class="row nowrap">
-              ${M.parts.MicButton && (fxSettled || !M.fx.has()) ? html`<${M.parts.MicButton} sm=${true} label="Talk" onText=${(t, lg) => { lang.current = lg || 'en'; spoke.current = true; ask(t); }}/>` : null}
+              ${M.parts.MicButton ? html`<${M.parts.MicButton} sm=${true} label="Talk" onText=${(t, lg) => { lang.current = lg || 'en'; spoke.current = true; ask(t); }}/>` : null}
               <${M.fx.Metal} kind="paper"><button type="button" class="btn on-dark sm" disabled=${!q.trim()} onClick=${() => ask(q)}>Ask</button><//>
             </span></div>
           <div class="row" style=${{gap: '6px', flexWrap: 'wrap'}}>
