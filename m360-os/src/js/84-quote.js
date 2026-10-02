@@ -111,15 +111,16 @@
     const text = M.quote.today(n);
     const words = text.split(' ');
     useEffect(() => { setSeen(s => s + 1); }, [n]);
-    return html`<section class="card ink quote-card" id="quote-card" aria-label="A thought for the day">
+    const Beam = M.fx && M.fx.Beam ? M.fx.Beam : ({children}) => children;
+    return html`<${Beam} on=${true} variant="colorful" strength=${1} duration=${5} dark=${true}><section class="card ink quote-card" id="quote-card" aria-label="A thought for the day">
       <div class="row between" style=${{alignItems: 'flex-start', gap: '16px'}}>
         <div class="grow" style=${{minWidth: 0}}>
           <div class="micro">${n ? 'another thought' : 'a thought for ' + U.dateLabel(new Date()).toLowerCase()}</div>
           <p class="quote-line" id="quote-line" key=${text}>${words.map((w, i) => html`<${React.Fragment} key=${i}><span class="quote-w" style=${{'--i': i}}>${w}</span>${i < words.length - 1 ? ' ' : ''}<//>`)}</p>
         </div>
-        <button type="button" class="iconbtn on-dark quote-next" id="quote-next" aria-label="Another thought" title="Another thought" onClick=${() => { M.haptic.buzz('tick'); M.sound.play('soft'); setN(x => x + 1); }}><${M.icons.refresh || M.icons.more}/></button>
+        <${M.fx.Metal} kind="ink" circle=${true}><button type="button" class="iconbtn on-dark quote-next" id="quote-next" aria-label="Another thought" title="Another thought" onClick=${() => { M.haptic.buzz('tick'); M.sound.play('soft'); setN(x => x + 1); }}><${M.icons.refresh || M.icons.more}/></button><//>
       </div>
-    </section>`;
+    </section><//>`;
   }
   M.parts.Quote = Quote;
 })();

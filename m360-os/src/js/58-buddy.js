@@ -681,7 +681,7 @@
         onAsk=${t => { spoke.current = false; setQ(''); ask(t); }} onTalk=${orbTalk} onStop=${orbStop} onClose=${reset} onTour=${startTour}/>` : null}
       ${mode !== 'idle' && !orbUp ? html`<div class=${'buddy-bubble' + (mode === 'tour' ? ' tour' : '')} role="dialog" aria-label="Ask m360" style=${{left: left + 'px', top: top + 'px'}}>
         <div class="row between" style=${{marginBottom: '8px'}}>
-          <span class="micro">${mode === 'listening' ? 'listening, let go to send' : mode === 'thinking' ? 'thinking' : mode === 'tour' ? (stopHere ? stopHere.title : 'the tour') : mode === 'welcome' || mode === 'hello' ? 'hello' : followUp ? 'listening for a follow up' : 'ask m360'}</span>
+          ${M.fx && M.fx.Bot && mode !== 'tour' ? html`<${M.fx.Bot} type="droid" size=${26} state=${mode === 'thinking' ? 'working' : 'default'} label="m360" className="buddy-bot"/>` : null}<span class="micro">${mode === 'listening' ? 'listening, let go to send' : mode === 'thinking' ? 'thinking' : mode === 'tour' ? (stopHere ? stopHere.title : 'the tour') : mode === 'welcome' || mode === 'hello' ? 'hello' : followUp ? 'listening for a follow up' : 'ask m360'}</span>
           <button type="button" class="iconbtn" style=${{color: '#fff', width: '26px', height: '26px'}} aria-label="Close" onClick=${mode === 'tour' ? () => finishTour('skipped') : mode === 'welcome' ? () => { M.tour.mark(ctx, 'asked'); reset(); } : reset}><${M.icons.x}/></button>
         </div>
         ${mode === 'listening' ? html`<div style=${{fontWeight: 500, minHeight: '22px'}}>${heard || 'Go ahead, I\'m listening.'}</div>` : null}

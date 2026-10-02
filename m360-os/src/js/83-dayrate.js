@@ -72,7 +72,7 @@
           <div class="dayrate-ends" aria-hidden="true"><span>rough</span><span>great</span></div>
         </div>
         <div class="dayrate-acts">
-          <button type="button" class="btn xl on-dark" id="dayrate-save" disabled=${busy || !touched} onClick=${save}>${busy ? 'Saving' : 'That was my day'}</button>
+          <${M.fx.Metal} kind="paper" className="dayrate-metal"><button type="button" class="btn xl on-dark" id="dayrate-save" disabled=${busy || !touched} onClick=${save}>${busy ? 'Saving' : 'That was my day'}</button><//>
           <button type="button" class="linky dayrate-skip" id="dayrate-skip" onClick=${onClose}>Not now</button>
         </div>
       </div>

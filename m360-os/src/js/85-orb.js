@@ -11,8 +11,10 @@
   const MicIcon = () => html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>`;
 
   /* the sphere follows the mic: an analyser on its own stream, released when listening ends */
+  const LEVEL = {v: 0};   /* the latest mic level, for anything that wants a getter */
   function useLevel(active, ref) {
     useEffect(() => {
+      LEVEL.v = 0;
       if (!active || !ref.current || !navigator.mediaDevices || !window.AudioContext && !window.webkitAudioContext) return undefined;
       let gone = false, raf = 0, stream = null, ac = null;
       const AC = window.AudioContext || window.webkitAudioContext;
@@ -29,6 +31,7 @@
           for (let i = 0; i < buf.length; i++) { const d = (buf[i] - 128) / 128; sum += d * d; }
           const rms = Math.sqrt(sum / buf.length);
           smooth = smooth * 0.75 + Math.min(1, rms * 4) * 0.25;
+          LEVEL.v = smooth;
           if (ref.current) ref.current.style.setProperty('--lvl', smooth.toFixed(3));
           raf = requestAnimationFrame(tick);
         };
@@ -51,7 +54,7 @@
     return html`<span ref=${ref} class=${'vglow' + (on ? ' on' : '') + (processing ? ' beam' : '') + (mobile ? ' mobile' : '')} aria-hidden="true" data-on=${on ? '1' : '0'} data-beam=${processing ? '1' : '0'}><i/><b/></span>`;
   }
   M.parts.VoiceGlow = VoiceGlow;
-  M.fx = {...(M.fx || {}), useLevel};
+  M.fx = {...(M.fx || {}), useLevel, level: () => LEVEL.v};
 
   function Words({text, quiet}) {
     const words = String(text || '').split(/\s+/).filter(Boolean);
@@ -81,7 +84,7 @@
       </div>
       <div class="orb-stage">
         <button type="button" class="orb-tap" id="orb-tap" aria-label=${listening ? 'Done talking' : 'Talk'} aria-pressed=${listening} onClick=${tap}>
-          <span ref=${orb} class=${'vorb' + (listening ? ' live' : mode === 'thinking' ? ' think' : '')}/>
+          <span ref=${orb} class=${'orb-big' + (listening ? ' is-live' : mode === 'thinking' ? ' think' : '')}>${M.fx && M.fx.has() ? html`<${M.fx.Orb} state=${listening ? 'listening' : mode === 'thinking' ? 'working' : 'breathing'} size=${64} dark=${false} label=${listening ? 'listening' : 'm360'}/>` : html`<span class=${'vorb' + (listening ? ' live' : mode === 'thinking' ? ' think' : '')}/>`}</span>
         </button>
         <div class="orb-hint">${hint}</div>
       </div>
@@ -97,7 +100,7 @@
           <button type="button" class="linky tiny" onClick=${onTour}>Show me around</button>
         </div>` : null}
       </div>
-      ${M.parts.VoiceGlow ? html`<${M.parts.VoiceGlow} on=${listening || mode === 'thinking'} processing=${mode === 'thinking'} mobile=${true}/>` : null}
+      ${M.fx && M.fx.has() ? html`<${M.fx.Voice} type="mobile" variant="colorful" on=${listening || mode === 'thinking'} processing=${mode === 'thinking'} level=${() => LEVEL.v} className="orb-voice"><div class="orb-voice-in"/><//>` : (M.parts.VoiceGlow ? html`<${M.parts.VoiceGlow} on=${listening || mode === 'thinking'} processing=${mode === 'thinking'} mobile=${true}/>` : null)}
       <div class="orb-foot">
         ${typing || mode === 'asking' || mode === 'answer' ? html`<input id="orb-input" class="input" value=${q} placeholder="Or type it" aria-label="Ask m360" autoFocus=${mode === 'asking'}
           onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter' && q.trim()) onAsk(q); }}/>
@@ -106,5 +109,5 @@
     </div>`;
   }
   M.parts.OrbScreen = OrbScreen;
-  M.parts.OrbMark = () => html`<span class="vorb" aria-hidden="true"/>`;
+  M.parts.OrbMark = () => M.fx && M.fx.has() ? html`<span class="orb-mark"><${M.fx.Orb} state="breathing" size=${32} dark=${true}/></span>` : html`<span class="vorb" aria-hidden="true"/>`;
 })();

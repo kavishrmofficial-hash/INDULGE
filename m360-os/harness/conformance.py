@@ -9,13 +9,14 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, 'src')
 PAGE = open(os.path.join(ROOT, 'dist', 'index.html'), encoding='utf-8').read()
-JS_FILES = sorted(f for f in os.listdir(os.path.join(SRC, 'js')) if f.endswith('.js'))
+# vendor bundles (fx/build.sh) are other people's code: present in the page, outside the house rules
+JS_FILES = sorted(f for f in os.listdir(os.path.join(SRC, 'js')) if f.endswith('.js') and not f.endswith('.vendor.js'))
 JS = {f: open(os.path.join(SRC, 'js', f), encoding='utf-8').read() for f in JS_FILES}
 CSS = open(os.path.join(SRC, 'css.css'), encoding='utf-8').read()
 _cssdir = os.path.join(SRC, 'css')
 if os.path.isdir(_cssdir):
     for _f in sorted(os.listdir(_cssdir)):
-        if _f.endswith('.css'):
+        if _f.endswith('.css') and not _f.endswith('.vendor.css'):
             CSS += '\n' + open(os.path.join(_cssdir, _f), encoding='utf-8').read()
 ALL_JS = '\n'.join(JS.values())
 

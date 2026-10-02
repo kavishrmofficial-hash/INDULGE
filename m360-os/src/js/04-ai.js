@@ -384,6 +384,7 @@
   M.Thinking = function Thinking({label, state}) {
     const l = String(label || 'Thinking');
     const st = state || (/look|search|read|find|scan|check/i.test(l) ? 'searching' : /writ|draft|compos|plan|sort/i.test(l) ? 'composing' : /connect|reach|wait/i.test(l) ? 'connecting' : 'working');
-    return html`<span class="row nowrap small thinking-line" style=${{gap: '8px'}} data-state=${st}><span class=${'vorb mini ' + st} aria-hidden="true"/><span class="thinking"><i/><i/><i/></span>${l}</span>`;
+    const Orb = M.fx && M.fx.Orb;
+    return html`<span class="row nowrap small thinking-line" style=${{gap: '8px'}} data-state=${st}>${Orb ? html`<${Orb} state=${st} size=${20}/>` : html`<span class=${'vorb mini ' + st} aria-hidden="true"/>`}<span class="thinking"><i/><i/><i/></span>${l}</span>`;
   };
 })();

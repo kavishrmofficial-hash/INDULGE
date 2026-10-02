@@ -393,6 +393,18 @@ The same design, with motion, nudges and three new moments. One easing family (`
   - Reduced motion stills all of it.
 - Tests: `harness/tests/test_reports.py` (the roster line, the pod lead fallback, the chain to Kaavish, Your team on the founder's and the manager's Home, the inbox, private detail for a manager and not a peer, the person page, late and idle at 15:00, a moved task clearing idle, leave carrying nothing, no check-out and no EOD at 20:45, an overdue task, Open landing on the person) and `test_effects.py` (states from labels, the beam while processing, the beam on a hot card, the sheen, the bell's ring, waves, label and badge, the bot's blink, hop, work and sleep, the bot and the glow in Ask, the inbox bell, reduced motion, the orb screen's glow).
 
+## What is in v28: the effects, the real ones
+
+v27 drew the six effects by hand, and they looked nothing like the references. v28 ships the real packages, bundled once into the page (`fx/`, see `fx/README.md`): `thinking-orbs`, `border-beam`, `voice-glow`, `bot-avatars`, `metal-fx` from Libraries.dev, and `BellToggle` from React Bits. The page has no module system, so `fx/build.sh` bundles them with esbuild into `src/js/00-a-fx.vendor.js` (committed, so the page build and the EdgeOne deploy never touch npm), with React, ReactDOM and the JSX runtime pointed at the page's own React. `window.FX` carries them; `src/js/01-z-fx.js` wraps them in the house colours and theme and stands down to the plain control when the bundle is missing or reduced motion is on.
+
+- **Orb**: every thinking line draws the dotted sphere (20 px) with a state read from its label; the orb screen on the phone draws it at 64 px, listening, swelling to your voice; the phone's buddy button breathes with a 32 px one.
+- **Beam**: any flame card and any hot fold ride the sunset beam; the thought for the day rides a slow colourful one.
+- **Voice**: the Ask input sits inside the voice beam, lit by the mic (`useMicrophone`) while you talk and travelling while the answer is on its way; the orb screen glows along its bottom edge the same way.
+- **Bots**: a plush clover in flame beside every answer in Ask (working while the answer comes), a droid in the buddy's bubble.
+- **Metal**: the New button, Check in, That was my day, Ask and Another are liquid metal (chromatic, dark on ink, light on paper), WebGL2 with a plain fallback.
+- **Bell**: the notifications card is React Bits' BellToggle as shipped, in paper on ink and paper on flame.
+- `harness/conformance.py` skips `*.vendor.js` and `*.vendor.css`. Test: `harness/tests/test_effects.py` rewritten for the real components.
+
 ## Launch day
 
 1. Admin > Team: invite each person by email. They get a link, type their email and pick a password. Without an email key the invite shows a link to copy instead.

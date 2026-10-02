@@ -80,13 +80,14 @@
   const UI = M.UI = {};
 
   UI.Card = function Card({title, action, flame, className, children, id}) {
-    return html`<section id=${id} class=${'card' + (flame ? ' flame' : '') + (className ? ' ' + className : '')}>
+    const card = html`<section id=${id} class=${'card' + (flame ? ' flame' : '') + (className ? ' ' + className : '')}>
       ${(title || action) ? html`<div class="card-head">
         ${title ? html`<h2 class="card-title">${title}</h2>` : null}
         ${action || null}
       </div>` : null}
       ${children}
     </section>`;
+    return flame && M.fx && M.fx.Beam ? html`<${M.fx.Beam} on=${true}>${card}<//>` : card;
   };
 
   /* phones: one column, thumbs, short attention. Sections fold behind a one line summary. */
@@ -110,7 +111,7 @@
     const [touched, setTouched] = React.useState(false);
     const show = touched ? on : !!open;
     if (!phone) return children;
-    return html`<section class=${'fold' + (show ? ' open' : '') + (hot ? ' hot' : '')} id=${id}>
+    const fold = html`<section class=${'fold' + (show ? ' open' : '') + (hot ? ' hot' : '')} id=${id}>
       <button type="button" class="fold-head" aria-expanded=${show} onClick=${() => { setTouched(true); setOn(!show); }}>
         <span class="grow">
           <span class="fold-title">${title}</span>
@@ -120,6 +121,7 @@
       </button>
       ${show ? html`<div class="fold-body">${children}</div>` : null}
     </section>`;
+    return hot && M.fx && M.fx.Beam ? html`<${M.fx.Beam} on=${true}>${fold}<//>` : fold;
   };
 
   UI.Micro = function Micro({children, plain}) {

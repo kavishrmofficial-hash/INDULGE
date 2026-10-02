@@ -349,8 +349,8 @@
         <div class="side-head"><${M.Mark} width="84px"/><span class="os">os</span></div>
         <div class="side-actions">
           <div class="new-wrap">
-            <button type="button" class="btn new-trigger" aria-expanded=${newOpen === 'side' ? 'true' : 'false'}
-              onClick=${() => setNewOpen(x => x === 'side' ? false : 'side')}><${M.icons.plus}/>New</button>
+            <${M.fx.Metal} kind="ink" className="new-metal"><button type="button" class="btn new-trigger" aria-expanded=${newOpen === 'side' ? 'true' : 'false'}
+              onClick=${() => setNewOpen(x => x === 'side' ? false : 'side')}><${M.icons.plus}/>New</button><//>
             ${newMenu('side')}
           </div>
           <button type="button" class="side-ask" onClick=${() => setPalOpen(true)}>

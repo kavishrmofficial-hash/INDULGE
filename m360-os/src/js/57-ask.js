@@ -67,6 +67,9 @@
     const [busy, setBusy] = useState(false);
     const [live, setLive] = useState('');
     const [micLive, setMicLive] = useState(false);
+    const VoiceWrap = M.fx && M.fx.has() ? M.fx.Voice : ({children}) => children;
+    const mic = window.FX && window.FX.useMicrophone ? window.FX.useMicrophone() : null;
+    useEffect(() => { if (!mic) return; if (micLive) mic.start().catch(() => {}); else mic.stop(); }, [micLive]);
     const [imgs, setImgs] = useState([]);           /* {blob, url} attached to the next message */
     const [canImg, setCanImg] = useState(false);
     const ctl = useRef(null);
@@ -149,14 +152,14 @@
         ${turns.map((t, i) => t.act
           ? html`<div key=${i} class="bubble act">${t.content}</div>`
           : t.role === 'user' ? html`<div key=${i} class="bubble me" style=${t.err ? {borderColor: 'var(--flame)'} : null}>${t.img ? html`<span class="tiny ink62">[image] </span>` : null}${t.content}</div>`
-          : html`<div key=${i} class="ask-row">${M.parts.Bot ? html`<${M.parts.Bot} size=${26} seed=${(i % 7) / 7} state="default" label="m360"/>` : null}<div class="bubble ai" style=${t.err ? {borderColor: 'var(--flame)'} : null}><${M.AIText} text=${t.content}/></div></div>`)}
-        ${busy ? html`<div class="ask-row">${M.parts.Bot ? html`<${M.parts.Bot} size=${26} state="working" label="m360, working" id="ask-bot"/>` : null}<div class="bubble ai">${live ? html`<${M.AIText} text=${live}/>` : html`<${M.Thinking}/>`}</div></div>` : null}
+          : html`<div key=${i} class="ask-row">${M.fx && M.fx.Bot ? html`<${M.fx.Bot} size=${30} seed=${(i % 7) / 7} state="default" label="m360"/>` : null}<div class="bubble ai" style=${t.err ? {borderColor: 'var(--flame)'} : null}><${M.AIText} text=${t.content}/></div></div>`)}
+        ${busy ? html`<div class="ask-row">${M.fx && M.fx.Bot ? html`<${M.fx.Bot} size=${30} state="working" label="m360, working" id="ask-bot"/>` : null}<div class="bubble ai">${live ? html`<${M.AIText} text=${live}/>` : html`<${M.Thinking}/>`}</div></div>` : null}
         ${M.parts.PendingActs ? html`<${M.parts.PendingActs}/>` : null}
         <div ref=${endRef}/>
       </div>
       ${imgs.length ? html`<div class="row" style=${{gap: '8px'}} id=${inline ? 'ask-attached-inline' : 'ask-attached'}>${imgs.map((im, i) => html`<span key=${i} class="ask-thumb"><img src=${im.url} alt="attached"/><button type="button" class="iconbtn" aria-label="Remove image" onClick=${() => setImgs(xs => xs.filter((_, j) => j !== i))}><${M.icons.x}/></button></span>`)}</div>` : null}
-      <div class="ask-in vwrap">
-        ${M.parts.VoiceGlow ? html`<${M.parts.VoiceGlow} on=${micLive || busy} processing=${busy && !micLive}/>` : null}
+      <${VoiceWrap} on=${micLive || busy} processing=${busy && !micLive} stream=${mic && micLive ? mic.stream : null} className="ask-voice"><div class="ask-in vwrap">
+        ${!(M.fx && M.fx.has()) && M.parts.VoiceGlow ? html`<${M.parts.VoiceGlow} on=${micLive || busy} processing=${busy && !micLive}/>` : null}
         ${canImg ? html`<input ref=${fileRef} type="file" accept="image/*" multiple=${true} style=${{display: 'none'}} id=${inline ? 'ask-file-inline' : 'ask-file'} onChange=${e => { attach(e.target.files); e.target.value = ''; }}/>
           <button type="button" class="iconbtn" aria-label="Attach an image" title="A photo or a screenshot" onClick=${() => fileRef.current && fileRef.current.click()}><${M.icons.plus}/></button>` : null}
         <input id=${inline ? 'ask-inline' : 'ask-input'} class="input" value=${q} placeholder=${ctx.isFounder ? 'Ask HQ anything…' : 'Ask m360 anything…'}
@@ -165,8 +168,8 @@
         <button type="button" class=${'iconbtn' + (aloud ? ' on' : '')} id=${inline ? 'ask-aloud-inline' : 'ask-aloud'} aria-pressed=${aloud} aria-label="Read replies aloud" title=${aloud ? 'Replies are read aloud' : 'Read replies aloud'}
           onClick=${() => { const v = !aloud; setAloud(v); M.prefs.set('askAloud', v ? '1' : '0'); if (!v && M.speech) M.speech.stop(); }}><${M.icons.voice}/></button>
         ${busy ? html`<${UI.Btn} kind="sec" onClick=${() => ctl.current && ctl.current.abort()}>Stop<//>`
-          : html`<button type="button" class="btn" disabled=${!q.trim() && !imgs.length} onClick=${() => send()}>Ask</button>`}
-      </div>
+          : html`<${M.fx.Metal} kind="ink"><button type="button" class="btn" disabled=${!q.trim() && !imgs.length} onClick=${() => send()}>Ask</button><//>`}
+      </div><//>
       ${turns.length || M.chat.summary ? html`<button type="button" class="linky tiny" style=${{alignSelf: 'flex-start'}} onClick=${() => { setTurns([]); M.chat.summary = ''; M.chat.save(ctx, [], {summary: ''}); }}>Clear chat</button>` : null}
     </div>`;
   }

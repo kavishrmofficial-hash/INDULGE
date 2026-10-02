@@ -78,7 +78,7 @@
           <div class="small ink62" style=${{marginTop: '4px'}}>A task handed to you, a message, an approval, kudos, a holiday: m360 shows it on your screen even while it sits in another window.</div>
         </div>
         <span class="row nowrap" style=${{gap: '8px'}}>
-          ${M.parts.BellToggle ? html`<${M.parts.BellToggle} id="notify-on" offLabel="Notify me" onLabel="You'll be notified" pressed=${false} onChange=${on}/>`
+          ${M.fx && M.fx.Bell ? html`<${M.fx.Bell} id="notify-on" offLabel="Notify me" onLabel="You'll be notified" pressed=${false} onChange=${on}/>`
             : html`<${UI.Btn} sm=${true} id="notify-on" onClick=${on}>Turn on notifications<//>`}
           <${UI.Btn} kind="ghost" sm=${true} id="notify-later" onClick=${later}>Not now<//>
         </span>
