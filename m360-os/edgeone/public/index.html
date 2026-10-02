@@ -198,7 +198,7 @@ a.btn{text-decoration:none}
 .pill.on-dark{border-color:rgba(255,255,255,.3); color:#fff}
 .pill svg{width:13px; height:13px}
 .dotflame{width:6px; height:6px; border-radius:999px; background:var(--flame); display:inline-block; flex:none}
-.live{width:10px; height:10px; border-radius:999px; background:var(--flame); border:2px solid var(--paper); display:inline-block; flex:none}
+span.live:not(.vorb){width:10px; height:10px; border-radius:999px; background:var(--flame); border:2px solid var(--paper); display:inline-block; flex:none}
 
 /* ---------- forms ---------- */
 .field{display:flex; flex-direction:column; gap:6px; min-width:0}
@@ -2110,7 +2110,7 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
   }
 }
 </style>
-<script>window.M360_BUILD = "f43f1b1+.261002-1203";</script><script>
+<script>window.M360_BUILD = "7019129+.261002-1229";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -5436,11 +5436,19 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
      A beam repaints its whole border every frame, so it plays when the card comes into view (a few
      laps to draw the eye) and again while a pointer rests on the card, and stays still otherwise. */
   const BEAM_MS = 6000;
+  const BEAM_MAX_H = 240;   /* a beam repaints its whole box: past this height it costs frames, so a tall card keeps its flame border still */
   function Beam({on, variant, size, radius, strength, duration, dark, children}) {
     useSettled();
     const host = React.useRef(null);
     const [run, setRun] = React.useState(false);
     const [hover, setHover] = React.useState(false);
+    const [tall, setTall] = React.useState(false);
+    React.useEffect(() => {
+      if (!host.current || typeof ResizeObserver === 'undefined') return undefined;
+      const ro = new ResizeObserver(es => { for (const e of es) setTall(e.contentRect.height > BEAM_MAX_H); });
+      ro.observe(host.current);
+      return () => ro.disconnect();
+    }, [host.current]);
     const fx = FX();
     const enabled = !!fx && on !== false && !M.reduced();
     React.useEffect(() => {
@@ -5455,8 +5463,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       return () => { io.disconnect(); clearTimeout(timer); };
     }, [enabled]);
     if (!enabled) return children;
-    const active = run || hover;
-    return html`<span ref=${host} class="beam-host" data-beam-live=${active ? '1' : '0'} onPointerEnter=${e => { if (e.pointerType === 'mouse') setHover(true); }} onPointerLeave=${() => setHover(false)}>
+    const active = (run || hover) && !tall;
+    return html`<span ref=${host} class="beam-host" data-beam-live=${active ? '1' : '0'} data-beam-tall=${tall ? '1' : '0'} onPointerEnter=${e => { if (e.pointerType === 'mouse') setHover(true); }} onPointerLeave=${() => setHover(false)}>
       <${fx.BorderBeam} size=${size || 'md'} colorVariant=${variant || 'sunset'} strength=${strength == null ? 0.9 : strength} theme=${dark == null ? theme() : (dark ? 'dark' : 'light')} borderRadius=${radius == null ? 20 : radius} duration=${duration || 2.4} active=${active}>${children}<//>
     </span>`;
   }
@@ -5476,7 +5484,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const rest = ms => { clearTimeout(off.current); off.current = setTimeout(() => setLive(false), ms || 0); };
     return html`<span class="metal-host" onPointerEnter=${wake} onPointerLeave=${e => rest(e.pointerType === 'touch' ? 1600 : 0)} onPointerDown=${wake} onPointerUp=${e => { if (e.pointerType === 'touch') rest(1600); }}
       onFocusCapture=${wake} onBlurCapture=${() => rest(0)}>
-      <${fx.MetalFx} preset="chromatic" variant=${circle ? 'circle' : 'button'} theme=${dark ? 'dark' : 'light'} strength=${strength == null ? 1 : strength} innerShadow=${!!circle} paused=${!live} className=${'metal ' + (dark ? 'metal-ink' : 'metal-paper') + (live ? ' live' : '') + (className ? ' ' + className : '')}>${children}<//>
+      <${fx.MetalFx} preset="chromatic" variant=${circle ? 'circle' : 'button'} theme=${dark ? 'dark' : 'light'} strength=${strength == null ? 1 : strength} innerShadow=${!!circle} paused=${!live} className=${'metal ' + (dark ? 'metal-ink' : 'metal-paper') + (live ? ' is-live' : '') + (className ? ' ' + className : '')}>${children}<//>
     </span>`;
   }
 

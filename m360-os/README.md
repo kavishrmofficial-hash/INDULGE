@@ -403,7 +403,7 @@ v27 drew the six effects by hand, and they looked nothing like the references. v
 - **Bots**: a plush clover in flame beside every answer in Ask (working while the answer comes), a droid in the buddy's bubble.
 - **Metal**: the New button, Check in, That was my day, Ask and Another are liquid metal (chromatic, dark on ink, light on paper), WebGL2 with a plain fallback.
 - **Bell**: the notifications card is React Bits' BellToggle as shipped, in paper on ink and paper on flame.
-- **Cost.** A beam repaints its border every frame and the metal runs a WebGL loop, so both rest when idle: a beam plays for a few laps when its card comes into view and again under a hovering pointer; the metal flows under a pointer, on focus or under a finger and rests on a still frame otherwise. At rest Home holds a steady 60 frames a second.
+- **Cost.** A beam repaints its whole box every frame and the metal runs a WebGL loop, so both rest when idle: a beam plays for a few laps when its card comes into view and again under a hovering pointer, and only on cards up to 240 px tall (a taller hot card keeps a still flame border); the metal flows under a pointer, on focus or under a finger and rests on a still frame otherwise. Home holds a steady 60 frames a second, opening laps included.
 - The effects mount a moment after first paint, so the plain controls appear at once on a cold start.
 - `harness/conformance.py` skips `*.vendor.js` and `*.vendor.css`. Test: `harness/tests/test_effects.py` rewritten for the real components.
 

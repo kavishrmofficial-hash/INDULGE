@@ -28,11 +28,19 @@
      A beam repaints its whole border every frame, so it plays when the card comes into view (a few
      laps to draw the eye) and again while a pointer rests on the card, and stays still otherwise. */
   const BEAM_MS = 6000;
+  const BEAM_MAX_H = 240;   /* a beam repaints its whole box: past this height it costs frames, so a tall card keeps its flame border still */
   function Beam({on, variant, size, radius, strength, duration, dark, children}) {
     useSettled();
     const host = React.useRef(null);
     const [run, setRun] = React.useState(false);
     const [hover, setHover] = React.useState(false);
+    const [tall, setTall] = React.useState(false);
+    React.useEffect(() => {
+      if (!host.current || typeof ResizeObserver === 'undefined') return undefined;
+      const ro = new ResizeObserver(es => { for (const e of es) setTall(e.contentRect.height > BEAM_MAX_H); });
+      ro.observe(host.current);
+      return () => ro.disconnect();
+    }, [host.current]);
     const fx = FX();
     const enabled = !!fx && on !== false && !M.reduced();
     React.useEffect(() => {
@@ -47,8 +55,8 @@
       return () => { io.disconnect(); clearTimeout(timer); };
     }, [enabled]);
     if (!enabled) return children;
-    const active = run || hover;
-    return html`<span ref=${host} class="beam-host" data-beam-live=${active ? '1' : '0'} onPointerEnter=${e => { if (e.pointerType === 'mouse') setHover(true); }} onPointerLeave=${() => setHover(false)}>
+    const active = (run || hover) && !tall;
+    return html`<span ref=${host} class="beam-host" data-beam-live=${active ? '1' : '0'} data-beam-tall=${tall ? '1' : '0'} onPointerEnter=${e => { if (e.pointerType === 'mouse') setHover(true); }} onPointerLeave=${() => setHover(false)}>
       <${fx.BorderBeam} size=${size || 'md'} colorVariant=${variant || 'sunset'} strength=${strength == null ? 0.9 : strength} theme=${dark == null ? theme() : (dark ? 'dark' : 'light')} borderRadius=${radius == null ? 20 : radius} duration=${duration || 2.4} active=${active}>${children}<//>
     </span>`;
   }
