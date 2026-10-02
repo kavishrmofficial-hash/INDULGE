@@ -128,9 +128,12 @@
     return html`<div class=${'micro' + (plain ? ' plain' : '')}>${children}</div>`;
   };
 
+  /* the primary button (no kind) is cast in liquid metal (metal-fx, flame tinted); secondary, ghost and
+     flame buttons stay as they are */
   UI.Btn = function Btn({kind, sm, disabled, onClick, children, type, title, ariaLabel, id}) {
     const cls = 'btn' + (kind === 'sec' ? ' sec' : kind === 'ghost' ? ' ghost' : kind === 'flame' ? ' flame' : '') + (sm ? ' sm' : '');
-    return html`<button type=${type || 'button'} id=${id} class=${cls} disabled=${!!disabled} onClick=${onClick} title=${title} aria-label=${ariaLabel}>${children}</button>`;
+    const b = html`<button type=${type || 'button'} id=${id} class=${cls} disabled=${!!disabled} onClick=${onClick} title=${title} aria-label=${ariaLabel}>${children}</button>`;
+    return !kind && M.fx && M.fx.Metal ? html`<${M.fx.Metal} kind="ink">${b}<//>` : b;
   };
 
   UI.ConfirmBtn = function ConfirmBtn({onConfirm, children, label, sm, kind}) {
@@ -303,8 +306,13 @@
     return html`<span data-uid=${id || ''}>${(p && p.name) || fallback || 'Someone'}</span>`;
   };
 
+  /* an empty state: a sleeping bot beside the line (bot-avatars); while something loads, the working
+     thinking orb (thinking-orbs) instead */
   UI.Empty = function Empty({text}) {
-    return html`<div class="sub small">${text}</div>`;
+    const loading = /^loading|^opening|^checking|^fetching/i.test(String(text || ''));
+    const fx = M.fx;
+    const mark = !fx ? null : loading ? html`<${fx.Orb} state="working" size=${20}/>` : html`<${fx.Bot} feature="empty" state="sleeping" size=${30} label="nothing here yet"/>`;
+    return html`<div class=${'sub small empty-line' + (loading ? ' is-loading' : '')}>${mark}<span>${text}</span></div>`;
   };
 
   UI.Bar = function Bar({a, b, max, thin}) {

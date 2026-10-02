@@ -67,8 +67,10 @@
       heard.current = '';
     };
     const start = () => { if (M.speech && M.speech.listenOn && M.speech.listenOn()) startBox(); else startBrowser(); };
-    return html`<button type="button" class=${'btn sec micbtn' + (sm === false ? '' : ' sm') + (live ? ' live' : '')} aria-pressed=${live} aria-label=${live ? 'Listening, tap to stop' : undefined} title=${live ? 'Tap to stop' : undefined} disabled=${busy} onClick=${live ? stop : start}>
+    const btn = html`<button type="button" class=${'btn sec micbtn' + (sm === false ? '' : ' sm') + (live ? ' live' : '')} aria-pressed=${live} aria-label=${live ? 'Listening, tap to stop' : undefined} title=${live ? 'Tap to stop' : undefined} disabled=${busy} onClick=${live ? stop : start}>
       <${icons.voice}/>${live ? (sm === false ? 'Listening, tap to stop' : 'Listening') : busy ? 'Hearing it' : (label || 'Say it')}</button>`;
+    /* the recording pill (voice-glow) rides the button while it listens */
+    return M.fx && M.fx.VoicePill ? html`<${M.fx.VoicePill} live=${live}>${btn}<//>` : btn;
   }
 
   M.parts.MicButton = MicButton;

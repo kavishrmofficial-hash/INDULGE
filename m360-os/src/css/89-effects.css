@@ -84,3 +84,14 @@
 /* the Ask row: the input keeps room while the Talk button says it is listening */
 .ask-in .input{min-width:140px}
 .ask-in .micbtn{flex:0 0 auto}
+/* ---------- v29: the packages everywhere ---------- */
+.empty-line{display:flex; align-items:center; gap:10px; min-height:34px}
+.empty-line canvas{flex:none}
+.metal-host.block{display:flex; width:100%}
+.metal-host.block .metal-fx-root,.metal-host.block .btn{width:100%}
+.metal-badge-host{display:inline-flex; vertical-align:middle}
+.metal-text-plain{display:inline-block; letter-spacing:-.02em}
+.voice-pill{display:inline-flex; vertical-align:middle; border-radius:22px}
+.beam-host.inline{display:inline-block}
+/* the metal's glow halo stays within 16px of its button, so a button at the edge never widens the page */
+.metal-host{overflow:clip; overflow-clip-margin:16px}

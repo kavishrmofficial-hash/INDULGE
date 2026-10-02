@@ -5,7 +5,12 @@ import {ThinkingOrb} from 'thinking-orbs';
 import {BorderBeam} from 'border-beam';
 import {VoiceBeam, useMicrophone} from 'voice-glow';
 import {BotAvatar} from 'bot-avatars';
-import {MetalFx, MetalText, MetalBadge, useMetalBend, useMetalTextReflection} from 'metal-fx';
+import {MetalFx, MetalText, MetalBadge, useMetalBend, useMetalTextReflection, PRESETS} from 'metal-fx';
+
+/* the one edit to the packages: our agency orange. The metal's chromatic preset burns its silver with
+   a blue tint; here it burns with flame (#F53901) instead, at the same strengths the preset ships. */
+PRESETS.chromatic.modes.dark.colorTint = '#F539012e';
+PRESETS.chromatic.modes.light.colorTint = '#F5390199';
 import BellToggle from './BellToggle.jsx';
 
 window.FX = {ThinkingOrb, BorderBeam, VoiceBeam, useMicrophone, BotAvatar, MetalFx, MetalText, MetalBadge, useMetalBend, useMetalTextReflection, BellToggle,
