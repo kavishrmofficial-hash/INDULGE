@@ -10,7 +10,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'sha256-xmhUR8AMhfGIEB2BvOSpmTlSxxQZdK5NX7xBA3yJn94=' 'sha256-TJm0JYIeGDWuM6NkRJU+cP3zTTtzHsFDj52jradIG4Y=' 'sha256-r34QuomSJPYHULUIbfvfLTIZJgfYOxdcHx7ypmf2ptI=' 'sha256-LM/tgS1WgxMNDPH0F4oix6EPTXHEv+eW5Cns2zEJECQ=' https://sdk.scdn.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' data: blob: https:; connect-src 'self' https://api.spotify.com https://accounts.spotify.com https://*.spotify.com wss://*.spotify.com https://*.scdn.co https://*.spotifycdn.com; frame-src https: blob:; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+          "value": "default-src 'self'; script-src 'self' 'sha256-te7jv5HaV6O5yJkk4UkoTm7lXcVPi4dbSkwYRtZsXZk=' 'sha256-TJm0JYIeGDWuM6NkRJU+cP3zTTtzHsFDj52jradIG4Y=' 'sha256-tLwEYxBlKBK83LN4HxgFj6bhxMDWa5V8GJt4TMiN0Pc=' 'sha256-LM/tgS1WgxMNDPH0F4oix6EPTXHEv+eW5Cns2zEJECQ=' https://sdk.scdn.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' data: blob: https:; connect-src 'self' https://api.spotify.com https://accounts.spotify.com https://*.spotify.com wss://*.spotify.com https://*.scdn.co https://*.spotifycdn.com; frame-src https: blob:; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
         },
         {
           "key": "X-Content-Type-Options",
@@ -47,7 +47,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'sha256-xmhUR8AMhfGIEB2BvOSpmTlSxxQZdK5NX7xBA3yJn94=' 'sha256-TJm0JYIeGDWuM6NkRJU+cP3zTTtzHsFDj52jradIG4Y=' 'sha256-r34QuomSJPYHULUIbfvfLTIZJgfYOxdcHx7ypmf2ptI=' 'sha256-LM/tgS1WgxMNDPH0F4oix6EPTXHEv+eW5Cns2zEJECQ=' https://sdk.scdn.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' data: blob: https:; connect-src 'self' https://api.spotify.com https://accounts.spotify.com https://*.spotify.com wss://*.spotify.com https://*.scdn.co https://*.spotifycdn.com; frame-src https: blob:; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+          "value": "default-src 'self'; script-src 'self' 'sha256-te7jv5HaV6O5yJkk4UkoTm7lXcVPi4dbSkwYRtZsXZk=' 'sha256-TJm0JYIeGDWuM6NkRJU+cP3zTTtzHsFDj52jradIG4Y=' 'sha256-tLwEYxBlKBK83LN4HxgFj6bhxMDWa5V8GJt4TMiN0Pc=' 'sha256-LM/tgS1WgxMNDPH0F4oix6EPTXHEv+eW5Cns2zEJECQ=' https://sdk.scdn.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' data: blob: https:; connect-src 'self' https://api.spotify.com https://accounts.spotify.com https://*.spotify.com wss://*.spotify.com https://*.scdn.co https://*.spotifycdn.com; frame-src https: blob:; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
         },
         {
           "key": "X-Content-Type-Options",

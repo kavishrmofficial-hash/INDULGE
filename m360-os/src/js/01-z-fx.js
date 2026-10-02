@@ -24,21 +24,52 @@
     return html`<${fx.ThinkingOrb} state=${state || 'working'} size=${size === 64 || size === 32 ? size : 20} theme=${dark == null ? theme() : (dark ? 'dark' : 'light')} className=${className} style=${style} aria-label=${label || ''}/>`;
   }
 
-  /* a glow that rides the border of a hot card; variant sunset for flame, colorful for the thought */
+  /* a glow that rides the border of a hot card; variant sunset for flame, colorful for the thought.
+     A beam repaints its whole border every frame, so it plays when the card comes into view (a few
+     laps to draw the eye) and again while a pointer rests on the card, and stays still otherwise. */
+  const BEAM_MS = 6000;
   function Beam({on, variant, size, radius, strength, duration, dark, children}) {
     useSettled();
+    const host = React.useRef(null);
+    const [run, setRun] = React.useState(false);
+    const [hover, setHover] = React.useState(false);
     const fx = FX();
-    if (!fx || on === false || M.reduced()) return children;
-    return html`<${fx.BorderBeam} size=${size || 'md'} colorVariant=${variant || 'sunset'} strength=${strength == null ? 0.9 : strength} theme=${dark == null ? theme() : (dark ? 'dark' : 'light')} borderRadius=${radius == null ? 20 : radius} duration=${duration || 2.4}>${children}<//>`;
+    const enabled = !!fx && on !== false && !M.reduced();
+    React.useEffect(() => {
+      if (!enabled || !host.current || typeof IntersectionObserver === 'undefined') return undefined;
+      let timer = 0, seen = false;
+      const io = new IntersectionObserver(es => {
+        const vis = es.some(e => e.isIntersecting);
+        if (vis && !seen) { seen = true; setRun(true); clearTimeout(timer); timer = setTimeout(() => setRun(false), BEAM_MS); }
+        if (!vis) { seen = false; clearTimeout(timer); setRun(false); }
+      }, {threshold: 0.4});
+      io.observe(host.current);
+      return () => { io.disconnect(); clearTimeout(timer); };
+    }, [enabled]);
+    if (!enabled) return children;
+    const active = run || hover;
+    return html`<span ref=${host} class="beam-host" data-beam-live=${active ? '1' : '0'} onPointerEnter=${e => { if (e.pointerType === 'mouse') setHover(true); }} onPointerLeave=${() => setHover(false)}>
+      <${fx.BorderBeam} size=${size || 'md'} colorVariant=${variant || 'sunset'} strength=${strength == null ? 0.9 : strength} theme=${dark == null ? theme() : (dark ? 'dark' : 'light')} borderRadius=${radius == null ? 20 : radius} duration=${duration || 2.4} active=${active}>${children}<//>
+    </span>`;
   }
 
-  /* liquid metal round a primary control: ink is the dark chromatic pill, paper the light one */
+  /* liquid metal round a primary control: ink is the dark chromatic pill, paper the light one. The
+     metal rests on one still frame and flows only while a pointer is over it, it has focus, or a
+     finger is on it (and for a moment after), so a page full of buttons costs nothing while idle. */
   function Metal({kind, circle, strength, children, className}) {
     useSettled();
+    const [live, setLive] = React.useState(false);
+    const off = React.useRef(0);
+    React.useEffect(() => () => clearTimeout(off.current), []);
     const fx = FX();
     if (!fx || M.reduced()) return children;
     const dark = kind === 'paper' ? false : kind === 'ink' ? true : theme() === 'dark';
-    return html`<${fx.MetalFx} preset="chromatic" variant=${circle ? 'circle' : 'button'} theme=${dark ? 'dark' : 'light'} strength=${strength == null ? 1 : strength} innerShadow=${!!circle} className=${'metal ' + (dark ? 'metal-ink' : 'metal-paper') + (className ? ' ' + className : '')}>${children}<//>`;
+    const wake = () => { clearTimeout(off.current); setLive(true); };
+    const rest = ms => { clearTimeout(off.current); off.current = setTimeout(() => setLive(false), ms || 0); };
+    return html`<span class="metal-host" onPointerEnter=${wake} onPointerLeave=${e => rest(e.pointerType === 'touch' ? 1600 : 0)} onPointerDown=${wake} onPointerUp=${e => { if (e.pointerType === 'touch') rest(1600); }}
+      onFocusCapture=${wake} onBlurCapture=${() => rest(0)}>
+      <${fx.MetalFx} preset="chromatic" variant=${circle ? 'circle' : 'button'} theme=${dark ? 'dark' : 'light'} strength=${strength == null ? 1 : strength} innerShadow=${!!circle} paused=${!live} className=${'metal ' + (dark ? 'metal-ink' : 'metal-paper') + (live ? ' is-live' : '') + (className ? ' ' + className : '')}>${children}<//>
+    </span>`;
   }
 
   /* a sound-reactive beam along the bottom of an input (default), a pill, or a phone screen (mobile) */

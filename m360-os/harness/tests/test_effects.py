@@ -71,13 +71,26 @@ def test(h):
     check([x[0] for x in lines] == ['searching', 'composing', 'working'] and all(x[1] for x in lines), 'three orbs with states: %r' % lines)
 
     # ---- the beam on a flame card, none on a plain one ----
-    hot = p.evaluate('() => { const w = document.getElementById("fx-hot").parentElement; return [w.hasAttribute("data-beam"), w.hasAttribute("data-active")]; }')
-    check(hot[0] and hot[1], 'a flame card sits inside an active border beam: %r' % hot)
+    check(p.evaluate('() => document.getElementById("fx-hot").parentElement.hasAttribute("data-beam")'), 'a flame card sits inside a border beam')
+    p.locator('#fx-hot').scroll_into_view_if_needed()
+    p.wait_for_function('() => document.getElementById("fx-hot").parentElement.hasAttribute("data-active")')
+    check(True, 'the beam plays when the card comes into view')
+    p.wait_for_function('() => !document.getElementById("fx-hot").parentElement.hasAttribute("data-active")', timeout=12000)
+    check(True, 'and rests after a few laps')
+    p.locator('#fx-hot').hover()
+    p.wait_for_function('() => document.getElementById("fx-hot").parentElement.hasAttribute("data-active")')
+    check(True, 'a hovering pointer brings it back')
+    p.mouse.move(2, 2)
     check(p.evaluate('() => !document.getElementById("fx-cold").parentElement.hasAttribute("data-beam")'), 'a plain card has no beam')
 
     # ---- liquid metal round a button ----
     metal = p.evaluate('() => { const r = document.getElementById("fx-btn").closest(".metal-fx-root"); return r ? [r.dataset.variant, r.dataset.theme, !!r.querySelector("canvas.metal-fx-canvas")] : null; }')
     check(metal and metal[0] == 'button' and metal[1] == 'dark' and metal[2], 'the ink button is a dark metal pill with its own canvas: %r' % metal)
+    check(not p.evaluate('() => document.getElementById("fx-btn").closest(".metal").classList.contains("is-live")'), 'the metal rests while nobody is near it')
+    p.locator('#fx-btn').hover()
+    p.wait_for_function('() => document.getElementById("fx-btn").closest(".metal").classList.contains("is-live")')
+    check(True, 'and flows under a hovering pointer')
+    p.mouse.move(2, 2)
 
     # ---- the bell: a press rings and unfurls, the badge rolls ----
     check(p.get_attribute('#fx-bell', 'data-on') == 'false', 'the bell starts off')
@@ -126,9 +139,9 @@ def test(h):
     p.wait_for_function('() => { const w = document.querySelector("#ask-input").closest("[data-voice-beam]"); return w && w.hasAttribute("data-active"); }')
     check(True, 'the beam is active while the mic is live')
     p.get_by_role('button', name='Listening, tap to stop').first.click()
-    p.wait_for_function("() => !!document.querySelector('.ask-row canvas')", timeout=20000)
+    p.wait_for_function("() => [...document.querySelectorAll('.ask-row canvas')].some(c => c.getAttribute('aria-label') === 'm360')", timeout=20000)
     check(p.locator('.ask-row canvas').count() >= 1, 'a bot sits beside the answer')
-    check(p.evaluate('() => document.querySelector(".ask-row canvas").getAttribute("aria-label")') == 'm360', 'the bot is named m360')
+    check(p.evaluate('() => [...document.querySelectorAll(".ask-row canvas")].some(c => c.getAttribute("aria-label") === "m360")'), 'the bot beside the answer is named m360')
     p.keyboard.press('Escape')
 
     # ---- reduced motion: the beam and the metal stand down, the controls stay ----

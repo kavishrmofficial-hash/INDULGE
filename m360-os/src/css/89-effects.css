@@ -75,3 +75,9 @@
 .buddy-bot{margin-right:8px}
 .thinking-line canvas{flex:none}
 .card.flame{border-color:var(--flame)}
+
+.metal-host{display:inline-flex; vertical-align:middle}
+.new-metal{width:100%}
+.sidebar .metal-host{display:flex; width:100%}
+.dayrate-acts .metal-host{width:min(360px,100%)}
+.beam-host{display:block; min-width:0}

@@ -570,21 +570,7 @@ def main():
 
             # ---- sign out ----
             d.keyboard.press('Escape')
-            try:
-                d.wait_for_function('() => !document.querySelector(".scrim")')
-            except Exception:
-                print('DIAG scrims', d.evaluate('() => [...document.querySelectorAll(".scrim")].map(s => (s.parentElement ? s.parentElement.className : "?") + " | next " + (s.nextElementSibling ? s.nextElementSibling.className + " :: " + (s.nextElementSibling.textContent || "").slice(0, 80) : ""))'))
-                print('DIAG drawers', d.evaluate('() => [...document.querySelectorAll(".drawer")].map(x => (x.querySelector(".drawer-head") || x).textContent.slice(0, 60))'))
-                print('DIAG active', d.evaluate('() => { const a = document.activeElement; return a ? a.tagName + "." + a.className : null; }'))
-                print('DIAG errors', errors[:4])
-                d.keyboard.press('Escape'); d.wait_for_timeout(800)
-                print('DIAG after second real Escape, scrims', d.locator('.scrim').count())
-                d.evaluate('() => window.dispatchEvent(new KeyboardEvent("keydown", {key: "Escape", bubbles: true}))'); d.wait_for_timeout(800)
-                print('DIAG after synthetic Escape, scrims', d.locator('.scrim').count())
-                print('DIAG iframes', d.evaluate('() => document.querySelectorAll("iframe").length'), 'askOpen', d.evaluate('() => !!document.querySelector(".drawer")'))
-                d.locator('.drawer .iconbtn[aria-label="Close"]').first.click(); d.wait_for_timeout(600)
-                print('DIAG after close click, scrims', d.locator('.scrim').count())
-                raise
+            d.wait_for_function('() => !document.querySelector(".scrim")')
             d.goto(base + '#me')
             d.wait_for_selector('#device-card')
             d.locator('#device-card').get_by_role('button', name='Sign out', exact=True).last.click()

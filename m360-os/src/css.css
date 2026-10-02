@@ -194,7 +194,7 @@ a.btn{text-decoration:none}
 .pill.on-dark{border-color:rgba(255,255,255,.3); color:#fff}
 .pill svg{width:13px; height:13px}
 .dotflame{width:6px; height:6px; border-radius:999px; background:var(--flame); display:inline-block; flex:none}
-.live{width:10px; height:10px; border-radius:999px; background:var(--flame); border:2px solid var(--paper); display:inline-block; flex:none}
+span.live:not(.vorb){width:10px; height:10px; border-radius:999px; background:var(--flame); border:2px solid var(--paper); display:inline-block; flex:none}
 
 /* ---------- forms ---------- */
 .field{display:flex; flex-direction:column; gap:6px; min-width:0}
