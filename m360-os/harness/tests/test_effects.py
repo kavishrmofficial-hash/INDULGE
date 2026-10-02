@@ -106,7 +106,10 @@ def test(h):
     faces = p.evaluate('() => [getComputedStyle(document.querySelector("#fx-bell .bell-toggle__face--on")).opacity, getComputedStyle(document.querySelector("#fx-bell .bell-toggle__face--off")).opacity]')
     check(faces[0] == '1' and faces[1] == '0', 'the label unfurled: %r' % faces)
     p.mouse.move(5, 5)   # off the pill: a hovering pointer mixes a little paper into the flame
-    p.wait_for_timeout(250)
+    try:   # the hover tint fades out; wait for it to land on flame
+        p.wait_for_function('() => { const c = getComputedStyle(document.querySelector("#fx-bell .bell-toggle__button")).backgroundColor; return c === "rgb(245, 57, 1)" || c.startsWith("color(srgb 0.96"); }', timeout=4000)
+    except Exception:
+        pass
     bg = p.evaluate('() => getComputedStyle(document.querySelector("#fx-bell .bell-toggle__button")).backgroundColor')
     check(bg == 'rgb(245, 57, 1)' or bg.startswith('color(srgb 0.96'), 'on, the pill is flame: %r' % bg)
     check(not p.evaluate('() => document.querySelector("#fx-bell .bell-toggle__badge").hasAttribute("data-show")'), 'no badge at zero')

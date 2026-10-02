@@ -89,7 +89,7 @@ class Harness:
         page = ctx.new_page()
         page.set_default_timeout(8000)
         page.on('console', lambda m: self.console.append((m.type, m.text)) if m.type in ('error', 'warning') else None)
-        page.on('pageerror', lambda e: self.console.append(('pageerror', str(e))))
+        page.on('pageerror', lambda e: self.console.append(('pageerror', str(e) + (' @@ ' + (e.stack or '')[:600] if os.environ.get('PAGE_STACK') else ''))))
         page.goto(self.url(ident, hash, reset=reset, seed=seed, **params))
         if wait:
             self.ready(page)
@@ -108,7 +108,7 @@ class Harness:
         page = ctx.new_page()
         page.set_default_timeout(8000)
         page.on('console', lambda m: self.console.append((m.type, m.text)) if m.type in ('error', 'warning') else None)
-        page.on('pageerror', lambda e: self.console.append(('pageerror', str(e))))
+        page.on('pageerror', lambda e: self.console.append(('pageerror', str(e) + (' @@ ' + (e.stack or '')[:600] if os.environ.get('PAGE_STACK') else ''))))
         self.go(page, ident, **params)
         return page
 

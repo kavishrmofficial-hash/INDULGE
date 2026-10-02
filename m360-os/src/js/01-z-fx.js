@@ -131,12 +131,14 @@
     return html`<${fx.BotAvatar} type=${body} state=${state || 'default'} size=${size || 28} seed=${seed || 0} face=${face || 'eyes'} color=${FLAME} theme=${theme()} id=${id} className=${className} aria-label=${label || 'm360'}/>`;
   }
 
-  /* BellToggle from React Bits */
+  /* BellToggle from React Bits; its count badge is drawn only where a count is passed, so a plain
+     switch carries no hidden digits */
   function Bell(props) {
     useSettled();
     const fx = FX();
-    if (!fx) return M.parts.BellToggle ? html`<${M.parts.BellToggle} ...${props}/>` : null;
-    return html`<${fx.BellToggle} ...${props}/>`;
+    const all = {...props, badge: props.badge != null ? props.badge : props.count != null};
+    if (!fx) return M.parts.BellToggle ? html`<${M.parts.BellToggle} ...${all}/>` : null;
+    return html`<${fx.BellToggle} ...${all}/>`;
   }
 
   M.fx = {...(M.fx || {}), Orb, Beam, Metal, MetalText, MetalBadge, Voice, VoicePill, Bot, Bell, BOTS, FLAME, has: () => !!window.FX, useSettled};

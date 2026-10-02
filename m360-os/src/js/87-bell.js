@@ -76,7 +76,7 @@
           <span ref=${glyph} class="bell-toggle-glyph"><${M.icons.bell}/></span>
           <svg ref=${left} class="bell-toggle-wave l" viewBox="0 0 14 14"><path d="M14 8a6 6 0 0 0-6 6"/><path d="M14 4A10 10 0 0 0 4 14"/></svg>
           <svg ref=${right} class="bell-toggle-wave r" viewBox="0 0 14 14"><path d="M0 8a6 6 0 0 1 6 6"/><path d="M0 4a10 10 0 0 1 10 10"/></svg>
-          <span class="bell-toggle-badge" data-show=${showBadge ? '1' : '0'}><span key=${count || 0} class="bell-toggle-digit">${(count || 0) > 9 ? '9+' : (count || 0)}</span></span>
+          ${badge !== false ? html`<span class="bell-toggle-badge" data-show=${showBadge ? '1' : '0'}><span key=${count || 0} class="bell-toggle-digit">${(count || 0) > 9 ? '9+' : (count || 0)}</span></span>` : null}
         </span>
         <span class="bell-toggle-say" aria-hidden="true">
           <span ref=${offRef} class="bell-toggle-face off">${offLabel}</span>
