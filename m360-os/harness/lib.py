@@ -147,6 +147,8 @@ class Harness:
 
     def ready(self, page):
         page.wait_for_function("() => !document.querySelector('.gate') || !/Signing you in/.test(document.body.innerText)")
+        # the app has booted once the state provider has handed out a context (the shell's keys and watchers follow)
+        page.wait_for_function("() => !window.M || !!M.lastCtx || !!document.querySelector('.gate, .join, .locked')")
         page.wait_for_timeout(120)
 
     def errors(self):

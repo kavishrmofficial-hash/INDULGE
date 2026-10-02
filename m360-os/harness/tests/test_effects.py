@@ -142,6 +142,7 @@ def test(h):
     ctx = TM.phone_ctx(h)
     m = TM.open_page(h, ctx, 'founder', '#home', seed=True)
     m.wait_for_function('() => !!M.buddy')
+    m.wait_for_selector('.buddy-home.orb-home .orb-mark canvas')
     check(m.locator('.buddy-home.orb-home .orb-mark canvas').count() == 1, 'the phone button carries a breathing orb')
     m.locator('.buddy-home.orb-home').click()
     m.wait_for_selector('#orb-screen .orb-big.is-live canvas')
