@@ -2113,7 +2113,7 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
   }
 }
 </style>
-<script>window.M360_BUILD = "86137ae+.261002-1251";</script><script>
+<script>window.M360_BUILD = "a3d68da+.261002-1327";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -5276,12 +5276,16 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   UI.Drawer = function Drawer({open, onClose, title, children, footer, head}) {
     const ref = React.useRef(null);
     const drag = React.useRef(null);
-    React.useEffect(() => {
-      if (!open) return;
-      const on = e => { if (e.key === 'Escape') onClose(); };
+    /* attached as the drawer is committed (a layout effect), so an Escape pressed the instant it
+       appears, on a busy page, is never missed; the latest onClose is read through a ref */
+    const closeRef = React.useRef(onClose);
+    closeRef.current = onClose;
+    React.useLayoutEffect(() => {
+      if (!open) return undefined;
+      const on = e => { if (e.key === 'Escape' && closeRef.current) closeRef.current(); };
       window.addEventListener('keydown', on);
       return () => window.removeEventListener('keydown', on);
-    }, [open, onClose]);
+    }, [open]);
     if (!open) return null;
     const onDown = e => {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
@@ -5907,7 +5911,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const w = Math.min(300, window.innerWidth - 32);
       setPos({top: r.bottom + 8, left: Math.max(16, Math.min(r.left, window.innerWidth - w - 16)), width: w});
     }, []);
-    React.useEffect(() => {
+    React.useLayoutEffect(() => {
       const away = e => { if (ref.current && !ref.current.contains(e.target) && !e.target.closest('.new-trigger')) onClose(); };
       const esc = e => { if (e.key === 'Escape') onClose(); };
       document.addEventListener('pointerdown', away);
@@ -24230,7 +24234,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       raf = requestAnimationFrame(tick);
       return () => cancelAnimationFrame(raf);
     }, [t0]);
-    useEffect(() => { const esc = e => { if (e.key === 'Escape') onClose(); }; window.addEventListener('keydown', esc); return () => window.removeEventListener('keydown', esc); }, []);
+    React.useLayoutEffect(() => { const esc = e => { if (e.key === 'Escape') onClose(); }; window.addEventListener('keydown', esc); return () => window.removeEventListener('keydown', esc); }, []);
     const r = 46, C = 2 * Math.PI * r;
     const mm = Math.floor(s.left / 60), ss = String(s.left % 60).padStart(2, '0');
     return html`<div class="breathe" role="dialog" aria-label=${p.name} id="breathe" data-kind=${kind}>
@@ -28816,7 +28820,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       if (e.key === 'Home') { e.preventDefault(); setV(0); setTouched(true); }
       if (e.key === 'End') { e.preventDefault(); setV(100); setTouched(true); }
     };
-    useEffect(() => { const esc = e => { if (e.key === 'Escape') onClose(); }; window.addEventListener('keydown', esc); return () => window.removeEventListener('keydown', esc); }, [onClose]);
+    React.useLayoutEffect(() => { const esc = e => { if (e.key === 'Escape') onClose(); }; window.addEventListener('keydown', esc); return () => window.removeEventListener('keydown', esc); }, [onClose]);
     useEffect(() => { M.haptic.buzz('tick'); const t = setTimeout(() => { const k = document.getElementById('dayrate-knob'); if (k) k.focus(); }, 200); return () => clearTimeout(t); }, []);
 
     const save = () => {

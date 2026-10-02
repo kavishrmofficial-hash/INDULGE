@@ -210,12 +210,16 @@
   UI.Drawer = function Drawer({open, onClose, title, children, footer, head}) {
     const ref = React.useRef(null);
     const drag = React.useRef(null);
-    React.useEffect(() => {
-      if (!open) return;
-      const on = e => { if (e.key === 'Escape') onClose(); };
+    /* attached as the drawer is committed (a layout effect), so an Escape pressed the instant it
+       appears, on a busy page, is never missed; the latest onClose is read through a ref */
+    const closeRef = React.useRef(onClose);
+    closeRef.current = onClose;
+    React.useLayoutEffect(() => {
+      if (!open) return undefined;
+      const on = e => { if (e.key === 'Escape' && closeRef.current) closeRef.current(); };
       window.addEventListener('keydown', on);
       return () => window.removeEventListener('keydown', on);
-    }, [open, onClose]);
+    }, [open]);
     if (!open) return null;
     const onDown = e => {
       if (e.pointerType === 'mouse' && e.button !== 0) return;

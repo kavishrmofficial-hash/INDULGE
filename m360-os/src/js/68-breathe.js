@@ -51,7 +51,7 @@
       raf = requestAnimationFrame(tick);
       return () => cancelAnimationFrame(raf);
     }, [t0]);
-    useEffect(() => { const esc = e => { if (e.key === 'Escape') onClose(); }; window.addEventListener('keydown', esc); return () => window.removeEventListener('keydown', esc); }, []);
+    React.useLayoutEffect(() => { const esc = e => { if (e.key === 'Escape') onClose(); }; window.addEventListener('keydown', esc); return () => window.removeEventListener('keydown', esc); }, []);
     const r = 46, C = 2 * Math.PI * r;
     const mm = Math.floor(s.left / 60), ss = String(s.left % 60).padStart(2, '0');
     return html`<div class="breathe" role="dialog" aria-label=${p.name} id="breathe" data-kind=${kind}>

@@ -182,7 +182,7 @@
       const w = Math.min(300, window.innerWidth - 32);
       setPos({top: r.bottom + 8, left: Math.max(16, Math.min(r.left, window.innerWidth - w - 16)), width: w});
     }, []);
-    React.useEffect(() => {
+    React.useLayoutEffect(() => {
       const away = e => { if (ref.current && !ref.current.contains(e.target) && !e.target.closest('.new-trigger')) onClose(); };
       const esc = e => { if (e.key === 'Escape') onClose(); };
       document.addEventListener('pointerdown', away);

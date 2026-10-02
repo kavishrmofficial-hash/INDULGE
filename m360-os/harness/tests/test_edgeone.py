@@ -224,6 +224,7 @@ def main():
             f.wait_for_selector('#inv-last:has-text("Link for priya@mask360.agency")')
             priya_link = f.inner_text('#inv-last .invite-link').strip()
             check('#invite=' in priya_link, 'invite link %r' % priya_link)
+            f.wait_for_selector('#inv-list .listrow', timeout=12000)   # the pending list fills on the next sync
             check(f.locator('#inv-list .listrow').count() == 1, 'pending invite list')
             # switch email on, then an invite goes out by mail
             f.fill('#mail-card input[type="password"]', 're_testkey_1234567890')

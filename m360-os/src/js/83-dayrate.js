@@ -47,7 +47,7 @@
       if (e.key === 'Home') { e.preventDefault(); setV(0); setTouched(true); }
       if (e.key === 'End') { e.preventDefault(); setV(100); setTouched(true); }
     };
-    useEffect(() => { const esc = e => { if (e.key === 'Escape') onClose(); }; window.addEventListener('keydown', esc); return () => window.removeEventListener('keydown', esc); }, [onClose]);
+    React.useLayoutEffect(() => { const esc = e => { if (e.key === 'Escape') onClose(); }; window.addEventListener('keydown', esc); return () => window.removeEventListener('keydown', esc); }, [onClose]);
     useEffect(() => { M.haptic.buzz('tick'); const t = setTimeout(() => { const k = document.getElementById('dayrate-knob'); if (k) k.focus(); }, 200); return () => clearTimeout(t); }, []);
 
     const save = () => {
