@@ -81,3 +81,6 @@
 .sidebar .metal-host{display:flex; width:100%}
 .dayrate-acts .metal-host{width:min(360px,100%)}
 .beam-host{display:block; min-width:0}
+/* the Ask row: the input keeps room while the Talk button says it is listening */
+.ask-in .input{min-width:140px}
+.ask-in .micbtn{flex:0 0 auto}
