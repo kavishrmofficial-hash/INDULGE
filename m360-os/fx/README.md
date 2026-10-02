@@ -31,3 +31,8 @@ cd .. && python3 build.py && python3 harness/conformance.py
 The bundle is committed, so the page build and the EdgeOne deploy never need npm. `harness/conformance.py`
 skips `*.vendor.js` and `*.vendor.css`: they are other people's code, kept as shipped (the bell's default
 colours moved to the m360 palette, and em dashes replaced in strings, since the page build refuses them).
+
+Two edits to the packages, both applied by `build.sh`: `entry.jsx` tints the metal's chromatic preset
+flame (`PRESETS.chromatic.modes.*.colorTint`), and `patch-metal.py` fixes one line of metal-fx 2.0.11
+(the glow's next resting point is clamped when a metal control changes size, as its current point
+already is). On an upgrade, the patch stops the build if that line has moved, so it can be checked.
