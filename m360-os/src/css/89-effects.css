@@ -19,10 +19,10 @@
 
 /* ---------- voice glow ---------- */
 .vwrap{position:relative; isolation:isolate}
-.vglow{position:absolute; left:6%; right:6%; bottom:-2px; height:34px; pointer-events:none; z-index:2; border-radius:0 0 14px 14px; overflow:hidden; opacity:0; transition:opacity .25s ease}
+.vglow{position:absolute; left:4%; right:4%; bottom:-3px; height:40px; pointer-events:none; z-index:2; border-radius:0 0 14px 14px; overflow:hidden; opacity:0; transition:opacity .25s ease}
 .vglow.on{opacity:1}
 .vglow i{position:absolute; left:50%; bottom:-22px; width:70%; height:46px; margin-left:-35%; border-radius:50%;
-  background:radial-gradient(50% 60% at 50% 100%, rgba(245,57,1,calc(.35 + var(--lvl,0) * .65)) 0, rgba(245,57,1,calc(.12 + var(--lvl,0) * .3)) 45%, transparent 72%);
+  background:radial-gradient(50% 60% at 50% 100%, rgba(245,57,1,calc(.55 + var(--lvl,0) * .45)) 0, rgba(245,57,1,calc(.22 + var(--lvl,0) * .3)) 45%, transparent 72%);
   transform:scaleX(calc(.55 + var(--lvl,0) * .9)) scaleY(calc(.7 + var(--lvl,0) * 1.1)); transform-origin:50% 100%; transition:transform .09s linear; filter:blur(3px)}
 .vglow b{position:absolute; left:0; bottom:0; width:38%; height:3px; border-radius:999px; background:linear-gradient(90deg, transparent, var(--flame), rgba(255,255,255,.9), var(--flame), transparent); opacity:0}
 @media (prefers-reduced-motion:no-preference){

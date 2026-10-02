@@ -473,7 +473,7 @@
             <button type="button" class="rowbtn" style=${{width: 'auto'}} aria-label="Open their page" onClick=${() => M.nav('#people/' + r.uid)}><${UI.Avatar} id=${r.uid} size=${30}/></button>
             <div class="grow" style=${{minWidth: 0}}>
               <div class="row between"><span style=${{fontWeight: 500}}><${UI.Name} id=${r.uid}/></span><span class="tiny ink62">${where}${a.in ? ', ' + U.hhmm(a.in) : ''}${a.out ? ' to ' + U.hhmm(a.out) : ''}${rate != null ? ' ' + M.dayrate.faceFor(rate)[1] : ''}</span></div>
-              ${r.flags.length ? r.flags.map(f => html`<div key=${f.k} class="small team-flag" data-k=${f.k} data-hot=${f.hot ? '1' : '0'}><span class="dotflame" style=${f.hot ? null : {background: 'var(--line2)'}}/><span class="grow"><${UI.Name} id=${r.uid}/> ${f.text}</span>${f.ref ? html`<button type="button" class="linky tiny" onClick=${() => M.nav(f.ref)}>Open</button>` : null}</div>`) : html`<div class="small ink62">Moving along.</div>`}
+              ${r.flags.length ? r.flags.map(f => html`<div key=${f.k} class="small team-flag" data-k=${f.k} data-hot=${f.hot ? '1' : '0'}><span class="dotflame" style=${f.hot ? null : {background: 'var(--line2)'}}/><span class="grow">${U.cap(f.text)}</span>${f.ref ? html`<button type="button" class="linky tiny" onClick=${() => M.nav(f.ref)}>Open</button>` : null}</div>`) : html`<div class="small ink62">Moving along.</div>`}
             </div>
           </div>`; })}</div>
       </section>

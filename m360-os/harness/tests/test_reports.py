@@ -98,7 +98,7 @@ def test(h):
     m2.wait_for_selector('#team-watch')
     check(m2.locator('#team-u_m1').count() == 1 and m2.locator('#team-u_m3').count() == 1, 'm2 sees m1 and m3')
     check(any(k == 'noin' for k, _, _ in flags(m2, M1)) and any(k == 'noin' for k, _, _ in flags(m2, M3)), 'both reports flagged for no check-in')
-    check('has not checked in' in m2.inner_text('#team-u_m1'), 'the flag reads in words: %r' % m2.inner_text('#team-u_m1')[:80])
+    check('has not checked in' in m2.inner_text('#team-u_m1').lower(), 'the flag reads in words: %r' % m2.inner_text('#team-u_m1')[:80])
     check(m2.locator('#team-watch.flame').count() == 1, 'the card is hot')
     # and in m2's inbox
     items = m2.evaluate('() => M.inbox.items(M.lastCtx).filter(i => i.kind === "flag").map(i => i.id)')
