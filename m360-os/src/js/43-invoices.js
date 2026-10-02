@@ -6,12 +6,17 @@
 'use strict';
 (function () {
   const {html, React, U, UI, icons} = M;
+  /* a number in metal (metal-fx MetalText); a quiet copy of the text holds its place while the metal readies */
+  const MetalNum = ({children, size, weight, color}) => html`<span class="fx-num"><span class="fx-num-copy" aria-hidden="true">${children}</span><${M.fx.MetalText} size=${size} weight=${weight} color=${color}>${children}<//></span>`;
   const {useState, useEffect, useMemo} = React;
 
   const GST_OPTS = [{v: 'intra', label: 'CGST and SGST, same state'}, {v: 'inter', label: 'IGST, another state'}, {v: 'none', label: 'No GST, export or unregistered'}];
   const FILTERS = [{v: 'open', label: 'Open'}, {v: 'overdue', label: 'Overdue'}, {v: 'draft', label: 'Drafts'}, {v: 'paid', label: 'Paid'}, {v: 'all', label: 'All'}];
   const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const B = () => M.books;
+  /* the status tag: paid wears a metal badge (metal-fx), every other state its pill */
+  const InvBeam = ({children}) => M.fx ? html`<${M.fx.Beam} radius=${20}>${children}<//>` : children;
+  const StatusTag = ({st}) => st === 'paid' && M.fx ? html`<${M.fx.MetalBadge} className="inv-paid">paid<//>` : html`<${UI.Pill} kind=${B().STATUS_PILL[st]}>${B().STATUS_TEXT[st]}<//>`;
 
   /* ---------- a new invoice from the client's billing profile ---------- */
   function fresh(ctx, clientId) {
@@ -345,21 +350,21 @@
     return html`<div class="stack" style=${{gap: '16px'}}>
       <div class="row between">
         <button type="button" class="linky nowrap" id="inv-back" onClick=${onBack}><${icons.chevL}/>All invoices</button>
-        <span class="row nowrap" style=${{gap: '8px'}}><${UI.Pill} kind=${b.STATUS_PILL[st]}>${b.STATUS_TEXT[st]}<//>${inv.auto === 'retainer' ? html`<${UI.Pill}>retainer, drafted for you<//>` : null}</span>
+        <span class="row nowrap" style=${{gap: '8px'}}><${StatusTag} st=${st}/>${inv.auto === 'retainer' ? html`<${UI.Pill}>retainer, drafted for you<//>` : null}</span>
       </div>
       <div class="split">
         <${InvoiceDoc} inv=${inv}/>
         <div class="stack" style=${{gap: '14px'}}>
-          <${UI.Card} title="This invoice" id="inv-side">
+          <${InvBeam}><${UI.Card} title="This invoice" id="inv-side">
             <div class="stack tight">
               <div class="row between"><span class="small ink62">Total</span><span class="num" style=${{fontWeight: 600}}>${b.money(t.total, inv.currency)}</span></div>
               ${t.tds ? html`<div class="row between"><span class="small ink62">TDS the client deducts</span><span class="num">${b.money(t.tds, inv.currency)}</span></div>` : null}
               <div class="row between"><span class="small ink62">Received</span><span class="num">${b.money(t.paid, inv.currency)}</span></div>
-              <div class="row between"><b>Balance</b><b class="num">${b.money(t.balance, inv.currency)}</b></div>
+              <div class="row between"><b>Balance</b>${M.fx ? html`<${MetalNum} size=${22} weight=${600} color=${st === 'overdue' ? M.fx.FLAME : undefined}>${b.money(t.balance, inv.currency)}<//>` : html`<b class="num">${b.money(t.balance, inv.currency)}</b>`}</div>
               ${inv.sentAt ? html`<div class="tiny ink62">Sent ${U.timeAgo(inv.sentAt)}${inv.sentTo ? ' to ' + inv.sentTo : ''}${(inv.chased || []).length ? ' · chased ' + inv.chased.length + (inv.chased.length === 1 ? ' time' : ' times') + ', last ' + U.timeAgo(inv.chased[inv.chased.length - 1].at) : ''}</div>` : html`<div class="tiny ink62">A draft. Nothing goes to the client until you send it or mark it sent.</div>`}
               ${st === 'overdue' ? html`<div class="small flame-t">${b.ageOf(inv, today)} days past due.</div>` : null}
             </div>
-          <//>
+          <//><//>
           <${UI.Card} title="Do">
             <div class="stack tight">
               ${st !== 'void' && st !== 'paid' ? html`<div class="row">
@@ -415,6 +420,7 @@
       <${UI.PageHead} micro=${list.length + (list.length === 1 ? ' invoice' : ' invoices') + (filter === 'open' || filter === 'overdue' ? ', ' + U.inr(sum) + ' outstanding' : '')} title="Invoices">
         <${UI.Btn} id="inv-new" disabled=${noClients} onClick=${() => setDraft(fresh(ctx, ''))}><${icons.plus}/>New invoice<//>
       <//>
+      ${(filter === 'open' || filter === 'overdue') && list.length && M.fx ? html`<div class="row nowrap fx-headline" id="inv-outstanding"><span class="micro">${filter === 'overdue' ? 'overdue' : 'outstanding'}</span><${MetalNum} size=${30} weight=${600} color=${filter === 'overdue' ? M.fx.FLAME : undefined}>${U.inr(sum)}<//></div>` : null}
       ${noClients ? html`<div class="card small">Add a client under Accounts first; the invoice takes its legal name, address and currency from the client's billing profile under Setup.</div>` : null}
       <div class="row between">
         <${UI.Seg} sm=${true} options=${FILTERS} value=${filter} onChange=${setFilter} ariaLabel="Which invoices"/>
@@ -430,7 +436,7 @@
             <td data-label="due" class=${'num' + (st === 'overdue' ? ' flame-t' : '')}>${i.due ? U.fmtDate(i.due) : ''}</td>
             <td data-label="total" class="num">${b.money(t.total, i.currency)}</td>
             <td data-label="balance" class="num">${st === 'paid' || st === 'void' ? '' : b.money(t.balance, i.currency)}</td>
-            <td data-label="status"><${UI.Pill} kind=${b.STATUS_PILL[st]}>${b.STATUS_TEXT[st]}<//></td>
+            <td data-label="status"><${StatusTag} st=${st}/></td>
           </tr>`; })}</tbody>
         </table></div>` : html`<${UI.Empty} text=${filter === 'all' ? 'No invoices yet. Press New invoice, or set a retainer under Setup and the first of the month drafts it for you.' : 'Nothing here.'}/>`}
       <//>

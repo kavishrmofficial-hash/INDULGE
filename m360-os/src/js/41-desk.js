@@ -82,12 +82,18 @@
     const [add, setAdd] = useState(null);
     const [linkFor, setLinkFor] = useState(null);
     const members = ctx.members || {};
+    const [looking, setLooking] = useState(false);
     const search = async v => {
       setQ(v);
       if (!ctx.user || !ctx.user.search) return;
-      const r = await ctx.user.search(v);
-      setHits(r || []);
+      setLooking(true);
+      try {
+        const r = await ctx.user.search(v);
+        setHits(r || []);
+      } finally { setLooking(false); }
     };
+    /* someone who joined in the last thirty days wears a metal "new hire" badge (metal-fx) */
+    const isNew = r => !!(r.joined && r.active !== false && U.daysBetween(r.joined, U.todayStr()) <= 30 && U.daysBetween(r.joined, U.todayStr()) >= 0);
     const rows = Object.keys(members).map(uid => ({uid, ...members[uid]}))
       .sort((a, b) => String(a.empId || '').localeCompare(String(b.empId || '')));
     const onlyFounder = rows.filter(r => r.active !== false).length <= 1;
@@ -99,10 +105,11 @@
       ${M.parts.InviteByEmail ? html`<${M.parts.InviteByEmail}/>` : null}
       ${M.parts.InviteCard ? html`<${M.parts.InviteCard} open=${onlyFounder && !M.parts.InviteByEmail}/>` : null}
 
-      <${UI.Card} title="Add someone directly">
+      <${UI.Card} title=${html`<span class="row nowrap fx-title-bot">Add someone directly${looking && M.fx ? html`<${M.fx.Orb} state="searching" size=${20} label="searching"/>` : null}</span>`}>
         <p class="small ink62" style=${{marginTop: 0}}>${window.M360_STANDALONE ? 'For people who already signed in here. New people get an invite by email above.' : 'Works for people in your Claude organisation. Everyone else uses the invite link above.'}</p>
-        <${UI.Input} id="desk-search" label="search the organisation" value=${q} placeholder="Search the organisation"
-          onChange=${search} onFocus=${() => search('')}/>
+        ${M.fx ? html`<${M.fx.Beam} radius=${16}><div class="fx-beam-pad"><${UI.Input} id="desk-search" label="search the organisation" value=${q} placeholder="Search the organisation"
+          onChange=${search} onFocus=${() => search('')}/></div><//>` : html`<${UI.Input} id="desk-search" label="search the organisation" value=${q} placeholder="Search the organisation"
+          onChange=${search} onFocus=${() => search('')}/>`}
         <div class="stack tight" style=${{marginTop: '10px'}}>
           ${hits.filter(h => !members[h.id]).map(h => html`<div class="listrow" key=${h.id}>
             <${UI.Avatar} id=${h.id} size=${28}/>
@@ -118,7 +125,7 @@
           <thead><tr><th>person</th><th>title</th><th>pod</th><th>role</th><th>status</th><th/></tr></thead>
           <tbody>
             ${rows.map(r => html`<tr key=${r.uid}>
-              <td class="lead"><span class="row nowrap"><${UI.Avatar} id=${r.uid} size=${24}/><${UI.Name} id=${r.uid}/><span class="num tiny ink62">${r.empId}</span></span></td>
+              <td class="lead"><span class="row nowrap"><${UI.Avatar} id=${r.uid} size=${24}/><${UI.Name} id=${r.uid}/><span class="num tiny ink62">${r.empId}</span>${isNew(r) && M.fx ? html`<${M.fx.MetalBadge}>new hire<//>` : null}</span></td>
               <td>${r.title || ''}</td><td>${r.pod || ''}</td>
               <td><${UI.Pill}>${r.role}<//></td>
               <td>${r.active === false ? html`<${UI.Pill} kind="warm">inactive<//>` : html`<${UI.Pill} kind="ink">active<//>`}</td>
@@ -326,6 +333,7 @@
         <input class="input" type="month" style=${{maxWidth: '200px'}} value=${month} aria-label="Month"
           onInput=${e => setMonth(e.target.value)}/>
         <${UI.Btn} onClick=${run} disabled=${busy}>Download attendance CSV<//>
+        ${busy && M.fx ? html`<${M.fx.Orb} state="working" size=${20} label="building the file"/>` : null}
       </div>
     <//>`;
   }

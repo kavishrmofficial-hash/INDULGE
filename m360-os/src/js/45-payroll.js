@@ -9,6 +9,8 @@
 'use strict';
 (function () {
   const {html, React, U, UI, icons} = M;
+  /* a number in metal (metal-fx MetalText); a quiet copy of the text holds its place while the metal readies */
+  const MetalNum = ({children, size, weight, color}) => html`<span class="fx-num"><span class="fx-num-copy" aria-hidden="true">${children}</span><${M.fx.MetalText} size=${size} weight=${weight} color=${color}>${children}<//></span>`;
   const {useState} = React;
 
   const EARN = [['basic', 'Basic'], ['hra', 'House rent allowance'], ['special', 'Special allowance'], ['allowances', 'Other allowances']];
@@ -201,7 +203,7 @@
         <//>
         <div class="listrow" style=${{borderBottom: 0}}>
           <span class="grow small">gross <span class="num">${inr(m.gross)}</span> · deductions <span class="num">${inr(m.deductions)}</span></span>
-          <b>net <span class="num" id="pay-net">${inr(m.net)}</span></b>
+          <b class="row nowrap" style=${{gap: '6px'}}>net <span class="num" id="pay-net">${M.fx ? html`<${MetalNum} size=${20} weight=${600}>${inr(m.net)}<//>` : inr(m.net)}</span></b>
         </div>
         <${UI.Field} label="bank">
           <div class="stack tight">
@@ -321,7 +323,7 @@
     };
     const opts = lastMonths(ctx.now, 6).map(mid => ({v: mid, label: monthShort(mid)}));
     return html`<${UI.Card} title=${'Pay for ' + monthName(month)} id="pay-month-card"
-      action=${run && run.closed ? html`<${UI.Pill} kind="ink">everyone paid<//>` : paidRows.length ? html`<${UI.Pill}>${paidRows.length} of ${rows.length} paid<//>` : null}>
+      action=${run && run.closed ? (M.fx ? html`<${M.fx.MetalBadge}>everyone paid<//>` : html`<${UI.Pill} kind="ink">everyone paid<//>`) : paidRows.length ? html`<${UI.Pill}>${paidRows.length} of ${rows.length} paid<//>` : null}>
       <p class="small ink62" style=${{marginTop: 0}}>Salaries from each person's pay, attendance from check-ins. Change the loss of pay days if a day was worked, then mark paid.</p>
       <div id="pay-month"><${UI.Seg} sm=${true} options=${opts} value=${month} onChange=${setMonth} ariaLabel="Month"/></div>
       <div class="tiny ink62" style=${{marginTop: '8px'}}><span class="num">${days}</span> working days, Monday to Saturday, minus holidays. Absences are the days so far with no check-in and no approved leave.</div>
@@ -338,13 +340,13 @@
             <td data-label="gross" class="num">${inr(r.row.gross)}</td>
             <td data-label="deductions" class="num">${inr(deductionsOf(r.row))}</td>
             <td data-label="net" class="num"><b>${inr(netOf(r.row))}</b></td>
-            <td data-label="state">${r.paid ? html`<span class="num">paid ${U.fmtDate(dayOf(r.paid.paidAt))}</span>` : html`<span class="ink62">not paid</span>`}</td>
+            <td data-label="state">${r.paid ? (M.fx ? html`<span class="row nowrap fx-paid" style=${{gap: '6px'}}><${M.fx.MetalBadge}>paid<//><span class="num">${U.fmtDate(dayOf(r.paid.paidAt))}</span></span>` : html`<span class="num">paid ${U.fmtDate(dayOf(r.paid.paidAt))}</span>`) : html`<span class="ink62">not paid</span>`}</td>
             <td>${r.paid ? (sameDay ? html`<button type="button" class="linky small" id=${'pay-undo-' + r.uid} disabled=${busy} onClick=${() => undo(r.uid)}>Undo</button>` : null)
               : html`<${UI.Btn} sm=${true} id=${'pay-paid-' + r.uid} disabled=${busy} onClick=${() => pay([r.uid])}>Mark paid<//>`}</td>
           </tr>`;
         })}</tbody>
       </table></div>
-      <div class="small ink62" id="pay-totals" style=${{marginTop: '10px'}}>gross <span class="num">${inr(t.gross)}</span> · deductions <span class="num">${inr(t.deductions)}</span> · net <b class="num">${inr(t.net)}</b> · <span class="num">${rows.length}</span> people${paidRows.length ? html` · paid <span class="num">${inr(paidRows.reduce((s, r) => s + netOf(r.row), 0))}</span>` : null}</div>
+      <div class="small ink62" id="pay-totals" style=${{marginTop: '10px'}}>gross <span class="num">${inr(t.gross)}</span> · deductions <span class="num">${inr(t.deductions)}</span> · net ${M.fx ? html`<${MetalNum} size=${20} weight=${600}>${inr(t.net)}<//>` : html`<b class="num">${inr(t.net)}</b>`} · <span class="num">${rows.length}</span> people${paidRows.length ? html` · paid <span class="num">${inr(paidRows.reduce((s, r) => s + netOf(r.row), 0))}</span>` : null}</div>
       ${policy.employerCost ? html`<div class="small ink62" id="pay-cost" style=${{marginTop: '4px'}}>cost to company this month <b class="num">${inr(t.cost)}</b>${policy.pf ? html` · PF employer <span class="num">${inr(t.pf)}</span>` : null}${policy.esi ? html` · ESI employer <span class="num">${inr(t.esi)}</span>` : null}${policy.gratuity ? html` · gratuity <span class="num">${inr(t.gratuity)}</span>` : null}${policy.insurance ? html` · insurance <span class="num">${inr(t.insurance)}</span>` : null}</div>` : null}
       <div class="row" style=${{marginTop: '12px'}}>
         ${unpaid.length ? html`<span id="pay-all"><${UI.ConfirmBtn} kind="flame" sm=${false} onConfirm=${() => pay(unpaid.map(r => r.uid))}>Pay everyone, ${inr(unpaidNet)}<//></span>` : null}

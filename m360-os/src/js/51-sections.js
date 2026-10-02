@@ -3,14 +3,21 @@
 'use strict';
 (function () {
   const {html, React, U, UI} = M;
+  /* a number in metal (metal-fx MetalText); a quiet copy of the text holds its place while the metal readies */
+  const MetalNum = ({children, size, weight, color}) => html`<span class="fx-num"><span class="fx-num-copy" aria-hidden="true">${children}</span><${M.fx.MetalText} size=${size} weight=${weight} color=${color}>${children}<//></span>`;
   const {useState, useMemo} = React;
 
   const Embed = ({page, id}) => {
     const P = M.pages[page];
     return P ? html`<div class="embedded"><${P} id=${id || null}/></div>` : null;
   };
-  const Mini = ({v, l, hot}) => html`<span class="chipline"><b class=${'num' + (hot ? ' flame-t' : '')}>${v}</b> ${l}</span>`;
+  const Mini = ({v, l, hot, metal}) => html`<span class=${'chipline' + (metal ? ' fx-mini' : '')}>${metal && M.fx ? html`<${MetalNum} size=${14} weight=${600} color=${hot ? M.fx.FLAME : undefined}>${String(v)}<//>` : html`<b class=${'num' + (hot ? ' flame-t' : '')}>${v}</b>`} ${l}</span>`;
   const SPARK = '\u2726';
+  /* the effects, standing down to the plain element when the fx layer is missing */
+  const fx = () => M.fx || null;
+  const Metal = ({kind, block, children}) => fx() ? html`<${fx().Metal} kind=${kind || 'ink'} block=${block}>${children}<//>` : children;
+  const Beam = ({children, radius}) => fx() ? html`<${fx().Beam} radius=${radius}>${children}<//>` : children;
+  const Bot = ({feature, working, size}) => fx() ? html`<${fx().Bot} feature=${feature} state=${working ? 'working' : 'default'} size=${size || 28} label=${working ? 'm360, working' : 'm360'}/>` : null;
 
   /* ---------- AI: turn a brief into assigned tasks ---------- */
   function BriefToTasks({onClose}) {
@@ -63,16 +70,16 @@
     const upd = (k, patch) => setRows(rs => rs.map(x => x.k === k ? {...x, ...patch} : x));
     const thinking = r.state === 'thinking' || r.state === 'streaming';
 
-    return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Brief to tasks"
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Brief to tasks" head=${html`<span class="fx-head-bot" id="b2t-bot"><${Bot} feature="sections" working=${thinking}/></span>`}
       footer=${rows ? html`<${UI.Btn} disabled=${busy || !rows.some(x => x.on)} onClick=${create}>Send ${rows.filter(x => x.on).length} tasks<//>` : null}>
       ${!rows ? html`<div class="stack">
         <div class="small" style=${{fontWeight: 500}}>Paste a client brief, a call summary or a WhatsApp dump. m360 breaks it into tasks, picks owners by role and workload, and sets dates. You review before anything is sent.</div>
-        <${UI.TextArea} id="brief-text" label="the brief" rows=${8} value=${brief} onChange=${setBrief}
-          placeholder="Swisse wants 10 more reels for Diwali, live by 20 Oct. Hindi and English. Two creators, one studio day..."/>
+        <${Beam} radius=${14}><div class="fx-beam-pad"><${UI.TextArea} id="brief-text" label="the brief" rows=${8} value=${brief} onChange=${setBrief}
+          placeholder="Swisse wants 10 more reels for Diwali, live by 20 Oct. Hindi and English. Two creators, one studio day..."/></div><//>
         <${UI.Select} label="project, optional" value=${project} onChange=${setProject}
           options=${[{v: '', label: 'No project'}].concat(projects.map(p => ({v: p.id, label: p.name})))}/>
-        <button type="button" class="btn" disabled=${thinking || brief.trim().length < 12} onClick=${breakDown}>
-          ${thinking ? html`<${M.Thinking} label="Breaking it down"/>` : html`<span class="spark">${SPARK}</span> Break it down`}</button>
+        <${Metal} kind="ink" block=${true}><button type="button" class="btn" disabled=${thinking || brief.trim().length < 12} onClick=${breakDown}>
+          ${thinking ? html`<${M.Thinking} label="Breaking it down" state="composing"/>` : html`<span class="spark">${SPARK}</span> Break it down`}</button><//>
         ${r.state === 'error' ? html`<div class="small flame-t">${M.ai.errCopy(r.err)}</div>` : null}
       </div>` : html`<div class="stack tight">
         <div class="small" style=${{fontWeight: 500}}>Untick anything you don't want. Change owners or dates, then send.</div>
@@ -110,9 +117,9 @@
     const t = tab || 'tasks';
     return html`<div class="stack" style=${{gap: '20px'}}>
       <${M.SectionHero} micro="work" title="Work"
-        right=${M.ai.on(ctx) ? html`<button type="button" class="btn" onClick=${() => setB2t(true)}><span class="spark">${SPARK}</span> Brief to tasks</button>` : null}>
+        right=${M.ai.on(ctx) ? html`<${Metal} kind="ink"><button type="button" class="btn" onClick=${() => setB2t(true)}><span class="spark">${SPARK}</span> Brief to tasks</button><//>` : null}>
         <div class="row" style=${{gap: '8px'}}>
-          <${Mini} v=${mineOpen.length} l="open on you"/>
+          <${Mini} v=${mineOpen.length} l="open on you" metal=${true}/>
           <${Mini} v=${over} l="overdue" hot=${over > 0}/>
           <${Mini} v=${dueWk} l="due this week"/>
           <${Mini} v=${review} l="in review across the team"/>
@@ -141,8 +148,8 @@
         <div class="row" style=${{gap: '8px'}}>
           <${Mini} v=${live} l="live clients"/>
           <${Mini} v=${inPlay} l="pitches in play"/>
-          ${pm ? html`<${Mini} v=${U.inr(pm.weighted)} l="weighted pipeline"/>` : null}
-          ${ctx.isFounder ? html`<${Mini} v=${U.inr(mrr)} l="monthly revenue"/>` : null}
+          ${pm ? html`<${Mini} v=${U.inr(pm.weighted)} l="weighted pipeline" metal=${true}/>` : null}
+          ${ctx.isFounder ? html`<${Mini} v=${U.inr(mrr)} l="monthly revenue" metal=${true}/>` : null}
         </div>
       <//>
       <${M.SectionTabs} section="accounts" active=${t}/>
@@ -180,16 +187,18 @@
       if (typeof out === 'string' && out) M.ai.saveCache(ctx, 'wrapped', {text: out, week: wk});
     }
     const busy = r.state === 'thinking' || r.state === 'streaming';
-    return html`<section class="ai-card">
+    const btn = html`<button type="button" class=${'btn sm ' + (text ? 'sec' : '')} disabled=${busy} onClick=${go}>${busy ? html`<${M.Thinking} state="composing"/>` : html`<span class="spark">${SPARK}</span> ${text ? 'Write it again' : 'Wrap the week'}`}</button>`;
+    return html`<${Beam}><section class="ai-card" id="wrapped-card">
       <div class="row between">
+        <span class="fx-head-bot"><${Bot} feature="sections" working=${busy} size=${34}/></span>
         <div class="grow"><${UI.Micro}>m360 ai<//><div class="card-title" style=${{marginTop: '4px'}}>This week, wrapped</div></div>
-        <button type="button" class=${'btn sm ' + (text ? 'sec' : '')} disabled=${busy} onClick=${go}>${busy ? html`<${M.Thinking}/>` : html`<span class="spark">${SPARK}</span> ${text ? 'Write it again' : 'Wrap the week'}`}</button>
+        ${text ? btn : html`<${Metal} kind="ink">${btn}<//>`}
       </div>
       <div style=${{marginTop: '12px'}}>
         ${text ? html`<${M.AIText} text=${text}/>` : html`<div class="small" style=${{fontWeight: 500}}>Wins, shoutouts and who shipped the most, written up by m360.</div>`}
         ${r.state === 'error' ? html`<div class="small flame-t" style=${{marginTop: '8px'}}>${M.ai.errCopy(r.err)}</div>` : null}
       </div>
-    </section>`;
+    </section><//>`;
   }
 
   function Vibe({tab, id}) {
@@ -204,7 +213,7 @@
       <${M.SectionHero} micro="vibe" title="Vibe">
         <div class="row" style=${{gap: '8px'}}>
           <${Mini} v=${posts} l="posts this week"/>
-          <${Mini} v=${kudos} l="kudos this week"/>
+          <${Mini} v=${kudos} l="kudos this week" metal=${true}/>
           <${Mini} v=${online} l="online now"/>
         </div>
       <//>
@@ -231,10 +240,10 @@
         sub=${(ctx.member && ctx.member.title) ? ctx.member.title + (ctx.member.pod ? ', ' + ctx.member.pod : '') : null}
         right=${html`<${UI.Avatar} id=${ctx.uid} size=${72}/>`}>
         <div class="row" style=${{gap: '8px'}}>
-          <${Mini} v=${'Level ' + level} l=${pts.total + ' points this quarter'}/>
-          <${Mini} v=${inStreak} l="day streak"/>
+          <${Mini} v=${'Level ' + level} l=${pts.total + ' points this quarter'} metal=${true}/>
+          <${Mini} v=${inStreak} l="day streak" metal=${true}/>
           <${Mini} v=${eodStreak} l="EOD lines in a row"/>
-          ${(pts.badges || []).map(b => html`<span key=${b} class="pill ink">${b}</span>`)}
+          ${(pts.badges || []).map(b => M.fx ? html`<${M.fx.MetalBadge} key=${b}>${String(b)}<//>` : html`<span key=${b} class="pill ink">${b}</span>`)}
         </div>
       <//>
       <${M.SectionTabs} section="me" active=${t}/>
@@ -285,18 +294,27 @@
           <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${haptic ? 'on' : 'off'} ariaLabel="Haptics"
             onChange=${v => { M.haptic.set(v === 'on'); setHaptic(v === 'on'); if (v === 'on') M.haptic.buzz('done'); }}/>
         </div>
-        <div class="row between">
+        <div class="row between fx-bell-row">
           <span>Message previews in notices</span>
-          <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'Show'}, {v: 'off', label: 'Hide'}]} value=${previews ? 'on' : 'off'} ariaLabel="Message previews"
-            onChange=${v => { if (M.notices) M.notices.setPreviews(v === 'on'); setPreviews(v === 'on'); }}/>
+          <span class="row nowrap fx-bell-pair">
+            ${M.fx ? html`<${M.fx.Bell} id="prefs-bell-previews" size="sm" badge=${false} label="Ring with the line" offLabel="Who only" onLabel="Who and what" pressed=${previews}
+              onChange=${on => { if (M.notices) M.notices.setPreviews(on); setPreviews(on); }}/>` : null}
+            <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'Show'}, {v: 'off', label: 'Hide'}]} value=${previews ? 'on' : 'off'} ariaLabel="Message previews"
+              onChange=${v => { if (M.notices) M.notices.setPreviews(v === 'on'); setPreviews(v === 'on'); }}/>
+          </span>
         </div>
-        <div class="row between">
+        <div class="row between fx-bell-row">
           <span>Notices for every room message</span>
-          <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${allRooms ? 'on' : 'off'} ariaLabel="Room notices"
-            onChange=${v => { M.prefs.set('noticeAll', v === 'on' ? '1' : '0'); setAllRooms(v === 'on'); }}/>
+          <span class="row nowrap fx-bell-pair">
+            ${M.fx ? html`<${M.fx.Bell} id="prefs-bell-rooms" size="sm" badge=${false} label="Ring for each room line" offLabel="Mentions only" onLabel="Every line" pressed=${allRooms}
+              onChange=${on => { M.prefs.set('noticeAll', on ? '1' : '0'); setAllRooms(on); }}/>` : null}
+            <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${allRooms ? 'on' : 'off'} ariaLabel="Room notices"
+              onChange=${v => { M.prefs.set('noticeAll', v === 'on' ? '1' : '0'); setAllRooms(v === 'on'); }}/>
+          </span>
         </div>
         <div class="row between"><span>Bubbles while m360 is in another window</span>
-          ${perm === 'default' ? html`<button type="button" class="linky small" id="notify-ask" onClick=${() => M.notices && M.notices.ask().then(p => setPerm(p || 'denied'))}>Allow</button>`
+          ${perm === 'default' ? (M.fx ? html`<${M.fx.Bell} id="notify-ask" size="sm" badge=${false} offLabel="Allow" onLabel="Allowed" pressed=${false} onChange=${() => M.notices && M.notices.ask().then(p => setPerm(p || 'denied'))}/>`
+            : html`<button type="button" class="linky small" id="notify-ask" onClick=${() => M.notices && M.notices.ask().then(p => setPerm(p || 'denied'))}>Allow</button>`)
             : perm === 'granted' ? html`<span class="pill ink" id="notify-state">on</span>`
             : perm === 'denied' ? html`<span class="tiny ink62" id="notify-state">blocked in this browser's site settings</span>`
             : html`<span class="tiny ink62" id="notify-state">not on this browser</span>`}</div>

@@ -20,7 +20,7 @@
     const load = () => { if (api) api('voicestatus').then(r => setSt(r || null)).catch(() => setSt(null)); };
     useEffect(load, []);
     if (!ctx.isFounder) return null;
-    if (!api) return html`<${UI.Card} id="voicebox-card" title="Voice box">
+    if (!api) return html`<${UI.Card} id="voicebox-card" title="Voice box" action=${M.fx ? html`<${M.fx.Orb} state="breathing" size=${20} label="the browser voice"/>` : null}>
       <div class="small ink62">The one m360 voice (Chatterbox to speak, Whisper to listen) runs on the team site. This page cannot reach outside servers, so here m360 uses the browser's own voice.</div>
     <//>`;
     const save = async () => {
@@ -35,7 +35,9 @@
     };
     const remove = async () => { setBusy(true); try { await api('voicebox', {url: ''}); setInfo(null); load(); if (M.speech) M.speech.refresh(); M.toast('Voice box removed'); } catch (e) { setErr((e && e.message) || 'That did not save.'); } setBusy(false); };
     const on = !!(st && st.on && st.engine === 'box');
-    return html`<${UI.Card} id="voicebox-card" title="Voice box" action=${html`<span class=${'tiny ' + (on ? 'flame-t' : 'ink62')} id="voicebox-status">${on ? 'on, voice ' + (st.name || 'm360') : st && st.on ? 'ElevenLabs is on; the box replaces it' : 'off'}</span>`}>
+    /* the thinking orb (thinking-orbs): listening while the box is on, connecting while it saves */
+    const orb = M.fx && (busy || on) ? html`<${M.fx.Orb} state=${busy ? 'connecting' : 'listening'} size=${20} label=${busy ? 'connecting' : 'the voice box is on'}/>` : null;
+    return html`<${UI.Card} id="voicebox-card" title="Voice box" action=${html`<span class="row nowrap" style=${{gap: '6px'}}>${orb}<span class=${'tiny ' + (on ? 'flame-t' : 'ink62')} id="voicebox-status">${on ? 'on, voice ' + (st.name || 'm360') : st && st.on ? 'ElevenLabs is on; the box replaces it' : 'off'}</span></span>`}>
       <div class="small" style=${{marginBottom: '10px'}}>The one m360 voice: Chatterbox speaks (English, Hindi, Arabic and twenty one more), Whisper listens. Open source, MIT, on a box you run (see m360-voice/ in the repo). The key stays on the server.</div>
       <div class="stack tight">
         <${UI.Input} id="voicebox-url" label="box address" placeholder="https://voice.mask360.agency" value=${url} onChange=${setUrl}/>

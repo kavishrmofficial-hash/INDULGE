@@ -82,22 +82,30 @@
     };
     const usual = () => save(ctx, doc.data, list.concat(USUAL.filter(([l, t]) => !list.some(x => x.label === l && x.time === t)).map(([l, t]) => ({id: U.uid(), label: l, time: t, on: true}))));
     const notif = M.notices ? M.notices.state() : 'none';
-    return html`<div class="stack" style=${{gap: '16px'}} id="break-care">
-      <${UI.Card} id="care-today" title="Today" action=${html`<span class="tiny ink62 num" data-tick=${tick}>${on ? done + ' of ' + on + ' done' : ''}</span>`}>
-        ${!list.length ? html`<div class="stack tight">
-          <div class="small">Nothing set yet. The usual five take one tap, then change the times to yours.</div>
-          <div><${UI.Btn} sm=${true} id="care-usual" onClick=${usual}>Add the usual<//></div>
-        </div>` : html`<div class="stack tight">
-          ${rows.filter(r => r.it.on !== false).map(r => html`<div key=${r.it.id} class=${'row between care-row ' + r.st} data-state=${r.st}>
+    /* the effects: the care bot heads the day (working while something is due, asleep once all is
+       done), a beam round the first reminder that is due, bells for the reminders themselves */
+    const fx = M.fx || null;
+    const live = rows.filter(r => r.it.on !== false);
+    const firstDue = (live.find(r => r.st === 'due') || {it: {}}).it.id;
+    const botState = live.some(r => r.st === 'due') ? 'working' : on && done === on ? 'sleeping' : 'default';
+    const title = fx ? html`<span class="row nowrap fx-title-bot"><${fx.Bot} feature="care" state=${botState} size=${28} label="m360 care"/>Today</span>` : 'Today';
+    const row = r => html`<div key=${r.it.id} class=${'row between care-row ' + r.st} data-state=${r.st}>
             <span class="row nowrap"><span class=${'care-dot ' + r.st}/><span class=${r.st === 'done' ? 'ink62' : ''} style=${r.st === 'done' ? {textDecoration: 'line-through'} : null}>${r.it.label}</span><span class="tiny num ink62">${r.it.time}${r.st === 'snoozed' ? ', until ' + U.hhmm(r.l.snooze) : ''}</span></span>
             ${r.st === 'done' ? html`<button type="button" class="linky tiny" onClick=${() => mark(ctx, doc.data, r.it.id, {done: null})}>Undo</button>`
               : html`<span class="row nowrap" style=${{gap: '6px'}}>
                 ${r.st === 'due' || r.st === 'snoozed' ? html`<button type="button" class="linky tiny" id=${'care-snooze-' + r.it.id} onClick=${() => mark(ctx, doc.data, r.it.id, {snooze: Date.now() + SNOOZE_MS})}>Snooze 15</button>` : null}
                 <${UI.Btn} sm=${true} kind=${r.st === 'due' ? undefined : 'sec'} id=${'care-done-' + r.it.id} onClick=${() => mark(ctx, doc.data, r.it.id, {done: Date.now(), snooze: null})}>Done<//>
               </span>`}
-          </div>`)}
+          </div>`;
+    return html`<div class="stack" style=${{gap: '16px'}} id="break-care">
+      <${UI.Card} id="care-today" title=${title} action=${html`<span class="tiny ink62 num" data-tick=${tick}>${on ? done + ' of ' + on + ' done' : ''}</span>`}>
+        ${!list.length ? html`<div class="stack tight">
+          <div class="small">Nothing set yet. The usual five take one tap, then change the times to yours.</div>
+          <div><${UI.Btn} sm=${true} id="care-usual" onClick=${usual}>Add the usual<//></div>
+        </div>` : html`<div class="stack tight">
+          ${live.map(r => fx && r.it.id === firstDue ? html`<${fx.Beam} key=${r.it.id} radius=${14}><div class="fx-care-due">${row(r)}</div><//>` : row(r))}
         </div>`}
-        ${notif === 'default' ? html`<div class="row between" style=${{marginTop: '10px'}}><span class="tiny ink62">Let the browser ring these when m360 is in another tab.</span><button type="button" class="linky tiny" onClick=${() => M.notices.ask()}>Allow</button></div>` : null}
+        ${notif === 'default' ? html`<div class="row between" style=${{marginTop: '10px'}}><span class="tiny ink62">Let the browser ring these when m360 is in another tab.</span>${fx ? html`<${fx.Bell} id="care-allow" size="sm" badge=${false} offLabel="Allow" onLabel="Allowed" pressed=${false} onChange=${() => M.notices.ask()}/>` : html`<button type="button" class="linky tiny" onClick=${() => M.notices.ask()}>Allow</button>`}</div>` : null}
       <//>
       <${UI.Card} id="care-setup" title="The reminders">
         <div class="stack tight">
@@ -105,7 +113,8 @@
             <span class="row nowrap"><input class="input" style=${{width: '150px', minHeight: '34px'}} value=${it.label} aria-label="Reminder name" onChange=${e => save(ctx, doc.data, list.map(x => x.id === it.id ? {...x, label: e.target.value} : x))}/>
               <input class="input num" type="time" style=${{width: '110px', minHeight: '34px'}} value=${it.time} aria-label="Reminder time" onChange=${e => { if (okTime(e.target.value)) save(ctx, doc.data, list.map(x => x.id === it.id ? {...x, time: e.target.value} : x)); }}/></span>
             <span class="row nowrap" style=${{gap: '8px'}}>
-              <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${it.on === false ? 'off' : 'on'} ariaLabel=${it.label + ' on or off'} onChange=${v => save(ctx, doc.data, list.map(x => x.id === it.id ? {...x, on: v === 'on'} : x))}/>
+              ${fx ? html`<${fx.Bell} size="sm" badge=${false} label=${it.label + ' on or off'} offLabel="Silent" onLabel="Rings" pressed=${it.on !== false} onChange=${v => save(ctx, doc.data, list.map(x => x.id === it.id ? {...x, on: !!v} : x))}/>`
+                : html`<${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${it.on === false ? 'off' : 'on'} ariaLabel=${it.label + ' on or off'} onChange=${v => save(ctx, doc.data, list.map(x => x.id === it.id ? {...x, on: v === 'on'} : x))}/>`}
               <button type="button" class="iconbtn" aria-label=${'Remove ' + it.label} onClick=${() => save(ctx, doc.data, list.filter(x => x.id !== it.id))}><${icons.x}/></button>
             </span>
           </div>`)}

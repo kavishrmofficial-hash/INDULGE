@@ -2,6 +2,8 @@
 'use strict';
 (function () {
   const {html, React, U, UI, icons} = M;
+  /* a number in metal (metal-fx MetalText); a quiet copy of the text holds its place while the metal readies */
+  const MetalNum = ({children, size, weight, color}) => html`<span class="fx-num"><span class="fx-num-copy" aria-hidden="true">${children}</span><${M.fx.MetalText} size=${size} weight=${weight} color=${color}>${children}<//></span>`;
   const {useState, useEffect} = React;
 
   const STAGES = [
@@ -124,7 +126,11 @@
   const nameIn = (names, u) => (names[u] && names[u].name) || 'Someone';
 
   /* ---------- small parts ---------- */
-  const StagePill = ({stage}) => html`<${UI.Pill} kind=${stageKind(stage)}>${(STAGE_LABEL[stage] || 'Screen').toLowerCase()}<//>`;
+  /* the offer stage wears a metal badge (metal-fx); every other stage keeps its pill */
+  const StagePill = ({stage}) => stage === 'offer' && M.fx ? html`<${M.fx.MetalBadge} className="stage-offer">offer<//>`
+    : html`<${UI.Pill} kind=${stageKind(stage)}>${(STAGE_LABEL[stage] || 'Screen').toLowerCase()}<//>`;
+  /* the hiring bot heads the hiring cards */
+  const BotTitle = ({text, working}) => M.fx ? html`<span class="row nowrap fx-title-bot"><${M.fx.Bot} feature="hiring" state=${working ? 'working' : 'default'} size=${26} label="m360 hiring"/>${text}</span>` : text;
   const VerdictPill = ({v}) => html`<${UI.Pill} kind=${v === 'yes' || v === 'strong-yes' ? 'ink' : 'flame-o'}>${(VERDICT_LABEL[v] || 'No verdict').toLowerCase()}<//>`;
   const YesPill = ({label, v}) => html`<${UI.Pill} kind=${v === 'yes' ? 'ink' : 'flame-o'}>${label}: ${v === 'yes' ? 'yes' : 'no'}<//>`;
   /* a candidate's links (a portfolio, a drive folder, a profile) open in the real browser: they need the
@@ -327,7 +333,7 @@
         <${UI.Micro} plain>summary<//>
         ${sum.n ? html`<${React.Fragment}>
           <div class="kpi-rail" id="hiring-avg">
-            ${sum.avg.map(a => html`<div class="kpi" key=${a.k}><div class="v num">${a.avg == null ? '0.0' : a.avg}</div><div class="l">${a.short}</div></div>`)}
+            ${sum.avg.map(a => html`<div class="kpi" key=${a.k}><div class="v num">${M.fx ? html`<${MetalNum} size=${26} weight=${600}>${String(a.avg == null ? '0.0' : a.avg)}<//>` : (a.avg == null ? '0.0' : a.avg)}</div><div class="l">${a.short}</div></div>`)}
           </div>
           <div class="row" id="hiring-gwc">
             ${sum.gwc.map(g => html`<${UI.Pill} key=${g.k} kind=${g.n && g.yes === g.n ? 'ink' : 'flame-o'}>${g.label} ${g.yes} of ${g.n}<//>`)}
@@ -492,7 +498,7 @@
         <${UI.PageHead} micro="team" title="Hiring">
           <${UI.Btn} onClick=${() => setDrawer({candidateId: null})}><${icons.plus}/>New candidate<//>
         <//>
-        <${UI.Card} title="Candidates" id="hiring-list" action=${open ? html`<${UI.Pill}>${open} open<//>` : null}>
+        <${UI.Card} title=${html`<${BotTitle} text="Candidates" working=${!ready}/>`} id="hiring-list" action=${open ? html`<${UI.Pill}>${open} open<//>` : null}>
           ${list.length ? html`<div class="stack tight">
             ${list.map(c => html`<${CandidateCard} key=${c.id} c=${c} ctx=${ctx} selected=${c.id === id}/>`)}
           </div>` : html`<${UI.Empty} text=${ready ? 'No candidates yet.' : 'Loading.'}/>`}
@@ -504,12 +510,15 @@
 
     const mine = list.filter(c => evaluatorsOf(c).includes(ctx.uid));
     const due = assignedToMe(ctx).length;
+    /* the most urgent card on the panel: the first evaluation still due, in a beam */
+    const firstDue = (mine.find(c => !evalOf(ctx, ctx.uid, c.id) && !decided(c)) || {}).id;
     const close = () => { setOpenId(null); if (id) M.nav('#hiring'); };
     return html`<${React.Fragment}>
       <${UI.PageHead} micro="team" title="Hiring"/>
-      <${UI.Card} title="Your panel" id="hiring-mine" action=${due ? html`<${UI.Pill} kind="flame-o">${due} due<//>` : null}>
+      <${UI.Card} title=${html`<${BotTitle} text="Your panel" working=${!ready}/>`} id="hiring-mine" action=${due ? html`<${UI.Pill} kind="flame-o">${due} due<//>` : null}>
         ${mine.length ? html`<div class="stack tight">
-          ${mine.map(c => html`<${MyCard} key=${c.id} c=${c} ctx=${ctx} onOpen=${() => setOpenId(c.id)}/>`)}
+          ${mine.map(c => c.id === firstDue && M.fx ? html`<${M.fx.Beam} key=${c.id} radius=${20}><${MyCard} c=${c} ctx=${ctx} onOpen=${() => setOpenId(c.id)}/><//>`
+            : html`<${MyCard} key=${c.id} c=${c} ctx=${ctx} onOpen=${() => setOpenId(c.id)}/>`)}
         </div>` : html`<${UI.Empty} text=${ready ? 'No evaluations assigned to you.' : 'Loading.'}/>`}
       <//>
       ${openId ? html`<${EvalDrawer} key=${openId} candidateId=${openId} onClose=${close}/>` : null}

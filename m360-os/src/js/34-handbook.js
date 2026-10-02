@@ -2,6 +2,8 @@
 'use strict';
 (function () {
   const {html, React, U, UI} = M;
+  /* a number in metal (metal-fx MetalText); a quiet copy of the text holds its place while the metal readies */
+  const MetalNum = ({children, size, weight, color}) => html`<span class="fx-num"><span class="fx-num-copy" aria-hidden="true">${children}</span><${M.fx.MetalText} size=${size} weight=${weight} color=${color}>${children}<//></span>`;
   const {useState, useMemo, useEffect} = React;
 
   const TOKENS = ['start', 'grace', 'eodCut', 'mondayCut', 'wfhCap', 'revCap', 'ackHours', 'blockerDays'];
@@ -164,7 +166,7 @@
               class=${'side-item' + (current && s.id === current.id ? ' active' : '')}
               onClick=${() => M.nav('#handbook/' + s.id)}>
               <span class="grow">${s.title}</span>
-              ${isUnread(s) ? html`<span class="dotflame"/>` : null}
+              ${isUnread(s) ? (M.fx ? html`<${M.fx.MetalBadge}>new<//>` : html`<span class="dotflame"/>`) : null}
             </button>`) : html`<${UI.Empty} text="No sections yet."/>`}
           </div>
         <//>
@@ -190,7 +192,7 @@
               : html`<${UI.Btn} onClick=${() => ctx.W.merge('acks/' + ctx.uid, {s: {[current.id]: Date.now()}})
                   .then(() => M.toast('Marked as read'))}>I've read this<//>`}
             ${ctx.isFounder ? html`<div class="row">
-              <span class="tiny ink62 num">Read by ${readers.length} of ${others.length}</span>
+              <span class="tiny ink62 num fx-readby">Read by ${M.fx ? html`<${MetalNum} size=${15} weight=${600}>${String(readers.length)}<//>` : readers.length} of ${others.length}</span>
               ${readers.length ? html`<${UI.AvatarRow} ids=${readers.map(r => r.uid)}/>` : null}
             </div>` : null}
           </div>

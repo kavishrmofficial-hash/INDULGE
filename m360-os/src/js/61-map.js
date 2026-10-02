@@ -106,8 +106,12 @@
   const keyFor = title => { const s = MAP.find(x => x.label.toLowerCase() === String(title || '').toLowerCase()); return s ? s.k : ''; };
   const sig = (ctx, x) => { try { return x.signal ? String(x.signal(ctx) || '') : ''; } catch (e) { return ''; } };
 
+  /* each section is introduced by its own bot (bot-avatars), one body per place */
+  const BOT_OF = {home: 'brief', work: 'sections', accounts: 'clients', vibe: 'buddy', break: 'care', base: 'base', chat: 'handshake',
+    workspace: 'writer', web: 'search', radar: 'radar', me: 'notes', hq: 'hq', admin: 'hiring', books: 'books'};
+  const Mark = ({s}) => M.fx ? html`<${M.fx.Bot} feature=${BOT_OF[s.k] || 'ask'} size=${30} seed=${(s.label.length % 7) / 7} label=${'m360, ' + s.label}/>` : html`<${icons[s.icon] || icons.today}/>`;
   function Section({s, ctx, open}) {
-    return html`<${UI.Card} id=${'map-' + s.k} className=${'map-card' + (open ? ' open' : '')} title=${html`<span class="row nowrap" style=${{gap: '8px'}}><${icons[s.icon] || icons.today}/>${s.label}${s.founder || s.owner ? html`<${UI.Pill}>${s.owner ? 'owner' : 'founder'}<//>` : null}</span>`}
+    return html`<${UI.Card} id=${'map-' + s.k} className=${'map-card' + (open ? ' open' : '')} title=${html`<span class="row nowrap" style=${{gap: '8px'}}><${Mark} s=${s}/>${s.label}${s.founder || s.owner ? html`<${UI.Pill}>${s.owner ? 'owner' : 'founder'}<//>` : null}</span>`}
       action=${html`<${UI.Btn} sm=${true} kind="sec" onClick=${() => M.nav('#' + s.route)}>Open<//>`}>
       <div class="small" style=${{marginBottom: s.tabs.length ? '10px' : 0}}>${s.blurb}${!s.tabs.length && sig(ctx, s) ? html` <span class="num ink62">· ${sig(ctx, s)}</span>` : null}</div>
       ${s.tabs.length ? html`<div class="map-tabs">${s.tabs.map(t => html`<button key=${t.k} type="button" class="map-tab" onClick=${() => M.nav('#' + t.route)}>
@@ -137,7 +141,7 @@
         <div class="map-tabs">${DAY_ONE.map(([label, route, why]) => html`<button key=${label} type="button" class="map-tab" onClick=${() => route === 'tour' ? window.dispatchEvent(new CustomEvent('m360:tour')) : M.nav('#' + route)}>
           <b>${label}</b><span class="tiny ink62">${why}</span></button>`)}</div>
       <//>` : null}
-      <${UI.Card} id="map-always" title="Always around, from anywhere">
+      <${UI.Card} id="map-always" title=${M.fx ? html`<span class="row nowrap" style=${{gap: '8px'}}><${M.fx.Bot} feature="ask" size=${30} label="m360"/>Always around, from anywhere</span>` : 'Always around, from anywhere'}>
         <div class="map-tabs">${ALWAYS.map(a => html`<button key=${a.label} type="button" class="map-tab" onClick=${a.act}>
           <span class="row between" style=${{gap: '8px'}}><b>${a.label}</b>${a.key ? html`<span class="kbd">${a.key}</span>` : null}</span>
           <span class="tiny ink62">${a.blurb}</span></button>`)}</div>
