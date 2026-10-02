@@ -405,6 +405,7 @@ v27 drew the six effects by hand, and they looked nothing like the references. v
 - **Bell**: the notifications card is React Bits' BellToggle as shipped, in paper on ink and paper on flame.
 - **Cost.** A beam repaints its whole box every frame and the metal runs a WebGL loop, so both rest when idle: a beam plays for a few laps when its card comes into view and again under a hovering pointer, and only on cards up to 240 px tall (a taller hot card keeps a still flame border); the metal flows under a pointer, on focus or under a finger and rests on a still frame otherwise. Home holds a steady 60 frames a second, opening laps included.
 - The effects mount a moment after first paint, so the plain controls appear at once on a cold start.
+- **Fixed on the way.** The online dot's style was a bare `.live` class, so any listening button (the buddy, Talk) shrank to 10 px; it is scoped to the dot now. Chat and inbox bubbles remember what they announced by id, so a message or an item that syncs in a moment late still gets its bubble (and the backlog from before the tab opened stays quiet). The cursor buddy's spring steps by elapsed time, so the pointer stays with the mouse on a busy page. The small Talk button says "Listening" while it listens, so the Ask input keeps its room.
 - `harness/conformance.py` skips `*.vendor.js` and `*.vendor.css`. Test: `harness/tests/test_effects.py` rewritten for the real components.
 
 ## Launch day

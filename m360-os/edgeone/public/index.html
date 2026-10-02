@@ -1868,6 +1868,9 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
 .sidebar .metal-host{display:flex; width:100%}
 .dayrate-acts .metal-host{width:min(360px,100%)}
 .beam-host{display:block; min-width:0}
+/* the Ask row: the input keeps room while the Talk button says it is listening */
+.ask-in .input{min-width:140px}
+.ask-in .micbtn{flex:0 0 auto}
 
 /* ==== 90-bell.vendor.css ==== */
 /* ==== BellToggle from React Bits, the component stylesheet as shipped, defaults moved to the m360
@@ -2110,7 +2113,7 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
   }
 }
 </style>
-<script>window.M360_BUILD = "7019129+.261002-1229";</script><script>
+<script>window.M360_BUILD = "86137ae+.261002-1251";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -11308,7 +11311,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   function ChatWatch() {
     const ctx = M.useCtx();
     const uid = ctx.uid;
-    const seenAt = useRef(Date.now());
+    /* the messages already announced (or already here when this tab opened), by id: a message that
+       syncs in late still gets its notice, and none is announced twice */
+    const seen = useRef(null);
+    const openedAt = useRef(Date.now());
     const ids = useMemo(() => ctx.activeMembers.map(m => m.uid), [ctx.activeMembers]);
     const profs = M.useProfiles(ids);
     const nameOf = id => (profs[id] && profs[id].name) || (ctx.members[id] && ctx.members[id].name) || 'Someone';
@@ -11318,13 +11324,18 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const roomName = id => ((rooms.find(r => r.id === id) || {}).name || id);
       const hm = /^#chat\/(.+)$/.exec(location.hash);
       const openRoom = hm ? decodeURIComponent(hm[1]) : (location.hash === '#chat' ? (M.prefs.get('chatRoom.' + uid, '') || 'general') : '');
-      const since = seenAt.current;
-      seenAt.current = Date.now();
+      if (!seen.current) seen.current = new Set();
       const fresh = [];
       const all = rooms.map(r => r.id).concat(dmRoomsOf(ctx));
       for (const room of all) {
         for (const m of messagesOf(ctx, room)) {
-          if (m.by === uid || (m.at || 0) <= since || Date.now() - (m.at || 0) > 90000) continue;
+          const key = m.id || (room + ':' + m.at + ':' + m.by);
+          if (seen.current.has(key)) continue;
+          seen.current.add(key);
+          /* the backlog from before this tab opened stays quiet, however late it syncs (two seconds of
+             slack for clocks that disagree); so does anything older than ninety seconds */
+          if ((m.at || 0) < openedAt.current - 2000) continue;
+          if (m.by === uid || Date.now() - (m.at || 0) > 90000) continue;
           const dm = isDm(room);
           const forMe = dm || mentionsMe(m, ctx, nameOf(uid));
           if (!forMe && !noticeAll()) continue;
@@ -22062,9 +22073,14 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         if (pointerRef.current) pointerRef.current.classList.remove('still');
       };
       const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-      const tick = () => {
+      let last = 0;
+      const tick = now => {
         const p = pos.current, v = vel.current;
         const f = flight.current;
+        /* the spring is tuned per 60 Hz frame: on a busy page it takes as many steps as the time that
+           passed, so the pointer keeps up with the mouse whatever the frame rate */
+        const steps = last ? Math.max(1, Math.min(6, Math.round((now - last) / 16.667))) : 1;
+        last = now;
         if (f) {
           const k = Math.min(1, (performance.now() - f.t0) / f.T), e = ease(k);
           const lift = Math.sin(Math.PI * k) * f.arc;
@@ -22073,8 +22089,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           if (k >= 1) { flight.current = null; p.x = f.x1; p.y = f.y1; if (f.moved) pinned.current = false; if (pointerRef.current) { pointerRef.current.classList.remove('flying'); pointerRef.current.classList.add('land'); setTimeout(() => pointerRef.current && pointerRef.current.classList.remove('land'), 420); } f.res(); }
         } else if (!pinned.current) {
           const m = mouse.current;
-          v.x = (v.x + (m.x - p.x) * .18) * .62; v.y = (v.y + (m.y - p.y) * .18) * .62;
-          p.x += v.x; p.y += v.y;
+          for (let i = 0; i < steps; i++) {
+            v.x = (v.x + (m.x - p.x) * .18) * .62; v.y = (v.y + (m.y - p.y) * .18) * .62;
+            p.x += v.x; p.y += v.y;
+          }
         }
         /* the ghosts behind it, a beat later each */
         const tr = trail.current;
@@ -22711,8 +22729,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       heard.current = '';
     };
     const start = () => { if (M.speech && M.speech.listenOn && M.speech.listenOn()) startBox(); else startBrowser(); };
-    return html`<button type="button" class=${'btn sec micbtn' + (sm === false ? '' : ' sm') + (live ? ' live' : '')} aria-pressed=${live} disabled=${busy} onClick=${live ? stop : start}>
-      <${icons.voice}/>${live ? 'Listening, tap to stop' : busy ? 'Hearing it' : (label || 'Say it')}</button>`;
+    return html`<button type="button" class=${'btn sec micbtn' + (sm === false ? '' : ' sm') + (live ? ' live' : '')} aria-pressed=${live} aria-label=${live ? 'Listening, tap to stop' : undefined} title=${live ? 'Tap to stop' : undefined} disabled=${busy} onClick=${live ? stop : start}>
+      <${icons.voice}/>${live ? (sm === false ? 'Listening, tap to stop' : 'Listening') : busy ? 'Hearing it' : (label || 'Say it')}</button>`;
   }
 
   M.parts.MicButton = MicButton;
@@ -23663,10 +23681,21 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const mark = Number(M.prefs.get(key, '0')) || 0;
       if (!mark) { M.prefs.set(key, String(newest || now)); return; }
       const seen = seenAt(ctx);
-      const fresh = list.filter(i => i.at > mark && i.at > seen).sort((a, b) => a.at - b.at);
+      /* announced ids, kept on this device: an item that syncs in late with an earlier time than the
+         newest one already announced still gets its bubble, within ten minutes of the mark */
+      const doneKey = 'inboxNoticed.' + uid;
+      let done = [];
+      try { done = JSON.parse(M.prefs.get(doneKey, '[]')) || []; } catch (e) { done = []; }
+      const doneSet = new Set(done);
+      const LATE = 10 * 60000;
+      const fresh = list.filter(i => i.at > mark - LATE && i.at > seen && !doneSet.has(i.id) && (i.at > mark || done.length)).sort((a, b) => a.at - b.at);
       /* a name not yet known: wait for the profile, the bubble comes on the next pass */
       if (fresh.some(i => i.actor && !(profs[i.actor] && profs[i.actor].name) && !(ctx.members[i.actor] && ctx.members[i.actor].name))) return;
       if (newest > mark) M.prefs.set(key, String(newest));
+      /* remember what is announced now, and what was already past the mark, so neither comes back */
+      const keep = done.concat(fresh.map(i => i.id), list.filter(i => i.at <= mark && i.at > mark - LATE).map(i => i.id));
+      const next = JSON.stringify(Array.from(new Set(keep)).slice(-300));
+      if (next !== JSON.stringify(done)) M.prefs.set(doneKey, next);
       if (!fresh.length) return;
       for (const it of fresh.slice(-4)) {
         const who = it.actor ? nameOf(it.actor) : '';

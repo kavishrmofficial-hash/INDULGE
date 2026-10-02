@@ -167,10 +167,21 @@
       const mark = Number(M.prefs.get(key, '0')) || 0;
       if (!mark) { M.prefs.set(key, String(newest || now)); return; }
       const seen = seenAt(ctx);
-      const fresh = list.filter(i => i.at > mark && i.at > seen).sort((a, b) => a.at - b.at);
+      /* announced ids, kept on this device: an item that syncs in late with an earlier time than the
+         newest one already announced still gets its bubble, within ten minutes of the mark */
+      const doneKey = 'inboxNoticed.' + uid;
+      let done = [];
+      try { done = JSON.parse(M.prefs.get(doneKey, '[]')) || []; } catch (e) { done = []; }
+      const doneSet = new Set(done);
+      const LATE = 10 * 60000;
+      const fresh = list.filter(i => i.at > mark - LATE && i.at > seen && !doneSet.has(i.id) && (i.at > mark || done.length)).sort((a, b) => a.at - b.at);
       /* a name not yet known: wait for the profile, the bubble comes on the next pass */
       if (fresh.some(i => i.actor && !(profs[i.actor] && profs[i.actor].name) && !(ctx.members[i.actor] && ctx.members[i.actor].name))) return;
       if (newest > mark) M.prefs.set(key, String(newest));
+      /* remember what is announced now, and what was already past the mark, so neither comes back */
+      const keep = done.concat(fresh.map(i => i.id), list.filter(i => i.at <= mark && i.at > mark - LATE).map(i => i.id));
+      const next = JSON.stringify(Array.from(new Set(keep)).slice(-300));
+      if (next !== JSON.stringify(done)) M.prefs.set(doneKey, next);
       if (!fresh.length) return;
       for (const it of fresh.slice(-4)) {
         const who = it.actor ? nameOf(it.actor) : '';

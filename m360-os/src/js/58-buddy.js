@@ -159,9 +159,14 @@
         if (pointerRef.current) pointerRef.current.classList.remove('still');
       };
       const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-      const tick = () => {
+      let last = 0;
+      const tick = now => {
         const p = pos.current, v = vel.current;
         const f = flight.current;
+        /* the spring is tuned per 60 Hz frame: on a busy page it takes as many steps as the time that
+           passed, so the pointer keeps up with the mouse whatever the frame rate */
+        const steps = last ? Math.max(1, Math.min(6, Math.round((now - last) / 16.667))) : 1;
+        last = now;
         if (f) {
           const k = Math.min(1, (performance.now() - f.t0) / f.T), e = ease(k);
           const lift = Math.sin(Math.PI * k) * f.arc;
@@ -170,8 +175,10 @@
           if (k >= 1) { flight.current = null; p.x = f.x1; p.y = f.y1; if (f.moved) pinned.current = false; if (pointerRef.current) { pointerRef.current.classList.remove('flying'); pointerRef.current.classList.add('land'); setTimeout(() => pointerRef.current && pointerRef.current.classList.remove('land'), 420); } f.res(); }
         } else if (!pinned.current) {
           const m = mouse.current;
-          v.x = (v.x + (m.x - p.x) * .18) * .62; v.y = (v.y + (m.y - p.y) * .18) * .62;
-          p.x += v.x; p.y += v.y;
+          for (let i = 0; i < steps; i++) {
+            v.x = (v.x + (m.x - p.x) * .18) * .62; v.y = (v.y + (m.y - p.y) * .18) * .62;
+            p.x += v.x; p.y += v.y;
+          }
         }
         /* the ghosts behind it, a beat later each */
         const tr = trail.current;

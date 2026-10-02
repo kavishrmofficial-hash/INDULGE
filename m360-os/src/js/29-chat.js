@@ -313,7 +313,10 @@
   function ChatWatch() {
     const ctx = M.useCtx();
     const uid = ctx.uid;
-    const seenAt = useRef(Date.now());
+    /* the messages already announced (or already here when this tab opened), by id: a message that
+       syncs in late still gets its notice, and none is announced twice */
+    const seen = useRef(null);
+    const openedAt = useRef(Date.now());
     const ids = useMemo(() => ctx.activeMembers.map(m => m.uid), [ctx.activeMembers]);
     const profs = M.useProfiles(ids);
     const nameOf = id => (profs[id] && profs[id].name) || (ctx.members[id] && ctx.members[id].name) || 'Someone';
@@ -323,13 +326,18 @@
       const roomName = id => ((rooms.find(r => r.id === id) || {}).name || id);
       const hm = /^#chat\/(.+)$/.exec(location.hash);
       const openRoom = hm ? decodeURIComponent(hm[1]) : (location.hash === '#chat' ? (M.prefs.get('chatRoom.' + uid, '') || 'general') : '');
-      const since = seenAt.current;
-      seenAt.current = Date.now();
+      if (!seen.current) seen.current = new Set();
       const fresh = [];
       const all = rooms.map(r => r.id).concat(dmRoomsOf(ctx));
       for (const room of all) {
         for (const m of messagesOf(ctx, room)) {
-          if (m.by === uid || (m.at || 0) <= since || Date.now() - (m.at || 0) > 90000) continue;
+          const key = m.id || (room + ':' + m.at + ':' + m.by);
+          if (seen.current.has(key)) continue;
+          seen.current.add(key);
+          /* the backlog from before this tab opened stays quiet, however late it syncs (two seconds of
+             slack for clocks that disagree); so does anything older than ninety seconds */
+          if ((m.at || 0) < openedAt.current - 2000) continue;
+          if (m.by === uid || Date.now() - (m.at || 0) > 90000) continue;
           const dm = isDm(room);
           const forMe = dm || mentionsMe(m, ctx, nameOf(uid));
           if (!forMe && !noticeAll()) continue;
