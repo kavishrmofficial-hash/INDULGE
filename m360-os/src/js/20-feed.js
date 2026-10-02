@@ -159,7 +159,7 @@
           <div class="grow">
             <div class="row">
               <b><${UI.Name} id=${it.author} fallback=${names[it.author] || undefined}/> ${cheer}</b>
-              <${UI.Pill} kind="flame">shipped<//>
+              <${M.fx.MetalBadge} className="fit">shipped<//>
             </div>
             <div class="tiny sub num">${U.timeAgo(it.at)}${it.project ? ' · ' + it.project : ''}${it.client ? ' · ' + it.client : ''}${it.approvedBy ? html` · approved by <${UI.Name} id=${it.approvedBy} fallback=${names[it.approvedBy] || undefined}/>` : ''}</div>
           </div>
@@ -267,7 +267,8 @@
       setBusy(false);
     };
 
-    return html`<${UI.Card} id="feed-composer">
+    /* the composer is the one place on the feed to act, so it carries the beam */
+    return html`<${M.fx.Beam}><${UI.Card} id="feed-composer">
       <div class="stack">
         <${UI.TextArea} id="feed-text" placeholder=${kind === 'poll' ? 'Ask the team something' : 'Share an update, a win or a question'} rows=${3} value=${text} onChange=${setText}/>
         ${kind === 'poll' ? html`<div class="stack tight" id="poll-options">
@@ -280,7 +281,7 @@
         </div>
         ${kind === 'announce' ? html`<div class="sub small">Announcements pin to the top of the feed and show on everyone's Today.</div>` : null}
       </div>
-    <//>`;
+    <//><//>`;
   }
 
   /* ---------- kudos drawer ---------- */

@@ -4,8 +4,14 @@
 'use strict';
 (function () {
   const {html, React, U, UI} = M;
+  /* a number in metal (metal-fx MetalText); a quiet copy of the text holds its place while the metal readies */
+  const MetalNum = ({children, size, weight, color}) => html`<span class="fx-num"><span class="fx-num-copy" aria-hidden="true">${children}</span><${M.fx.MetalText} size=${size} weight=${weight} color=${color}>${children}<//></span>`;
   const {useEffect} = React;
   const KEEP_MS = 30 * 86400000;
+  /* an empty bin: the sleeping bot (bot-avatars) beside the line, the way every empty state reads */
+  const Quiet = ({children}) => html`<div class="small ink62 empty-line">${M.fx ? html`<${M.fx.Bot} feature="empty" state="sleeping" size=${30} label="nothing here yet"/>` : null}<span>${children}</span></div>`;
+  /* the count in the bin, cast in metal (metal-fx) */
+  const Count = ({n, tail}) => html`<span class="row nowrap tiny ink62 num" style=${{gap: '6px'}}>${M.fx && n ? html`<${MetalNum} size=${16} weight=${600}>${String(n)}<//>` : String(n)}${tail || ''}</span>`;
 
   function TrashCard() {
     const ctx = M.useCtx();
@@ -18,7 +24,7 @@
     if (!ctx.isFounder) return null;
     const restore = t => ctx.W.update('tasks/' + t.id, {deleted: false, deletedBy: null, deletedAt: null, updated: Date.now()}).then(() => M.toast('Back on the board')).catch(() => {});
     const purge = t => ctx.W.del('tasks/' + t.id).then(() => M.toast('Gone for good')).catch(() => {});
-    return html`<${UI.Card} id="trash-card" title="Deleted tasks" action=${html`<span class="tiny ink62 num">${list.length} in the bin, thirty days</span>`}>
+    return html`<${UI.Card} id="trash-card" title="Deleted tasks" action=${html`<${Count} n=${list.length} tail=" in the bin, thirty days"/>`}>
       ${list.length ? html`<div class="stack tight">
         ${list.map(t => html`<div key=${t.id} class="row between brk-row" id=${'trash-' + t.id}>
           <div class="grow" style=${{minWidth: 0}}>
@@ -30,7 +36,7 @@
             <${UI.ConfirmBtn} sm=${true} kind="ghost" onConfirm=${() => purge(t)}>Delete for good<//>
           </span>
         </div>`)}
-      </div>` : html`<div class="small ink62">Nothing deleted. When someone deletes a task it waits here, and your inbox gets a flag.</div>`}
+      </div>` : html`<${Quiet}>Nothing deleted. When someone deletes a task it waits here, and your inbox gets a flag.<//>`}
     <//>`;
   }
 
@@ -40,13 +46,13 @@
     const list = Object.keys(arch).map(id => ({id, ...arch[id]})).sort((a, b) => (b.archivedAt || 0) - (a.archivedAt || 0));
     if (!ctx.isFounder) return null;
     const restore = c => ctx.W.update('clients/' + c.id, {archived: false, archivedAt: null, archivedBy: null, updated: Date.now()}).then(() => M.toast('Back in Clients')).catch(() => {});
-    return html`<${UI.Card} id="archived-clients" title="Archived clients" action=${html`<span class="tiny ink62 num">${list.length}</span>`}>
+    return html`<${UI.Card} id="archived-clients" title="Archived clients" action=${html`<${Count} n=${list.length}/>`}>
       ${list.length ? html`<div class="stack tight">
         ${list.map(c => html`<div key=${c.id} class="row between brk-row" id=${'arch-' + c.id}>
           <div class="grow" style=${{minWidth: 0}}><div>${c.name}</div><div class="tiny ink62">archived ${c.archivedAt ? U.timeAgo(c.archivedAt) : ''}${c.archivedBy ? html` by <${UI.Name} id=${c.archivedBy}/>` : ''}</div></div>
           <${UI.Btn} sm=${true} kind="sec" onClick=${() => restore(c)}>Restore<//>
         </div>`)}
-      </div>` : html`<div class="small ink62">Nothing archived. A client is archived from its page once nothing open points at it; its history stays.</div>`}
+      </div>` : html`<${Quiet}>Nothing archived. A client is archived from its page once nothing open points at it; its history stays.<//>`}
     <//>`;
   }
   M.superCards = (M.superCards || []).concat([TrashCard, ArchivedClientsCard]);

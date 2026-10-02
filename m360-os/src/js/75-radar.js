@@ -274,7 +274,7 @@
   }
 
   /* ---------- small parts ---------- */
-  const Chip = ({v, l, hot}) => html`<span class="chipline"><b class=${'num' + (hot ? ' flame-t' : '')}>${v}</b> ${l}</span>`;
+  const Chip = ({v, l, hot}) => html`<span class="chipline"><b class=${'num' + (hot ? ' flame-t' : '')}><${M.fx.MetalText} size=${15} weight=${700} color=${hot ? M.fx.FLAME : undefined}>${String(v)}<//></b> ${l}</span>`;
   const NewTab = ({href, children, className}) => html`<a class=${className} href=${safeUrl(href) || '#'} target="_blank" rel="noopener">${children}</a>`;
 
   /* the claude.ai copy cannot fetch: say so once, in ink */
@@ -297,14 +297,14 @@
       {signal: o.signal, onText: o.onText, tier: 'quick', cache: false}));
     const busy = r.state === 'thinking' || r.state === 'streaming';
     return html`<${React.Fragment}>
-      <button type="button" class="btn ghost sm" disabled=${busy} onClick=${go}><span class="spark">${SPARK}</span> ${busy ? 'Thinking' : (r.text ? 'Ask again' : 'Why it matters')}</button>
+      <button type="button" class="btn ghost sm" disabled=${busy} onClick=${go}>${busy ? html`<${M.fx.Orb} state="composing" size=${20} label="writing"/>` : html`<span class="spark">${SPARK}</span>`} ${busy ? 'Thinking' : (r.text ? 'Ask again' : 'Why it matters')}</button>
       ${r.text ? html`<div class="rd-why small"><${M.AIText} text=${r.text}/></div>` : null}
       ${r.state === 'error' ? html`<div class="tiny flame-t" style=${{width: '100%'}}>${M.ai.errCopy(r.err)}</div>` : null}
     <//>`;
   }
 
   /* ---------- one story ---------- */
-  function NewsItem({it, saved, names}) {
+  function NewsItem({it, saved, names, top}) {
     const ctx = M.useCtx();
     const [busy, setBusy] = useState('');
     const src = it.source || (names && names[it.sourceId]) || hostOf(it.link) || 'source';
@@ -315,6 +315,7 @@
         ${it.lane && LANE_LABEL[it.lane] ? html`<${UI.Pill} kind="ink">${LANE_LABEL[it.lane]}<//>` : null}
         ${it.india === false ? html`<${UI.Pill}>world<//>` : null}
         <span class="tiny sub num">${U.timeAgo(it.at)}</span>
+        ${it.hot ? html`<${M.fx.MetalBadge}>hot<//>` : top && it.at && Date.now() - it.at < 3 * 3600000 ? html`<${M.fx.MetalBadge}>new<//>` : null}
         ${(it.hits || []).map(k => html`<${UI.Pill} key=${k} kind="flame-o">${k}<//>`)}
         ${it.saved ? html`<${UI.Pill} kind="warm">saved ${U.timeAgo(it.savedAt)}<//>` : null}
       </div>
@@ -348,16 +349,18 @@
       if (typeof out === 'string' && out) M.prefs.set('radar.brief', JSON.stringify({date: today, text: out}));
     }
     const busy = r.state === 'thinking' || r.state === 'streaming';
-    return html`<section class="ai-card" id="radar-brief">
-      <div class="row between">
+    const btn = html`<button type="button" class=${'btn sm' + (text ? ' sec' : '')} disabled=${busy || !top.length} onClick=${go}>${busy ? html`<${M.Thinking} state="composing"/>` : html`<span class="spark">${SPARK}</span> ${text ? 'Write it again' : 'What moved this week'}`}</button>`;
+    return html`<${M.fx.Beam}><section class="ai-card" id="radar-brief">
+      <div class="row between ai-head">
+        <${M.fx.Bot} feature="radar" state=${busy ? 'working' : 'default'} size=${36} label="m360, the radar brief" className="ai-bot"/>
         <div class="grow"><${UI.Micro}>m360 ai<//><div class="card-title" style=${{marginTop: '4px'}}>Radar brief</div></div>
-        <button type="button" class=${'btn sm' + (text ? ' sec' : '')} disabled=${busy || !top.length} onClick=${go}>${busy ? html`<${M.Thinking}/>` : html`<span class="spark">${SPARK}</span> ${text ? 'Write it again' : 'What moved this week'}`}</button>
+        ${text ? btn : html`<${M.fx.Metal} kind="ink">${btn}<//>`}
       </div>
       <div style=${{marginTop: '12px'}}>
         ${text ? html`<${M.AIText} text=${text}/>` : html`<div class="small" style=${{fontWeight: 500}}>Five bullets on the top ${Math.min(12, top.length) || 12} stories and what each one means for us. Written once a day, cached on this device.</div>`}
         ${r.state === 'error' ? html`<div class="small flame-t" style=${{marginTop: '8px'}}>${M.ai.errCopy(r.err)}</div>` : null}
       </div>
-    </section>`;
+    </section><//>`;
   }
 
   /* ---------- News ---------- */
@@ -396,6 +399,7 @@
       <div class="row between">
         <div class="grow" style=${{maxWidth: '360px'}}><${UI.Input} id="radar-search" value=${q} onChange=${setQ} placeholder="Search the stream"/></div>
         ${isLive ? html`<div class="row nowrap" style=${{gap: '10px'}}>
+          ${busy ? html`<${M.fx.Orb} state="searching" size=${20} label="fetching"/>` : null}
           <span class="tiny sub num" id="radar-updated">${news.data && news.data.at ? 'updated ' + U.timeAgo(news.data.at) : (busy ? 'fetching' : '')}${news.data && news.data.stale ? ', feeds slow' : ''}</span>
           <${UI.Btn} kind="sec" sm disabled=${busy} onClick=${() => news.load({force: true})} id="radar-refresh">${busy ? 'Refreshing' : 'Refresh'}<//>
         </div>` : null}
@@ -403,7 +407,9 @@
       ${errors.length ? html`<div class="tiny ink62" id="radar-errors">${errors.length} ${errors.length === 1 ? 'source' : 'sources'} did not answer: ${errors.map(e => names[e.id] || e.id).join(', ')}.</div>` : null}
       ${news.state === 'error' ? html`<div class="small flame-t">The stream did not load: ${news.err}. Tap Refresh to try again.</div>` : null}
       ${isLive || chip === 'saved' ? html`<div class="stack" id="radar-stream">
-        ${shown.length ? shown.map(it => html`<${NewsItem} key=${it.id} it=${it} saved=${!!saved[it.id]} names=${names}/>`)
+        ${shown.length ? shown.map((it, i) => it.hot && shown.findIndex(x => x.hot) === i
+            ? html`<${M.fx.Beam} key=${it.id}><${NewsItem} it=${it} saved=${!!saved[it.id]} names=${names} top=${i < 4}/><//>`
+            : html`<${NewsItem} key=${it.id} it=${it} saved=${!!saved[it.id]} names=${names} top=${i < 4}/>`)
           : html`<${UI.Empty} text=${busy ? 'Fetching the stream.' : needle ? 'Nothing matches that search.' : chip === 'saved' ? 'Nothing saved yet. Save a story from the stream.' : chip === 'hot' ? (keywords.length ? 'No story matches your watch keywords right now.' : 'Add watch keywords in Admin to light up stories here.') : laneEmpty || (chip === 'world' ? 'Nothing from outside India right now.' : 'Nothing in the stream yet.')}/>`}
       </div>` : html`<${UI.Card} title="Sources" id="radar-sources">
         <div class="stack tight">${dir.map(s => html`<div class="listrow" key=${s.id}>
@@ -519,6 +525,7 @@
           <${UI.Btn} kind="sec" disabled=${busy || !add.trim()} onClick=${submit} id="radar-channel-go">${canEdit ? 'Add a channel' : 'Suggest a channel'}<//>
         </div>
         ${isLive ? html`<div class="row nowrap" style=${{gap: '10px'}}>
+          ${busyList ? html`<${M.fx.Orb} state="searching" size=${20} label="fetching"/>` : null}
           <span class="tiny sub num">${channels.data && channels.data.at ? 'updated ' + U.timeAgo(channels.data.at) : (busyList ? 'fetching' : '')}</span>
           <${UI.Btn} kind="sec" sm disabled=${busyList} onClick=${() => channels.load({force: true})}>${busyList ? 'Refreshing' : 'Refresh'}<//>
         </div>` : null}

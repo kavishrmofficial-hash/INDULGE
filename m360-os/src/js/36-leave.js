@@ -60,7 +60,10 @@
 
   /* ---------- small parts ---------- */
   const TypePill = ({t}) => html`<${UI.Pill}>${(TYPE_LABEL[t] || 'Other').toLowerCase()}<//>`;
-  const StatusPill = ({s}) => html`<${UI.Pill} kind=${STATUS_KIND[s] || 'flame-o'}>${s}<//>`;
+  /* approved is cast in metal; the pill class stays on its holder so the status reads the same everywhere */
+  const StatusPill = ({s}) => s === 'approved'
+    ? html`<span class="pill ink metal-pill"><${M.fx.MetalBadge} className="fit">${s}<//></span>`
+    : html`<${UI.Pill} kind=${STATUS_KIND[s] || 'flame-o'}>${s}<//>`;
   const ReqLine = ({req, tail}) => {
     const n = dayCount(req);
     return html`<div class="sub small num">${rangeText(req)}${n ? ' · ' + dayText(n) : ''}${tail ? ' · ' + tail : ''}</div>`;
@@ -81,7 +84,8 @@
         .catch(() => {})
         .then(() => setBusy(null));
     };
-    return html`<${UI.Card} title="Approvals" id="leave-approvals"
+    /* a short queue of decisions carries the beam; a long one holds still */
+    return html`<${M.fx.Beam} on=${list.length > 0 && list.length <= 3}><${UI.Card} title="Approvals" id="leave-approvals"
         action=${list.length ? html`<${UI.Pill} kind="flame-o">${list.length} pending<//>` : null}>
       ${list.length ? list.map(({uid, req}) => html`<div class="listrow" key=${uid + ':' + req.id}>
         <div class="row between grow">
@@ -98,7 +102,7 @@
           </div>
         </div>
       </div>`) : html`<${UI.Empty} text="No leave requests waiting."/>`}
-    <//>`;
+    <//><//>`;
   }
 
   /* ---------- page ---------- */
@@ -141,7 +145,7 @@
       <${UI.PageHead} micro="team" title="Leave"/>
       ${ctx.isFounder && Approvals ? html`<${Approvals}/>` : null}
       <div class="grid2">
-        <${UI.Card} title="Request leave" id="leave-request">
+        <${M.fx.Beam}><${UI.Card} title="Request leave" id="leave-request">
           ${probation ? html`<div class="row nowrap small" style=${{alignItems: 'flex-start', marginBottom: '12px'}}>
             <span class="dotflame" style=${{marginTop: '7px'}}/>
             <span>You're in probation until ${U.fmtDate(probation)}. Leave in probation is loss of pay.</span>
@@ -157,7 +161,7 @@
             </div>
             <div class="sub small">Details go to Kaavish directly.</div>
           </div>
-        <//>
+        <//><//>
         <${UI.Card} title="Your requests" id="leave-mine">
           ${mine.length ? mine.map(r => {
             const s = statusOf(ctx, uid, r.id);

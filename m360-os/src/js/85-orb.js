@@ -79,7 +79,7 @@
     const PendingActs = M.parts.PendingActs;
     return html`<div class="orb-screen" role="dialog" aria-label="Ask m360" id="orb-screen" data-mode=${mode}>
       <div class="orb-top">
-        <span class="micro">${micro}</span>
+        <span class="row nowrap" style=${{gap: '8px'}}><${M.fx.Bot} feature="buddy" state=${mode === 'thinking' ? 'working' : 'default'} size=${28} label="m360" className="ai-bot"/><span class="micro">${micro}</span></span>
         <button type="button" class="iconbtn" aria-label="Close" onClick=${onClose}><${M.icons.x}/></button>
       </div>
       <div class="orb-stage">
@@ -104,7 +104,7 @@
       <div class="orb-foot">
         ${typing || mode === 'asking' || mode === 'answer' ? html`<input id="orb-input" class="input" value=${q} placeholder="Or type it" aria-label="Ask m360" autoFocus=${mode === 'asking'}
           onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter' && q.trim()) onAsk(q); }}/>
-        <button type="button" class="btn" disabled=${!q.trim()} onClick=${() => onAsk(q)}>Ask</button>` : html`<button type="button" class="btn sec" style=${{flex: '1 1 auto'}} onClick=${() => setTyping(true)}><${MicIcon}/> Type it</button>`}
+        <${M.fx.Metal} kind="ink"><button type="button" class="btn" disabled=${!q.trim()} onClick=${() => onAsk(q)}>Ask</button><//>` : html`<button type="button" class="btn sec" style=${{flex: '1 1 auto'}} onClick=${() => setTyping(true)}><${MicIcon}/> Type it</button>`}
       </div>
     </div>`;
   }

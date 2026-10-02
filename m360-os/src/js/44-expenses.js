@@ -6,6 +6,8 @@
 'use strict';
 (function () {
   const {html, React, U, UI, icons} = M;
+  /* a number in metal (metal-fx MetalText); a quiet copy of the text holds its place while the metal readies */
+  const MetalNum = ({children, size, weight, color}) => html`<span class="fx-num"><span class="fx-num-copy" aria-hidden="true">${children}</span><${M.fx.MetalText} size=${size} weight=${weight} color=${color}>${children}<//></span>`;
   const {useState, useEffect, useMemo, useRef} = React;
 
   const CATS = ['Salaries', 'Rent', 'Software and tools', 'Freelancers', 'Production', 'Travel', 'Meals and client', 'Marketing', 'Professional fees', 'Bank and taxes', 'Equipment', 'Other'];
@@ -586,7 +588,7 @@
     };
     const total = picked.reduce((s, l) => s + l.amount, 0);
     const pickBtn = html`<label class="btn sec sm">Choose a file<input type="file" id="exp-import-file" accept=".csv,.xlsx,.xlsm,.pdf,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style=${{display: 'none'}} onChange=${pick}/></label>`;
-    return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Upload a bank statement"
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Upload a bank statement" head=${M.fx ? html`<span class="fx-head-bot"><${M.fx.Bot} feature="books" state=${st === 'busy' ? 'working' : 'default'} size=${28} label=${st === 'busy' ? 'm360, reading' : 'm360 books'}/></span>` : null}
       footer=${st === 'review' ? html`<div class="row between grow"><span class="small ink62">${picked.length} ticked, <span class="num">${U.inr(total)}</span></span><${UI.Btn} id="exp-import-save" disabled=${!picked.length || busy} onClick=${save}>Add ${picked.length} ${picked.length === 1 ? 'expense' : 'expenses'}<//></div>` : html`<${UI.Btn} kind="sec" onClick=${onClose}>Close<//>`}>
       <div class="stack" id="exp-import-drawer">
         ${st === 'pick' ? html`<div class="stack tight">
@@ -595,7 +597,7 @@
           ${note ? html`<div class="small flame-t">${note}</div>` : null}
           <div class="tiny ink62">Money out becomes expenses. Money in is listed apart and never added. A line already in the books stays unticked.</div>
         </div>` : null}
-        ${st === 'busy' ? html`<div class="small ink62">Reading the statement</div>` : null}
+        ${st === 'busy' ? html`<div class="small ink62 row nowrap" style=${{gap: '8px'}}>${M.fx ? html`<${M.fx.Orb} state="searching" size=${20} label="reading"/>` : null}<span>Reading the statement</span></div>` : null}
         ${st === 'review' ? html`<div class="stack tight">
           <div class="row between"><span class="small">${lines.length} ${lines.length === 1 ? 'payment' : 'payments'} found. Untick what should stay out.</span>${pickBtn}</div>
           ${note ? html`<div class="tiny ink62">${note}</div>` : null}
@@ -667,7 +669,7 @@
       <div class="grid2">
         <${UI.Card} title="By category" id="exp-cats">
           ${cats.length ? cats.map(c => html`<div class="listrow" key=${c}><span class="grow">${c}</span><span class="num" style=${{fontWeight: 500}}>${U.inr(byCat[c])}</span></div>`) : html`<${UI.Empty} text="Nothing saved this month yet. Salaries land here from a closed payroll run; rent and tools can repeat every month."/>`}
-          ${cats.length ? html`<div class="listrow"><b class="grow">Total</b><b class="num">${U.inr(Object.values(byCat).reduce((s, v) => s + v, 0))}</b></div>` : null}
+          ${cats.length ? html`<div class="listrow"><b class="grow">Total</b>${M.fx ? html`<${MetalNum} size=${22} weight=${600}>${U.inr(Object.values(byCat).reduce((s, v) => s + v, 0))}<//>` : html`<b class="num">${U.inr(Object.values(byCat).reduce((s, v) => s + v, 0))}</b>`}</div>` : null}
         <//>
         <${UI.Card} title="Three ways in">
           <div class="listrow"><span class="grow small"><b>Type it.</b> The sheet above takes rows straight in. Tab moves right, Enter moves down, Escape puts a cell back.</span></div>

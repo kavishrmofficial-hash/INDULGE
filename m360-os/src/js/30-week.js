@@ -94,7 +94,7 @@
       M.toast('Review saved');
     }
 
-    return html`<${UI.Card} title=${html`<${UI.Name} id=${uid}/>`}>
+    const card = html`<${UI.Card} title=${html`<${UI.Name} id=${uid}/>`}>
       ${items.length ? html`<div class="stack tight">
         ${items.map(it => html`<div class="listrow" key=${it.id}>
           <span class="grow">${it.text}</span>
@@ -118,6 +118,8 @@
         ${rev.note ? html`<div class="small">${rev.note}</div>` : null}
       </div>` : null)}
     <//>`;
+    /* your own outcomes card carries the beam: the one card on this page that is yours to act on */
+    return mine ? html`<${M.fx.Beam}>${card}<//>` : card;
   }
 
   function Week() {
@@ -130,14 +132,16 @@
     const days = U.weekDays(monday);
     const range = U.fmtDate(days[0]) + ' to ' + U.fmtDate(days[5]);
 
+    /* the arrows are metal while they lead somewhere; next stays plain on the current week */
+    const next = html`<button type="button" class="iconbtn" aria-label="Next week" disabled=${offset >= 0}
+            style=${offset >= 0 ? {opacity: .35, pointerEvents: 'none'} : null}
+            onClick=${() => setOffset(o => Math.min(0, o + 1))}><${icons.chevR}/></button>`;
     return html`<div class="stack" style=${{gap: '18px'}}>
       <${UI.PageHead} micro=${weekId.toLowerCase() + ', ' + range.toLowerCase()} title="The week">
         <div class="row nowrap">
-          <button type="button" class="iconbtn" aria-label="Previous week" onClick=${() => setOffset(o => o - 1)}><${icons.chevL}/></button>
+          <${M.fx.Metal} kind="ink" circle=${true}><button type="button" class="iconbtn" aria-label="Previous week" onClick=${() => setOffset(o => o - 1)}><${icons.chevL}/></button><//>
           <${UI.Btn} kind="sec" sm=${true} onClick=${() => setOffset(0)}>This week<//>
-          <button type="button" class="iconbtn" aria-label="Next week" disabled=${offset >= 0}
-            style=${offset >= 0 ? {opacity: .35, pointerEvents: 'none'} : null}
-            onClick=${() => setOffset(o => Math.min(0, o + 1))}><${icons.chevR}/></button>
+          ${offset < 0 ? html`<${M.fx.Metal} kind="ink" circle=${true}>${next}<//>` : next}
         </div>
       <//>
 

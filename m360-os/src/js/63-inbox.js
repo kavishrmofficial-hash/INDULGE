@@ -133,8 +133,14 @@
       /* seen up to now, or up to the newest item when a teammate's clock runs ahead of this device */
       if (list.some(i => i.at > seen)) ctx.W.merge('me/' + ctx.uid, {inboxSeen: Math.max(Date.now(), ...list.map(i => Number(i.at) || 0))}).catch(() => {});
     }, []);
-    return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Inbox">
-      ${list.length ? html`<div class="stack" style=${{gap: 0}}>
+    const fresh = list.filter(i => i.at > was).length;
+    const loading = !ctx.ready;
+    const head = M.fx ? html`<span class="row nowrap fx-inbox-head" id="inbox-fx">
+      ${fresh ? html`<${M.fx.MetalBadge}>${fresh + ' new'}<//>` : null}
+      <${M.fx.Bot} feature="brief" state=${loading ? 'working' : fresh ? 'default' : 'sleeping'} size=${30} label="m360 inbox"/>
+    </span>` : null;
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Inbox" head=${head}>
+      ${loading && !list.length ? html`<${UI.Empty} text="Loading your inbox"/>` : list.length ? html`<div class="stack" style=${{gap: 0}}>
         ${list.map(i => html`<button type="button" key=${i.id} class=${'inbox-item' + (i.at > was ? ' unread' : '')} onClick=${() => { onClose(); M.nav(i.ref); }}>
           ${i.actor ? html`<${UI.Avatar} id=${i.actor} size=${34}/>` : html`<span class=${'inbox-kind' + (i.hot ? ' hot' : '')}><${icons[KIND_ICON[i.kind]] || icons.feed}/></span>`}
           <span class="grow">

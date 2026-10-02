@@ -272,7 +272,7 @@
             : html`<${UI.Btn} sm=${true} onClick=${copy} id=${'hs-copy-' + p.id}>Copy<//>
               ${p.state !== 'sent' ? html`<${UI.Btn} sm=${true} kind="sec" id=${'hs-sent-' + p.id} onClick=${() => patch({state: 'sent', sentAt: Date.now()})}>Sent<//>` : html`<span class="tiny ink62">sent ${U.fmtDay(U.ymd(new Date(p.sentAt || 0)))}</span>`}
               <button type="button" class="linky tiny" onClick=${() => setEdit(true)}>Edit</button>
-              <button type="button" class="linky tiny" disabled=${busy === 'rewrite'} onClick=${rewrite}>${busy === 'rewrite' ? 'Writing' : 'Rewrite'}</button>
+              ${busy === 'rewrite' ? html`<${M.fx.Orb} state="composing" size=${20} label="writing"/>` : null}<button type="button" class="linky tiny" disabled=${busy === 'rewrite'} onClick=${rewrite}>${busy === 'rewrite' ? 'Writing' : 'Rewrite'}</button>
               ${p.state !== 'skipped' && p.state !== 'sent' ? html`<button type="button" class="linky tiny" onClick=${() => patch({state: 'skipped', skip: 'skipped by hand'})}>Skip</button>` : null}`}
         </div>
       </div>` : null}
@@ -307,7 +307,7 @@
       } catch (e) { M.toast((e && e.message) || 'The desk could not read that', true); }
       setBusy('');
     };
-    return html`<${UI.Card} id="hs-intake" title="Intake">
+    return html`<${UI.Card} id="hs-intake" title="Intake" action=${html`<${M.fx.Bot} feature="handshake" state=${busy ? 'working' : 'default'} size=${36} label="m360, the handshake desk" className="ai-bot"/>`}>
       <div class="stack tight">
         <div class="small ink62">${canImg ? 'Drop the LinkedIn screenshots here, or paste lines: Name | headline | company | pending or 1st.' : 'Paste one person per line: Name | headline | company | pending or 1st. Screenshots need a build that takes images.'}</div>
         ${canImg ? html`<div class="row" style=${{gap: '8px', flexWrap: 'wrap'}}>
@@ -315,10 +315,10 @@
           <${UI.Btn} kind="sec" sm=${true} onClick=${() => fileRef.current && fileRef.current.click()}><${icons.upload}/> Screenshots<//>
           ${imgs.map((im, i) => html`<span key=${i} class="ask-thumb"><img src=${im.url} alt="screenshot"/><button type="button" class="iconbtn" aria-label="Remove" onClick=${() => setImgs(xs => xs.filter((_, j) => j !== i))}><${icons.x}/></button></span>`)}
         </div>` : null}
-        <textarea class="input" rows="4" id="hs-lines" placeholder="Priya Mehta | Brand Manager at DERMATOUCH | Dermatouch | 1st" value=${text} onInput=${e => setText(e.target.value)} onPaste=${e => { const fs = Array.from((e.clipboardData && e.clipboardData.files) || []).filter(f => /^image\//.test(f.type)); if (fs.length && canImg) { e.preventDefault(); attach(fs); } }} aria-label="People, one per line"/>
+        <${M.fx.Beam} radius=${12} size="sm"><textarea class="input" rows="4" id="hs-lines" placeholder="Priya Mehta | Brand Manager at DERMATOUCH | Dermatouch | 1st" value=${text} onInput=${e => setText(e.target.value)} onPaste=${e => { const fs = Array.from((e.clipboardData && e.clipboardData.files) || []).filter(f => /^image\//.test(f.type)); if (fs.length && canImg) { e.preventDefault(); attach(fs); } }} aria-label="People, one per line"/><//>
         <input class="input" id="hs-note" placeholder="A note for the writer, optional: who to hold, what to lead with" value=${note} onInput=${e => setNote(e.target.value)} aria-label="A note for the writer"/>
         <div class="row between">
-          <span class="tiny ink62">${busy || (last ? last.added.length + ' added' + (last.dupes.length ? ', skipped as already in: ' + last.dupes.join(', ') : '') : '')}</span>
+          <span class="tiny ink62 row nowrap" style=${{gap: '8px'}}>${busy ? html`<${M.fx.Orb} state=${/read/i.test(busy) ? 'searching' : 'composing'} size=${20} label="working"/>` : null}${busy || (last ? last.added.length + ' added' + (last.dupes.length ? ', skipped as already in: ' + last.dupes.join(', ') : '') : '')}</span>
           <${UI.Btn} id="hs-run" disabled=${!!busy || (!imgs.length && !text.trim()) || !M.ai.on(ctx)} onClick=${go}>${busy ? 'Working' : 'Read & write'}<//>
         </div>
       </div>
@@ -356,10 +356,10 @@
     <//>` : null;
     return html`<div class="stack" style=${{gap: '16px'}} id="handshake">
       <div class="row" style=${{gap: '8px', flexWrap: 'wrap'}}>
-        <span class="chipline"><b class="num">${ready.length}</b> ready</span>
+        <span class="chipline"><b class="num"><${M.fx.MetalText} size=${15} weight=${700} color=${ready.length ? M.fx.FLAME : undefined}>${String(ready.length)}<//></b> ready</span>
         <span class="chipline"><b class="num">${hold.length}</b> held</span>
         <span class="chipline"><b class="num">${waiting.length}</b> waiting on accepts</span>
-        <span class="chipline"><b class="num">${sent.length}</b> sent</span>
+        <span class="chipline"><b class="num"><${M.fx.MetalText} size=${15} weight=${700}>${String(sent.length)}<//></b> sent</span>
       </div>
       ${!M.ai.on(ctx) ? html`<div class="hint">The desk writes with m360 ai. Turn it on in Admin.</div>` : null}
       <${Intake} ctx=${ctx}/>

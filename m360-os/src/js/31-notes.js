@@ -40,11 +40,12 @@
 
     const list = html`<aside class="notes-list" id="notes-list">
       <div class="row nowrap" style=${{gap: '6px'}}>
-        <input id="notes-q" class="input grow" placeholder="Find a note" value=${q} onInput=${e => setQ(e.target.value)} aria-label="Find a note"/>
+        ${M.fx ? html`<span class="grow fx-notes-q"><${M.fx.Beam} radius=${12} size="sm"><input id="notes-q" class="input" placeholder="Find a note" value=${q} onInput=${e => setQ(e.target.value)} aria-label="Find a note"/><//></span>`
+          : html`<input id="notes-q" class="input grow" placeholder="Find a note" value=${q} onInput=${e => setQ(e.target.value)} aria-label="Find a note"/>`}
         <${UI.Btn} sm=${true} id="notes-new" onClick=${make}>New<//>
       </div>
       <div class="stack tight" style=${{marginTop: '8px'}}>
-        ${!idx.ready ? html`<${M.Thinking} label="Opening your notes"/>` : !shown.length ? html`<div class="small ink62" style=${{padding: '8px 2px'}}>${ids.length ? 'No note matches.' : 'Nothing here yet. Your notes are yours alone.'}</div>`
+        ${!idx.ready ? html`<${M.Thinking} label="Opening your notes" state="searching"/>` : !shown.length ? html`<div class="small ink62" style=${{padding: '8px 2px'}}>${ids.length ? 'No note matches.' : 'Nothing here yet. Your notes are yours alone.'}</div>`
           : shown.map(id => html`<button key=${id} type="button" class=${'note-row' + (id === cur ? ' active' : '')} onClick=${() => { setCur(id); setListOpen(false); }}>
             <span class="grow" style=${{minWidth: 0}}><span class="note-title">${items[id].pinned ? html`<span class="note-pinned">pinned</span>` : null}${items[id].title || 'Untitled'}</span>
               <span class="tiny ink62">${items[id].updated ? U.timeAgo(items[id].updated) : ''}</span></span>
@@ -88,6 +89,7 @@
       <div class="row between nowrap note-head">
         <div class="row nowrap" style=${{gap: '8px', minWidth: 0}}>
           ${onBack ? html`<button type="button" class="iconbtn" aria-label="All notes" onClick=${onBack}><${icons.more}/></button>` : null}
+          ${M.fx ? html`<${M.fx.Bot} feature="notes" state=${dirty.current ? 'working' : 'default'} size=${26} label=${dirty.current ? 'm360, saving' : 'm360 notes'}/>` : null}
           <span class="small ink62">${saved ? 'Saved ' + saved : dirty.current ? 'Saving' : 'Only you can read this'}${meta.updated ? ' · ' + U.timeAgo(meta.updated) : ''}</span>
         </div>
         <span class="row nowrap" style=${{gap: '6px'}}>

@@ -175,6 +175,9 @@
     const [pending, setPending] = useState([]);      /* files picked, not sent yet */
     const [busy, setBusy] = useState('');            /* 'Uploading 1 of 2' while sending */
     const [over, setOver] = useState(false);
+    /* every room message as a notice: the same noticeAll preference Settings holds */
+    const [hearAll, setHearAll] = useState(() => M.prefs.get('noticeAll', '0') === '1');
+    const setNoticeAll = on => { M.prefs.set('noticeAll', on ? '1' : '0'); setHearAll(!!on); };
     const endRef = useRef(null);
     const boxRef = useRef(null);
     const fileRef = useRef(null);
@@ -285,7 +288,10 @@
           <div style=${{minWidth: 0}}><div style=${{fontWeight: 600, fontSize: '17px', letterSpacing: '-.01em'}} id="chat-title">${title}</div>
             ${roomMeta && roomMeta.topic ? html`<div class="tiny ink62">${roomMeta.topic}</div>` : isDm(room) ? html`<div class="tiny ink62">${isOn(dmOther(room, uid)) ? 'online now' : 'direct message, only the two of you'}</div>` : html`<div class="tiny ink62">the whole team</div>`}</div>
         </div>
-        ${canNotify ? html`<button type="button" class="linky tiny" id="chat-notify" onClick=${askNotify}>Turn on notices</button>` : null}
+        <div class="row nowrap chat-head-tools">
+          ${canNotify ? html`<button type="button" class="linky tiny" id="chat-notify" onClick=${askNotify}>Turn on notices</button>` : null}
+          ${M.fx.Bell ? html`<${M.fx.Bell} id="chat-bell" size="sm" offLabel="Every message" onLabel="Every message on" pressed=${hearAll} onChange=${setNoticeAll}/>` : null}
+        </div>
       </div>
       <div class="chat-scroll" id="chat-scroll">
         ${rows.length ? rows : html`<div class="chat-empty"><${UI.Empty} text=${isDm(room) ? 'Say hi. Only ' + nameOf(dmOther(room, uid)) + ' and you see this.' : 'Nothing here yet. Start the room.'}/></div>`}
@@ -294,12 +300,12 @@
       <div class="chat-composer">
         ${editing ? html`<div class="tiny ink62" style=${{marginBottom: '4px'}}>Editing. Escape to stop.</div>` : null}
         ${pending.length ? html`<div class="chat-attach" id="chat-attach">${pending.map((f, i) => html`<span key=${i} class="chip"><span class="chat-file-name">${f.name}</span><span class="tiny ink62"> ${fmtSize(f.size)}</span><button type="button" class="chip-x" aria-label=${'Remove ' + f.name} onClick=${() => setPending(p => p.filter((_, k) => k !== i))}><${icons.x}/></button></span>`)}</div>` : null}
-        ${busy ? html`<div class="tiny ink62" id="chat-busy" style=${{marginBottom: '4px'}}>${busy}</div>` : null}
+        ${busy ? html`<div class="tiny ink62 row nowrap" id="chat-busy" style=${{marginBottom: '4px', gap: '6px'}}><${M.fx.Orb} state="connecting" size=${20}/><span>${busy}</span></div>` : null}
         <div class="row nowrap" style=${{gap: '8px', alignItems: 'flex-end'}}>
           <input ref=${fileRef} type="file" id="chat-file" multiple style=${{display: 'none'}} onChange=${e => { pick(e.target.files); e.target.value = ''; }} aria-label="Attach files"/>
-          <button type="button" class="iconbtn" id="chat-attach-btn" aria-label="Attach a file" title="Attach any file, up to 25 MB" disabled=${!!busy || !!editing} onClick=${() => fileRef.current && fileRef.current.click()}><${icons.plus}/></button>
-          <textarea ref=${boxRef} id="chat-input" class="input grow" rows=${1} placeholder=${phone ? 'Message ' + title : 'Message ' + title + '. @ a name, or @everyone. Drop or paste files here'} value=${text}
-            onInput=${e => setText(e.target.value)} onKeyDown=${onKey} onPaste=${onPaste} aria-label="Message"/>
+          <${M.fx.Metal} kind="ink" circle=${true}><button type="button" class="iconbtn" id="chat-attach-btn" aria-label="Attach a file" title="Attach any file, up to 25 MB" disabled=${!!busy || !!editing} onClick=${() => fileRef.current && fileRef.current.click()}><${icons.plus}/></button><//>
+          <div class="grow chat-input-wrap"><${M.fx.Beam} radius=${12}><textarea ref=${boxRef} id="chat-input" class="input grow" rows=${1} placeholder=${phone ? 'Message ' + title : 'Message ' + title + '. @ a name, or @everyone. Drop or paste files here'} value=${text}
+            onInput=${e => setText(e.target.value)} onKeyDown=${onKey} onPaste=${onPaste} aria-label="Message"/><//></div>
           <${UI.Btn} id="chat-send" disabled=${(!text.trim() && !pending.length) || !!busy} onClick=${go}>${editing ? 'Save' : 'Send'}<//>
         </div>
       </div>

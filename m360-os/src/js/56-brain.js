@@ -102,14 +102,16 @@
     useEffect(() => { const f = () => setN(x => x + 1); pending.subs.add(f); return () => { pending.subs.delete(f); }; }, []);
     if (!pending.list.length) return null;
     return html`<div class="stack tight pending-acts" data-n=${n}>
-      ${pending.list.map(p => html`<div key=${p.id} class="pending-act">
+      ${pending.list.map((p, i) => { const act = html`<div key=${p.id} class="pending-act">
         <div class="small" style=${{fontWeight: 600}}>${p.label}</div>
         ${p.detail ? html`<div class="tiny clamp3">${p.detail}</div>` : null}
         <div class="row" style=${{gap: '8px', marginTop: '6px'}}>
-          <button type="button" class="btn sm" onClick=${() => approve(p.id)}>${p.label}</button>
+          <${M.fx.Metal} kind="ink"><button type="button" class="btn sm" onClick=${() => approve(p.id)}>${p.label}</button><//>
           <button type="button" class="linky tiny" onClick=${() => drop(p.id)}>Skip</button>
         </div>
-      </div>`)}
+      </div>`;
+        /* the first act waiting on a tap rides the beam */
+        return i === 0 ? html`<${M.fx.Beam} key=${p.id} radius=${12} size="sm">${act}<//>` : act; })}
     </div>`;
   }
 
@@ -961,12 +963,14 @@
     const [busy, setBusy] = useState('');
     if (!M.ai.on(ctx)) return null;
     const drop = async t => { setBusy(t); try { await forget(ctx, t); } catch (e) { /* gone already */ } setBusy(''); };
-    return html`<${UI.Card} id="buddy-prefs" title="The buddy">
+    const setHelloOn = on => { M.prefs.set('buddyHello', on ? '1' : '0'); setHello(on); };
+    return html`<${UI.Card} id="buddy-prefs" title="The buddy" action=${html`<${M.fx.Bot} feature="buddy" size=${32} label="m360, the buddy" className="ai-bot"/>`}>
       <div class="stack tight">
         <div class="row between">
           <span>Says hello once a day</span>
-          <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${hello ? 'on' : 'off'} ariaLabel="Buddy hello"
-            onChange=${v => { M.prefs.set('buddyHello', v === 'on' ? '1' : '0'); setHello(v === 'on'); }}/>
+          ${M.fx.has() || M.parts.BellToggle ? html`<${M.fx.Bell} id="buddy-hello-bell" size="sm" label="Buddy hello" offLabel="Say hello" onLabel="Says hello daily" pressed=${hello} onChange=${setHelloOn}/>`
+            : html`<${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${hello ? 'on' : 'off'} ariaLabel="Buddy hello"
+            onChange=${v => setHelloOn(v === 'on')}/>`}
         </div>
         <div class="row between">
           <span>Keeps listening after it answers out loud</span>
@@ -974,7 +978,7 @@
             onChange=${v => { M.prefs.set('buddyFollow', v === 'on' ? '1' : '0'); setFollow(v === 'on'); }}/>
         </div>
         <div class="stack tight" style=${{marginTop: '4px'}}>
-          <div class="row between"><span>What it remembers about you</span><span class="tiny ink62">${items.length} of ${MEMORY_MAX}</span></div>
+          <div class="row between"><span class="row nowrap" style=${{gap: '8px'}}>${busy ? html`<${M.fx.Orb} state="weaving" size=${20} label="forgetting"/>` : null}What it remembers about you</span><span class="tiny ink62">${items.length} of ${MEMORY_MAX}</span></div>
           ${items.length ? items.slice().reverse().map(x => html`<div key=${x.t} class="row between memory-row">
             <span class="small grow">${x.t}</span>
             <button type="button" class="linky tiny" disabled=${busy === x.t} onClick=${() => drop(x.t)}>Forget</button>

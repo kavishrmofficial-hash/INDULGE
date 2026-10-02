@@ -71,7 +71,8 @@
     if (!uid || perm !== 'default' || gone) return null;
     const later = () => { M.prefs.set('notifyAsk.' + uid, '0'); setGone(true); };
     const on = () => M.notices.ask().then(p => { setPerm(p || 'denied'); M.toast(p === 'granted' ? 'Notifications are on' : 'Notifications stay off'); });
-    return html`<div class="card notify-card" id="notify-card">
+    const Beam = M.fx ? M.fx.Beam : ({children}) => children;
+    return html`<${Beam}><div class="card notify-card" id="notify-card">
       <div class="row between">
         <div class="grow" style=${{minWidth: 0}}>
           <div class="card-title">Get a bubble when something is for you</div>
@@ -83,7 +84,7 @@
           <${UI.Btn} kind="ghost" sm=${true} id="notify-later" onClick=${later}>Not now<//>
         </span>
       </div>
-    </div>`;
+    </div><//>`;
   }
   M.parts.NoticePermit = NoticePermit;
 })();

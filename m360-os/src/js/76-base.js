@@ -736,7 +736,7 @@
   }
 
   /* ---------- small parts ---------- */
-  const Mini = ({v, l, hot}) => html`<span class="chipline"><b class=${'num' + (hot ? ' flame-t' : '')}>${v}</b> ${l}</span>`;
+  const Mini = ({v, l, hot}) => html`<span class="chipline"><b class=${'num' + (hot ? ' flame-t' : '')}><${M.fx.MetalText} size=${15} weight=${700} color=${hot ? M.fx.FLAME : undefined}>${String(v)}<//></b> ${l}</span>`;
   const Chip = ({on, onClick, children, id}) => html`<button type="button" id=${id} class=${'chip' + (on ? ' on' : '')} aria-pressed=${!!on} onClick=${onClick}>${children}</button>`;
   const Initials = ({name, size}) => html`<span class="bs-av" style=${size ? {width: size + 'px', height: size + 'px'} : null} aria-hidden="true">${initials(name)}</span>`;
   const StagePill = ({stage}) => stage ? html`<${UI.Pill} kind=${STAGE_PILL[stage]}>${stage}<//>` : null;
@@ -791,16 +791,17 @@
       (c.notes ? 'NOTES: ' + String(c.notes).slice(0, 300) + '\n' : '') + 'STAGE: ' + (c.stage || 'none'),
       {signal: x.signal, onText: x.onText, tier: 'quick', cache: false}));
     const busy = r.state === 'thinking' || r.state === 'streaming';
-    return html`<div class="ai-card" id="contact-intro">
-      <div class="row between">
+    return html`<${M.fx.Beam}><div class="ai-card" id="contact-intro">
+      <div class="row between ai-head">
+        <${M.fx.Bot} feature="base" state=${busy ? 'working' : 'default'} size=${36} label="m360, the intro writer" className="ai-bot"/>
         <div class="grow"><${UI.Micro}>m360 ai<//><div class="card-title" style=${{marginTop: '4px'}}>Intro note</div></div>
-        <button type="button" class="btn sm" disabled=${busy} onClick=${go}>${busy ? html`<${M.Thinking}/>` : html`<span class="spark">✦</span> ${r.text ? 'Draft it again' : 'Draft an intro note'}`}</button>
+        <${M.fx.Metal} kind="ink"><button type="button" class="btn sm" disabled=${busy} onClick=${go}>${busy ? html`<${M.Thinking} state="composing"/>` : html`<span class="spark">✦</span> ${r.text ? 'Draft it again' : 'Draft an intro note'}`}</button><//>
       </div>
       ${r.text ? html`<div style=${{marginTop: '12px'}}><${M.AIText} text=${r.text}/>
         <button type="button" class="linky small" style=${{marginTop: '8px'}} onClick=${() => navigator.clipboard.writeText(r.text).then(() => M.toast('Copied'), () => M.toast('Copy is blocked here', true))}>Copy</button></div>`
-        : html`<div class="small ink62" style=${{marginTop: '8px'}}>${busy ? 'Reading this person and their company.' : 'Ninety words, in the agency voice, from what we know about them.'}</div>`}
+        : html`<div class="small ink62" style=${{marginTop: '8px'}}>${busy ? html`<span class="row nowrap ai-wait"><${M.fx.Orb} state="composing" size=${32} label="Drafting"/><span>Reading this person and their company.</span></span>` : 'Ninety words, in the agency voice, from what we know about them.'}</div>`}
       ${r.state === 'error' ? html`<div class="small flame-t" style=${{marginTop: '8px'}}>${M.ai.errCopy(r.err)}</div>` : null}
-    </div>`;
+    </div><//>`;
   }
 
   /* ---------- a company picker that searches, for the team site ---------- */
@@ -813,7 +814,7 @@
       ${value ? html`<div class="row nowrap" style=${{gap: '8px'}}><span class="pill ink" id="contact-org-picked">${name || value}</span><button type="button" class="linky small" onClick=${() => { onPick('', ''); setOpen(true); }}>Change</button></div>`
         : html`<input id="contact-org" class="input" placeholder="Type a company name" value=${q} onInput=${e => { setQ(e.target.value); setOpen(true); }} onFocus=${() => setOpen(true)} aria-label="Company"/>`}
       ${open && !value && q.trim() ? html`<div class="bs-orgpick-list" id="contact-org-list">
-        ${res.loading ? html`<div class="small ink62" style=${{padding: '6px 8px'}}>Looking</div>`
+        ${res.loading ? html`<div class="small ink62 row nowrap" style=${{padding: '6px 8px', gap: '8px'}}><${M.fx.Orb} state="searching" size=${20} label="searching"/><span>Looking</span></div>`
           : res.rows.length ? res.rows.map(o => html`<button type="button" key=${o.id} class="rowbtn listrow" onClick=${() => { onPick(o.id, o.name); setOpen(false); setQ(''); }}><span class="grow">${o.name}</span><span class="tiny ink62">${[o.domain, o.city].filter(Boolean).join(' · ')}</span></button>`)
           : html`<div class="small ink62" style=${{padding: '6px 8px'}}>No company by that name. Type it below and make a new one.</div>`}
       </div>` : null}
@@ -884,7 +885,7 @@
       try { await archive(ctx, 'contacts', id, !existing.archived); M.toast(existing.archived ? 'Restored' : 'Archived'); onClose(); } catch (e) { /* toasted */ }
     };
     if (!isNew && !existing) {
-      return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Person">${got.loading ? html`<${M.Thinking} label="Opening"/>` : html`<${UI.Empty} text="This person is gone."/>`}<//>`;
+      return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Person">${got.loading ? html`<${M.Thinking} label="Opening" state="connecting"/>` : html`<${UI.Empty} text="This person is gone."/>`}<//>`;
     }
     const canSave = isNew ? !!(norm.text(f.first + ' ' + f.last + ' ' + f.name) || norm.text(f['email'])) : true;
     const footer = html`<div class="row between grow">
@@ -1012,7 +1013,7 @@
       try { await archive(ctx, 'orgs', id, !existing.archived); M.toast(existing.archived ? 'Restored' : 'Archived'); onClose(); } catch (e) { /* toasted */ }
     };
     if (!isNew && !existing) {
-      return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Company">${got.loading ? html`<${M.Thinking} label="Opening"/>` : html`<${UI.Empty} text="This company is gone."/>`}<//>`;
+      return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Company">${got.loading ? html`<${M.Thinking} label="Opening" state="connecting"/>` : html`<${UI.Empty} text="This company is gone."/>`}<//>`;
     }
     const footer = html`<div class="row between grow">
       <div>${!isNew ? html`<${UI.ConfirmBtn} onConfirm=${doArchive}>${existing.archived ? 'Restore' : 'Archive'}<//>` : null}</div>
@@ -1115,10 +1116,10 @@
     const empty = !res.loading && !res.total && !dq && !fl.stage && !fl.mine && !fl.country && !fl.source && !fl.tag && !fl.archived;
     return html`<div class="stack" style=${{gap: '14px'}} id="base-people">
       <div class="row nowrap bs-searchrow">
-        <div class="grow bs-search">
+        <${M.fx.Beam} radius=${16} size="sm"><div class="grow bs-search">
           <${icons.search}/>
           <input id="base-q" class="input" type="search" placeholder="Search people and companies" value=${q} onInput=${e => setQ(e.target.value)} aria-label="Search people and companies"/>
-        </div>
+        </div><//>
         <${UI.Btn} id="base-add" onClick=${() => setDrawer('new')}><${icons.plus}/>Add a person<//>
       </div>
       <div class="bs-chips row">
@@ -1135,7 +1136,7 @@
       </div>` : null}
       <${UI.Card} className="bs-list">
         <div class="row between" style=${{marginBottom: '6px'}}>
-          <span class="small ink62 num" id="base-count">${res.loading && !rows.length ? 'Looking' : res.total + ' ' + (res.total === 1 ? 'person' : 'people') + (dq ? ' for "' + dq + '"' : '')}</span>
+          ${res.loading ? html`<${M.fx.Orb} state="searching" size=${20} label="searching" className="bs-orb"/>` : null}<span class="small ink62 num grow" id="base-count">${res.loading && !rows.length ? 'Looking' : res.total + ' ' + (res.total === 1 ? 'person' : 'people') + (dq ? ' for "' + dq + '"' : '')}</span>
           ${ctx.downloads && res.total ? html`<button type="button" class="linky small" id="base-export" onClick=${() => exportCsv(ctx, 'contacts', rows, {q: dq, stage: fl.stage, owner: fl.mine ? ctx.uid : '', country: fl.country, source: fl.source, tag: fl.tag, archived: fl.archived})}>Export CSV</button>` : null}
         </div>
         ${busy ? html`<${M.Thinking} label="Looking through the database"/>`
@@ -1172,10 +1173,10 @@
     const empty = !res.loading && !res.total && !dq && !fl.industry && !fl.country && !fl.map && !fl.archived;
     return html`<div class="stack" style=${{gap: '14px'}} id="base-companies">
       <div class="row nowrap bs-searchrow">
-        <div class="grow bs-search">
+        <${M.fx.Beam} radius=${16} size="sm"><div class="grow bs-search">
           <${icons.search}/>
           <input id="companies-q" class="input" type="search" placeholder="Search companies" value=${q} onInput=${e => setQ(e.target.value)} aria-label="Search companies"/>
-        </div>
+        </div><//>
         <${UI.Btn} id="companies-add" onClick=${() => setDrawer('new')}><${icons.plus}/>Add a company<//>
       </div>
       <div class="bs-chips row">
@@ -1186,7 +1187,7 @@
         <${Chip} on=${fl.archived} onClick=${() => setF('archived')(!fl.archived)}>Archived<//>
       </div>
       <div class="row between">
-        <span class="small ink62 num" id="companies-count">${res.loading && !rows.length ? 'Looking' : res.total + ' ' + (res.total === 1 ? 'company' : 'companies') + (dq ? ' for "' + dq + '"' : '')}</span>
+        ${res.loading ? html`<${M.fx.Orb} state="searching" size=${20} label="searching" className="bs-orb"/>` : null}<span class="small ink62 num grow" id="companies-count">${res.loading && !rows.length ? 'Looking' : res.total + ' ' + (res.total === 1 ? 'company' : 'companies') + (dq ? ' for "' + dq + '"' : '')}</span>
         ${ctx.downloads && res.total ? html`<button type="button" class="linky small" id="companies-export" onClick=${() => exportCsv(ctx, 'orgs', rows, {q: dq, industry: fl.industry, country: fl.country, map: fl.map, archived: fl.archived})}>Export CSV</button>` : null}
       </div>
       ${busy ? html`<${UI.Card}><${M.Thinking} label="Looking through the database"/><//>`
@@ -1252,7 +1253,7 @@
     /* an import dedupes against everything, so the whole base must be in the page first */
     if (!baseReady) {
       const have = Object.keys(ctx.coll.contacts.map || {}).length + Object.keys(ctx.coll.orgs.map || {}).length;
-      return html`<${UI.Card} title="Import from Apollo" id="import-opening"><${M.Thinking} label=${'Opening the whole database for a clean import' + (have ? ', ' + have + ' pages so far' : '')}/><p class="small ink62" style=${{marginTop: '10px'}}>A big base takes half a minute the first time.</p><//>`;
+      return html`<${UI.Card} title="Import from Apollo" id="import-opening"><${M.Thinking} state="connecting" label=${'Opening the whole database for a clean import' + (have ? ', ' + have + ' pages so far' : '')}/><p class="small ink62" style=${{marginTop: '10px'}}>A big base takes half a minute the first time.</p><//>`;
     }
     const load = (text, name) => {
       const p = parseCsv(text);
@@ -1360,11 +1361,11 @@
       <//>` : null}
       ${summary ? html`<${UI.Card} title="Imported" id="import-summary" flame=${true}>
         <div class="grid4 two bs-sum">
-          <div class="kpi"><span class="v num">${summary.added}</span><span class="l">new people</span></div>
+          <div class="kpi"><span class="v num"><${M.fx.MetalText} size=${30} weight=${600}>${String(summary.added)}<//></span><span class="l">new people</span></div>
           <div class="kpi"><span class="v num">${summary.updated}</span><span class="l">updated</span></div>
           <div class="kpi"><span class="v num">${summary.unchanged}</span><span class="l">unchanged</span></div>
-          <div class="kpi"><span class="v num">${summary.orgsNew}</span><span class="l">new companies</span></div>
-          <div class="kpi"><span class="v num">${summary.mapped}</span><span class="l">mapped to clients</span></div>
+          <div class="kpi"><span class="v num"><${M.fx.MetalText} size=${30} weight=${600}>${String(summary.orgsNew)}<//></span><span class="l">new companies</span></div>
+          <div class="kpi"><span class="v num"><${M.fx.MetalText} size=${30} weight=${600}>${String(summary.mapped)}<//></span><span class="l">mapped to clients</span></div>
           <div class="kpi"><span class="v num">${summary.skipped.length}</span><span class="l">skipped</span></div>
         </div>
         ${summary.skipped.length ? html`<div class="small ink62" style=${{marginTop: '12px'}}>Skipped: ${summary.skipped.slice(0, 12).map(s => 'row ' + s.row + ' (' + s.reason + ')').join(', ')}</div>` : null}

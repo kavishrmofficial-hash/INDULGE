@@ -430,6 +430,7 @@
             ${!canWrite ? null : hand
               ? html`<span id="letter-write"><${UI.ConfirmBtn} kind="sec" label="Tap again to overwrite" onConfirm=${writeIt}>Write it<//></span>`
               : html`<${UI.Btn} kind="sec" sm=${true} id="letter-write" disabled=${live} onClick=${writeIt}>Write it<//>`}
+            ${M.ai.on(ctx) && M.fx ? html`<span class="row nowrap fx-writer" style=${{gap: '6px'}}>${live ? html`<${M.fx.Orb} state="composing" size=${20} label="rewriting"/>` : null}<${M.fx.Bot} feature="writer" state=${live ? 'working' : 'default'} size=${26} label=${live ? 'm360, rewriting' : 'm360 writer'}/></span>` : null}
             ${M.ai.on(ctx) ? html`<${UI.Btn} kind="ghost" sm=${true} id="letter-rewrite" disabled=${live || !clean(f.body)} onClick=${rewrite}>${live ? 'Rewriting' : 'Rewrite in our voice'}<//>` : null}
           </span>
         </div>
@@ -511,13 +512,16 @@
         ${person ? html`<${UI.Card} title=${'Letters, ' + person.who} id="letters-list">
           ${list.length ? list.map(l => html`<div class="listrow" key=${l.id}>
               <span class="grow" style=${{minWidth: 0}}><b>${LABEL[l.kind] || 'Letter'}</b><span class="tiny ink62"> · ${l.ref || 'no ref'} · ${day((l.vars || {}).date) || day(U.ymd(new Date(l.at || Date.now())))}</span></span>
-              <${UI.Pill} kind=${STATUS_PILL[l.status]}>${l.status === 'issued' ? 'issued' : l.status === 'withdrawn' ? 'withdrawn' : 'draft'}<//>
+              ${l.status === 'issued' && M.fx ? html`<${M.fx.MetalBadge}>issued<//>` : html`<${UI.Pill} kind=${STATUS_PILL[l.status]}>${l.status === 'issued' ? 'issued' : l.status === 'withdrawn' ? 'withdrawn' : 'draft'}<//>`}
               <${UI.Btn} kind="ghost" sm=${true} onClick=${() => openLetter(l)}>Open<//>
             </div>`) : html`<${UI.Empty} text="No letters yet."/>`}
-          <div class="row between" style=${{marginTop: '12px', alignItems: 'flex-end'}}>
-            <div class="grow"><${UI.Select} id="letter-kind" label="new letter" value=${kind} options=${KINDS} onChange=${setKind}/></div>
-            <${UI.Btn} id="letter-draft" onClick=${startDraft}>Draft the letter<//>
-          </div>
+          ${(() => {
+            const pickRow = html`<div class=${'row between' + (M.fx ? ' fx-beam-pad' : '')} style=${{marginTop: M.fx ? 0 : '12px', alignItems: 'flex-end'}}>
+              <div class="grow"><${UI.Select} id="letter-kind" label="new letter" value=${kind} options=${KINDS} onChange=${setKind}/></div>
+              <${UI.Btn} id="letter-draft" onClick=${startDraft}>Draft the letter<//>
+            </div>`;
+            return M.fx ? html`<div style=${{marginTop: '12px'}}><${M.fx.Beam} radius=${16}>${pickRow}<//></div>` : pickRow;
+          })()}
         <//>` : html`<${UI.Card} title="Letters"><${UI.Empty} text="Pick a person on the left."/><//>`}
       </div>
       ${person && shown ? html`<div style=${{gridColumn: '1 / -1'}}>

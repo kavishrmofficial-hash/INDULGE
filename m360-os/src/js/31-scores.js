@@ -82,7 +82,8 @@
             return html`<div class=${'po' + (isFirst ? ' first' : '')} key=${r.uid}>
               <${UI.Avatar} id=${r.uid} size=${isFirst ? 44 : 36}/>
               <div class="small po-name" style=${{fontWeight: 500, textAlign: 'center', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}><${UI.Name} id=${r.uid}/></div>
-              <div class="plinth num" style=${{height: h + 'px'}}>${r.total}</div>
+              ${isFirst ? html`<${M.fx.MetalBadge} className="po-top">top<//>` : null}
+              <div class="plinth num" style=${{height: h + 'px'}}><${M.fx.MetalText} key=${String(r.total)} size=${isFirst ? 22 : 18} weight=${600} color=${isFirst ? 'var(--on-ink)' : undefined}>${String(r.total)}<//></div>
             </div>`;
           })}
         </div>
@@ -100,7 +101,7 @@
             <span class="lb-name" style=${{flex: '1 1 120px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}><${UI.Name} id=${r.uid}/></span>
             <${UI.Bar} a=${Math.max(0, r.output)} b=${Math.max(0, r.discipline)} max=${top}/>
             ${byPace ? html`<span class="tiny ink62 num" style=${{width: '74px', textAlign: 'right', flex: 'none'}} title=${r.days + (r.days === 1 ? ' working day' : ' working days') + (r.partial ? ', joined ' + U.fmtDate(r.joined) : '')}>${r.pace}/day</span>` : null}
-            <span class="num" style=${{fontWeight: 500, width: '46px', textAlign: 'right', flex: 'none'}}>${r.total}</span>
+            <span class="num" style=${{fontWeight: 500, width: '46px', textAlign: 'right', flex: 'none'}}>${i === 0 ? html`<${M.fx.MetalText} key=${String(r.total)} size=${16} weight=${600}>${String(r.total)}<//>` : r.total}</span>
           </div>`)}
         </div>` : html`<${UI.Empty} text="No points yet."/>`}
       <//>

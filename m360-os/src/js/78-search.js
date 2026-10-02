@@ -232,9 +232,13 @@
     const shown = rows.filter(x => group === 'all' || x.group === group);
     const go = x => { onClose(); setTimeout(() => M.nav(x.hash), 20); };
     let last = '';
-    return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Search">
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Search"
+      head=${html`<${M.fx.Bot} feature="search" size=${34} label="m360, search" className="ai-bot"/>`}>
       <div id="search-all" class="stack">
-        <${UI.Input} id="search-all-input" value=${q} onChange=${setQ} placeholder="Search across everything"/>
+        <div class="row nowrap srch-in" style=${{gap: '10px'}}>
+          <div class="grow" style=${{minWidth: 0}}><${M.fx.Beam} radius=${12} size="sm"><${UI.Input} id="search-all-input" value=${q} onChange=${setQ} placeholder="Search across everything"/><//></div>
+          ${words(q).length ? html`<${M.fx.Orb} state="searching" size=${32} label="searching"/>` : null}
+        </div>
         ${groupsHere.length ? html`<div class="srch-chips" role="tablist" aria-label="Filter results">
           <button type="button" role="tab" class=${'chip' + (group === 'all' ? ' on' : '')} aria-selected=${group === 'all'} onClick=${() => setGroup('all')}>All <span class="num">${rows.length}</span></button>
           ${groupsHere.map(g => html`<button key=${g} type="button" role="tab" class=${'chip' + (group === g ? ' on' : '')} aria-selected=${group === g} onClick=${() => setGroup(g)}>${GROUP_LABEL[g]} <span class="num">${counts[g]}</span></button>`)}
@@ -463,20 +467,21 @@
         slice(ctx, msg, nm) + '\n\nTHEY SAID: ' + msg;
       await r.run(o => M.ai.text(ctx, prompt, {signal: o.signal, onText: o.onText, tools: tl, cache: false}));
     }
-    return html`<div class=${'ai-card askbase' + (compact ? ' compact' : '')} id="ask-base">
-      <div class="row between">
+    return html`<${M.fx.Beam}><div class=${'ai-card askbase' + (compact ? ' compact' : '')} id="ask-base">
+      <div class="row between ai-head">
+        <${M.fx.Bot} feature="base" state=${busy ? 'working' : 'default'} size=${compact ? 30 : 36} label="m360, ask the base" className="ai-bot"/>
         <div class="grow"><${UI.Micro}>m360 ai<//><div class="card-title" style=${{marginTop: '4px'}}>Ask the base</div></div>
       </div>
       ${!asked ? html`<div class="row" style=${{gap: '8px', marginTop: '10px'}}>${BASE_CHIPS.map(c => html`<button key=${c} type="button" class="chip" onClick=${() => go(c)}>${c}</button>`)}</div>` : null}
       ${asked ? html`<div class="bubble me" style=${{marginTop: '10px'}}>${asked}</div>` : null}
-      ${busy || r.text ? html`<div class="bubble ai" style=${{marginTop: '8px', maxWidth: '100%'}}>${r.text ? html`<${M.AIText} text=${r.text}/>` : html`<${M.Thinking} label="Reading the base"/>`}</div>` : null}
+      ${busy || r.text ? html`<div class="bubble ai" style=${{marginTop: '8px', maxWidth: '100%'}}>${r.text ? html`<${M.AIText} text=${r.text}/>` : html`<${M.Thinking} label="Reading the base" state="searching"/>`}</div>` : null}
       ${r.state === 'error' ? html`<div class="small flame-t" style=${{marginTop: '8px'}}>${M.ai.errCopy(r.err)}</div>` : null}
       <div class="ask-in" style=${{marginTop: '10px'}}>
         <input id="ask-base-input" class="input" value=${q} placeholder="Ask about anyone or any company in the base" aria-label="Ask the base"
           onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') go(); }}/>
-        ${busy ? html`<${UI.Btn} kind="sec" onClick=${r.stop}>Stop<//>` : html`<button type="button" class="btn" disabled=${!q.trim()} onClick=${() => go()}><span class="spark">${SPARK}</span> Ask</button>`}
+        ${busy ? html`<${UI.Btn} kind="sec" onClick=${r.stop}>Stop<//>` : html`<${M.fx.Metal} kind="ink"><button type="button" class="btn" disabled=${!q.trim()} onClick=${() => go()}><span class="spark">${SPARK}</span> Ask</button><//>`}
       </div>
-    </div>`;
+    </div><//>`;
   }
 
   /* nudges: quiet leads, companies worth a pitch, clients with nobody on file */

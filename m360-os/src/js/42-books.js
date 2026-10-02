@@ -6,6 +6,8 @@
 'use strict';
 (function () {
   const {html, React, U, UI, icons} = M;
+  /* a number in metal (metal-fx MetalText); a quiet copy of the text holds its place while the metal readies */
+  const MetalNum = ({children, size, weight, color}) => html`<span class="fx-num"><span class="fx-num-copy" aria-hidden="true">${children}</span><${M.fx.MetalText} size=${size} weight=${weight} color=${color}>${children}<//></span>`;
   const {useState, useEffect, useMemo} = React;
 
   /* ---------- money ---------- */
@@ -289,8 +291,10 @@
   }
 
   /* ---------- overview ---------- */
+  /* the headline totals are cast in metal (metal-fx MetalText), flame when they need a call */
   function Tile({v, l, to, hot}) {
-    const inner = html`<span class="v num">${v}</span><span class="l">${l}</span>`;
+    const phone = M.usePhone();
+    const inner = html`<span class="v num">${M.fx ? html`<${MetalNum} size=${phone ? 26 : 30} weight=${600} color=${hot ? M.fx.FLAME : undefined}>${String(v)}<//>` : v}</span><span class="l">${l}</span>`;
     return to ? html`<button type="button" class=${'stat rowbtn' + (hot ? ' hot' : '')} onClick=${() => M.nav(to)}>${inner}</button>` : html`<div class=${'stat' + (hot ? ' hot' : '')}>${inner}</div>`;
   }
   function Overview() {
@@ -349,7 +353,7 @@
       ${fx ? html`<div class="card flame small">An invoice in a foreign currency has no INR rate on it, so the totals above leave it out. Open it and set the rate.</div>` : null}
       <div class="split">
         <div class="stack" style=${{gap: '18px'}}>
-          <${UI.Card} title="What needs a call" id="books-calls">
+          <${UI.Card} title=${M.fx ? html`<span class="row nowrap fx-title-bot"><${M.fx.Bot} feature="books" state=${calls.length ? 'working' : 'sleeping'} size=${26} label="m360 books"/>What needs a call</span>` : 'What needs a call'} id="books-calls">
             ${calls.length ? calls.map(c => html`<button type="button" key=${c.key} class="listrow rowbtn" onClick=${() => M.nav(c.to)}>
               ${c.hot ? html`<span class="dotflame"/>` : html`<span class="pill">next</span>`}<span class="grow">${c.text}</span></button>`)
               : html`<${UI.Empty} text="Nothing waiting on you. Invoices are paid or not yet due, no drafts sit unsent."/>`}
@@ -364,6 +368,7 @@
         <div class="stack" style=${{gap: '18px'}}>
           <${UI.Card} title="Receivables by age" id="books-aging">
             ${buckets.map(b => html`<div class="listrow" key=${b.l}><span class="grow">${b.l} days</span><span class="tiny ink62 num">${b.n}</span><span class="num" style=${{fontWeight: 500}}>${U.inr(b.amt)}</span></div>`)}
+            <div class="listrow fx-total"><b class="grow">Outstanding</b>${M.fx ? html`<${MetalNum} size=${18} weight=${600} color=${overdue.length ? M.fx.FLAME : undefined}>${U.inr(outstanding)}<//>` : html`<b class="num">${U.inr(outstanding)}</b>`}</div>
           <//>
           <${UI.Card} title="Compliance dates" id="books-dates">
             ${dates.length ? dates.map(d => html`<div class="listrow" key=${d.date + d.what}><span class="num tiny ink62" style=${{width: '86px'}}>${U.fmtDay(d.date)}</span><span class="grow">${d.what}</span></div>`)

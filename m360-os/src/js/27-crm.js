@@ -93,10 +93,10 @@
     };
     const counts = {all: all.length, clients: all.filter(r => r.client).length, pipeline: all.filter(r => r.pitches.some(p => p.stage !== 'won' && p.stage !== 'lost')).length, quiet: all.filter(r => !r.last || now - r.last >= 30 * DAY).length};
     return html`<${UI.Card} title="Every account, connected" id="crm-card"
-      action=${html`<span class="tiny ink62">${all.length} accounts</span>`}>
+      action=${html`<span class="tiny ink62 row nowrap crm-count" style=${{gap: '6px'}}>${orgq.loading ? html`<${M.fx.Orb} state="searching" size=${20} label="Reading the Base"/>` : null}<${M.fx.MetalText} key=${String(all.length)} size=${16} weight=${600}>${String(all.length)}<//> accounts</span>`}>
       <p class="small ink62" style=${{marginTop: 0}}>Base companies, clients and pitches folded into one row each. Open a row for its people, pitches, projects and brain.</p>
       <div class="row" style=${{gap: '8px', flexWrap: 'wrap'}}>
-        <input id="crm-q" class="input" style=${{flex: '1 1 200px'}} placeholder="Find a company or an owner" value=${q} onInput=${e => setQ(e.target.value)} aria-label="Find an account"/>
+        <div class="crm-find" style=${{flex: '1 1 200px', minWidth: 0}}><${M.fx.Beam} radius=${12}><input id="crm-q" class="input" placeholder="Find a company or an owner" value=${q} onInput=${e => setQ(e.target.value)} aria-label="Find an account"/><//></div>
         <${UI.Seg} sm=${true} ariaLabel="View" value=${view} onChange=${setView}
           options=${[{v: 'all', label: 'All ' + counts.all}, {v: 'clients', label: 'Clients ' + counts.clients}, {v: 'pipeline', label: 'Pipeline ' + counts.pipeline}, {v: 'quiet', label: 'Quiet ' + counts.quiet}]}/>
       </div>
@@ -107,7 +107,7 @@
           const openP = r.pitches.filter(p => p.stage !== 'won' && p.stage !== 'lost').length;
           return html`<tr key=${r.key} class="crm-row" onClick=${() => open(r)} style=${{cursor: 'pointer'}}>
             <td data-label="account"><span style=${{fontWeight: 500}}>${r.name}</span>${r.org ? null : html` <span class="tiny ink62">not in Base</span>`}</td>
-            <td data-label="stage"><${UI.Pill} kind=${st.kind}>${st.label}<//></td>
+            <td data-label="stage">${st.label === 'won' ? html`<${M.fx.MetalBadge}>won<//>` : html`<${UI.Pill} kind=${st.kind}>${st.label}<//>`}</td>
             <td data-label="owner">${r.owner ? html`<${UI.Name} id=${r.owner}/>` : html`<span class="ink62">nobody</span>`}</td>
             <td data-label="people" class="num">${r.contacts}</td>
             <td data-label="pitches" class="num">${openP}${r.pitches.length > openP ? html`<span class="tiny ink62"> of ${r.pitches.length}</span>` : null}</td>

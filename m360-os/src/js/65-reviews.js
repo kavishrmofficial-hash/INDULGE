@@ -20,7 +20,7 @@
       .sort((a, b) => (a.reviewAt || a.updated || 0) - (b.reviewAt || b.updated || 0));
   }
 
-  function Row({t, onOpen}) {
+  function Row({t, onOpen, oldest}) {
     const ctx = M.useCtx();
     const [note, setNote] = useState('');
     const [back, setBack] = useState(false);
@@ -42,7 +42,7 @@
       M.toast('Sent back, revision ' + revisions);
     };
     const pName = t.project && ctx.coll.projects.map[t.project] ? ctx.coll.projects.map[t.project].name : '';
-    return html`<div class="rev-row" id=${'rev-' + t.id}>
+    const row = html`<div class=${'rev-row' + (oldest ? ' oldest' : '')} id=${'rev-' + t.id}>
       <${UI.Avatar} id=${t.owner} size=${34}/>
       <div class="grow" style=${{minWidth: 0}}>
         <div class="row" style=${{gap: '8px'}}>
@@ -62,6 +62,8 @@
         <${UI.Btn} kind="sec" sm=${true} onClick=${() => setBack(true)}>Send back<//>
       </span>` : null}
     </div>`;
+    /* the review that has waited longest carries the beam */
+    return oldest ? html`<${M.fx.Beam} radius=${14}>${row}<//>` : row;
   }
 
   function Reviews({compact}) {
@@ -76,7 +78,7 @@
     return html`<${UI.Card} id="reviews" title=${compact ? 'Waiting on your review' : 'Reviews'}
       action=${html`<span class=${'pill ' + (mine.length ? 'flame' : 'warm')}>${mine.length} on you</span>`}>
       ${!compact ? html`<p class="small ink62" style=${{marginTop: 0}}>Work in review, oldest first. Approve ships it, send back counts a revision and tells the owner why.${M.tasks && M.tasks.signoffOn(ctx) ? ' Sign-off is on: nothing counts as done until someone here approves it.' : ''}</p>` : null}
-      ${list.length ? list.map(t => html`<${Row} key=${t.id} t=${t} onOpen=${setOpen}/>`)
+      ${list.length ? list.map((t, i) => html`<${Row} key=${t.id} t=${t} onOpen=${setOpen} oldest=${i === 0 && list.length > 0}/>`)
         : html`<${UI.Empty} text=${theirs.length ? 'Nothing waiting on you. ' + theirs.length + ' of yours ' + (theirs.length === 1 ? 'is' : 'are') + ' with the reviewers.' : 'Nothing in review right now.'}/>`}
       ${open && D ? html`<${D} taskId=${open} onClose=${() => setOpen(null)}/>` : null}
     <//>`;
