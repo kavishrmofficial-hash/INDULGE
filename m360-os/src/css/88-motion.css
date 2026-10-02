@@ -15,7 +15,9 @@
     .card:hover,.fold:hover{box-shadow:0 14px 34px -22px var(--shadow)}
   }
   /* a section arrives: the whole view rises once, then its cards stagger in as before */
-  .content.view{animation:viewin .34s var(--ease) both}
+  /* backwards, never both: once the view has arrived the animation lets go, so a fixed child (the
+     web browser's full screen, a drawer) measures against the window again */
+  .content.view{animation:viewin .34s var(--ease) backwards}
   /* the fold opens with a breath */
   .fold-body{animation:rise .26s var(--ease) both}
   /* inputs settle into focus */

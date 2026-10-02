@@ -100,6 +100,14 @@ def card(page):
 def btn(page, name):
     return page.locator('#checkin-card').get_by_role('button', name=name, exact=True)
 
+def check_out(page):
+    """Check out, then wave the day rating away: this test is about the record, not the mood."""
+    btn(page, 'Check out').click()
+    page.wait_for_selector('#dayrate', timeout=15000)
+    page.click('#dayrate-skip')
+    page.wait_for_selector('#dayrate', state='detached')
+
+
 
 def test(h):
     real_now = datetime.now(IST)
@@ -146,7 +154,7 @@ def test(h):
 
     ctx_a.clock.set_fixed_time(t_out)
     check(pf.evaluate('new Date().getHours()') == 19, 'clock did not move to 19:40')
-    btn(pf, 'Check out').click()
+    check_out(pf)
     pf.wait_for_selector('.toast:has-text("Checked out")')
     pf.wait_for_selector('#checkin-card:has-text("In 10:12, out 19:40, 9h 28m.")')
     text = card(pf)
@@ -157,7 +165,7 @@ def test(h):
     pf.wait_for_selector('#checkin-card:has-text("Checked in at 10:12")')
     e = pf.evaluate('window.__db.get("checkin/u_founder")')['days'][today]
     check(e['in'] and e['out'] is None and e['outLoc'] is None and e['loc']['verified'] is True, 'reopened entry keeps the check-in %r' % e)
-    btn(pf, 'Check out').click()
+    check_out(pf)
     pf.wait_for_selector('#checkin-card:has-text("In 10:12, out 19:40, 9h 28m.")')
     e = pf.evaluate('window.__db.get("checkin/u_founder")')['days'][today]
     check(e['out'] and e['outLoc'] and e['outLoc']['verified'] is True and e['outLoc']['src'] == 'gps', 'check-out entry %r' % e)
@@ -223,7 +231,7 @@ def test(h):
     check(h.ctx(pc, 'M.att.wfhUsed(ctx, "u_m1", new Date())') == 1, 'wfhUsed after a wfh check-in')
 
     ctx_c.clock.set_fixed_time(t_out)
-    btn(pc, 'Check out').click()
+    check_out(pc)
     pc.wait_for_selector('.toast:has-text("Checked out")', timeout=15000)
     pc.wait_for_selector('#checkin-card:has-text("In 10:12, out 19:40, 9h 28m.")')
     check('WFH. Home, self reported.' in card(pc), 'place line after wfh check-out: ' + card(pc))

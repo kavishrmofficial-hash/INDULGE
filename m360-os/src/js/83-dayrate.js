@@ -11,9 +11,12 @@
   /* the face and its word from a value; thresholds climb so the top face takes some reaching */
   const FACES = [[0, '😞', 'Rough', 'rough'], [25, '😕', 'Meh', 'meh'], [45, '😐', 'Okay', 'okay'], [65, '🙂', 'Good', 'good'], [85, '😄', 'Great', 'great']];
   const faceFor = v => { let f = FACES[0]; for (const x of FACES) if (v >= x[0]) f = x; return f; };
-  /* hue 8 (a deep red) to 45 (amber) over the first half, then on to 140 (a clear green) */
-  const hue = v => v < 50 ? 8 + (v / 50) * 37 : 45 + ((v - 50) / 50) * 95;
-  const ground = v => 'hsl(' + hue(v).toFixed(0) + ' 74% ' + (v < 50 ? 44 : 38) + '%)';
+  /* the ground: a deep red at 0, a warm yellow at 50, a clear green at 100; hue, saturation and
+     lightness each move through the yellow stop so the middle reads as yellow, never as olive */
+  const mix = (a, b, k) => a + (b - a) * k;
+  const stop = v => v < 50 ? [mix(8, 46, v / 50), mix(78, 92, v / 50), mix(46, 50, v / 50)] : [mix(46, 142, (v - 50) / 50), mix(92, 62, (v - 50) / 50), mix(50, 40, (v - 50) / 50)];
+  const hue = v => stop(v)[0];
+  const ground = v => { const [h, s, l] = stop(v); return 'hsl(' + h.toFixed(0) + ' ' + s.toFixed(0) + '% ' + l.toFixed(0) + '%)'; };
 
   function DayRate({onClose}) {
     const ctx = M.useCtx();
