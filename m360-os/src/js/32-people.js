@@ -171,8 +171,8 @@
           const st = statusOf(ctx, m.uid, today);
           const line = [m.title, m.pod].filter(Boolean).join(' · ');
           const city = String(docOf(ctx, 'me', m.uid).city || '').trim();
-          return html`<button key=${m.uid} type="button" class="rowbtn" onClick=${() => M.nav('#people/' + m.uid)}>
-            <div class="card clickable">
+          const fresh = isNewHire(ctx, m.uid);
+          const card = html`<div class="card clickable">
               <div class="row nowrap">
                 <${UI.Avatar} id=${m.uid} size=${40}/>
                 <div class="grow">
@@ -182,7 +182,10 @@
                   ${city ? html`<div class="tiny sub person-city">${city}</div>` : null}
                 </div>
               </div>
-            </div>
+            </div>`;
+          /* a new hire's card carries the beam, so the team sees who to welcome */
+          return html`<button key=${m.uid} type="button" class="rowbtn" onClick=${() => M.nav('#people/' + m.uid)}>
+            ${fresh ? html`<${M.fx.Beam}>${card}<//>` : card}
           </button>`;
         })}
       </div>` : html`<${UI.Card}><${UI.Empty} text="Nobody on the roster yet."/><//>`}
@@ -533,7 +536,7 @@
     const reps = M.lines ? M.lines.reportsOf(ctx, uid) : [];
     return html`<${React.Fragment}>
       <${UI.PageHead} micro="team" title="People">${back}<//>
-      <${UI.Card} id="person-head">
+      <${M.fx.Beam}><${UI.Card} id="person-head">
         <div class="row nowrap" style=${{alignItems: 'flex-start'}}>
           <${UI.Avatar} id=${uid} size=${56}/>
           <div class="grow stack tight" style=${{gap: '3px'}}>
@@ -541,7 +544,7 @@
               <h2 class="card-title">${nameIn(names, uid)}</h2>
               ${pronouns ? html`<span class="small sub prof-pn" id="person-pronouns">${pronouns}</span>` : null}
               ${inactive ? html`<${UI.Pill} kind="warm">off the roster<//>` : html`<${UI.Pill} kind=${st.kind}>${st.label}<//>`}
-              ${!inactive && isNewHire(ctx, uid) ? html`<${UI.Pill} kind="warm">new hire<//>` : null}
+              ${!inactive && isNewHire(ctx, uid) ? html`<${M.fx.MetalBadge} className="fit">new hire<//>` : null}
             </div>
             <div class="small sub"><span class="num">${m.empId || ''}</span>${line ? (m.empId ? ' · ' : '') + line : ''}</div>
             <div class="small sub">${okDate(m.joined) ? 'Joined ' + U.fmtDate(m.joined) : 'Joined date missing'}${city ? html`<span> · <span id="person-city">${city}</span></span>` : null}</div>
@@ -549,7 +552,7 @@
             ${Details ? html`<${Details} uid=${uid}/>` : null}
           </div>
         </div>
-      <//>
+      <//><//>
       ${opts.length > 1 ? html`<div class="row"><${UI.Seg} options=${opts} value=${cur} onChange=${setTab} ariaLabel="Person sections"/></div>` : null}
       ${cur === 'overview' ? html`<${Overview} uid=${uid}/>` : null}
       ${cur === 'scorecard' ? html`<${Scorecard} uid=${uid}/>` : null}

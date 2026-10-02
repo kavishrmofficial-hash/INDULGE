@@ -1,0 +1,40 @@
+/* ---------- v29 fx, the work area: tasks, projects, pitches, feed, chat, people, scores, week, leave, reviews, crm, command ---------- */
+
+/* a metal badge with a longer word ("approved", "new hire", "shipped") grows to fit it */
+.metal-badge-host.fit div[style*="width: 45px"]{width:auto !important; min-width:45px}
+.metal-badge-host.fit span[style*="width: 45px"]{width:auto !important; padding-left:10px !important; padding-right:10px !important}
+
+/* a pill that holds a metal badge sheds its own border and fill, so only the metal shows */
+.pill.metal-pill{border:0; background:transparent; padding:0; min-height:0}
+
+/* scores: the podium leader's tag sits above the plinth */
+.podium .po-top{margin-bottom:-2px}
+.podium .plinth .metal-fx-root{margin-top:-2px}
+
+/* projects: the header's percent sits at the end of the progress line */
+.proj-progress{gap:12px; align-items:center}
+.proj-progress > .row{min-width:0; flex:1 1 auto}
+.proj-pct{flex:none; display:inline-flex; align-items:center}
+
+/* reviews: the review waiting longest is boxed so its beam has an edge to run on */
+.rev-row.oldest{padding:12px; border:1px solid var(--line); border-radius:14px}
+.beam-host + .rev-row{margin-top:4px}
+
+/* chat: the bell and the notices link share the header's right side; the message box keeps its width inside the beam */
+.chat-head-tools{gap:10px; flex:none}
+.chat-input-wrap{flex:1 1 auto; min-width:0}
+.chat-input-wrap .beam-host, .chat-input-wrap textarea{width:100%}
+.chat-input-wrap textarea{display:block}
+.chat-composer .metal-host{flex:none}
+
+/* crm: the search box fills its share of the row inside the beam */
+.crm-find .beam-host, .crm-find .input{width:100%}
+.crm-count .metal-fx-root{vertical-align:middle}
+
+/* metal numbers in the kpi tiles never push a tile wider than its column */
+.kpi .v{max-width:100%; overflow:hidden}
+.kpi .v .metal-fx-root{max-width:100%}
+
+/* a won pitch card: the brand and its badge share the first line */
+.tcard .row.between > .t{min-width:0; overflow:hidden; text-overflow:ellipsis}
+

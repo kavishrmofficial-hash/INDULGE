@@ -97,12 +97,17 @@
   </div>`;
 
   /* ---------- list ---------- */
-  function ProjectCard({p, ctx, today}) {
+  function ProjectCard({p, ctx, today, beam}) {
     const prog = progressOf(ctx, p.id);
     const late = p.status !== 'done' && !!p.due && p.due < today;
+    const body = html`<${ProjectCardBody} p=${p} ctx=${ctx} prog=${prog} late=${late}/>`;
     return html`<button type="button" class="rowbtn" style=${{fontWeight: 300}} aria-label=${'Open ' + p.name}
       onClick=${() => M.nav('#projects/' + p.id)}>
-      <div class="card stack tight">
+      ${beam ? html`<${M.fx.Beam}>${body}<//>` : body}
+    </button>`;
+  }
+  function ProjectCardBody({p, ctx, prog, late}) {
+    return html`<div class="card stack tight">
         <div class="row between nowrap"><b class="grow">${p.name}</b><${StatusPill} status=${p.status}/></div>
         <div class="sub small">${linkName(ctx, p)}</div>
         <div class="row">
@@ -110,8 +115,7 @@
           <span class=${'small num' + (late ? ' flame-t' : ' sub')}>${p.due ? 'due ' + U.fmtDate(p.due) : 'no due date'}</span>
         </div>
         <${Progress} prog=${prog}/>
-      </div>
-    </button>`;
+      </div>`;
   }
 
   function NewProjectDrawer({open, onClose}) {
@@ -173,6 +177,8 @@
       return true;
     }).sort(sortByDue);
     const nActive = all.filter(isActive).length;
+    /* one beam on the list: the first project off track, else the first at risk */
+    const urgent = (list.find(p => p.status === 'off' && !p.archived) || list.find(p => p.status === 'risk' && !p.archived) || {}).id || null;
     return html`<${React.Fragment}>
       <${UI.PageHead} micro=${nActive + ' active'} title="Projects">
         <${UI.Btn} onClick=${() => setOpen(true)}><${icons.plus}/>New project<//>
@@ -182,7 +188,7 @@
         <${UI.Seg} options=${KIND_FILTER} value=${kind} onChange=${setKind} ariaLabel="Kind"/>
       </div>
       ${!ctx.coll.projects.ready ? html`<${UI.Empty} text="Loading projects."/>`
-        : list.length ? html`<div class="grid2">${list.map(p => html`<${ProjectCard} key=${p.id} p=${p} ctx=${ctx} today=${today}/>`)}</div>`
+        : list.length ? html`<div class="grid2">${list.map(p => html`<${ProjectCard} key=${p.id} p=${p} ctx=${ctx} today=${today} beam=${p.id === urgent}/>`)}</div>`
         : html`<${UI.Empty} text=${all.length ? 'No projects match these filters.' : 'No projects yet.'}/>`}
       <${NewProjectDrawer} open=${open} onClose=${() => setOpen(false)}/>
     <//>`;
@@ -445,10 +451,12 @@
       else M.toast('Task details are on their way.');
     };
     const D = M.parts.TaskDrawer;
+    const pct = prog.total ? Math.round(100 * prog.done / prog.total) : 0;
+    const shaky = project.status === 'risk' || project.status === 'off';
     const view = tab === 'board' ? BoardTab : tab === 'overview' ? OverviewTab : ListTab;
     return html`<${React.Fragment}>
       <${UI.PageHead} micro=${linkName(ctx, project)} title=${project.name}>${back}${ctx.isFounder || project.owner === ctx.uid ? html`<${UI.Btn} kind="sec" sm onClick=${() => ctx.W.update('projects/' + id, {archived: !project.archived, archivedAt: project.archived ? null : Date.now(), updated: Date.now()}).then(() => M.toast(project.archived ? 'Back on the list' : 'Archived. Its tasks and numbers stay.')).catch(() => {})}>${project.archived ? 'Unarchive' : 'Archive'}<//>` : null}<//>
-      <${UI.Card}>
+      <${M.fx.Beam} on=${shaky}><${UI.Card} id="project-head">
         <div class="stack">
           <div class="row">
             <${StatusPill} status=${project.status}/>
@@ -459,10 +467,13 @@
             ${client ? html`<${UI.Btn} kind="ghost" sm onClick=${() => M.nav('#clients/' + project.client)}><${icons.link}/>${client.name || 'Client'}<//>` : null}
             ${pitch ? html`<${UI.Btn} kind="ghost" sm onClick=${() => M.nav('#pitches/' + project.pitch)}><${icons.link}/>${pitch.brand || 'Pitch'}<//>` : null}
           </div>
-          <${Progress} prog=${prog}/>
+          <div class="row between nowrap proj-progress">
+            <${Progress} prog=${prog}/>
+            <span class="proj-pct" title="tasks done"><${M.fx.MetalText} key=${pct} size=${28} weight=${600}>${pct + '%'}<//></span>
+          </div>
           <${UI.Seg} options=${TABS} value=${tab} onChange=${setTab} ariaLabel="Project view"/>
         </div>
-      <//>
+      <//><//>
       <${view} ctx=${ctx} project=${project} tasks=${tasks} onOpen=${onOpen}/>
       ${M.parts.Connections ? html`<${M.parts.Connections} kind="project" id=${id}/>` : null}
       ${(D && openTask) ? html`<${D} taskId=${openTask.taskId} onClose=${() => setOpenTask(null)}

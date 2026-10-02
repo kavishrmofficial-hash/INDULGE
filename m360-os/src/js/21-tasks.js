@@ -154,7 +154,7 @@
   }
 
   /* ---------- card ---------- */
-  function TaskCard({task, projects, clients, today, onOpen, onDrag}) {
+  function TaskCard({task, projects, clients, today, onOpen, onDrag, beam}) {
     const pName = nameOf(projects, task.project);
     const cName = nameOf(clients, task.client);
     const overdue = isOverdue(task, today);
@@ -168,7 +168,7 @@
       if (Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 6) { down.current = null; onDrag(task, e, d.el); }
     };
     const onUp = () => { down.current = null; };
-    return html`<button type="button" class="tcard" data-task=${task.id} onClick=${() => onOpen(task.id)}
+    const card = html`<button type="button" class="tcard" data-task=${task.id} onClick=${() => onOpen(task.id)}
       onPointerDown=${onDown} onPointerMove=${onMove} onPointerUp=${onUp} onPointerCancel=${onUp}>
       <div class="row between nowrap" style=${{gap: '6px', alignItems: 'flex-start'}}>
         <div class="t grow">${task.title || 'Untitled'}</div>
@@ -189,6 +189,8 @@
         ${task.owner ? html`<${UI.Avatar} id=${task.owner} size=${22}/>` : null}
       </div>
     </button>`;
+    /* the most overdue card on the board carries the beam, one card only */
+    return beam ? html`<${M.fx.Beam} radius=${14}>${card}<//>` : card;
   }
 
   /* ---------- drawer ---------- */
@@ -500,6 +502,8 @@
       return {...s, list};
     });
 
+    /* the single most overdue task on the board as filtered: the oldest due date among the late ones */
+    const hottest = (cols.filter(c => c.v !== 'done').reduce((a, c) => a.concat(c.list), []).filter(t => isOverdue(t, today)).sort(byDue)[0] || {}).id || null;
     const mine = tasks.filter(t => t.owner === ctx.uid && t.status !== 'done');
     const myOverdue = mine.filter(t => isOverdue(t, today)).length;
     const micro = mine.length + ' open' + (myOverdue ? ', ' + myOverdue + ' overdue' : '');
@@ -523,7 +527,7 @@
           ${cols.map(c => html`<div key=${c.v} class=${'colm' + (over === c.v ? ' over' : '')} data-status=${c.v}>
             <div class="col-head"><span>${c.label}</span><span class="num">${c.list.length}</span></div>
             ${c.list.length
-              ? c.list.map(t => html`<${TaskCard} key=${t.id} task=${t} projects=${projects} clients=${clients} today=${today} onOpen=${openTask} onDrag=${onDrag}/>`)
+              ? c.list.map(t => html`<${TaskCard} key=${t.id} task=${t} projects=${projects} clients=${clients} today=${today} onOpen=${openTask} onDrag=${onDrag} beam=${t.id === hottest}/>`)
               : html`<div style=${{padding: '2px 6px 6px'}}><${UI.Empty} text="Nothing here."/></div>`}
           </div>`)}
         </div></div>

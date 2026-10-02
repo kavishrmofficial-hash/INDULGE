@@ -7,9 +7,12 @@
   const PROJ_PILL = {on: {k: 'ink', t: 'On track'}, risk: {k: 'flame-o', t: 'At risk'},
     off: {k: 'flame', t: 'Off track'}, done: {k: 'warm', t: 'Done'}};
 
+  /* a headline count cast in metal; flame when it needs the founder */
+  const Num = ({v, size, flame}) => html`<${M.fx.MetalText} key=${String(v)} size=${size || 26} weight=${600} color=${flame ? 'var(--flame)' : undefined}>${String(v)}<//>`;
+
   function Tile({label, value, to, flame}) {
     const inner = html`<span class="kpi">
-      <span class=${'v num' + (flame ? ' flame-t' : '')}>${value}</span>
+      <span class=${'v num' + (flame ? ' flame-t' : '')}><${Num} v=${value} flame=${flame}/></span>
       <span class="l">${label}</span>
     </span>`;
     if (!to) return html`<div class="card">${inner}</div>`;
@@ -167,7 +170,8 @@
               <span class="num ink62" style=${{width: '18px'}}>${i + 1}</span>
               <${UI.Avatar} id=${r.uid} size=${24}/>
               <span class="grow"><${UI.Name} id=${r.uid}/></span>
-              <span class="num" style=${{fontWeight: 500}}>${r.total}</span>
+              ${i === 0 ? html`<${M.fx.MetalBadge}>top<//>` : null}
+              <span class="num" style=${{fontWeight: 500}}>${i === 0 ? html`<${Num} v=${r.total} size=${16}/>` : r.total}</span>
             </div>`)}
           </div>` : html`<${UI.Empty} text="No points yet."/>`}
         <//>
@@ -193,9 +197,9 @@
         <${UI.Fold} title="Projects health" summary=${projList.length + " live, " + atRisk.length + " at risk"}>
         <${UI.Card} title="Projects health" action=${html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => M.nav('#projects')}>Projects<//>`}>
           <div class="grid3">
-            <div class="kpi"><span class="v num">${health.on}</span><span class="l">on track</span></div>
-            <div class="kpi"><span class="v num">${health.risk}</span><span class="l">at risk</span></div>
-            <div class="kpi"><span class="v num">${health.off}</span><span class="l">off track</span></div>
+            <div class="kpi"><span class="v num"><${Num} v=${health.on} flame=${false}/></span><span class="l">on track</span></div>
+            <div class="kpi"><span class="v num"><${Num} v=${health.risk} flame=${health.risk > 0}/></span><span class="l">at risk</span></div>
+            <div class="kpi"><span class="v num"><${Num} v=${health.off} flame=${health.off > 0}/></span><span class="l">off track</span></div>
           </div>
           ${atRisk.length ? html`<div class="stack tight" style=${{marginTop: '12px'}}>
             ${atRisk.map(p => html`<div class="listrow" key=${p.id}>
@@ -209,9 +213,9 @@
         <${UI.Fold} title="Tasks" summary=${k.open + " open, " + k.overdue + " overdue"} hot=${k.overdue > 0}>
         <${UI.Card} title="Tasks" action=${html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => M.nav('#tasks')}>Tasks<//>`}>
           <div class="grid3">
-            <div class="kpi"><span class="v num">${k.open}</span><span class="l">open</span></div>
-            <div class="kpi"><span class="v num">${k.dueWeek}</span><span class="l">due this week</span></div>
-            <div class="kpi"><span class=${'v num' + (k.overdue ? ' flame-t' : '')}>${k.overdue}</span><span class="l">overdue</span></div>
+            <div class="kpi"><span class="v num"><${Num} v=${k.open}/></span><span class="l">open</span></div>
+            <div class="kpi"><span class="v num"><${Num} v=${k.dueWeek}/></span><span class="l">due this week</span></div>
+            <div class="kpi"><span class=${'v num' + (k.overdue ? ' flame-t' : '')}><${Num} v=${k.overdue} flame=${k.overdue > 0}/></span><span class="l">overdue</span></div>
           </div>
           <div class="small ink62" style=${{marginTop: '10px'}}>
             ${k.shippedWeek + ' shipped this week' + (k.noDue ? ', ' + k.noDue + ' open with no due date' : '')}</div>
@@ -247,6 +251,7 @@
                 <span class="grow"><${UI.Name} id=${m.uid}/></span>
                 <${UI.Pill} kind=${lad.level === 'clear' ? 'ink' : (lad.level === 'note' ? 'flame-o' : 'flame')}>${lad.level}<//>
                 ${m.uid === ctx.founderUid ? null : (kp ? html`<${UI.Pill} kind="ink">keeper done<//>` : html`<${UI.Pill} kind="flame-o">keeper due<//>`)}
+                ${newHire ? html`<${M.fx.MetalBadge}>new<//>` : null}
                 ${newHire && prog ? html`<${UI.Pill} kind="warm">${prog.done} of ${prog.total}<//>` : null}
                 ${off ? html`<${UI.Pill} kind="flame">offboarding<//>` : null}
               </div>`;
