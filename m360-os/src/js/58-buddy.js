@@ -109,6 +109,8 @@
     const [auto, setAuto] = useState(() => store.get('buddyAuto') !== '0');
     const [talking, setTalking] = useState(false);
     const [followUp, setFollowUp] = useState(false);
+    /* the Talk pill wakes once the effects have settled: its microphone hook must be there from its first render */
+    const fxSettled = M.fx && M.fx.useSettled ? M.fx.useSettled() : true;
     const pointerRef = useRef(null);
     const trailRef = useRef([]);
     const mouse = useRef({x: window.innerWidth - 90, y: window.innerHeight - 90});
@@ -691,14 +693,14 @@
           ${M.fx && M.fx.Bot && mode !== 'tour' ? html`<${M.fx.Bot} type="droid" size=${26} state=${mode === 'thinking' ? 'working' : 'default'} label="m360" className="buddy-bot"/>` : null}<span class="micro">${mode === 'listening' ? 'listening, let go to send' : mode === 'thinking' ? 'thinking' : mode === 'tour' ? (stopHere ? stopHere.title : 'the tour') : mode === 'welcome' || mode === 'hello' ? 'hello' : followUp ? 'listening for a follow up' : 'ask m360'}</span>
           <button type="button" class="iconbtn" style=${{color: '#fff', width: '26px', height: '26px'}} aria-label="Close" onClick=${mode === 'tour' ? () => finishTour('skipped') : mode === 'welcome' ? () => { M.tour.mark(ctx, 'asked'); reset(); } : reset}><${M.icons.x}/></button>
         </div>
-        ${mode === 'listening' ? html`<div style=${{fontWeight: 500, minHeight: '22px'}}>${heard || 'Go ahead, I\'m listening.'}</div>` : null}
+        ${mode === 'listening' ? html`<div class="row nowrap buddy-heard" style=${{fontWeight: 500, minHeight: '22px', gap: '8px'}}><${M.fx.Orb} state="listening" size=${20} dark=${true} label="listening"/><span>${heard || 'Go ahead, I\'m listening.'}</span></div>` : null}
         ${mode === 'asking' ? html`<div class="stack tight">
-          <input id="buddy-input" class="input" value=${q} autoFocus=${true} placeholder="Where do I check in? Open a new task for me."
-            onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') ask(q); }} aria-label="Ask m360"/>
+          <${M.fx.Beam} dark=${true} radius=${12} size="sm"><input id="buddy-input" class="input" value=${q} autoFocus=${true} placeholder="Where do I check in? Open a new task for me."
+            onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') ask(q); }} aria-label="Ask m360"/><//>
           <div class="row between"><span class="tiny" style=${{color: 'rgba(255,255,255,.6)'}}>${coarse() && !fine() ? 'Hold the button to talk' : 'Hold Ctrl + Option to talk'}</span>
             <span class="row nowrap">
-              ${M.parts.MicButton ? html`<${M.parts.MicButton} sm=${true} label="Talk" onText=${(t, lg) => { lang.current = lg || 'en'; spoke.current = true; ask(t); }}/>` : null}
-              <button type="button" class="btn on-dark sm" disabled=${!q.trim()} onClick=${() => ask(q)}>Ask</button>
+              ${M.parts.MicButton && (fxSettled || !M.fx.has()) ? html`<${M.parts.MicButton} sm=${true} label="Talk" onText=${(t, lg) => { lang.current = lg || 'en'; spoke.current = true; ask(t); }}/>` : null}
+              <${M.fx.Metal} kind="paper"><button type="button" class="btn on-dark sm" disabled=${!q.trim()} onClick=${() => ask(q)}>Ask</button><//>
             </span></div>
           <div class="row" style=${{gap: '6px', flexWrap: 'wrap'}}>
             ${['What can you do?', 'What is on my calendar this week?', 'Open a new task for me', ctx.isFounder ? 'Who is slipping this week?' : 'What is overdue on me?'].map(t => html`<button key=${t} type="button" class="pill ghost-dark" onClick=${() => { spoke.current = false; ask(t); }}>${t}</button>`)}
@@ -709,7 +711,7 @@
         ${answer && mode !== 'listening' ? (mode === 'hello' ? html`<div class="buddy-hello" id="buddy-hello">${answer}</div>` : html`<${M.AIText} text=${answer}/>`) : null}
         ${M.parts.PendingActs && (mode === 'answer' || mode === 'thinking') ? html`<${M.parts.PendingActs}/>` : null}
         ${mode === 'hello' ? html`<div class="row" style=${{marginTop: '10px', gap: '8px'}}>
-          <button type="button" class="btn on-dark sm" id="hello-plan" onClick=${() => { spoke.current = false; ask('Plan my day in three lines from my open tasks and the calendar.'); }}>Plan my day</button>
+          <${M.fx.Metal} kind="paper"><button type="button" class="btn on-dark sm" id="hello-plan" onClick=${() => { spoke.current = false; ask('Plan my day in three lines from my open tasks and the calendar.'); }}>Plan my day</button><//>
           <button type="button" class="linky tiny" id="hello-later" onClick=${reset}>Thanks</button>
         </div>` : null}
         ${mode === 'tour' ? html`<div class="row between" style=${{marginTop: '10px'}}>
@@ -718,11 +720,11 @@
             <button type="button" class="linky tiny" aria-pressed=${auto} title="Move on by itself after each line" onClick=${() => { const v = !auto; setAuto(v); store.set('buddyAuto', v ? '1' : '0'); }}>${auto ? 'Auto on' : 'Auto off'}</button>
             ${step > 0 ? html`<button type="button" class="linky tiny" onClick=${() => showStep(step - 1)}>Back</button>` : null}
             <button type="button" class="linky tiny" onClick=${() => finishTour('skipped')}>Skip</button>
-            <button type="button" class="btn on-dark sm" onClick=${() => step + 1 < stops.length ? showStep(step + 1) : finishTour('done')}>${step + 1 < stops.length ? 'Next' : 'Done'}</button>
+            <${M.fx.Metal} kind="paper"><button type="button" class="btn on-dark sm" onClick=${() => step + 1 < stops.length ? showStep(step + 1) : finishTour('done')}>${step + 1 < stops.length ? 'Next' : 'Done'}</button><//>
           </span>
         </div>` : null}
         ${mode === 'welcome' ? html`<div class="row" style=${{marginTop: '10px', gap: '8px'}}>
-          <button type="button" class="btn on-dark sm" id="tour-yes" onClick=${startTour}>Show me around</button>
+          <${M.fx.Metal} kind="paper"><button type="button" class="btn on-dark sm" id="tour-yes" onClick=${startTour}>Show me around</button><//>
           <button type="button" class="linky tiny" id="tour-later" onClick=${() => { M.tour.mark(ctx, 'asked'); reset(); }}>Later</button>
         </div>` : null}
         ${acts.map((a, i) => html`<div key=${i} class="tiny" style=${{marginTop: '6px'}}><span class="spark">${SPARK}</span> ${a}</div>`)}

@@ -1,0 +1,40 @@
+/* ---------- v29, the AI screens: bots in the heads, orbs while it works, the beam on what matters ---------- */
+.ai-head{align-items:center; gap:12px; flex-wrap:nowrap}
+.ai-head > .grow{min-width:0}
+.ai-bot{flex:none; display:inline-block; vertical-align:middle}
+.ai-wait{gap:10px; align-items:center}
+.ai-wait canvas,.ai-wait .vorb{flex:none}
+.ai-card .metal-host{flex:none}
+/* a narrow phone: the button drops under the title, the bot keeps its place */
+@media (max-width:520px){
+  .ai-head{flex-wrap:wrap}
+  .ai-head > .metal-host,.ai-head > .btn{margin-left:auto}
+}
+
+/* the palette: the orb beside Ask m360 stands in for the spark */
+.pal-orb{display:inline-flex; width:20px; height:20px; align-items:center; justify-content:center; flex:none}
+.pal-item.ai .pal-orb + .spark{display:none}
+.pal-in canvas{flex:none}
+
+/* Base: the search box wears the beam and keeps its width */
+.bs-searchrow > .beam-host{flex:1 1 auto; min-width:0}
+.bs-searchrow > .beam-host .bs-search{width:100%}
+.bs-orb{flex:none; margin-right:8px}
+@media (max-width:860px){
+  .bs-searchrow > .beam-host{flex:1 1 100%}
+}
+
+/* Search: the input and its orb on one line */
+.srch-in .field{margin:0}
+.srch-in canvas{flex:none}
+
+/* the buddy: the listening line and the input under the beam */
+.buddy-heard canvas{flex:none}
+.buddy-bubble .beam-host .input{width:100%}
+
+/* Workspace and Your day */
+.ws-unread{align-items:baseline}
+.yd-wait canvas{flex:none}
+.gcal-day > .beam-host{margin:4px 0}
+
+.hero .stat .v .metal-text-plain{font-size:inherit !important}

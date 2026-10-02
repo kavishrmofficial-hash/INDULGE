@@ -125,12 +125,12 @@
     let lastGroup = '';
     return html`<div class="pal-scrim" onMouseDown=${e => { if (e.target === e.currentTarget) onClose(); }}>
       <div class="pal" role="dialog" aria-label="Search">
-        <div class="pal-in">
-          <${icons.search}/>
+        <${M.fx.Beam} radius=${22} size="sm"><div class="pal-in">
+          ${q.trim() ? html`<${M.fx.Orb} state="searching" size=${20} label="searching"/>` : html`<${icons.search}/>`}
           <input ref=${inp} id="pal-input" value=${q} placeholder="Search anything, or type what you want to do" aria-label="Search or run"
             onInput=${e => setQ(e.target.value)} onKeyDown=${onKey}/>
           <span class="kbd">esc</span>
-        </div>
+        </div><//>
         <div class="pal-list" id="pal-list">
           ${items.length ? items.map((it, i) => {
             const head = it.group !== lastGroup && it.group !== 'more' ? html`<div class="pal-group" key=${'g' + it.group + i}>${it.group}</div>` : null;
@@ -138,7 +138,7 @@
             return html`<${React.Fragment} key=${it.key}>
               ${head}
               <button type="button" class=${'pal-item' + (i === sel ? ' on' : '') + (it.ai ? ' ai' : '') + (it.more ? ' more' : '')} data-group=${it.group} onMouseEnter=${() => setSel(i)} onClick=${it.run}>
-                ${it.ai ? html`<span class="spark">${SPARK}</span>` : it.uid ? html`<${UI.Avatar} id=${it.uid} size=${22}/>` : it.icon && icons[it.icon] ? html`<${icons[it.icon]}/>` : null}
+                ${it.ai ? html`<span class="pal-orb"><${M.fx.Orb} state="working" size=${20} label="m360"/></span><span class="spark">${SPARK}</span>` : it.uid ? html`<${UI.Avatar} id=${it.uid} size=${22}/>` : it.icon && icons[it.icon] ? html`<${icons[it.icon]}/>` : null}
                 <span class="t">${it.label}</span>
                 ${it.sub ? html`<span class="sub">${it.sub}</span>` : null}
               </button>

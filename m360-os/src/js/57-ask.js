@@ -54,7 +54,7 @@
     recent: n => chat.turns.filter(t => !t.act).slice(-(n || 6))
   };
 
-  function AskPanel({inline, initial}) {
+  function AskPanel({inline, initial, onBusy}) {
     const ctx = M.useCtx();
     const [turns, setTurns] = useState(() => M.chat.turns);   /* {role, content, act?} for display */
     useEffect(() => {
@@ -67,6 +67,8 @@
     const [busy, setBusy] = useState(false);
     const [live, setLive] = useState('');
     const [micLive, setMicLive] = useState(false);
+    /* the Talk pill wakes once the effects have settled: its microphone hook must be there from its first render */
+    const fxSettled = M.fx && M.fx.useSettled ? M.fx.useSettled() : true;
     const VoiceWrap = M.fx && M.fx.has() ? M.fx.Voice : ({children}) => children;
     const mic = window.FX && window.FX.useMicrophone ? window.FX.useMicrophone() : null;
     useEffect(() => { if (!mic) return; if (micLive) mic.start().catch(() => {}); else mic.stop(); }, [micLive]);
@@ -89,6 +91,7 @@
     };
 
     useEffect(() => () => { if (ctl.current) ctl.current.abort(); }, []);
+    useEffect(() => { if (onBusy) onBusy(busy); }, [busy]);
     useEffect(() => { if (endRef.current && endRef.current.scrollIntoView) endRef.current.scrollIntoView({block: 'nearest'}); }, [turns, live]);
     useEffect(() => { if (initial) { sentInitial.current = initial; send(initial); } }, [initial]);
 
@@ -154,6 +157,7 @@
           : t.role === 'user' ? html`<div key=${i} class="bubble me" style=${t.err ? {borderColor: 'var(--flame)'} : null}>${t.img ? html`<span class="tiny ink62">[image] </span>` : null}${t.content}</div>`
           : html`<div key=${i} class="ask-row">${M.fx && M.fx.Bot ? html`<${M.fx.Bot} size=${30} seed=${(i % 7) / 7} state="default" label="m360"/>` : null}<div class="bubble ai" style=${t.err ? {borderColor: 'var(--flame)'} : null}><${M.AIText} text=${t.content}/></div></div>`)}
         ${busy ? html`<div class="ask-row">${M.fx && M.fx.Bot ? html`<${M.fx.Bot} size=${30} state="working" label="m360, working" id="ask-bot"/>` : null}<div class="bubble ai">${live ? html`<${M.AIText} text=${live}/>` : html`<${M.Thinking}/>`}</div></div>` : null}
+        ${micLive && !busy ? html`<div class="ask-row ask-listening"><${M.fx.Orb} state="listening" size=${32} label="listening"/><span class="small ink62">Listening</span></div>` : null}
         ${M.parts.PendingActs ? html`<${M.parts.PendingActs}/>` : null}
         <div ref=${endRef}/>
       </div>
@@ -164,7 +168,7 @@
           <button type="button" class="iconbtn" aria-label="Attach an image" title="A photo or a screenshot" onClick=${() => fileRef.current && fileRef.current.click()}><${M.icons.plus}/></button>` : null}
         <input id=${inline ? 'ask-inline' : 'ask-input'} class="input" value=${q} placeholder=${ctx.isFounder ? 'Ask HQ anything…' : 'Ask m360 anything…'}
           onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') send(); }} onPaste=${e => { const fs = Array.from((e.clipboardData && e.clipboardData.files) || []).filter(f => /^image\//.test(f.type)); if (fs.length && canImg) { e.preventDefault(); attach(fs); } }} aria-label="Ask m360"/>
-        ${M.parts.MicButton ? html`<${M.parts.MicButton} sm=${true} label="Talk" onLive=${setMicLive} onText=${(t, lg) => { lang.current = lg || 'en'; send(t); }}/>` : null}
+        ${M.parts.MicButton && (fxSettled || !M.fx.has()) ? html`<${M.parts.MicButton} sm=${true} label="Talk" onLive=${setMicLive} onText=${(t, lg) => { lang.current = lg || 'en'; send(t); }}/>` : null}
         <button type="button" class=${'iconbtn' + (aloud ? ' on' : '')} id=${inline ? 'ask-aloud-inline' : 'ask-aloud'} aria-pressed=${aloud} aria-label="Read replies aloud" title=${aloud ? 'Replies are read aloud' : 'Read replies aloud'}
           onClick=${() => { const v = !aloud; setAloud(v); M.prefs.set('askAloud', v ? '1' : '0'); if (!v && M.speech) M.speech.stop(); }}><${M.icons.voice}/></button>
         ${busy ? html`<${UI.Btn} kind="sec" onClick=${() => ctl.current && ctl.current.abort()}>Stop<//>`
@@ -175,8 +179,10 @@
   }
 
   function Ask({onClose, initial}) {
-    return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Ask m360">
-      <${AskPanel} initial=${initial || ''}/>
+    const [busy, setBusy] = useState(false);
+    return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Ask m360"
+      head=${html`<${M.fx.Bot} feature="ask" state=${busy ? 'working' : 'default'} size=${34} label="m360, ask" id="ask-head-bot" className="ai-bot"/>`}>
+      <${AskPanel} initial=${initial || ''} onBusy=${setBusy}/>
       <div class="hint">Runs on your own Claude account. It sees what you can see in m360, and nothing else. Ask "what can you do" for the list.</div>
     <//>`;
   }

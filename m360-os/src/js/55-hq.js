@@ -12,7 +12,7 @@
   const SPARK = '\u2726';
   function Tile({v, l, to, hot}) {
     return html`<button type="button" class=${'stat glass' + (hot ? ' hot' : '')} onClick=${() => to && M.nav(to)}>
-      <span class="v num" style=${hot ? {color: 'var(--flame)'} : null}>${v}</span><span class="l">${l}</span></button>`;
+      <span class="v num" style=${hot ? {color: 'var(--flame)'} : null}><${M.fx.MetalText} size=${30} weight=${600} color=${hot ? M.fx.FLAME : 'rgb(255,255,255)'}>${String(v)}<//></span><span class="l">${l}</span></button>`;
   }
 
   function useNumbers(ctx) {
@@ -71,16 +71,17 @@
     }
     const list = (arr) => Array.isArray(arr) ? arr : [];
 
-    return html`<section class="ai-card dark">
+    const card = html`<section class="ai-card dark">
       <div class="row between">
-        <div class="row"><div>
+        <div class="row ai-head"><${M.fx.Bot} feature="hq" state=${busy ? 'working' : 'default'} size=${40} label="m360, the intelligence brief" className="ai-bot"/><div>
           <${UI.Micro}>m360 ai<//><div class="card-title" style=${{color: '#fff', marginTop: '4px'}}>Today's intelligence</div>
           <div class="tiny ink62">${cached && !r.data ? 'generated ' + U.timeAgo(cache.data.hq.at) : 'reads every task, check-in, EOD, pitch and pulse'}</div></div></div>
-        <button type="button" class=${'btn sm on-dark' + (data ? ' sec' : '')} disabled=${busy} onClick=${go}>${busy ? html`<${M.Thinking} label="Reading the company"/>` : html`<span class="spark">${SPARK}</span> ${data ? 'Refresh' : 'Brief me'}`}</button>
+        ${(() => { const b = html`<button type="button" class=${'btn sm on-dark' + (data ? ' sec' : '')} disabled=${busy} onClick=${go}>${busy ? html`<${M.Thinking} label="Reading the company" state="solving"/>` : html`<span class="spark">${SPARK}</span> ${data ? 'Refresh' : 'Brief me'}`}</button>`;
+          return data ? b : html`<${M.fx.Metal} kind="paper">${b}<//>`; })()}
       </div>
       ${r.state === 'error' ? html`<div class="small" style=${{marginTop: '10px', color: 'var(--flame)'}}>${M.ai.errCopy(r.err)}</div>` : null}
       ${!data && !busy ? html`<div style=${{marginTop: '14px', fontWeight: 500}}>One tap and m360 reads the whole company: who's slipping, which client needs love, where the money is, and what to hand out today.</div>` : null}
-      ${busy && !data ? html`<div class="small ink62" style=${{marginTop: '14px'}}>Scanning attendance, workload, blockers, pipeline and team energy…</div>` : null}
+      ${busy && !data ? html`<div class="small ink62 row nowrap ai-wait" style=${{marginTop: '14px'}}><${M.fx.Orb} state="solving" size=${32} dark=${true} label="Reading the company"/><span>Scanning attendance, workload, blockers, pipeline and team energy…</span></div>` : null}
       ${data ? html`<div class="stack" style=${{marginTop: '16px', gap: '16px'}}>
         <div class="display" style=${{fontSize: '30px'}}>${data.headline || ''}</div>
         ${data.pulse ? html`<div style=${{fontWeight: 500}}>${data.pulse}</div>` : null}
@@ -98,10 +99,11 @@
           <div class="stack tight">${list(data.actions).map((a, i) => html`<div key=${i} class="focus" style=${{background: 'rgba(255,255,255,.06)', color: '#fff'}}>
             <div class="grow"><div style=${{fontWeight: 700}}>${a.title}</div>
               <div class="tiny ink62">${a.owner || 'someone'}${a.due ? ' · by ' + U.fmtDay(a.due) : ''}${a.why ? ' · ' + a.why : ''}</div></div>
-            ${assigned[i] ? html`<span class="pill on-dark">sent</span>` : html`<button type="button" class="btn on-dark sm" onClick=${e => assign(a, i, e)}>Assign</button>`}
+            ${assigned[i] ? html`<span class="pill on-dark">sent</span>` : html`<${M.fx.Metal} kind="paper"><button type="button" class="btn on-dark sm" onClick=${e => assign(a, i, e)}>Assign</button><//>`}
           </div>`)}</div></div>` : null}
       </div>` : null}
     </section>`;
+    return html`<${M.fx.Beam} dark=${true}>${card}<//>`;
   }
 
   /* ---------- workload and one tap rebalancing ---------- */
@@ -149,7 +151,7 @@
     return html`<section class="card">
       <div class="card-head">
         <h2 class="card-title">Workload</h2>
-        ${M.ai.on(ctx) ? html`<button type="button" class="btn sec sm" disabled=${busy} onClick=${rebalance}>${busy ? html`<${M.Thinking} label="Balancing"/>` : html`<span class="spark">${SPARK}</span> Rebalance`}</button>` : null}
+        ${M.ai.on(ctx) ? html`<button type="button" class="btn sec sm" disabled=${busy} onClick=${rebalance}>${busy ? html`<${M.Thinking} label="Balancing" state="solving"/>` : html`<span class="spark">${SPARK}</span> Rebalance`}</button>` : null}
       </div>
       <div class="stack tight">
         ${rows.map(x => html`<div class="listrow" key=${x.m.uid}>
@@ -185,8 +187,7 @@
     const on = Object.keys(ctx.online || {}).filter(u => ctx.members[u]);
     return html`<section class="card">
       <div class="card-head"><h2 class="card-title">Live now</h2>
-        <span class="pill ink"><span class="dotflame"/>${on.length} online</span></div>
-      ${on.length ? html`<div class="stack tight">${on.map(u => html`<div class="listrow" key=${u}>
+        <span class="pill ink"><span class="dotflame"/>${on.length} online</span></div>      ${on.length ? html`<div class="stack tight">${on.map(u => html`<div class="listrow" key=${u}>
         <${UI.Avatar} id=${u} size=${28}/><span class="grow" style=${{fontWeight: 600}}><${UI.Name} id=${u}/></span>
         <span class="pill">${PAGE_NAMES[ctx.online[u].page] || 'm360'}</span></div>`)}</div>`
         : html`<div class="small ink62">Nobody has m360 open right now.</div>`}
@@ -237,7 +238,7 @@
           <div class="stack" style=${{gap: '20px'}}>
             <${UI.Fold} title="Workload" summary=${n.open + ' open across ' + ctx.activeMembers.length + ' people'} hot=${n.overdue > 0} id="fold-workload"><${Workload}/><//>
             ${M.parts.MoodHeat ? html`<${UI.Fold} title="Mood, three weeks" summary="every check-in mood, one box a day" id="fold-mood"><${M.parts.MoodHeat}/><//>` : null}
-            ${Panel && M.ai.on(ctx) ? html`<${UI.Fold} title="Ask HQ anything" summary="anyone, any client, any number" id="fold-askhq"><section class="card"><div class="card-head"><h2 class="card-title">Ask HQ anything</h2></div><${Panel} inline=${true}/></section><//>` : null}
+            ${Panel && M.ai.on(ctx) ? html`<${UI.Fold} title="Ask HQ anything" summary="anyone, any client, any number" id="fold-askhq"><section class="card"><div class="card-head"><h2 class="card-title">Ask HQ anything</h2><${M.fx.Bot} feature="ask" size=${32} label="m360, ask" className="ai-bot"/></div><${Panel} inline=${true}/></section><//>` : null}
           </div>
           <div class="stack" style=${{gap: '20px'}}>
             <${UI.Fold} title="Live now" summary=${Object.keys(ctx.online).length + ' online'} id="fold-live"><${LiveNow}/><//>

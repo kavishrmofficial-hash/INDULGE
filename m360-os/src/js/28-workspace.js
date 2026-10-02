@@ -42,7 +42,7 @@
       try { const r = await api('googlestart', {back: location.hash || '#mail'}); location.href = r.url; }
       catch (e) { setBusy(false); M.toast((e && e.message) || 'Could not start', true); }
     };
-    if (!st) return html`<${UI.Card}><${M.Thinking} label="Checking Google"/><//>`;
+    if (!st) return html`<${UI.Card}><${M.Thinking} label="Checking Google" state="connecting"/><//>`;
     if (st.none) return html`<${UI.Card} title="Google Workspace">
       <p class="small ink62" style=${{marginTop: 0}}>On this page Google comes through your claude.ai connectors. Open Home, Your day. On the team site each person signs in with Google once and mail, calendar and drive live here.</p>
       ${M.parts.YourDay ? html`<${M.parts.YourDay}/>` : null}
@@ -51,10 +51,10 @@
       <p class="small ink62" style=${{marginTop: 0}}>${ctx.isFounder ? 'Set up the Google sign-in first: Admin, Google Workspace.' : 'Kaavish switches Google on from Admin. Once that is done, connect yours here.'}</p>
       ${ctx.isFounder ? html`<${UI.Btn} kind="sec" onClick=${() => M.nav('#admin')}>Open Admin<//>` : null}
     <//>`;
-    return html`<${UI.Card} title="Connect your Google" id="google-connect">
+    return html`<${M.fx.Beam}><${UI.Card} title="Connect your Google" id="google-connect" action=${html`<${M.fx.Orb} state=${busy ? 'connecting' : 'breathing'} size=${32} label="Google"/>`}>
       <p class="small ink62" style=${{marginTop: 0}}>One sign-in, then your inbox, calendar, meetings and drive are here. Only you see yours. m360 keeps your tokens on the server, never in the page.</p>
       <${UI.Btn} id="google-go" disabled=${busy} onClick=${start}>${busy ? 'Opening Google' : 'Sign in with Google'}<//>
-    <//>`;
+    <//><//>`;
   }
 
   /* ---------- mail ---------- */
@@ -96,11 +96,12 @@
           <input id="mail-q" class="input" style=${{flex: '1 1 220px'}} placeholder="Search mail" value=${q} onInput=${e => setQ(e.target.value)} aria-label="Search mail"/>
           <${UI.Seg} sm=${true} ariaLabel="Mailbox" value=${box} onChange=${setBox} options=${[{v: 'inbox', label: 'Inbox'}, {v: 'unread', label: 'Unread'}, {v: 'starred', label: 'Starred'}, {v: 'sent', label: 'Sent'}]}/>
           <${UI.Btn} sm=${true} id="mail-compose" onClick=${() => setCompose({to: '', subject: '', text: ''})}>New mail<//>
+          ${busy && rows !== null ? html`<${M.fx.Orb} state="connecting" size=${20} label="refreshing"/>` : null}
           <button type="button" class="iconbtn" aria-label="Refresh" title="Refresh" onClick=${() => load(false)}><${icons.clock}/></button>
         </div>
-        <div class="row between small ink62" style=${{marginTop: '8px'}}><span>${st.who}</span><span>${unread ? unread + ' unread here' : ''}</span></div>
+        <div class="row between small ink62" style=${{marginTop: '8px'}}><span>${st.who}</span><span class="row nowrap ws-unread" style=${{gap: '6px'}}>${unread ? html`<${M.fx.MetalText} size=${18} weight=${700} color=${M.fx.FLAME}>${String(unread)}<//> unread here` : ''}</span></div>
         ${err ? html`<div class="small flame-t" style=${{marginTop: '8px'}}>${err}</div>` : null}
-        ${rows === null ? html`<div style=${{marginTop: '10px'}}><${M.Thinking} label="Fetching mail"/></div>`
+        ${rows === null ? html`<div style=${{marginTop: '10px'}}><${M.Thinking} label="Fetching mail" state="connecting"/></div>`
           : rows.length ? html`<div class="list" id="mail-list" style=${{marginTop: '10px'}}>
             ${rows.map(m => html`<button key=${m.id} type="button" class=${'listrow mail-row' + (m.unread ? ' unread' : '')} onClick=${() => openMsg(m)}>
               <span class="mail-from">${m.fromName || m.fromAddress || m.from}</span>
@@ -127,7 +128,7 @@
       <div class="row between small" style=${{gap: '8px'}}><div><span style=${{fontWeight: 500}}>${m.fromName || m.fromAddress}</span> <span class="ink62">${m.fromAddress && m.fromName ? '<' + m.fromAddress + '>' : ''}</span></div><span class="ink62 num">${m.date ? fmtDate(m.date) + ' ' + fmtTime(m.date) : ''}</span></div>
       ${m.to ? html`<div class="tiny ink62">to ${m.to}${m.cc ? ', cc ' + m.cc : ''}</div>` : null}
       <hr class="hair"/>
-      ${m.loading ? html`<${M.Thinking} label="Opening"/>` : m.err ? html`<div class="small flame-t">${m.err}</div>`
+      ${m.loading ? html`<${M.Thinking} label="Opening" state="connecting"/>` : m.err ? html`<div class="small flame-t">${m.err}</div>`
         : safeHtml ? html`<iframe class="mail-frame" sandbox="" srcdoc=${safeHtml} title="Message"/>`
         : html`<div class="mail-body" style=${{whiteSpace: 'pre-wrap'}}>${m.text || m.snippet}</div>`}
       ${(m.attachments || []).length ? html`<div class="row" style=${{gap: '6px', marginTop: '10px', flexWrap: 'wrap'}}>${m.attachments.map((a, i) => html`<${UI.Pill} key=${i} kind="warm">${a.name}<//>`)}</div>` : null}
@@ -183,11 +184,11 @@
           <${UI.Seg} sm=${true} ariaLabel="Span" value=${span} onChange=${setSpan} options=${[{v: 'today', label: 'Today'}, {v: 'week', label: '7 days'}, {v: 'month', label: '30 days'}]}/>
           <${UI.Btn} sm=${true} id="cal-new" onClick=${() => setMaking(true)}>New meeting<//></span>`}>
         ${err ? html`<div class="small flame-t">${err}</div>` : null}
-        ${events === null ? html`<${M.Thinking} label="Fetching the calendar"/>`
+        ${events === null ? html`<${M.Thinking} label="Fetching the calendar" state="connecting"/>`
           : !days.length ? html`<${UI.Empty} text="Nothing on the calendar in this span."/>`
           : days.map(d => html`<div key=${d} class="gcal-day">
             <div class="micro" style=${{marginTop: '6px'}}>${d === U.todayStr() ? 'today' : fmtDate(d)}</div>
-            ${byDay[d].map(e => html`<div key=${e.id} class=${'gcal-ev' + (soon(e) ? ' soon' : '') + (new Date(e.end).getTime() < now ? ' past' : '')} id=${'ev-' + e.id}>
+            ${byDay[d].map(e => { const ev = html`<div key=${e.id} class=${'gcal-ev' + (soon(e) ? ' soon' : '') + (new Date(e.end).getTime() < now ? ' past' : '')} id=${'ev-' + e.id}>
               <div class="gcal-time num">${e.allDay ? 'all day' : fmtTime(e.start) + (e.end ? ' to ' + fmtTime(e.end) : '')}</div>
               <div class="grow" style=${{minWidth: 0}}>
                 <div style=${{fontWeight: 500}}>${e.title}</div>
@@ -195,8 +196,10 @@
                 ${!e.mine && e.myStatus === 'needsAction' ? html`<div class="row" style=${{gap: '6px', marginTop: '6px'}}>
                   <button type="button" class="chip" onClick=${() => rsvp(e, 'accepted')}>Yes</button><button type="button" class="chip" onClick=${() => rsvp(e, 'tentative')}>Maybe</button><button type="button" class="chip" onClick=${() => rsvp(e, 'declined')}>No</button></div>` : null}
               </div>
-              ${e.meet ? html`<a class="btn sm" href=${e.meet} target="_blank" rel="noopener">Join Meet</a>` : e.link ? html`<a class="btn sec sm" href=${e.link} target="_blank" rel="noopener">Open</a>` : null}
-            </div>`)}
+              ${e.meet ? html`<${M.fx.Metal} kind="ink"><a class="btn sm" href=${e.meet} target="_blank" rel="noopener">Join Meet</a><//>` : e.link ? html`<a class="btn sec sm" href=${e.link} target="_blank" rel="noopener">Open</a>` : null}
+            </div>`;
+              /* the meeting about to start rides the beam */
+              return soon(e) ? html`<${M.fx.Beam} key=${e.id} radius=${14} size="sm">${ev}<//>` : ev; })}
           </div>`)}
       <//>
       ${making ? html`<${NewMeeting} onClose=${() => setMaking(false)} onMade=${() => { setMaking(false); load(); }}/>` : null}
@@ -253,9 +256,9 @@
     }, [q]);
     const kind = mime => /spreadsheet|excel/.test(mime) ? 'sheet' : /presentation|powerpoint/.test(mime) ? 'deck' : /document|word/.test(mime) ? 'doc' : /pdf/.test(mime) ? 'pdf' : /image/.test(mime) ? 'image' : /folder/.test(mime) ? 'folder' : 'file';
     return html`<${UI.Card} id="drive-card" title="Drive">
-      <input id="drive-q" class="input" placeholder="Find a file" value=${q} onInput=${e => setQ(e.target.value)} aria-label="Find a file"/>
+      <${M.fx.Beam} radius=${12} size="sm"><input id="drive-q" class="input" placeholder="Find a file" value=${q} onInput=${e => setQ(e.target.value)} aria-label="Find a file"/><//>
       ${err ? html`<div class="small flame-t" style=${{marginTop: '8px'}}>${err}</div>` : null}
-      ${files === null ? html`<div style=${{marginTop: '10px'}}><${M.Thinking} label="Fetching files"/></div>`
+      ${files === null ? html`<div style=${{marginTop: '10px'}}><${M.Thinking} label="Fetching files" state="connecting"/></div>`
         : files.length ? html`<div class="list" id="drive-list" style=${{marginTop: '10px'}}>${files.map(f => html`<a key=${f.id} class="listrow" href=${f.link} target="_blank" rel="noopener">
             <${UI.Pill} kind="warm">${kind(f.mime)}<//><span class="grow" style=${{minWidth: 0}}>${f.name}</span><span class="tiny ink62">${f.owner ? f.owner.split(' ')[0] + ' · ' : ''}${f.modified ? U.timeAgo(new Date(f.modified).getTime()) : ''}</span></a>`)}</div>`
         : html`<div style=${{marginTop: '10px'}}><${UI.Empty} text="No files match."/></div>`}
@@ -293,7 +296,7 @@
       setBusy(false);
     };
     const copy = () => { try { navigator.clipboard.writeText(st.redirect); M.toast('Copied'); } catch (e) { /* select it by hand */ } };
-    if (!st) return html`<${UI.Card} id="google-card"><${M.Thinking} label="Checking"/><//>`;
+    if (!st) return html`<${UI.Card} id="google-card"><${M.Thinking} label="Checking" state="connecting"/><//>`;
     return html`<${UI.Card} id="google-card">
       <div class="row between"><span class="small">${st.configured ? html`<${UI.Pill} kind="ink">on<//>` : html`<${UI.Pill}>off<//>`} ${st.fromEnv ? 'set on the server' : st.configured ? 'client saved' : 'no client yet'}</span></div>
       <ol class="small" style=${{paddingLeft: '18px', margin: '10px 0'}}>

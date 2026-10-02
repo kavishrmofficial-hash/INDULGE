@@ -69,6 +69,8 @@
   }
 
   const line = (text, flame) => html`<div class=${'small' + (flame ? ' flame-t' : ' sub')}>${text}</div>`;
+  /* while a connector is on its way: the connecting orb beside the word */
+  const loadingLine = text => html`<div class="small sub row nowrap yd-wait" style=${{gap: '8px'}}><${M.fx.Orb} state="connecting" size=${20} label="connecting"/><span>${text}</span></div>`;
 
   /* ---------- section views ---------- */
   function CalendarView({data}) {
@@ -90,7 +92,7 @@
     const count = (est == null || est === '') ? String(threads.length) : String(est);
     if (!threads.length && !(Number(count) > 0)) return html`<${UI.Empty} text="No unread mail."/>`;
     return html`<div>
-      <div class="num">${count} unread</div>
+      <div class="num row nowrap yd-unread" style=${{gap: '6px', alignItems: 'baseline'}}><${M.fx.MetalText} size=${22} weight=${600}>${count}<//> <span>unread</span></div>
       ${threads.slice(0, 3).map((t, i) => {
         const m = (t && Array.isArray(t.messages) && t.messages[0]) || {};
         const ago = agoText(m.date);
@@ -149,7 +151,7 @@
     const ctx = M.useCtx();
     const w = M.useWatch(ctx && ctx.mcp, server, tool, input, ms);
     const st = stateText(server, w);
-    if (st) return line(st.text, st.flame);
+    if (st) return st.text === 'Loading' ? loadingLine(st.text) : line(st.text, st.flame);
     const View = view;
     return html`<div class="stack tight">
       <${View} data=${w.data || {}}/>
@@ -161,7 +163,7 @@
     const ctx = M.useCtx();
     const perm = usePerm(ctx && ctx.permissions, server);
     let body;
-    if (perm.state === null) body = line('Loading', false);
+    if (perm.state === null) body = loadingLine('Loading');
     else if (perm.state === 'prompt') body = html`<div class="stack tight">
       <div class="sub small">Connect ${server} to see it here.</div>
       <div><${UI.Btn} kind="sec" sm disabled=${perm.busy} onClick=${perm.request}>Connect<//></div>
@@ -180,7 +182,7 @@
     const today = U.todayStr();
     const calInput = useMemo(() => calendarInput(today), [today]);
     if (!ctx || !ctx.mcp) return null;
-    return html`<${UI.Card} title="Your day" id="yourday-card">
+    return html`<${UI.Card} title="Your day" id="yourday-card" action=${html`<${M.fx.Bot} feature="brief" size=${30} label="m360, your day" className="ai-bot"/>`}>
       <${Section} id="yourday-calendar" server="Google Calendar" tool="list_events" input=${calInput} ms=${REFETCH_CAL}
         label="calendar" icon=${icons.cal} view=${CalendarView}/>
       <hr class="hair"/>

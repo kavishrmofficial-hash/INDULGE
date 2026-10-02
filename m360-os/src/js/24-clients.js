@@ -352,10 +352,11 @@
     }
     const edit = (k, v) => { setD(x => ({...x, [k]: String(v || '').slice(0, BRAIN_MAX)})); setDirty(true); };
     const body = html`<section class="ai-card" id="client-brain">
-      <div class="row between">
+      <div class="row between ai-head">
+        <${M.fx.Bot} feature="clients" state=${busy ? 'working' : 'default'} size=${36} label="m360, the company brain" className="ai-bot"/>
         <div class="grow"><${UI.Micro}>m360 ai<//><div class="card-title" style=${{marginTop: '4px'}}>Company brain</div></div>
-        ${canAI ? html`<button type="button" class="btn sm" id="brain-build" disabled=${busy} onClick=${build}>
-          ${busy ? html`<${M.Thinking} label=${step || 'Thinking'}/>` : html`<span class="spark">\u2726</span> ${saved ? 'Rebuild' : 'Build the brain'}`}</button>` : null}
+        ${canAI ? html`<${M.fx.Metal} kind="ink"><button type="button" class="btn sm" id="brain-build" disabled=${busy} onClick=${build}>
+          ${busy ? html`<${M.Thinking} label=${step || 'Thinking'} state=${/^Reading/.test(step || '') ? 'searching' : 'weaving'}/>` : html`<span class="spark">\u2726</span> ${saved ? 'Rebuild' : 'Build the brain'}`}</button><//>` : null}
       </div>
       <div class="small ink62" style=${{marginTop: '8px'}}>
         ${saved && saved.at ? html`<span id="brain-built">Built ${U.timeAgo(saved.at)} by <${UI.Name} id=${saved.by} fallback="m360"/></span>`
@@ -415,16 +416,17 @@
     }
     const busy = r.state === 'thinking' || r.state === 'streaming';
     const body = html`<div class="ai-card" id="client-prep">
-      <div class="row between">
+      <div class="row between ai-head">
+        <${M.fx.Bot} feature="brief" state=${busy ? 'working' : 'default'} size=${36} label="m360, meeting prep" className="ai-bot"/>
         <div class="grow"><${UI.Micro}>m360 ai<//><div class="card-title" style=${{marginTop: '4px'}}>Meeting prep</div></div>
-        <button type="button" class="btn sm" id="prep-go" disabled=${busy} onClick=${go}>${busy ? html`<${M.Thinking}/>` : html`<span class="spark">\u2726</span> ${r.text ? 'Prep me again' : 'Prep me for a meeting'}`}</button>
+        <${M.fx.Metal} kind="ink"><button type="button" class="btn sm" id="prep-go" disabled=${busy} onClick=${go}>${busy ? html`<${M.Thinking} state="shaping"/>` : html`<span class="spark">\u2726</span> ${r.text ? 'Prep me again' : 'Prep me for a meeting'}`}</button><//>
       </div>
       ${r.text ? html`<div style=${{marginTop: '12px'}}><${M.AIText} text=${r.text}/>
         <button type="button" class="linky small" style=${{marginTop: '8px'}} onClick=${() => navigator.clipboard.writeText(r.text).then(() => M.toast('Copied'), () => M.toast('Copy is blocked here', true))}>Copy the prep</button></div>`
-        : html`<div class="small ink62" style=${{marginTop: '8px'}}>${busy ? 'Reading the brain, projects, tasks, pitches, people and news.' : 'Who they are, what we are doing, open pitches, the people, the news, three questions and one risk. One screen.'}</div>`}
+        : html`<div class="small ink62" style=${{marginTop: '8px'}}>${busy ? html`<span class="row nowrap ai-wait"><${M.fx.Orb} state="shaping" size=${32} label="Shaping the prep"/><span>Reading the brain, projects, tasks, pitches, people and news.</span></span>` : 'Who they are, what we are doing, open pitches, the people, the news, three questions and one risk. One screen.'}</div>`}
       ${r.state === 'error' ? html`<div class="small flame-t" style=${{marginTop: '8px'}}>${M.ai.errCopy(r.err)}</div>` : null}
     </div>`;
-    return html`<${UI.Fold} title="Meeting prep" summary=${r.text ? 'ready to copy' : 'one tap'} id="fold-client-prep">${body}<//>`;
+    return html`<${M.fx.Beam}><${UI.Fold} title="Meeting prep" summary=${r.text ? 'ready to copy' : 'one tap'} id="fold-client-prep">${body}<//><//>`;
   }
 
   function HealthLine({id}) {
@@ -570,7 +572,7 @@
       ${id ? html`<${Prep} id=${id} f=${f} news=${mine}/>` : null}
       ${id && M.parts.PeopleAtClient && orgOf(ctx, id) ? html`<${UI.Fold} title="People at this client" id="fold-client-people"><${M.parts.PeopleAtClient} id=${id}/><//>` : null}
       ${id && M.parts.Connections ? html`<${M.parts.Connections} kind="client" id=${id}/>` : null}
-      ${id && M.parts.ClientUpdate && M.ai.on(ctx) ? html`<${UI.Fold} title="Client update" summary="a client-ready note" id="fold-client-update"><${M.parts.ClientUpdate} id=${id} name=${f.name}/><//>` : null}
+      ${id && M.parts.ClientUpdate && M.ai.on(ctx) ? html`<${M.fx.Beam}><${UI.Fold} title="Client update" summary="a client-ready note" id="fold-client-update"><${M.parts.ClientUpdate} id=${id} name=${f.name}/><//><//>` : null}
       ${ctx.isFounder ? html`<${UI.Input} label="monthly revenue" type="number" value=${f.monthly}
         onChange=${v => set('monthly', v)} hint="Private to you."/>` : null}
     <//>`;
@@ -593,9 +595,12 @@
       return out;
     }, [ctx]);
     const ids = Object.keys(map).sort((a, b) => String(map[a].name || '').localeCompare(String(map[b].name || '')));
+    /* the one client most in need of a look rides the beam: the first off track, else the first to watch */
+    const hotId = ids.find(x => health(ctx, x).level === 'risk') || ids.find(x => health(ctx, x).level === 'watch') || null;
 
     return html`<div class="stack" style=${{gap: '18px'}}>
       <${UI.PageHead} micro="client brains" title="Clients">
+        <${M.fx.Bot} feature="clients" size=${40} label="m360, client brains" className="ai-bot"/>
         <${UI.Btn} onClick=${() => setOpen('new')}>New client<//>
       <//>
       ${ids.length ? html`<div class="grid2">
@@ -604,10 +609,12 @@
           const comp = completeness(c);
           const s = sh[id];
           const h = health(ctx, id);
-          return html`<button type="button" class="card rowbtn" key=${id} data-client=${id} onClick=${() => setOpen(id)}
+          const fresh = c.created && Date.now() - c.created < 21 * 86400000;
+          const card = html`<button type="button" class="card rowbtn" key=${id} data-client=${id} onClick=${() => setOpen(id)}
             style=${{cursor: 'pointer'}}>
             <div class="row between nowrap">
               <span class="cl-title grow"><${Logo} id=${id} client=${c} sm=${true}/><span class="nm">${c.name}</span></span>
+              ${fresh ? html`<${M.fx.MetalBadge}>new<//>` : null}
               <${UI.Pill} kind=${STATUS_PILL[c.status]}>${c.status || 'live'}<//>
             </div>
             <div class="row small ink62" style=${{marginTop: '8px'}}>
@@ -626,6 +633,7 @@
               <span class="ink62 num">${s.share}% of monthly revenue</span>
             </div>` : null}
           </button>`;
+          return id === hotId ? html`<${M.fx.Beam} key=${id}>${card}<//>` : card;
         })}
       </div>` : html`<${UI.Card}><${UI.Empty} text="No clients yet."/><//>`}
       ${open ? html`<${ClientDrawer} id=${open === 'new' ? null : open} onClose=${close}/>` : null}
@@ -653,13 +661,14 @@
     }
     const busy = r.state === 'thinking' || r.state === 'streaming';
     return html`<div class="ai-card" id="client-update">
-      <div class="row between">
+      <div class="row between ai-head">
+        <${M.fx.Bot} feature="writer" state=${busy ? 'working' : 'default'} size=${36} label="m360, the update writer" className="ai-bot"/>
         <div class="grow"><${UI.Micro}>m360 ai<//><div class="card-title" style=${{marginTop: '4px'}}>Client update</div></div>
-        <button type="button" class="btn sm" disabled=${busy} onClick=${go}>${busy ? html`<${M.Thinking}/>` : html`<span class="spark">\u2726</span> ${r.text ? 'Write it again' : 'Write an update'}`}</button>
+        <${M.fx.Metal} kind="ink"><button type="button" class="btn sm" disabled=${busy} onClick=${go}>${busy ? html`<${M.Thinking} state="composing"/>` : html`<span class="spark">\u2726</span> ${r.text ? 'Write it again' : 'Write an update'}`}</button><//>
       </div>
       ${r.text ? html`<div style=${{marginTop: '12px'}}><${M.AIText} text=${r.text}/>
         <button type="button" class="linky small" style=${{marginTop: '8px'}} onClick=${() => navigator.clipboard.writeText(r.text).then(() => M.toast('Copied'), () => M.toast('Copy is blocked here', true))}>Copy for WhatsApp</button></div>`
-        : html`<div class="small ink62" style=${{marginTop: '8px'}}>${busy ? 'Reading this client\'s projects and tasks.' : 'A client-ready note on what shipped and what is next, in one tap.'}</div>`}
+        : html`<div class="small ink62" style=${{marginTop: '8px'}}>${busy ? html`<span class="row nowrap ai-wait"><${M.fx.Orb} state="composing" size=${32} label="Writing the update"/><span>Reading this client's projects and tasks.</span></span>` : 'A client-ready note on what shipped and what is next, in one tap.'}</div>`}
       ${r.state === 'error' ? html`<div class="small flame-t" style=${{marginTop: '8px'}}>${M.ai.errCopy(r.err)}</div>` : null}
     </div>`;
   }
