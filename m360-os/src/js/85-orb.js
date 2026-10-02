@@ -43,6 +43,16 @@
     }, [active]);
   }
 
+  /* the sound-reactive glow along the bottom edge of a wrapper (.vwrap): live while the mic is on,
+     gathered into a travelling beam while the answer is on its way */
+  function VoiceGlow({on, processing, mobile}) {
+    const ref = useRef(null);
+    useLevel(!!on && !processing, ref);
+    return html`<span ref=${ref} class=${'vglow' + (on ? ' on' : '') + (processing ? ' beam' : '') + (mobile ? ' mobile' : '')} aria-hidden="true" data-on=${on ? '1' : '0'} data-beam=${processing ? '1' : '0'}><i/><b/></span>`;
+  }
+  M.parts.VoiceGlow = VoiceGlow;
+  M.fx = {...(M.fx || {}), useLevel};
+
   function Words({text, quiet}) {
     const words = String(text || '').split(/\s+/).filter(Boolean);
     return html`<div class=${'orb-heard' + (quiet ? ' quiet' : '')} id="orb-heard">${words.map((w, i) => html`<${React.Fragment} key=${i}><span class="orb-w">${w}</span>${i < words.length - 1 ? ' ' : ''}<//>`)}</div>`;
@@ -87,6 +97,7 @@
           <button type="button" class="linky tiny" onClick=${onTour}>Show me around</button>
         </div>` : null}
       </div>
+      ${M.parts.VoiceGlow ? html`<${M.parts.VoiceGlow} on=${listening || mode === 'thinking'} processing=${mode === 'thinking'} mobile=${true}/>` : null}
       <div class="orb-foot">
         ${typing || mode === 'asking' || mode === 'answer' ? html`<input id="orb-input" class="input" value=${q} placeholder="Or type it" aria-label="Ask m360" autoFocus=${mode === 'asking'}
           onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter' && q.trim()) onAsk(q); }}/>

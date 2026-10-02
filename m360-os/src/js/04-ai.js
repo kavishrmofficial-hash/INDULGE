@@ -381,7 +381,9 @@
     return html`<div class="ai-out">${out}</div>`;
   };
 
-  M.Thinking = function Thinking({label}) {
-    return html`<span class="row nowrap small" style=${{gap: '8px'}}><span class="thinking"><i/><i/><i/></span>${label || 'Thinking'}</span>`;
+  M.Thinking = function Thinking({label, state}) {
+    const l = String(label || 'Thinking');
+    const st = state || (/look|search|read|find|scan|check/i.test(l) ? 'searching' : /writ|draft|compos|plan|sort/i.test(l) ? 'composing' : /connect|reach|wait/i.test(l) ? 'connecting' : 'working');
+    return html`<span class="row nowrap small thinking-line" style=${{gap: '8px'}} data-state=${st}><span class=${'vorb mini ' + st} aria-hidden="true"/><span class="thinking"><i/><i/><i/></span>${l}</span>`;
   };
 })();

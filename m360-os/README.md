@@ -379,6 +379,20 @@ The same design, with motion, nudges and three new moments. One easing family (`
 - **A thought for the day** (`84-quote.js`): one line on Home under the announcement, the same line for the whole team on a given date, from ninety lines written for people who make things (nothing motivational, nothing borrowed). The words rise in one by one; Another shows the next.
 - Test: `harness/tests/test_motion.py` (a tab tap nudges and moves the mark, a button nudges, the preference turns it off, the orb listens and writes the words and answers and closes, the orb opens to typing without recognition, the meter by keyboard and by drag with the face and the ground, the value in the entry and on Home, Not now, the thought shared by the founder and a member, reduced motion keeping the nudge and dropping the rain, the laptop check-out).
 
+## What is in v27: who reports to whom, and six effects drawn by hand
+
+- **Reporting lines** (`07-lines.js`, `M.lines`): a person reports to whoever Admin names on their roster line (Admin > Team > Edit > "reports to"); with nobody named, to the pod lead of their pod; with no lead, to Kaavish. A manager sees their reports' private detail (check-in times, late marks, scorecard, leave) the way Kaavish does, and the person page says who reports to whom.
+- **The manager's watch**: for each report, the day's flags: not checked in once start and grace have passed, a late check-in, no check-out an hour after the EOD cut, no EOD line after the cut, nothing moved on their tasks by mid afternoon (nothing created, moved, finished or commented on), overdue work. Approved leave, a holiday and Sunday carry no flags. They sit on the manager's Home as "Your team" (one row per report with where they are, their day rating and the flags, each with Open), land in the manager's inbox once per condition per day, and ring as a bubble. Kaavish gets the same card for whoever reports to him directly.
+- **Six effects, the house way** (`89-effects.css`, `86-bot.js`, `87-bell.js`), with no libraries: the app is one page with three script tags and a strict content policy, so each effect was drawn in our ink and flame.
+  - **Beam**: a glow rides the border of anything hot (a flame card, a hot fold on the phone).
+  - **Voice glow**: a sound-reactive bloom along the bottom of the Ask input while the mic is live, gathering into a travelling beam while the answer is on its way; the orb screen glows along its bottom edge the same way.
+  - **Orb states**: every "thinking" line carries the small sphere with a state read from its label (searching, composing, connecting, working).
+  - **Bot**: a drawn creature beside the AI's words in Ask: it looks about, blinks, follows a pointer nearby, hops on a tap, works while the answer is on its way, sleeps with its lids down.
+  - **Sheen**: a light sweeps a primary button and a quick action under the pointer.
+  - **The bell**: the notifications card is a pill that rings on a press, unfurls from "Notify me" to "You'll be notified", sends sound waves off the rim and rolls a badge when the count rises; the inbox bell rings whenever something new lands.
+  - Reduced motion stills all of it.
+- Tests: `harness/tests/test_reports.py` (the roster line, the pod lead fallback, the chain to Kaavish, Your team on the founder's and the manager's Home, the inbox, private detail for a manager and not a peer, the person page, late and idle at 15:00, a moved task clearing idle, leave carrying nothing, no check-out and no EOD at 20:45, an overdue task, Open landing on the person) and `test_effects.py` (states from labels, the beam while processing, the beam on a hot card, the sheen, the bell's ring, waves, label and badge, the bot's blink, hop, work and sleep, the bot and the glow in Ask, the inbox bell, reduced motion, the orb screen's glow).
+
 ## Launch day
 
 1. Admin > Team: invite each person by email. They get a link, type their email and pick a password. Without an email key the invite shows a link to copy instead.

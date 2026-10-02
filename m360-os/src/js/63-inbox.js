@@ -62,6 +62,11 @@
       const trash = (ctx.coll.tasks && ctx.coll.tasks.trash) || {};
       for (const id of Object.keys(trash)) { const t = trash[id]; if (t && t.deletedBy && t.deletedBy !== founder) push('flag:del:' + id, 'flag', Number(t.deletedAt) || 0, T`${nm(t.deletedBy)} deleted ${t.title}. It is in the bin on Admin`, '#admin', t.deletedBy, true); }
     }
+    /* the manager's watch: each report's day, as flags; the founder gets whoever reports to them */
+    if (M.lines) {
+      const td = U.ymd(new Date(ctx.now || Date.now()));
+      for (const r of M.lines.board(ctx, me)) for (const f of r.flags) push('team:' + r.uid + ':' + f.k + ':' + td, 'flag', f.at || (ctx.now || Date.now()), T`${nm(r.uid)} ${f.text}`, f.ref, r.uid, f.hot);
+    }
     /* kudos to me */
     const kmap = ctx.coll.kudos.map;
     for (const giver of Object.keys(kmap)) for (const k of (kmap[giver].given || [])) {
@@ -87,7 +92,7 @@
     }
     /* founder: joins and leave requests */
     if (ctx.isFounder) {
-      (M.team ? M.team.requests(ctx) : []).forEach(r => push('join:' + r.uid, 'people', r.at, T`${nm(r.uid)} wants to join the team`, '#admin', r.uid, true));
+      (M.team && M.team.requests ? M.team.requests(ctx) : []).forEach(r => push('join:' + r.uid, 'people', r.at, T`${nm(r.uid)} wants to join the team`, '#admin', r.uid, true));
       if (M.leave && M.leave.pending) M.leave.pending(ctx).forEach(({uid, req}) => push('lvr:' + req.id, 'leave', req.at || 0, T`${nm(uid)} asked for leave, ${M.leave.rangeText(req)}`, '#admin', uid));
     }
     /* corrections: the founder sees each pending request, the person sees the decision */
@@ -163,6 +168,8 @@
       if (!mark) { M.prefs.set(key, String(newest || now)); return; }
       const seen = seenAt(ctx);
       const fresh = list.filter(i => i.at > mark && i.at > seen).sort((a, b) => a.at - b.at);
+      /* a name not yet known: wait for the profile, the bubble comes on the next pass */
+      if (fresh.some(i => i.actor && !(profs[i.actor] && profs[i.actor].name) && !(ctx.members[i.actor] && ctx.members[i.actor].name))) return;
       if (newest > mark) M.prefs.set(key, String(newest));
       if (!fresh.length) return;
       for (const it of fresh.slice(-4)) {
@@ -172,7 +179,7 @@
         M.notices.push({key: 'inbox:' + it.id, who: it.actor || null, title: who || (TITLE[it.kind] || 'm360'), body, hidden: 'Something new for you in m360', href: it.ref, life: 12000});
       }
       M.sound.play('soft');
-    }, [ctx]);
+    }, [ctx, profs]);
     return null;
   }
   M.parts.InboxWatch = InboxWatch;

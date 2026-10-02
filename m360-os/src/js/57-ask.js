@@ -66,6 +66,7 @@
     const [q, setQ] = useState('');
     const [busy, setBusy] = useState(false);
     const [live, setLive] = useState('');
+    const [micLive, setMicLive] = useState(false);
     const [imgs, setImgs] = useState([]);           /* {blob, url} attached to the next message */
     const [canImg, setCanImg] = useState(false);
     const ctl = useRef(null);
@@ -147,19 +148,20 @@
       <div class="stack" style=${{gap: '10px', maxHeight: inline ? '420px' : 'none', overflowY: inline ? 'auto' : 'visible'}}>
         ${turns.map((t, i) => t.act
           ? html`<div key=${i} class="bubble act">${t.content}</div>`
-          : html`<div key=${i} class=${'bubble ' + (t.role === 'user' ? 'me' : 'ai')} style=${t.err ? {borderColor: 'var(--flame)'} : null}>
-              ${t.role === 'user' ? html`${t.img ? html`<span class="tiny ink62">[image] </span>` : null}${t.content}` : html`<${M.AIText} text=${t.content}/>`}</div>`)}
-        ${busy ? html`<div class="bubble ai">${live ? html`<${M.AIText} text=${live}/>` : html`<${M.Thinking}/>`}</div>` : null}
+          : t.role === 'user' ? html`<div key=${i} class="bubble me" style=${t.err ? {borderColor: 'var(--flame)'} : null}>${t.img ? html`<span class="tiny ink62">[image] </span>` : null}${t.content}</div>`
+          : html`<div key=${i} class="ask-row">${M.parts.Bot ? html`<${M.parts.Bot} size=${26} seed=${(i % 7) / 7} state="default" label="m360"/>` : null}<div class="bubble ai" style=${t.err ? {borderColor: 'var(--flame)'} : null}><${M.AIText} text=${t.content}/></div></div>`)}
+        ${busy ? html`<div class="ask-row">${M.parts.Bot ? html`<${M.parts.Bot} size=${26} state="working" label="m360, working" id="ask-bot"/>` : null}<div class="bubble ai">${live ? html`<${M.AIText} text=${live}/>` : html`<${M.Thinking}/>`}</div></div>` : null}
         ${M.parts.PendingActs ? html`<${M.parts.PendingActs}/>` : null}
         <div ref=${endRef}/>
       </div>
       ${imgs.length ? html`<div class="row" style=${{gap: '8px'}} id=${inline ? 'ask-attached-inline' : 'ask-attached'}>${imgs.map((im, i) => html`<span key=${i} class="ask-thumb"><img src=${im.url} alt="attached"/><button type="button" class="iconbtn" aria-label="Remove image" onClick=${() => setImgs(xs => xs.filter((_, j) => j !== i))}><${M.icons.x}/></button></span>`)}</div>` : null}
-      <div class="ask-in">
+      <div class="ask-in vwrap">
+        ${M.parts.VoiceGlow ? html`<${M.parts.VoiceGlow} on=${micLive || busy} processing=${busy && !micLive}/>` : null}
         ${canImg ? html`<input ref=${fileRef} type="file" accept="image/*" multiple=${true} style=${{display: 'none'}} id=${inline ? 'ask-file-inline' : 'ask-file'} onChange=${e => { attach(e.target.files); e.target.value = ''; }}/>
           <button type="button" class="iconbtn" aria-label="Attach an image" title="A photo or a screenshot" onClick=${() => fileRef.current && fileRef.current.click()}><${M.icons.plus}/></button>` : null}
         <input id=${inline ? 'ask-inline' : 'ask-input'} class="input" value=${q} placeholder=${ctx.isFounder ? 'Ask HQ anything…' : 'Ask m360 anything…'}
           onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') send(); }} onPaste=${e => { const fs = Array.from((e.clipboardData && e.clipboardData.files) || []).filter(f => /^image\//.test(f.type)); if (fs.length && canImg) { e.preventDefault(); attach(fs); } }} aria-label="Ask m360"/>
-        ${M.parts.MicButton ? html`<${M.parts.MicButton} sm=${true} label="Talk" onText=${(t, lg) => { lang.current = lg || 'en'; send(t); }}/>` : null}
+        ${M.parts.MicButton ? html`<${M.parts.MicButton} sm=${true} label="Talk" onLive=${setMicLive} onText=${(t, lg) => { lang.current = lg || 'en'; send(t); }}/>` : null}
         <button type="button" class=${'iconbtn' + (aloud ? ' on' : '')} id=${inline ? 'ask-aloud-inline' : 'ask-aloud'} aria-pressed=${aloud} aria-label="Read replies aloud" title=${aloud ? 'Replies are read aloud' : 'Read replies aloud'}
           onClick=${() => { const v = !aloud; setAloud(v); M.prefs.set('askAloud', v ? '1' : '0'); if (!v && M.speech) M.speech.stop(); }}><${M.icons.voice}/></button>
         ${busy ? html`<${UI.Btn} kind="sec" onClick=${() => ctl.current && ctl.current.abort()}>Stop<//>`

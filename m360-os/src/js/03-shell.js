@@ -311,6 +311,12 @@
     const sec = SECTIONS[r.s] || SECTIONS.home;
     const Page = M.pages[sec.page];
     const b = M.badges(ctx);
+    const inboxWas = React.useRef(b.inbox || 0);
+    React.useEffect(() => {
+      const n = b.inbox || 0;
+      if (n > inboxWas.current && M.fx && M.fx.ring) document.querySelectorAll('.bellbtn svg').forEach(el => M.fx.ring(el, {amplitude: 14, passes: 4, duration: 640}));
+      inboxWas.current = n;
+    }, [b.inbox]);
     const go = k => { setMoreOpen(false); M.nav('#' + k); };
 
     const mainKeys = ['home', 'chat', 'work', 'accounts', 'workspace', 'base', 'radar', 'web', 'vibe', 'break', 'me'];

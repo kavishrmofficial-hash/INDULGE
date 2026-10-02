@@ -9,8 +9,9 @@
   const SR = () => window.SpeechRecognition || window.webkitSpeechRecognition || null;
   const MAX_MS = 30000;
 
-  function MicButton({onText, label, sm}) {
-    const [live, setLive] = useState(false);
+  function MicButton({onText, label, sm, onLive}) {
+    const [live, setLiveRaw] = useState(false);
+    const setLive = v => { setLiveRaw(v); if (onLive) onLive(!!v); };
     const [busy, setBusy] = useState(false);
     const rec = useRef(null);
     const heard = useRef('');

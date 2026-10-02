@@ -181,7 +181,7 @@
       };
 
       /* private detail (locations, exact times, late marks, scores, leave) shows to the founder and the person only */
-      const canSee = u => isFounder || u === uid;
+      const canSee = u => isFounder || u === uid || !!(M.lines && M.lines.managerFrom(members, founderUid, u) === uid);
 
       return {db, user, mcp, downloads, permissions, sample, room, me, uid, realUid, viewAs, W,
         priv: {state: privState, keeper: isFounder ? privKeeper : {ready: true, data: null}, finance: isFounder ? privFinance : {ready: true, data: null}},

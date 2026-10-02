@@ -35,16 +35,19 @@
       role: (member && (member.role === 'lead' || member.role === 'founder')) ? member.role : 'member',
       joined: (member && member.joined) || U.todayStr(),
       start: (member && member.start) || '', probationEnd: (member && member.probationEnd) || '',
-      wfhCap: (member && member.wfhCap != null && member.wfhCap !== '') ? String(member.wfhCap) : ''
+      wfhCap: (member && member.wfhCap != null && member.wfhCap !== '') ? String(member.wfhCap) : '',
+      reportsTo: (member && member.reportsTo) || ''
     }));
     const set = (k, v) => setF(x => ({...x, [k]: v}));
+    const profs = M.useProfiles(ctx.activeMembers.map(x => x.uid));
     async function save() {
       const roster = ctx.roster || {members: {}, nextEmp: 2};
       const existing = roster.members[person.id];
       const empId = (existing && existing.empId) || ('M360-' + String(roster.nextEmp || 2).padStart(3, '0'));
       const body = {role: f.role, empId, title: f.title, pod: f.pod, joined: f.joined,
         start: f.start, probationEnd: f.probationEnd, active: true,
-        wfhCap: String(f.wfhCap).trim() === '' ? '' : Math.max(0, Math.min(6, Math.floor(Number(f.wfhCap) || 0)))};
+        wfhCap: String(f.wfhCap).trim() === '' ? '' : Math.max(0, Math.min(6, Math.floor(Number(f.wfhCap) || 0))),
+        reportsTo: f.reportsTo && f.reportsTo !== person.id && ctx.members[f.reportsTo] ? f.reportsTo : ''};
       const patch = {members: {[person.id]: body}, updated: Date.now()};
       if (!existing) patch.nextEmp = (roster.nextEmp || 2) + 1;
       await ctx.W.merge('roster/team', patch);
@@ -59,6 +62,9 @@
         <span style=${{fontWeight: 500}}>${person.name || html`<${UI.Name} id=${person.id}/>`}</span></div>
       <${UI.Input} id="desk-title" label="title" value=${f.title} onChange=${v => set('title', v)}/>
       <${UI.Input} label="pod" value=${f.pod} onChange=${v => set('pod', v)}/>
+      ${self ? null : html`<${UI.Select} id="desk-reports" label="reports to" value=${f.reportsTo} onChange=${v => set('reportsTo', v)}
+        hint="Blank means the pod lead of their pod, or Kaavish. Whoever they report to sees their check-ins and gets a watch on their day."
+        options=${[{v: '', label: 'Pod lead, or Kaavish'}].concat(ctx.activeMembers.filter(x => x.uid !== person.id).map(x => ({v: x.uid, label: (profs[x.uid] && profs[x.uid].name) || x.title || x.empId || x.uid})))}/>`}
       ${self ? null : html`<${UI.Field} label="access"
         hint=${f.role === 'founder' ? 'Full access sees HQ, Admin and everyone\'s detail. Share the page with them as Can edit too.' : ''}>
         <${UI.Seg} options=${ROLES} value=${f.role} onChange=${v => set('role', v)} ariaLabel="Role"/><//>`}

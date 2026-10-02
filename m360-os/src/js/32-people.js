@@ -529,6 +529,8 @@
     const pronouns = String(prof.pronouns || '').trim();
     const city = String(prof.city || '').trim();
     const Details = M.parts.ProfileDetails;
+    const mgr = M.lines ? M.lines.managerOf(ctx, uid) : null;
+    const reps = M.lines ? M.lines.reportsOf(ctx, uid) : [];
     return html`<${React.Fragment}>
       <${UI.PageHead} micro="team" title="People">${back}<//>
       <${UI.Card} id="person-head">
@@ -543,6 +545,7 @@
             </div>
             <div class="small sub"><span class="num">${m.empId || ''}</span>${line ? (m.empId ? ' · ' : '') + line : ''}</div>
             <div class="small sub">${okDate(m.joined) ? 'Joined ' + U.fmtDate(m.joined) : 'Joined date missing'}${city ? html`<span> · <span id="person-city">${city}</span></span>` : null}</div>
+            ${mgr || reps.length ? html`<div class="small sub" id="person-reports">${mgr ? html`reports to <${UI.Name} id=${mgr}/>` : null}${mgr && reps.length ? ' · ' : ''}${reps.length ? html`${reps.length === 1 ? 'one report: ' : reps.length + ' reports: '}${reps.map((r, i) => html`<${React.Fragment} key=${r}><${UI.Name} id=${r}/>${i < reps.length - 1 ? ', ' : ''}<//>`)}` : null}</div>` : null}
             ${Details ? html`<${Details} uid=${uid}/>` : null}
           </div>
         </div>

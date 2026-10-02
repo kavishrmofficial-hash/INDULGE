@@ -452,6 +452,34 @@
     </section>`;
   }
 
+  /* ---------- your team: each report's day, with the watch flags ---------- */
+  function TeamWatch() {
+    const ctx = M.useCtx();
+    if (!M.lines) return null;
+    const board = M.lines.board(ctx, ctx.uid);
+    if (!board.length) return null;
+    const td = U.todayStr();
+    const hot = board.reduce((n, r) => n + r.flags.filter(f => f.hot).length, 0);
+    const all = board.reduce((n, r) => n + r.flags.length, 0);
+    const F = UI.Fold;
+    return html`<${F} title="Your team" summary=${all ? all + (all === 1 ? ' thing to look at' : ' things to look at') : 'all moving'} hot=${hot > 0} open=${all > 0} id="fold-team">
+      <section class=${'card' + (hot ? ' flame' : '')} id="team-watch">
+        <div class="card-head"><h2 class="card-title">Your team</h2>${all ? html`<span class=${'pill ' + (hot ? 'flame' : 'warm')}>${all}</span>` : html`<span class="pill ink">all moving</span>`}</div>
+        <div class="stack tight">${board.map(r => {
+          const a = M.att.dayStatus(ctx, r.uid, td);
+          const where = a.status === 'office' ? 'in office' : a.status === 'wfh' ? 'WFH' : a.status === 'leave' ? 'on leave' : a.status === 'holiday' ? 'holiday' : a.status === 'sunday' ? 'Sunday' : 'not in yet';
+          const rate = M.dayrate ? M.dayrate.todayOf(ctx, r.uid) : null;
+          return html`<div class="listrow team-row" key=${r.uid} id=${'team-' + r.uid}>
+            <button type="button" class="rowbtn" style=${{width: 'auto'}} aria-label="Open their page" onClick=${() => M.nav('#people/' + r.uid)}><${UI.Avatar} id=${r.uid} size=${30}/></button>
+            <div class="grow" style=${{minWidth: 0}}>
+              <div class="row between"><span style=${{fontWeight: 500}}><${UI.Name} id=${r.uid}/></span><span class="tiny ink62">${where}${a.in ? ', ' + U.hhmm(a.in) : ''}${a.out ? ' to ' + U.hhmm(a.out) : ''}${rate != null ? ' ' + M.dayrate.faceFor(rate)[1] : ''}</span></div>
+              ${r.flags.length ? r.flags.map(f => html`<div key=${f.k} class="small team-flag" data-k=${f.k} data-hot=${f.hot ? '1' : '0'}><span class="dotflame" style=${f.hot ? null : {background: 'var(--line2)'}}/><span class="grow"><${UI.Name} id=${r.uid}/> ${f.text}</span>${f.ref ? html`<button type="button" class="linky tiny" onClick=${() => M.nav(f.ref)}>Open</button>` : null}</div>`) : html`<div class="small ink62">Moving along.</div>`}
+            </div>
+          </div>`; })}</div>
+      </section>
+    <//>`;
+  }
+
   /* ---------- rule flags, as a friendly list ---------- */
   function HeadsUp() {
     const ctx = M.useCtx();
@@ -692,6 +720,7 @@
       ${M.parts.Quote ? html`<${M.parts.Quote}/>` : null}
       ${Celebrate ? html`<${Celebrate}/>` : null}
       <${Quick} onTask=${() => setTask('new')}/>
+      <${TeamWatch}/>
       ${M.parts.PlanToday ? html`<${M.parts.PlanToday}/>` : null}
       ${M.parts.SpotifyMini ? html`<${M.parts.SpotifyMini}/>` : null}
       <${InstallHint}/>
