@@ -25,7 +25,27 @@
      moment later, so a cold start on a phone stays quick */
   let settled = false;
   const subs = new Set();
-  setTimeout(() => { settled = true; subs.forEach(fn => fn()); }, 450);
+  /* wrapping a control in its effect rebuilds the control, so whatever had focus at that moment (the
+     search box opened straight after load, say) gets its focus and caret back */
+  setTimeout(() => {
+    const a = document.activeElement;
+    const id = a && a !== document.body ? a.id : '';
+    let caret = null;
+    try { caret = id && typeof a.selectionStart === 'number' ? [a.selectionStart, a.selectionEnd] : null; } catch (e) { caret = null; }
+    settled = true;
+    subs.forEach(fn => fn());
+    if (!id) return;
+    const back = () => {
+      const b = document.getElementById(id);
+      if (!b || b === document.activeElement) return;
+      const now = document.activeElement;
+      if (now && now !== document.body && now.isConnected) return;
+      b.focus({preventScroll: true});
+      if (caret) { try { b.setSelectionRange(caret[0], caret[1]); } catch (e) { /* not a text field */ } }
+    };
+    Promise.resolve().then(back);
+    requestAnimationFrame(back);
+  }, 450);
   const useSettled = () => React.useSyncExternalStore(fn => { subs.add(fn); return () => subs.delete(fn); }, () => settled, () => settled);
   const FX = () => (window.FX && settled) ? window.FX : null;
   const still = () => M.reduced();
