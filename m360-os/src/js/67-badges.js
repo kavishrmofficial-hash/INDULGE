@@ -75,13 +75,13 @@
       M.burst(document.getElementById('celebrate'));
       M.toast('Sent');
     };
-    return html`<section class="card flame" id="celebrate">
+    return html`<${M.fx.Beam}><section class="card flame" id="celebrate">
       ${list.map(c => html`<div class="celebrate" key=${c.uid + c.kind}>
         <span class="cake"><${icons.gift}/></span>
         <div class="grow"><div style=${{fontWeight: 500}}><${UI.Name} id=${c.uid}/></div><div class="small ink62">${c.uid === ctx.uid ? (c.kind === 'birthday' ? 'Happy birthday from all of us.' : 'Happy work anniversary.') : c.text}</div></div>
         ${c.uid !== ctx.uid ? html`<${UI.Btn} sm=${true} onClick=${() => wish(c)}>Send wishes<//>` : null}
       </div>`)}
-    </section>`;
+    </section><//>`;
   }
 
   /* ---------- the trophy case, on Me ---------- */
@@ -100,7 +100,7 @@
     return html`<${UI.Card} id="trophies" title="Trophy case" action=${html`<span class="pill ink">${got.length} of ${list.length}</span>`}>
       <div class="trophies">
         ${list.map(t => html`<div key=${t.id} class=${'trophy' + (t.got ? '' : ' locked') + (fresh.includes(t.id) ? ' new' : '')}>
-          <span class="ic"><${icons[t.icon] || icons.trophy}/></span>
+          <span class="row between nowrap"><span class="ic"><${icons[t.icon] || icons.trophy}/></span>${t.got ? html`<${M.fx.MetalBadge}>${fresh.includes(t.id) ? 'new' : 'won'}<//>` : null}</span>
           <b>${t.name}</b><span class="small">${t.desc}</span>
         </div>`)}
       </div>

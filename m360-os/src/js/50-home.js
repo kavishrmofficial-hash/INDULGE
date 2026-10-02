@@ -90,8 +90,8 @@
       ${pick ? html`<div>
         <div style=${{fontWeight: 500, marginBottom: '8px'}}>Where are you checking in from?</div>
         <div class="row">${PLACES.map(p => html`<button key=${p.v} type="button" class="btn on-dark sec sm" disabled=${busy} onClick=${() => manual(p)}>${p.v}</button>`)}</div>
-      </div>` : html`<div><${M.fx.Metal} kind="paper"><button type="button" class="btn xl on-dark" disabled=${busy} onClick=${tap}>
-        ${busy ? 'Checking in' : (mode === 'wfh' ? 'Check in, WFH' : 'Check in, office')}</button><//></div>`}
+      </div>` : html`<div><${M.fx.Beam} dark=${true} radius=${14} block=${false}><${M.fx.Metal} kind="paper"><button type="button" class="btn xl on-dark" disabled=${busy} onClick=${tap}>
+        ${busy ? html`<${M.fx.Orb} state="searching" size=${20} dark=${false} label="finding your location"/> Checking in` : (mode === 'wfh' ? 'Check in, WFH' : 'Check in, office')}</button><//><//></div>`}
       <div class="tiny" style=${{color: 'rgba(255,255,255,.6)'}}>WFH days used this week: ${used} of ${cap}. Checking in records the time and your location at that moment. Kaavish can see both.</div>
     </div>`;
   }
@@ -194,6 +194,9 @@
     const special = a.status === 'leave' ? "You're on approved leave today. Log off."
       : a.status === 'holiday' ? 'Today is a holiday.' : a.status === 'sunday' ? 'Sunday. The OS rests too.' : '';
     const hol = M.holidays ? M.holidays.tomorrow(ctx) : null;
+    const chipInk = night ? '#F2F1EC' : undefined;
+    const panel = html`<div class="hero-panel">${special ? html`<div class="display" style=${{fontSize: '24px'}}>${special}</div>`
+          : (a.in ? html`<${InNow}/>` : html`<${TapIn}/>`)}</div>`;
     return html`<header class=${'hero home-hero ' + (night ? 'ink night' : 'day')} id="home-hero" data-mode=${sky.mode}
       style=${{'--sx': sky.x + '%', '--sy': sky.y + '%', '--px': sky.px + '%', '--py': sky.py + '%', '--sun': sky.size + 'px'}}>
       <div class="hero-in">
@@ -201,15 +204,14 @@
           <${UI.Micro} plain><span class="sky" aria-hidden="true">${night ? html`<span class="moon"/>` : html`<span class="sun"/>`}</span>${U.dateLabel(now)} <${Clock}/><//>
           <h1 class="hi">${sky.greeting},<br/>${first}.</h1>
           <div class="hero-chips">
-            <span class=${chip}><b class="flame-t num">${inStreak}</b> day streak</span>
+            <span class=${chip}><b class="flame-t num"><${M.fx.MetalText} size=${15} color=${M.fx.FLAME}>${String(inStreak)}<//></b> day streak</span>
             <span class=${chip}><b class="num">${eodStreak}</b> EOD lines in a row</span>
-            <span class=${chip}>level <b class="num">${lv.lvl}</b></span>
+            <span class=${chip}>level <b class="num"><${M.fx.MetalText} size=${15} color=${chipInk}>${String(lv.lvl)}<//></b></span>
             <button type="button" class=${chip} onClick=${onStatus}>${st ? html`<span class="dotflame"/>${st.text}` : 'Set a status'}</button>
           </div>
           ${hol ? html`<div class="hero-tomorrow" id="hero-tomorrow"><span class="dotflame"/><span>${M.holidays.line(hol)}</span></div>` : null}
         </div>
-        <div class="hero-panel">${special ? html`<div class="display" style=${{fontSize: '24px'}}>${special}</div>`
-          : (a.in ? html`<${InNow}/>` : html`<${TapIn}/>`)}</div>
+        ${panel}
       </div>
     </header>`;
   }
@@ -279,12 +281,12 @@
     if (!post) return null;
     const ackKey = 'ann:' + key;
     if ((((ctx.coll.acks.map[ctx.uid] || {}).s) || {})[ackKey]) return null;
-    return html`<section class="card flame">
+    return html`<${M.fx.Beam}><section class="card flame">
       <div class="row"><span class="pill flame">announcement</span><${UI.Avatar} id=${au} size=${22}/>
         <span class="small" style=${{fontWeight: 500}}><${UI.Name} id=${au}/></span><span class="tiny ink62">${U.timeAgo(post.at)}</span></div>
       <p style=${{whiteSpace: 'pre-wrap', margin: '10px 0 14px', fontSize: '16px'}}>${post.text}</p>
       <${UI.Btn} sm=${true} onClick=${() => ctx.W.merge('acks/' + ctx.uid, {s: {[ackKey]: Date.now()}}).catch(() => {})}>Got it<//>
-    </section>`;
+    </section><//>`;
   }
 
   /* ---------- EOD with an AI draft ---------- */
@@ -331,9 +333,11 @@
       <div class="card-head">
         <div class="grow"><h2 class="card-title">EOD line</h2>
           <div class="small ink62">${late ? html`<span class="flame-t">${'Due at ' + ctx.settings.eodCut + '.'}</span>` : 'Three lines before ' + ctx.settings.eodCut + '. Let m360 draft it, then tweak.'}</div></div>
-        ${M.ai.on(ctx) ? html`<button type="button" class="btn sec sm" disabled=${thinking} onClick=${draft}>
-          ${thinking ? html`<${M.Thinking} label="Drafting"/>` : html`<span class="spark">${SPARK}</span> Write it for me`}</button>` : null}
+        ${M.ai.on(ctx) ? html`<span class="row nowrap fxh-act"><${M.fx.Bot} feature="writer" state=${thinking ? 'working' : 'default'} size=${30} label=${thinking ? 'm360, writing' : 'm360 writer'}/>
+          <button type="button" class="btn sec sm" disabled=${thinking} onClick=${draft}>
+          ${thinking ? html`<${M.Thinking} label="Drafting"/>` : html`<span class="spark">${SPARK}</span> Write it for me`}</button></span>` : null}
       </div>
+      ${thinking ? html`<div class="row nowrap fxh-drafting"><${M.fx.Orb} state="composing" size=${32} label="m360 is writing"/><span class="small ink62">Writing your three lines from today's work.</span></div>` : null}
       ${r.state === 'error' ? html`<div class="small flame-t">${M.ai.errCopy(r.err)}</div>` : null}
       <div class="stack tight">
         <${UI.TextArea} id="wrap-shipped" label="shipped" rows=${2} value=${f.shipped} onChange=${v => set('shipped', v)} placeholder="What went out today"/>
@@ -348,6 +352,7 @@
   /* ---------- AI brief ---------- */
   function Brief() {
     const ctx = M.useCtx();
+    const phone = M.usePhone();
     const cache = M.ai.useCache(ctx);
     const r = M.ai.useRun();
     const cached = cache.data && cache.data.brief && cache.data.brief.date === U.todayStr() ? cache.data.brief.text : '';
@@ -363,16 +368,19 @@
       if (typeof out === 'string' && out) M.ai.saveCache(ctx, 'brief', {text: out});
     }
     const busy = r.state === 'thinking' || r.state === 'streaming';
-    return html`<section class="ai-card">
+    const btn = html`<button type="button" class=${'btn sm ' + (text ? 'sec' : '')} disabled=${busy} onClick=${go}>
+          ${busy ? html`<${M.Thinking} state="composing"/>` : html`<span class="spark">${SPARK}</span> ${text ? 'Refresh' : 'Brief me'}`}</button>`;
+    return html`<${M.fx.Beam} radius=${phone ? 18 : 20}><section class="ai-card fxh-brief">
       <div class="card-head">
+        <${M.fx.Bot} feature="brief" state=${busy ? 'working' : 'default'} size=${34} label=${busy ? 'm360, sorting your day' : 'm360 brief'}/>
         <div class="grow"><${UI.Micro}>m360 ai<//><h2 class="card-title" style=${{marginTop: '4px'}}>Your day, sorted</h2></div>
-        <button type="button" class=${'btn sm ' + (text ? 'sec' : '')} disabled=${busy} onClick=${go}>
-          ${busy ? html`<${M.Thinking}/>` : html`<span class="spark">${SPARK}</span> ${text ? 'Refresh' : 'Brief me'}`}</button>
+        ${text ? btn : html`<${M.fx.Metal} kind="ink">${btn}<//>`}
       </div>
       ${text ? html`<${M.AIText} text=${text}/>`
-        : html`<div class="small ink62">${busy ? 'Reading your tasks, outcomes and flags.' : 'One tap and m360 lines up your day from your tasks, deadlines and this week\'s outcomes.'}</div>`}
+        : busy ? html`<div class="row nowrap fxh-drafting"><${M.fx.Orb} state="composing" size=${32} label="m360 is drafting"/><span class="small ink62">Reading your tasks, outcomes and flags.</span></div>`
+        : html`<div class="small ink62">One tap and m360 lines up your day from your tasks, deadlines and this week's outcomes.</div>`}
       ${r.state === 'error' ? html`<div class="small flame-t" style=${{marginTop: '8px'}}>${M.ai.errCopy(r.err)}</div>` : null}
-    </section>`;
+    </section><//>`;
   }
 
   /* ---------- focus list ---------- */
@@ -444,10 +452,10 @@
           <span class="ft grow">${t.title}</span></div>`)}
       </div>` : null}
       <div class="ask-in" style=${{marginTop: '14px'}}>
-        <input id="quick-add" class="input" value=${q} aria-label="Add a task"
+        <${M.fx.Beam} radius=${12} size="sm"><input id="quick-add" class="input" value=${q} aria-label="Add a task"
           placeholder=${M.ai.on(ctx) ? 'Add a task. Try: ask Aanya to cut the teaser by Friday' : 'Add a task'}
-          onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') add(); }}/>
-        <${UI.Btn} disabled=${busy || !q.trim()} onClick=${add}>${busy ? 'Adding' : 'Add'}<//>
+          onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') add(); }}/><//>
+        <${UI.Btn} disabled=${busy || !q.trim()} onClick=${add}>${busy ? html`<${M.fx.Orb} state=${M.ai.on(ctx) ? 'solving' : 'working'} size=${20} label="adding"/> Adding` : 'Add'}<//>
       </div>
     </section>`;
   }
@@ -516,8 +524,9 @@
     const marks = ((((ctx.coll.review.map[ctx.uid] || {}).weeks || {})[wkId]) || {}).marks || {};
     const hit = Object.values(marks).filter(x => x === 'hit').length;
     const overdue = mine.filter(t => t.status !== 'done' && t.due && t.due < U.todayStr()).length;
+    const phone = M.usePhone();
     const tile = (v, l, to, hot) => html`<button type="button" class=${'stat' + (hot ? ' hot' : '')} onClick=${() => M.nav(to)}>
-      <span class="v num">${typeof v === 'number' ? html`<${UI.Num} value=${v}/>` : v}</span><span class="l">${l}</span></button>`;
+      <span class="v num"><${M.fx.MetalText} size=${phone ? 28 : 34} weight=${600} color=${hot ? M.fx.FLAME : undefined}>${String(v)}<//></span><span class="l">${l}</span></button>`;
     return html`<div class="grid4 two">
       ${tile(doneWk.length, 'shipped this week', '#tasks')}
       ${tile(overdue, 'overdue on you', '#tasks', overdue > 0)}
@@ -664,7 +673,7 @@
           <${UI.Avatar} id=${it.type === 'kudos' ? it.giver : it.author} size=${28}/>
           <span class="grow" style=${{minWidth: 0}}>
             <span class="small"><b style=${{fontWeight: 500}}><${UI.Name} id=${it.type === 'kudos' ? it.giver : it.author}/></b>
-              ${it.type === 'kudos' ? html` gave kudos to <${UI.Name} id=${it.to}/>` : it.kind === 'win' ? ' shared a win' : ''}</span>
+              ${it.type === 'kudos' ? html` gave kudos to <${UI.Name} id=${it.to}/>` : it.kind === 'win' ? html` shared a win <${M.fx.MetalBadge}>win<//>` : ''}</span>
             <span class="tiny ink62 clamp1">${it.type === 'kudos' ? it.why : it.text}</span>
           </span>
           <span class="tiny ink62 nowrap">${U.timeAgo(it.at)}</span>
@@ -675,6 +684,7 @@
         ${board.map((r, i) => html`<button type="button" class="top-row rowbtn" key=${r.uid} onClick=${() => M.nav('#scores')}>
           <span class=${'rank num' + (i === 0 ? ' first' : '')}>${i + 1}</span>
           <${UI.Avatar} id=${r.uid} size=${24}/><span class="grow small"><${UI.Name} id=${r.uid}/></span>
+          ${i === 0 ? html`<${M.fx.MetalBadge}>top<//>` : null}
           <span class="num small">${r.total} pts</span>
         </button>`)}
       </div>` : null}

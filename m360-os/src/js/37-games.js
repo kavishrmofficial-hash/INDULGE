@@ -96,7 +96,7 @@
     return html`<${UI.Card} id="doubles" title="Doubles, five minutes" action=${html`<${UI.Pill} kind="ink">mood, one trial<//>`}>
       <div class="small" style=${{marginBottom: '10px'}}>Slide, merge the equal numbers, see how far you get before the timer calls you back. An easy game for five minutes lifted mood more than guided relaxation in a lab test. It is a mood tool. It trains nothing, and we will not pretend it does.</div>
       <div class="row between" style=${{marginBottom: '8px'}}>
-        <span class="small num"><b>${score}</b> points${rec.best ? html` <span class="ink62">· best ${rec.best}</span>` : ''}</span>
+        <span class="small num"><b><${M.fx.MetalText} size=${16}>${String(score)}<//></b> points${rec.best ? html` <span class="ink62">· best ${rec.best}</span>` : ''}</span>
         <span class="small num ink62">${state === 'on' ? mm + ':' + ss : rec.games ? rec.games + ' played' : ''}</span>
       </div>
       <div class="dbl-wrap">
@@ -104,7 +104,7 @@
           ${board.map((v, i) => html`<div key=${i} role="gridcell" class=${'dbl-cell num' + (v >= 1024 ? ' big' : '') + (v >= 128 ? ' light' : '')} style=${v ? {background: shade(v)} : null}>${v || ''}</div>`)}
         </div>
         ${state !== 'on' ? html`<div class="dbl-over">
-          ${state === 'over' ? html`<div class="small"><b class="num">${score}</b> points. ${score >= (Number(rec.best) || 0) && score > 0 ? 'A new best.' : 'Nice run.'} Back to it.</div>` : html`<div class="small">Arrow keys or swipe.</div>`}
+          ${state === 'over' ? html`<div class="small"><b class="num"><${M.fx.MetalText} size=${16}>${String(score)}<//></b> points. ${score >= (Number(rec.best) || 0) && score > 0 ? html`<${M.fx.MetalBadge}>new<//> A new best.` : 'Nice run.'} Back to it.</div>` : html`<div class="small">Arrow keys or swipe.</div>`}
           <${UI.Btn} id="doubles-start" onClick=${start}>${state === 'over' ? 'Once more' : 'Play'}<//>
         </div>` : null}
       </div>
@@ -175,7 +175,7 @@
         </button>`
       : html`<div class="row between" style=${{flexWrap: 'wrap', gap: '10px'}}>
           <div class="stack tight">
-            ${mine ? html`<div class="small" id="rt-result">Today <b class="num">${mine.mean} ms</b> mean, <span class="num">${mine.lapses}</span> ${mine.lapses === 1 ? 'lapse' : 'lapses'} over ${RT.lapse} ms, <span class="num">${mine.n}</span> taps. ${read}</div>` : html`<div class="small">${days.length ? 'Not checked today.' : 'Nothing yet. One read a day is plenty.'}</div>`}
+            ${mine ? html`<div class="small" id="rt-result">Today <b class="num"><${M.fx.MetalText} size=${16}>${mine.mean + ' ms'}<//></b> mean, <span class="num">${mine.lapses}</span> ${mine.lapses === 1 ? 'lapse' : 'lapses'} over ${RT.lapse} ms, <span class="num">${mine.n}</span> taps. ${read}</div>` : html`<div class="small">${days.length ? 'Not checked today.' : 'Nothing yet. One read a day is plenty.'}</div>`}
             ${days.length >= 2 ? html`<div class="row nowrap" style=${{gap: '8px'}}><${UI.Spark} values=${days.map(d => -rt[d].mean)} width=${160} height=${30} hot=${true}/><span class="tiny ink62">last ${days.length} reads, up is faster</span></div>` : null}
           </div>
           <${UI.Btn} id="rt-start" kind=${mine ? 'sec' : undefined} onClick=${start}>${mine ? 'Check again' : 'Start'}<//>

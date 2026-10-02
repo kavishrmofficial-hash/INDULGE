@@ -41,6 +41,7 @@
   const sweep = td => { try { Object.keys(localStorage).filter(k => /^m360\.five:/.test(k) && k.indexOf(td) < 0).forEach(k => localStorage.removeItem(k)); } catch (e) { /* none */ } };
   function Five() {
     const ctx = M.useCtx();
+    const phone = M.usePhone();
     const td = today();
     useEffect(() => { sweep(td); }, [td]);
     const word = useMemo(() => wordFor(td), [td]);
@@ -95,15 +96,19 @@
         <div class="stack tight">
           <div class="small">One word, five letters, six tries. Same word for everyone today. Flame means in place, a ring means in the word, faded means not in it.</div>
           <div class=${'five-grid' + (shake ? ' shake' : '')} id="five-grid" role="grid" aria-label="Your tries" data-hotkeys=${over ? undefined : '1'}>
-            ${Array.from({length: TRIES}, (_, r) => html`<div key=${r} class="five-row" role="row">
+            ${Array.from({length: TRIES}, (_, r) => {
+              const row = html`<div key=${r} class="five-row" role="row">
               ${Array.from({length: 5}, (_, c) => {
                 const g = r < guesses.length ? guesses[r] : (r === guesses.length && !over ? cur : '');
                 const st = r < shown.length ? shown[r][c] : '';
                 return html`<span key=${c} role="gridcell" class=${'five-cell' + (st === '2' ? ' ok' : st === '1' ? ' near' : st === '0' ? ' out' : g[c] ? ' typed' : '')}>${over && done && !guesses.length ? '' : (g[c] || '')}</span>`;
               })}
-            </div>`)}
+            </div>`;
+              /* the row you are typing into carries the beam */
+              return r === guesses.length && !over ? html`<${M.fx.Beam} key=${'beam' + r} size="sm" radius=${phone ? 8 : 10}>${row}<//>` : row;
+            })}
           </div>
-          ${over ? html`<div class="small" id="five-done">${mineTries && mineTries <= TRIES ? html`Got it in <b class="num">${mineTries}</b>${done && done.ms ? html`, <span class="num">${M.play.fmtMs(done.ms)}</span>` : ''}. ${mineTries <= 2 ? 'Absurd.' : mineTries <= 3 ? 'Sharp today.' : mineTries <= 4 ? 'Solid.' : 'Made it.'} Tomorrow brings a new one.`
+          ${over ? html`<div class="small" id="five-done">${mineTries && mineTries <= TRIES ? html`Got it in <b class="num"><${M.fx.MetalText} size=${16}>${String(mineTries)}<//></b>${done && done.ms ? html`, <span class="num">${M.play.fmtMs(done.ms)}</span>` : ''}. ${mineTries <= 2 ? 'Absurd.' : mineTries <= 3 ? 'Sharp today.' : mineTries <= 4 ? 'Solid.' : 'Made it.'} Tomorrow brings a new one.`
             : html`Not today. It was <b>${word}</b>. Tomorrow brings a new one.`}</div>`
           : html`<div class="five-keys" aria-label="Keyboard">
             ${KEYS.map((row, ri) => html`<div key=${ri} class="five-krow">
@@ -122,11 +127,11 @@
               <span class="row nowrap" style=${{gap: '2px'}}>${who.length ? html`<${UI.AvatarRow} ids=${who.map(w => w.uid)} size=${18}/>` : null}</span>
             </div>`)}
           </div>
-          ${done ? html`<div class="five-card" id="five-share" aria-label="Your result card">
+          ${done ? html`<${M.fx.Beam} radius=${14} size="sm" block=${false}><div class="five-card" id="five-share" aria-label="Your result card">
             <div class="tiny ink62">Your card</div>
             <div class="five-mini">${(done.rows || []).map((r, i) => html`<div key=${i} class="five-mrow">${r.split('').map((s, j) => html`<i key=${j} class=${s === '2' ? 'ok' : s === '1' ? 'near' : 'out'}/>`)}</div>`)}</div>
             <div class="tiny num">Five ${U.fmtDay(td)} · ${done.tries <= TRIES ? done.tries + '/' + TRIES : 'X/' + TRIES}</div>
-          </div>` : html`<div class="tiny ink62">Your card shows here once you are done. It goes to the feed, squares only.</div>`}
+          </div><//>` : html`<div class="tiny ink62">Your card shows here once you are done. It goes to the feed, squares only.</div>`}
         </div>
       </div>
     <//>`;

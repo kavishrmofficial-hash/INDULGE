@@ -113,17 +113,19 @@
   function Sparks() {
     const ctx = M.useCtx();
     const me = mine(ctx);
+    const care = html`<${M.fx.Bot} feature="care" size=${30} label="m360 care"/>`;
     if (me.hide) return html`<div class="brk-sparks row" id="sparks" style=${{gap: '12px', alignItems: 'center'}}>
-      <span class="tiny ink62">Scoreboard hidden. Everything still counts.</span>
+      ${care}<span class="tiny ink62">Scoreboard hidden. Everything still counts.</span>
       <button type="button" class="linky tiny" id="sparks-show" onClick=${() => setHide(ctx, false)}>Show it</button>
     </div>`;
     const sq = squadBoard(ctx);
     const my = sq.find(s => s.mine), pos = sq.indexOf(my);
     const place = pos === 0 ? 'leading' : pos === 1 ? 'second' : pos === 2 ? 'third' : 'fourth';
     return html`<div class="brk-sparks row" style=${{gap: '14px', flexWrap: 'wrap', alignItems: 'center'}} id="sparks">
-      <span class="chipline"><b class="num">${me.week}</b> sparks this week <span class="tiny ink62 num">${me.lastWeek ? 'last week ' + me.lastWeek : WEEK_GOAL + ' shows up'}</span></span>
-      <span class="chipline"><b class="num">${me.streak}</b> workday streak${me.covered ? html` <span class="tiny ink62">${U.fmtDay(me.covered).split(' ')[0]} covered</span>` : me.best > me.streak ? html` <span class="tiny ink62 num">best ${me.best}</span>` : ''}</span>
-      <span class="chipline"><b>${me.level.name}</b> <span class="tiny ink62 num">${me.level.weeks} ${me.level.weeks === 1 ? 'week' : 'weeks'} shown up${me.level.next ? ', ' + me.level.next + ' at ' + me.level.nextAt : ''}</span></span>
+      ${care}
+      <span class="chipline"><b class="num"><${M.fx.MetalText} size=${15} color=${M.fx.FLAME}>${String(me.week)}<//></b> sparks this week <span class="tiny ink62 num">${me.lastWeek ? 'last week ' + me.lastWeek : WEEK_GOAL + ' shows up'}</span></span>
+      <span class="chipline"><b class="num"><${M.fx.MetalText} size=${15}>${String(me.streak)}<//></b> workday streak${me.covered ? html` <span class="tiny ink62">${U.fmtDay(me.covered).split(' ')[0]} covered</span>` : me.best > me.streak ? html` <span class="tiny ink62 num">best ${me.best}</span>` : ''}</span>
+      <span class="chipline"><b><${M.fx.MetalText} size=${15}>${me.level.name}<//></b> <span class="tiny ink62 num">${me.level.weeks} ${me.level.weeks === 1 ? 'week' : 'weeks'} shown up${me.level.next ? ', ' + me.level.next + ' at ' + me.level.nextAt : ''}</span></span>
       ${my && sq.length > 1 ? html`<span class="chipline" id="squad-chip"><b>${my.name}</b> <span class="tiny ink62 num">${my.week} sparks, ${place}</span></span>` : null}
       <button type="button" class="linky tiny" id="sparks-hide" onClick=${() => setHide(ctx, true)}>Hide</button>
     </div>`;
@@ -134,13 +136,13 @@
     const ctx = M.useCtx();
     const sq = squadBoard(ctx);
     if (sq.length < 2) return html`<${UI.Card} title="The team this week" id="squads">
-      <div class="small">Squads start at six people. Until then it is everyone against the week: <b class="num">${sq[0] ? sq[0].week : 0}</b> sparks so far.</div>
+      <div class="row nowrap fxh-talk"><${M.fx.Bot} feature="care" size=${28} label="m360 care"/><div class="small">Squads start at six people. Until then it is everyone against the week: <b class="num"><${M.fx.MetalText} size=${15}>${String(sq[0] ? sq[0].week : 0)}<//></b> sparks so far.</div></div>
     <//>`;
     return html`<${UI.Card} title="Squads this week" id="squads" action=${html`<span class="tiny ink62">drawn fresh every month, reset every Monday</span>`}>
       <div class="stack tight">
         ${sq.map((s, i) => html`<div key=${s.name} class=${'row between brk-row' + (s.mine ? ' mine' : '')}>
-          <span class="row nowrap"><b class="num">${i + 1}.</b> <b>${s.name}</b>${s.mine ? html` <span class="tiny flame-t">yours</span>` : null} <${UI.AvatarRow} ids=${s.ids} size=${20}/></span>
-          <span class="num">${s.week}</span>
+          <span class="row nowrap"><b class="num">${i + 1}.</b> <b>${s.name}</b>${s.mine ? html` <${M.fx.MetalBadge}>yours<//>` : null} <${UI.AvatarRow} ids=${s.ids} size=${20}/></span>
+          <span class="num">${s.mine ? html`<${M.fx.MetalText} size=${15} color=${M.fx.FLAME}>${String(s.week)}<//>` : s.week}</span>
         </div>`)}
       </div>
     <//>`;

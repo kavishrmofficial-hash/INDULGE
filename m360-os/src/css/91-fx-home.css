@@ -1,0 +1,29 @@
+/* ---------- v29: the packages on Home, the day, Break, Focus and the trophy case ---------- */
+/* the brief keeps its own shape inside the beam on a phone fold */
+.fold-body > .beam-host .ai-card > .card-head .card-title,.fold-body > .beam-host .ai-card > .card-head .micro{display:none}
+.fxh-brief .card-head canvas,.fxh-act canvas{flex:none}
+/* the quick add: the beam rides the input, the button keeps its size */
+.ask-in > .beam-host{flex:1 1 auto; min-width:140px}
+.ask-in > .beam-host .input{width:100%}
+@media (max-width:860px){ .ask-in > .beam-host{flex:1 1 180px} }
+/* a line the page speaks: a bot or an orb, then the words */
+.fxh-act{gap:8px; align-items:center}
+.fxh-drafting{gap:10px; align-items:center; margin:0 0 12px}
+.fxh-finding{gap:8px; align-items:center}
+.fxh-talk{gap:10px; align-items:center; min-width:0}
+.fxh-talk > .small,.fxh-talk > div{min-width:0}
+.fxh-sent{gap:8px; align-items:center}
+/* metal numbers sit on the text line */
+.chipline .metal-fx-root,.stat .v .metal-fx-root,.brk-row .metal-fx-root{vertical-align:middle}
+.stat .v{min-height:1em}
+/* the timers: the orb under the count */
+.brk-orb{display:inline-flex; align-items:center; justify-content:center; min-height:32px}
+/* the focus pill: the orb breathes inside the ring */
+.focus-orb{position:relative; display:inline-flex; flex:none; width:56px; height:56px; align-items:center; justify-content:center}
+.focus-orb .focus-ring{position:absolute; inset:0}
+/* the trophy case: the tag sits beside the icon */
+.trophy > .row{gap:8px; align-items:center}
+.trophy .metal-badge-host{flex:none}
+.top-row .metal-badge-host{flex:none}
+.focus-big-ring{position:relative; display:inline-flex; align-items:center; justify-content:center; width:220px; height:220px}
+.focus-big-ring .ring{position:absolute; inset:0}

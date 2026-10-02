@@ -108,7 +108,7 @@
           ${hasBlocker ? html`<${Lines} id="eod-line-blocked" className="flame-t" text=${entry.blocked}/>`
             : html`<div id="eod-line-blocked" class="sub small">None.</div>`}
         </div>
-        <div class="sub small num">Posted at ${U.hhmm(entry.at)}.</div>
+        <div class="row fxh-sent"><${M.fx.MetalBadge}>sent<//><span class="sub small num">Posted at ${U.hhmm(entry.at)}.</span></div>
       </div>`;
     }
 
@@ -187,7 +187,7 @@
             const mark = MARK_PILL[marks[it.id]] ? marks[it.id] : 'open';
             return html`<div key=${it.id} class="listrow" data-mark=${mark}>
               <span class="grow">${it.text}</span>
-              <${UI.Pill} kind=${MARK_PILL[mark]}>${mark}<//>
+              ${mark === 'hit' ? html`<${M.fx.MetalBadge}>hit<//>` : html`<${UI.Pill} kind=${MARK_PILL[mark]}>${mark}<//>`}
             </div>`;
           })}
         </div>` : html`<${UI.Empty} text="No outcomes were posted this week."/>`}

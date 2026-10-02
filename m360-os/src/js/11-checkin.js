@@ -161,7 +161,7 @@
     };
 
     const consent = html`<div class="sub small">${CONSENT}</div>`;
-    const finding = busy ? html`<div class="sub small">Finding your location.</div>` : null;
+    const finding = busy ? html`<div class="sub small row nowrap fxh-finding"><${M.fx.Orb} state="searching" size=${20} label="finding your location"/><span>Finding your location.</span></div>` : null;
     const latePill = ds.late ? html`<${UI.Pill} kind="flame">late<//>` : null;
 
     let body;
@@ -214,7 +214,9 @@
       </div>`;
     }
 
-    return html`<${UI.Card} title="Check in" id="checkin-card">${body}<//>`;
+    const card = html`<${UI.Card} title="Check in" id="checkin-card">${body}<//>`;
+    /* before the day starts, the card is the one thing to do: it carries the beam */
+    return ds.status === 'none' && !ds.in ? html`<${M.fx.Beam}>${card}<//>` : card;
   }
 
   M.parts.CheckinCard = CheckinCard;

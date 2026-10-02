@@ -62,7 +62,8 @@
     if (compact) return html`<button type="button" class="focus-chip" onClick=${() => focus.open()}><${icons.timer}/><span class="num">${mmss(left)}</span></button>`;
     const r = 24, C = 2 * Math.PI * r;
     return html`<div class="focus-pill" id="focus-pill">
-      <svg class="focus-ring" viewBox="0 0 56 56" aria-hidden="true"><circle class="bg" cx="28" cy="28" r=${r}/><circle class="fg" cx="28" cy="28" r=${r} stroke-dasharray=${C} stroke-dashoffset=${C * (1 - k)}/></svg>
+      <span class="focus-orb"><svg class="focus-ring" viewBox="0 0 56 56" aria-hidden="true"><circle class="bg" cx="28" cy="28" r=${r}/><circle class="fg" cx="28" cy="28" r=${r} stroke-dasharray=${C} stroke-dashoffset=${C * (1 - k)}/></svg>
+        <${M.fx.Orb} state="breathing" size=${20} dark=${M.theme.resolved() !== 'dark'} label="focus running"/></span>
       <div class="grow" style=${{minWidth: 0}}>
         <div class="num">${mmss(left)}</div>
         <div class="l">${s.title}</div>
@@ -84,7 +85,8 @@
     const r = 100, C = 2 * Math.PI * r;
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Focus">
       ${s ? html`<div class="focus-big">
-        <svg class="ring" viewBox="0 0 220 220" aria-hidden="true"><circle class="bg" cx="110" cy="110" r=${r}/><circle class="fg" cx="110" cy="110" r=${r} stroke-dasharray=${C} stroke-dashoffset=${C * (left / (s.mins * 60000))}/></svg>
+        <span class="focus-big-ring"><svg class="ring" viewBox="0 0 220 220" aria-hidden="true"><circle class="bg" cx="110" cy="110" r=${r}/><circle class="fg" cx="110" cy="110" r=${r} stroke-dasharray=${C} stroke-dashoffset=${C * (left / (s.mins * 60000))}/></svg>
+          <${M.fx.Orb} state="breathing" size=${64} label="focus running"/></span>
         <div class="time num">${mmss(left)}</div>
         <div style=${{fontWeight: 500}}>${s.title}</div>
         <div class="row">
@@ -101,7 +103,7 @@
         <${UI.Btn} onClick=${() => { focus.start(pick, title, mins); onClose(); }}><${icons.play}/>Start ${mins} minutes<//>
       </div>`}
       <hr class="hair"/>
-      <div class="row between"><span class="small ink62">Deep work this week</span><span class="num" style=${{fontWeight: 600}}>${Math.round(banked / 6) / 10}h</span></div>
+      <div class="row between"><span class="small ink62">Deep work this week</span><span class="num"><${M.fx.MetalText} size=${20} weight=${600}>${Math.round(banked / 6) / 10 + 'h'}<//></span></div>
     <//>`;
   }
 

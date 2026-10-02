@@ -20,7 +20,7 @@
   const lines = t => String(t || '').split('\n').map(l => l.trim()).filter(Boolean);
 
   /* a countdown with a ring and a bell; quick mode (tests) makes every timer two seconds */
-  function Timer({seconds, label, onDone, onStop, prompts, id}) {
+  function Timer({seconds, label, onDone, onStop, prompts, id, orb}) {
     const total = M.reset.quick ? 2 : seconds;
     const [left, setLeft] = useState(total);
     const t0 = useRef(Date.now());
@@ -38,6 +38,7 @@
     return html`<div class="brk-timer" id=${id || 'brk-timer'}>
       <svg viewBox="0 0 100 100" class="brk-ring" aria-hidden="true"><circle class="bg" cx="50" cy="50" r=${r}/><circle class="fg" cx="50" cy="50" r=${r} stroke-dasharray=${C} stroke-dashoffset=${C * (1 - p)}/></svg>
       <div class="brk-timer-mid"><div class="num brk-left">${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</div><div class="tiny ink62">${label}</div></div>
+      ${orb ? html`<span class="brk-orb"><${M.fx.Orb} state=${orb} size=${32} label=${label}/></span>` : null}
       ${prompt ? html`<div class="small brk-prompt">${prompt}</div>` : null}
       ${onStop ? html`<button type="button" class="linky tiny" onClick=${onStop}>Stop</button>` : null}
     </div>`;
@@ -54,15 +55,15 @@
     const P = M.breathe.PROTOCOLS;
     const open = k => M.breathe.open(k, {onDone: () => { setDone(k); earn(ctx, P[k].name.toLowerCase(), k === 'slow' ? 10 : 5); }});
     const t = M.play.mine(ctx).today;
-    return html`<${UI.Card} id="breathe-card" title="Breathe" action=${html`<${Grade} g="well supported"/>`}>
-      <div class="small" style=${{marginBottom: '10px'}}>Sit back, feet flat, hands loose, nose breathing. Five minutes is the dose: the trials that used under five found nothing. Slow breathing has meta-analyses behind it; the other two have one trial each, so they carry their grade.</div>
+    return html`<${M.fx.Beam}><${UI.Card} id="breathe-card" title="Breathe" action=${html`<${Grade} g="well supported"/>`}>
+      <div class="row nowrap fxh-talk" style=${{marginBottom: '10px', alignItems: 'flex-start'}}><${M.fx.Orb} state="breathing" size=${32} label="breathe with the orb"/><div class="small">Sit back, feet flat, hands loose, nose breathing. Five minutes is the dose: the trials that used under five found nothing. Slow breathing has meta-analyses behind it; the other two have one trial each, so they carry their grade.</div></div>
       <div class="row" style=${{gap: '8px', flexWrap: 'wrap'}}>
         <${UI.Btn} id="breathe-slow" onClick=${() => open('slow')}>Slow breathing, 5:00${t['slow breathing'] ? ' ✓' : ''}<//>
         <${UI.Btn} id="breathe-box" kind="sec" onClick=${() => open('box')}>Before a pitch, box 3:00${t['box breathing'] ? ' ✓' : ''}<//>
         <${UI.Btn} id="breathe-sigh" kind="sec" onClick=${() => open('sigh')}>Cyclic sighing, 5:00${t['cyclic sighing'] ? ' ✓' : ''}<//>
       </div>
       <div class="tiny ink62" style=${{marginTop: '8px'}}>${done ? 'Stay seated for thirty seconds before you stand.' : 'Four in, six out, follow the orb. Press b anywhere in m360 for the slow one.'}</div>
-    <//>`;
+    <//><//>`;
   }
 
   /* ---------- one if-then for the day ---------- */
@@ -126,7 +127,7 @@
       </div>`
       : step === 'walk' ? html`<div class="stack tight">
         ${mode === 'dump' ? html`<div class="small brk-plan">${b}</div>` : null}
-        <${Timer} id="walk-timer" seconds=${mode === 'energy' ? mins * 60 : 480} label=${mode === 'energy' ? 'walk' : 'walk with it'} onStop=${() => setStep('idle')} onDone=${() => setStep(mode === 'energy' ? 'rate' : 'type')}
+        <${Timer} id="walk-timer" orb=${mode === 'energy' ? 'breathing' : 'weaving'} seconds=${mode === 'energy' ? mins * 60 : 480} label=${mode === 'energy' ? 'walk' : 'walk with it'} onStop=${() => setStep('idle')} onDone=${() => setStep(mode === 'energy' ? 'rate' : 'type')}
           prompts=${mode === 'energy' ? ['Phone in the pocket. Eyes up.', 'Change direction once for no reason.', 'Notice the thing you pass every day and never look at.', 'Head back when the bell goes.'] : ['Carry it lightly. Say the wrong answers out loud.', 'What would the laziest version be. The most expensive. The illegal one.', 'Who else has this problem and solved it badly.', 'Head back. Keep whatever is in your head.']}/>
       </div>`
       : step === 'rate' ? html`<div class="stack tight" id="walk-rate">
@@ -135,7 +136,7 @@
       </div>`
       : html`<div class="stack tight">
         <div class="small brk-plan">${b}</div>
-        <${Timer} id="walk-type-timer" seconds=${180} label="type everything" onDone=${() => {}}/>
+        <${Timer} id="walk-type-timer" orb="composing" seconds=${180} label="type everything" onDone=${() => {}}/>
         <textarea class="input" rows="6" id="walk-text" aria-label="Ideas" placeholder="One per line. Wrong ones welcome." value=${text} onInput=${e => setText(e.target.value)}/>
         <div class="row between"><span class="tiny ink62 num">${lines(text).length} so far</span><${UI.Btn} id="walk-keep" sm=${true} disabled=${!text.trim()} onClick=${keepIdeas}>Keep these<//></div>
       </div>`}
@@ -175,15 +176,15 @@
       </div>`
       : step === 'read' ? html`<div class="stack tight">
         <div class="small brk-plan">${b}</div>
-        <${Timer} id="park-read" seconds=${60} label="read, do not solve" onStop=${() => setStep('idle')} onDone=${() => setStep('filler')} prompts=${['What is the real question under it.', 'Who is it for, really.', 'Leave it here. Something light now.']}/>
+        <${Timer} id="park-read" orb="solving" seconds=${60} label="read, do not solve" onStop=${() => setStep('idle')} onDone=${() => setStep('filler')} prompts=${['What is the real question under it.', 'Who is it for, really.', 'Leave it here. Something light now.']}/>
       </div>`
       : step === 'filler' ? html`<div class="stack tight">
-        <${Timer} id="park-filler" seconds=${300} label="something light" onStop=${() => setStep('idle')} onDone=${() => setStep('back')}/>
+        <${Timer} id="park-filler" orb="shaping" seconds=${300} label="something light" onStop=${() => setStep('idle')} onDone=${() => setStep('back')}/>
         <${Shades}/>
       </div>`
       : html`<div class="stack tight">
         <div class="small brk-plan">${b}</div>
-        <${Timer} id="park-back" seconds=${180} label="back to it, ideas, go" onDone=${() => {}}/>
+        <${Timer} id="park-back" orb="composing" seconds=${180} label="back to it, ideas, go" onDone=${() => {}}/>
         <textarea class="input" rows="6" id="park-text" aria-label="Ideas" placeholder="One per line." value=${text} onInput=${e => setText(e.target.value)}/>
         <div class="row between"><span class="tiny ink62 num">${lines(text).length} so far</span><${UI.Btn} id="park-keep" sm=${true} disabled=${!text.trim()} onClick=${done}>Keep these<//></div>
       </div>`}
@@ -206,13 +207,13 @@
       </div>`
       : step === 'one' ? html`<div class="stack tight">
         <div class="small brk-plan"><b>Gear one.</b> ${b}. As many angles as you can. Quantity only. Do not judge.</div>
-        <${Timer} id="sprint-one" seconds=${180} label="gear one, quantity" onStop=${() => setStep('idle')} onDone=${() => { setStep('two'); M.sound.play('start'); }}/>
+        <${Timer} id="sprint-one" orb="weaving" seconds=${180} label="gear one, quantity" onStop=${() => setStep('idle')} onDone=${() => { setStep('two'); M.sound.play('start'); }}/>
         <textarea class="input" rows="6" id="sprint-one-text" aria-label="Gear one ideas" placeholder="One per line. Obvious is fine here." value=${one} onInput=${e => setOne(e.target.value)}/>
         <div class="tiny ink62 num">${lines(one).length} so far</div>
       </div>`
       : html`<div class="stack tight">
         <div class="small brk-plan"><b>Gear two.</b> ${b}. Now only unusual, clever, uncommon, surprising ones. Fewer is fine. Think the way an eccentric poet would.</div>
-        <${Timer} id="sprint-two" seconds=${180} label="gear two, be creative" onDone=${() => {}}/>
+        <${Timer} id="sprint-two" orb="composing" seconds=${180} label="gear two, be creative" onDone=${() => {}}/>
         <textarea class="input" rows="6" id="sprint-two-text" aria-label="Gear two ideas" placeholder="One per line. Weird is the brief." value=${two} onInput=${e => setTwo(e.target.value)}/>
         <div class="row between"><span class="tiny ink62 num">${lines(one).length} in gear one, ${lines(two).length} in gear two</span><${UI.Btn} id="sprint-keep" sm=${true} disabled=${!two.trim()} onClick=${done}>Keep these<//></div>
       </div>`}
@@ -223,7 +224,7 @@
   function EyesOff({ctx}) {
     const [on, setOn] = useState(false);
     return html`<${UI.Card} id="eyes" title="Eyes off" action=${html`<${Grade} g="well supported"/>`}>
-      ${on ? html`<div class="brk-dim"><${Timer} id="eyes-timer" seconds=${300} label="eyes off the screen" onStop=${() => setOn(false)} onDone=${() => { setOn(false); earn(ctx, 'eyes off', 5); }}
+      ${on ? html`<div class="brk-dim"><${Timer} id="eyes-timer" orb="breathing" seconds=${300} label="eyes off the screen" onStop=${() => setOn(false)} onDone=${() => { setOn(false); earn(ctx, 'eyes off', 5); }}
           prompts=${['Look at the farthest thing you can see.', 'Window if there is one. Outside if you can.', 'No phone. That is the whole exercise.', 'Let the eyes wander. Notice what catches them.', 'Back when the bell goes.']}/></div>`
       : html`<div class="row between" style=${{gap: '10px'}}><span class="small">Five minutes of passive rest, no screen, no task. Rest restores vigilance better than switching to another task, and short breaks lift energy with a medium effect across 22 studies. It does not raise output. It makes the next hour less of a slog.</span><${UI.Btn} id="eyes-start" sm=${true} kind="sec" onClick=${() => { setOn(true); M.sound.play('start'); }}>Start<//></div>`}
     <//>`;
@@ -232,7 +233,7 @@
     const [on, setOn] = useState(false);
     const wake = () => { setOn(false); M.sound.play('chime'); setTimeout(() => M.sound.play('chime'), 700); setTimeout(() => M.sound.play('chime'), 1400); earn(ctx, 'a nap', 5); };
     return html`<${UI.Card} id="nap" title="Ten minute nap" action=${html`<${Grade} g="one lab, several trials"/>`}>
-      ${on ? html`<div class="brk-dim"><${Timer} id="nap-timer" seconds=${600} label="sleep opportunity" onStop=${() => setOn(false)} onDone=${wake}/></div>`
+      ${on ? html`<div class="brk-dim"><${Timer} id="nap-timer" orb="breathing" seconds=${600} label="sleep opportunity" onStop=${() => setOn(false)} onDone=${wake}/></div>`
       : html`<div class="row between" style=${{gap: '10px'}}><span class="small">Only with a quiet, dim spot. Lie back, eyes closed, ten minutes, hard wake up. Ten helped for over two hours in the trials; twenty to thirty left people groggy for half an hour or more. The bell is loud.</span><${UI.Btn} id="nap-start" sm=${true} kind="sec" onClick=${() => { setOn(true); M.sound.play('start'); }}>Start<//></div>`}
     <//>`;
   }
@@ -257,7 +258,7 @@
     const priv = M.useDoc(ctx.db, ctx.uid ? privPath(ctx) : '');
     const did = Object.keys(M.play.mine(ctx).today).length;
     return html`<div class="stack" style=${{gap: '16px'}} id="break-reset">
-      <div class="row between"><span class="small ink62">Each reset earns sparks once a day. The grade on the card is the honest one.</span><span class="tiny ink62 num">${did ? did + ' today' : 'nothing yet today'}</span></div>
+      <div class="row between"><span class="row nowrap fxh-talk"><${M.fx.Bot} feature="care" size=${30} label="m360 care"/><span class="small ink62">Each reset earns sparks once a day. The grade on the card is the honest one.</span></span><span class="tiny ink62 num">${did ? did + ' today' : 'nothing yet today'}</span></div>
       <${Breathe} ctx=${ctx}/>
       <div class="split"><${IfThen} ctx=${ctx} priv=${priv}/><${Walk} ctx=${ctx} priv=${priv}/></div>
       <div class="split"><${ParkIt} ctx=${ctx} priv=${priv}/><${TwoGear} ctx=${ctx} priv=${priv}/></div>
