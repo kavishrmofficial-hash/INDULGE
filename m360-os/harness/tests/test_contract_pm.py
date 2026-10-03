@@ -15,8 +15,9 @@ bots are on. The clock is a working Tuesday next week in Asia/Kolkata.
    who hears; at 10:46 m3's noin with step 1 at 10:45 to m3 and step 2 at 11:45 to m2; nothing for the
    founder; nothing with the bots off, R01 off, approved leave, a holiday or a Sunday; a pending leave
    request holds; coach days keep step 2 back; a stricter wait starts tomorrow; noeod's card step at
-   19:00 and ring at 19:30; rings held over lunch and while focus runs; the daily cap; waiton after a
-   blocked answer left for 120 minutes, closed by the manager's answer; the copy keeps the house rules.
+   19:00 and ring at 19:30, and yesterday's missing line swept to the manager at their start; rings held
+   over lunch and while focus runs; the daily cap; waiton after a blocked answer left for 120 minutes,
+   closed by the manager's answer; the copy keeps the house rules.
 2. The report's Home at 10:46: #pm-card with the row, the ladder line naming Aanya, the chips; "on it"
    with an eta writes the ack on K and the row reads back what was said. Two pages of one context ring
    at most one notice for the step, and told lands once in me/u_m3.
@@ -25,7 +26,8 @@ bots are on. The clock is a working Tuesday next week in Asia/Kolkata.
    Bot log on m3's person page.
 4. Asks (F6): the founder asks m2 and m3 why they have not checked out at 20:41; the ask record holds codes
    only; one DM line per person with the id ask.<askId>.<uid>, and a retry does not double it; m2's card,
-   inbox and answer; the founder's receipt rows; the per-day cap; ringNow only for the founder; withdraw;
+   inbox and answer; the founder's receipt rows; the per-day cap (a ring budget: past it asks show
+   silently); ringNow only for the founder; withdraw;
    m1 (m2's manager) sees the founder's ask as a line on Your team.
 5. Design: dark and 390x844 at dsf 3: the card has no overflow, no text under 11 px, its chips' text colour
    differs from their background, phone buttons are at least 44 px tall, and the bot canvas is drawn at
@@ -108,7 +110,10 @@ ENGINE = r'''([today, tomorrow, sunday, yesterday]) => {
     clamp: M.pm.cfgOf(mk({me: {u_m2: {pm: {cfg: {wait: 5}}}}, now: at(10, 46)}), 'u_m2', today).wait};
   /* noeod: m3 in, no line: the card step at 19:00, the ring at 19:30 */
   const ci3 = {...ci, u_m3: {days: {[today]: {in: at(10, 30), out: null, mode: 'office'}}}};
-  out.noeod = its(mk({checkin: ci3, now: at(19, 10)}), 'u_m3', at(19, 10)).filter(x => x.kind === 'noeod').map(brief);
+  const ne = its(mk({checkin: ci3, now: at(19, 10)}), 'u_m3', at(19, 10)).filter(x => x.kind === 'noeod');
+  out.noeod = ne.filter(x => x.K.endsWith(':' + today)).map(brief);
+  /* m3 posted nothing yesterday either: the morning sweep reaches m2 at m2's start */
+  out.sweep = ne.filter(x => x.K.endsWith(':' + yesterday)).map(brief);
   /* ring: lunch and focus hold it */
   const ovd = {};
   for (let i = 0; i < 6; i++) ovd['ot' + i] = {title: 'Reel ' + (i + 1), owner: 'u_m3', by: 'u_m2', status: 'todo', due: yesterday, created: at(10, 0, -5), updated: at(10, 0, -5)};
@@ -249,6 +254,9 @@ def test(h):
                   'noeod: the card at 19:00, the ring at 19:30: %r' % st)
         else:
             check(False, 'noeod at 19:10 shows its card step: %r' % ne)
+        sw = eng['sweep']
+        check(len(sw) == 1 and any(s['step'] == '2' and s['to'] == M2 and s['at'] == ms(10, 45) for s in sw[0]['steps']),
+              "yesterday's missing EOD line reaches m2 once, at m2's start: %r" % sw)
         rn = eng['ringNoon']
         check(rn and sum(1 for x in rn if x['ring']) <= 4, 'six overdue tasks ring at most perDay (4) times: %r' % rn)
         check(rn and len(set(x['bundle'] for x in rn if x['ring'])) <= 2, 'steps due together ring as one bundle: %r' % rn)
@@ -289,7 +297,7 @@ def test(h):
         lad = row.locator('.pm-ladder')
         check(lad.count() == 1 and 'Aanya' in lad.inner_text() and '11:45' in lad.inner_text(), 'the ladder says when Aanya hears: %r' % (lad.inner_text() if lad.count() else ''))
         hows = row.locator('button[data-how]').evaluate_all('bs => bs.map(b => b.dataset.how)')
-        check('onit' in hows and 'blocked' in hows and 'wrong' in hows, 'the answer chips: %r' % hows)
+        check('onit' in hows and 'wrong' in hows and 'reply' in hows, 'the check-in chips: on it (running late), not right and reply: %r' % hows)
         row.locator('button[data-how="onit"]').first.click()
         eta = p1.locator('#pm-card [data-eta]')
         eta.first.wait_for(timeout=5000)
@@ -310,7 +318,8 @@ def test(h):
         chip = p.locator('#team-u_m3 .pm-chip[data-k="%s"]' % K3)
         check(chip.count() == 1, "m3's noin flag carries the bot's chip")
         if chip.count():
-            check('on it' in chip.inner_text().lower() or 'nudged' in chip.inner_text().lower(), 'the chip reads the state: %r' % chip.inner_text())
+            states = ('on it', 'nudged', 'seen', 'no answer', 'not on m360 today', 'with you since')
+            check(any(x in chip.inner_text().lower() for x in states), 'the chip reads one of the D2 states: %r' % chip.inner_text())
             chip.click()
             p.wait_for_timeout(300)
             dos = p.locator('.pm-menu button[data-do]').evaluate_all('bs => bs.map(b => b.dataset.do)')
@@ -321,8 +330,18 @@ def test(h):
             check(p.locator(sel).count() >= 1, "m2's Me card has %s" % sel)
         on = p.locator('#pm-bot-on')
         if on.count():
-            check(on.first.is_disabled() or on.first.get_attribute('aria-disabled') == 'true', 'the bot switch is held on while the founder requires it')
+            held = on.first.evaluate('e => !!(e.disabled || e.getAttribute("aria-disabled") === "true" || e.querySelector("button:disabled, [aria-disabled=true], input:disabled"))')
+            check(held, 'the bot switch is held on while the founder requires it (founder decision 2)')
         go(p, 'founder', '#admin')
+        if p.locator('#pm-admin').count() and p.locator('#pm-audit').count() == 0:
+            # the audit is worked out only while its fold is open (spec J): open it
+            if p.locator('#pm-on').count() == 0:
+                p.locator('#pm-admin').first.click()
+                p.wait_for_timeout(300)
+            fold = p.locator('#pm-admin .pm-audit-wrap button, #pm-admin button:has-text("This week")')
+            if fold.count():
+                fold.first.click()
+                p.wait_for_timeout(500)
         for sel in ('#pm-admin', '#pm-on', '#pm-wait', '#pm-digest', '#pm-perday', '#pm-kinds .pill[data-kind]', '#pm-mail', '#pm-audit'):
             if sel != '#pm-admin' and p.locator(sel).count() == 0 and p.locator('#pm-admin').count():
                 # folded cards open on a click of their title
@@ -390,17 +409,22 @@ def test(h):
         sent = p.evaluate('a => (M.pm.sent(M.lastCtx) || []).find(s => s.askId === a || s.id === a) || null', aid)
         check(sent is not None, "the founder's sent list holds the ask: %r" % sent)
         cap = p.evaluate('''async () => { const ctx = M.lastCtx, out = [];
-          for (const kind of ['noeod', 'quiet', 'idle', 'late']) out.push(await M.pm.ask(ctx, {kind, to: ['u_m3'], ask: 'why', via: 'typed'}));
-          return out.map(r => ({sent: r.sent || [], skipped: (r.skipped || []).map(s => s.why || '')})); }''')
-        check(sum(len(x['sent']) for x in cap) <= 2, 'm3 gets at most askPerDay (3) asks a day, all senders together: %r' % cap)
+          for (const kind of ['noeod', 'quiet', 'idle', 'late', 'custom', 'custom']) out.push(await M.pm.ask(ctx, {kind, to: ['u_m3'], ask: 'why', via: 'typed'}));
+          await new Promise(r => setTimeout(r, 600));
+          /* what m3's devices would do with them now: the budget is the same on every device */
+          const now = Date.now(), steps = (M.pm.forMe({...M.lastCtx, uid: 'u_m3'}, {now}) || []).filter(x => String(x.step).startsWith('a.'));
+          return {sends: out.map(r => ({sent: r.sent || [], skipped: (r.skipped || []).map(s => s.why || '')})), asks: steps.length, rings: steps.filter(x => x.ring).length}; }''')
+        sent_n = 1 + sum(len(x['sent']) for x in cap['sends'])
+        check(sent_n > 3 and cap['asks'] > 3, 'six more asks to m3 are made and show, so the cap is tested: %r' % cap)
+        check(cap['rings'] <= 3, 'm3 is interrupted by at most askPerDay (3) asks a day, all senders together; the rest show silently: %r' % cap)
         wd = p.evaluate('async a => { await M.pm.withdraw(M.lastCtx, a); await new Promise(r => setTimeout(r, 400)); return ((((window.__db.get("me/u_founder") || {}).pm || {}).asks || {})[a] || {}).withdrawn || null; }', aid)
         check(bool(wd), 'withdraw marks the ask: %r' % wd)
         go(p, 'm1', '#home')
         rn = p.evaluate('''async () => { const r = await M.pm.ask(M.lastCtx, {kind: 'custom', to: ['u_m2'], ask: 'why', via: 'typed', note: 'Call me', ringNow: true});
           await new Promise(r => setTimeout(r, 400));
           const a = (((window.__db.get("me/u_m1") || {}).pm || {}).asks || {})[r.askId] || {};
-          return {ringNow: !!a.ringNow, note: 'note' in a}; }''')
-        check(rn == {'ringNow': False, 'note': False}, 'only the founder may ring now, and the note stays out of the record: %r' % rn)
+          return {ringNow: !!a.ringNow, note: typeof a.note === 'string' || JSON.stringify(a).indexOf('Call me') >= 0}; }''')
+        check(rn == {'ringNow': False, 'note': False}, 'only the founder may ring now, and the words of the note stay out of the record: %r' % rn)
         c.close()
     section('asks', asks)
 

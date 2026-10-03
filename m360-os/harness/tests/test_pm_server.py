@@ -13,15 +13,21 @@ Checks:
 - a present person (beacon 30 s old) and one who saved 10 minutes ago are not mailed; an answer on K, a told
   mark on the step, mail switched off by the person, a manager's cfg.mail off and approved leave each stop it;
 - the words: the subject and body from spec Part E, the site link, no dashes or exclamation marks;
-- tick needs no sign-in and runs the pass: at 20:00 a signed-out tick sends Ishaan's evening mail (the EOD
-  line, not the check-in again), and Aanya's one 'esc' mail for the step 2 items nobody answered; a later
-  tick sends no third mail to Ishaan and no second 'esc';
+- tick needs no sign-in and runs the pass: Ishaan checks in at 12:20, and at 20:00 a signed-out tick sends
+  his evening mail (the EOD line, not the check-in again), and Aanya, in the office but away from m360, her
+  one 'esc' mail for the step 2 items nobody answered (a told mark written as shown without a sound still
+  reads "Nudged at"); a later tick sends no third mail to Ishaan and no second 'esc';
 - pmmail is scoped: Ishaan sees his own rows, Aanya sees her reports' and her own, Kaavish sees all, Prathna
   sees only hers; pmstatus is the founder's only and counts the mails;
 - no mail and no claim without mail set up, or with settings.pm.mail off; with the bots off (pm.on false)
   nothing automatic goes, and a voice ask still mails ("Kaavish asked about your check-out");
 - a told-only write of me/<self> keeps no version and no log line; a write mixing told with an answer, a
-  told value that is not a time, and the founder writing someone else's told marks keep both.
+  told value that is not a time, and the founder writing someone else's told marks keep both;
+- the ring window, as on the page: nothing over lunch, nothing after someone checked out, and before a
+  check-in only the check-in itself;
+- asks count only from someone with the right: a peer's hand-written ask, and a manager asking someone
+  outside their line about attendance, are never mailed; ringNow lifts the window for the founder only; a
+  pending leave request holds even the founder's ask; a check-out ask waits for the watch's 20:30.
 
 Run: cd m360-os && python3 harness/tests/test_pm_server.py
 """
@@ -35,22 +41,27 @@ from zoneinfo import ZoneInfo
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 CORE = os.path.join(ROOT, 'edgeone', 'server', 'core.js')
+PM = os.path.join(ROOT, 'edgeone', 'server', 'pm.js')
 IST = ZoneInfo('Asia/Kolkata')
 
 SCRIPT = r'''
 import {createApp} from %(core)s;
+import {pmDesk} from %(pm)s;
 const TODAY = %(today)s;
 const at = (h, m) => Date.parse(TODAY + 'T00:00:00Z') - 330 * 60000 + (h * 60 + m) * 60000;
 let NOW = at(11, 40);
 Date.now = () => NOW;
 
 /* one world: a store, two instances on it, and the mail the stand-in Resend took */
+const lag = () => new Promise(r => setTimeout(r, 1));
 function world(opts) {
   const data = new Map();
   const sent = [];
   const store = {
-    async get(key, o) { if (!data.has(key)) return null; const v = data.get(key); return o && o.type === 'json' ? JSON.parse(v) : v; },
-    async set(key, value) { data.set(key, String(value)); },
+    /* a blob store answers over the network: every read and write takes a moment, so two instances that
+       look at once both find no claim, both write one, and only the read back tells them apart */
+    async get(key, o) { await lag(); if (!data.has(key)) return null; const v = data.get(key); return o && o.type === 'json' ? JSON.parse(v) : v; },
+    async set(key, value) { await lag(); data.set(key, String(value)); },
     async delete(key) { data.delete(key); },
     async list(o) { const p = (o && o.prefix) || ''; return {blobs: [...data.keys()].filter(k => k.startsWith(p)).sort().map(k => ({key: k, etag: '"' + data.get(k).length + '"'})), directories: []}; }
   };
@@ -102,7 +113,7 @@ const K = (u, kind, sub) => u + ':' + kind + ':' + (sub || '-') + ':' + TODAY;
   put('d/me~u_r', {name: 'Rohan Iyer', act: {[TODAY]: {[bk(NOW - 10 * 60000)]: 1}}});
   /* Ekta answered on K; Sana's step was shown on her phone; Vir switched his mail off */
   put('d/me~u_e', {name: 'Ekta Nair', pm: {ack: {[K('u_e', 'noin')]: {at: at(10, 50), how: 'onit', eta: at(12, 0)}}}});
-  put('d/me~u_s', {name: 'Sana Khan', pm: {told: {[K('u_s', 'noin') + '#1']: at(10, 46)}}});
+  put('d/me~u_s', {name: 'Sana Khan', pm: {told: {[K('u_s', 'noin') + '#1']: -at(10, 46)}}});
   put('d/me~u_v', {name: 'Vir Das', pm: {mail: false}});
   /* Maya's bot does not email her team; Lata is on approved leave */
   put('d/me~u_m', {name: 'Maya Joshi', pm: {cfg: {mail: false}}});
@@ -133,8 +144,8 @@ const K = (u, kind, sub) => u + ':' + kind + ':' + (sub || '-') + ':' + TODAY;
   out.again = w.sent.length;
 
   /* ---------- B. the evening: tick signed out, the second slot, the manager's one mail ---------- */
+  put('d/checkin~u_i', {days: {[TODAY]: {in: at(12, 20), out: null, mode: 'office'}}});
   NOW = at(20, 0);
-  put('d/checkin~u_a', {days: {[TODAY]: {in: at(10, 20), out: at(18, 0), mode: 'office'}}});
   const t = await w.call(1, null, {a: 'tick'});
   out.evening = {status: t.status, body: t.body, ishaan: to(w.sent, 'u_i').map(x => x.subject), ishaanText: (to(w.sent, 'u_i')[1] || {}).text || '',
     aanya: to(w.sent, 'u_a').map(x => x.subject), aanyaText: (to(w.sent, 'u_a')[0] || {}).text || '', aanyaHtml: (to(w.sent, 'u_a')[0] || {}).html || '', ledger: ledger(w.data)};
@@ -182,13 +193,75 @@ for (const [name, opts] of [['nomail', {mail: false}], ['mailoff', {pm: {mail: f
   out[name] = {sent: w.sent.length, ledger: ledger(w.data)};
 }
 {
-  NOW = at(20, 30);
+  NOW = at(20, 29);
   const w = world({pm: {on: false}});
   w.put('d/checkin~u_i', {days: {[TODAY]: {in: at(10, 8), out: null, mode: 'office'}}});
   w.put('d/me~u_f', {name: 'Kaavish Ramchandani', pm: {asks: {a1: {kind: 'noout', to: ['u_i', 'u_p'], ask: 'why', at: at(20, 10), via: 'voice'}}}});
   await w.call(0, null, {a: 'tick'});
+  out.botsOffEarly = w.sent.length;
+  NOW = at(20, 45);
+  await w.call(0, null, {a: 'tick'});
   const m = to(w.sent, 'u_i')[0] || {};
   out.botsOff = {sent: w.sent.map(x => x.to[0]).sort(), subject: m.subject || '', text: m.text || '', html: m.html || '', ledger: ledger(w.data)};
+}
+
+/* ---------- F. the ring window: lunch, after check-out, before check-in ---------- */
+{
+  NOW = at(13, 50);
+  const w = world({});
+  const {put} = w;
+  for (const u of ['u_f', 'u_a', 'u_m', 'u_p', 'u_s', 'u_v', 'u_n', 'u_l']) put('d/checkin~' + u, {days: {[TODAY]: {in: at(10, 20), out: null, mode: 'office'}}});
+  put('d/checkin~u_i', {days: {[TODAY]: {in: at(10, 25), out: null, mode: 'office'}}});
+  put('d/checkin~u_r', {days: {[TODAY]: {in: at(10, 25), out: at(13, 0), mode: 'office'}}});
+  const yd = new Date(Date.parse(TODAY + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10);
+  const task = (id, owner, title) => put('d/tasks~' + id, {title, owner, by: 'u_a', status: 'doing', due: yd, created: at(10, 0) - 5 * 86400000, updated: at(10, 0) - 3 * 86400000});
+  task('t1', 'u_i', 'Swisse reel cutdown');
+  task('t2', 'u_r', 'Nykaa carousel');
+  task('t3', 'u_e', 'Tanishq pitch deck');
+  await w.call(0, null, {a: 'tick'});
+  out.lunch = w.sent.map(x => x.to[0]).sort();
+  NOW = at(14, 40);
+  await w.call(0, null, {a: 'tick'});
+  out.afterLunch = {to: w.sent.map(x => x.to[0]).sort(), ishaan: (to(w.sent, 'u_i')[0] || {}).text || '', ekta: (to(w.sent, 'u_e')[0] || {}).text || ''};
+}
+
+/* ---------- G. who may ask, ringNow, a pending leave request ---------- */
+{
+  NOW = at(20, 45);
+  const w = world({pm: {on: false}});
+  const {put} = w;
+  for (const u of ['u_i', 'u_r', 'u_s', 'u_n', 'u_l', 'u_e']) put('d/checkin~' + u, {days: {[TODAY]: {in: at(10, 20), out: null, mode: 'office'}}});
+  const ask = (kind, to, when, extra) => ({kind, to, ask: 'why', at: when, via: 'typed', ...(extra || {})});
+  /* inside everyone's window, 20:45: Prathna, a peer, writes an ask to Ishaan into her own doc; Aanya asks
+     Neel (Maya's report) about his check-out, and Rohan (her own) about something; Kaavish asks Lata, whose
+     leave request for today waits for a decision */
+  put('d/me~u_p', {name: 'Prathna Shah', pm: {asks: {p1: ask('custom', ['u_i'], at(20, 25))}}});
+  put('d/me~u_a', {name: 'Aanya Mehta', pm: {asks: {a1: ask('noout', ['u_n'], at(20, 25)), a3: ask('custom', ['u_r'], at(20, 25)),
+    a2: ask('custom', ['u_e'], at(20, 50), {ringNow: true})}}});
+  put('d/me~u_f', {name: 'Kaavish Ramchandani', pm: {asks: {f2: ask('custom', ['u_l'], at(20, 25)), f1: ask('custom', ['u_s'], at(20, 50), {ringNow: true})}}});
+  put('d/leave~u_l', {reqs: [{id: 'L2', from: TODAY, to: TODAY, kind: 'casual'}]});
+  await w.call(0, null, {a: 'tick'});
+  out.rights = w.sent.map(x => x.to[0]).sort();
+  /* past everyone's window, 21:10: Kaavish's ringNow ask to Sana goes, Aanya's to Ekta does not */
+  NOW = at(21, 10);
+  await w.call(0, null, {a: 'tick'});
+  out.ringNow = w.sent.map(x => x.to[0]).filter(x => out.rights.indexOf(x) < 0).sort();
+}
+
+/* ---------- H. two passes in the same moment: only the claim read back decides ---------- */
+{
+  NOW = at(11, 40);
+  const w = world({});
+  const store = {getJ: async k => { await lag(); const v = w.data.get(k); return v == null ? null : JSON.parse(v); },
+    putJ: async (k, v) => { await lag(); w.data.set(k, JSON.stringify(v)); },
+    listAll: async pre => { await lag(); return [...w.data.keys()].filter(k => k.startsWith(pre)).sort().map(key => ({key})); }};
+  const mails = [];
+  const desk = () => pmDesk({...store, docKey: p => 'd/' + p.split('/').join('~'), ownerUid: async () => 'u_f',
+    appSettings: async () => JSON.parse(w.data.get('d/settings~app')), mailOn: async () => true,
+    sendMail: async (to, subject) => { mails.push(to + ' ' + subject); return true; }, env: {PM_RECHECK_MS: '0'}});
+  const a = desk(), b = desk();
+  await Promise.all([a.run('https://m360.example.com'), b.run('https://m360.example.com')]);
+  out.race = mails.sort();
 }
 console.log(JSON.stringify(out));
 '''
@@ -200,7 +273,7 @@ def main():
     tmp = tempfile.mkdtemp()
     path = os.path.join(tmp, 'pm_server.mjs')
     with open(path, 'w', encoding='utf-8') as f:
-        f.write(SCRIPT % {'core': json.dumps('file://' + CORE), 'today': json.dumps(tue.isoformat())})
+        f.write(SCRIPT % {'core': json.dumps('file://' + CORE), 'pm': json.dumps('file://' + PM), 'today': json.dumps(tue.isoformat())})
     p = subprocess.run(['node', path], capture_output=True, text=True, timeout=180)
     if p.returncode != 0:
         print(p.stdout[-3000:], p.stderr[-3000:])
@@ -245,10 +318,11 @@ def main():
     check(len(ev['ishaan']) == 2 and 'x/pm/%s/u_i/pm' % today in ev['ledger'], 'the evening slot sends Ishaan a second mail: %r' % ev)
     check("EOD line is not in" in ev['ishaanText'] and 'No check-in yet' not in ev['ishaanText'], 'the evening mail carries the EOD line and not the check-in again: %r' % ev['ishaanText'])
     check(len(ev['aanya']) == 1 and ev['aanya'][0].startswith('Your bot: ') and ev['aanya'][0].endswith('it could not settle'), "Aanya's one 'esc' mail: %r" % ev['aanya'])
-    check('No check-in from Ishaan since the 10:30 start. The nudge has not been seen yet.' in ev['aanyaText'] and 'No check-in from Sana since the 10:30 start. Nudged at 10:46.' in ev['aanyaText'] and 'Ekta said 12:00 for the check-in. It is 20:00 and there is no check-in yet.' in ev['aanyaText'], 'the manager mail names the report and the start: %r' % ev['aanyaText'])
+    check('No check-in from Prathna since the 10:30 start. The nudge has not been seen yet.' in ev['aanyaText'] and 'No check-in from Sana since the 10:30 start. Nudged at 10:46.' in ev['aanyaText'] and 'Ekta said 12:00 for the check-in. It is 20:00 and there is no check-in yet.' in ev['aanyaText'], 'the manager mail names the report and the start: %r' % ev['aanyaText'])
+    check('Ishaan' not in ev['aanyaText'], 'a check-in that came late is sorted and never reaches the manager: %r' % ev['aanyaText'])
     e = out['esc']
-    check(e and e['sent'] and 'u_i:noin:-:%s#2' % today in e['steps'] and 'u_e:noin:-:%s#2b' % today in e['steps'],
-          'the esc row holds step 2 for Ishaan and 2b for Ekta, whose time passed: %r' % e)
+    check(e and e['sent'] and 'u_p:noin:-:%s#2' % today in e['steps'] and 'u_e:noin:-:%s#2b' % today in e['steps'],
+          'the esc row holds step 2 for Prathna and 2b for Ekta, whose time passed: %r' % e)
     check('u_s:noin:-:%s#2' % today in e['steps'], 'a step shown to the report still reaches the manager when unanswered: %r' % e)
     check(not any(s.startswith('u_n:') for s in e['steps']), "another manager's report is not in Aanya's mail: %r" % e)
     check(out['capped'] == {'ishaan': 2, 'aanya': 1}, 'at most two mails a person a day and one esc: %r' % out['capped'])
@@ -272,10 +346,21 @@ def main():
 
     check(out['nomail'] == {'sent': 0, 'ledger': []}, 'no mail and no claim without mail set up: %r' % out['nomail'])
     check(out['mailoff'] == {'sent': 0, 'ledger': []}, 'no mail and no claim with pm.mail off: %r' % out['mailoff'])
+    check(out['botsOffEarly'] == 0, 'a check-out ask waits for the 20:30 the watch uses: %r' % out['botsOffEarly'])
     bo = out['botsOff']
     check(bo['sent'] == ['i@example.com'], 'with the bots off only the ask goes, and only to who is still checked in: %r' % bo)
     check(bo['subject'] == 'Kaavish asked about your check-out', 'the ask subject: %r' % bo)
     check('Kaavish asked m360 to check with you, 20:10.' in bo['text'] and 'You are still checked in from 10:08.' in bo['text'], 'the ask lines: %r' % bo['text'])
+    race = out['race']
+    check(len(race) == len(set(race)) and len([x for x in race if x.startswith('i@')]) == 1,
+          'two passes at the same moment, both past the "no claim yet" look, still send each mail once: %r' % race)
+    check(out['lunch'] == [], 'nothing is mailed over lunch: %r' % out['lunch'])
+    al = out['afterLunch']
+    check('e@example.com' in al['to'] and 'i@example.com' in al['to'] and 'r@example.com' not in al['to'], 'after lunch Ishaan and Ekta are mailed, Rohan who checked out is not: %r' % al['to'])
+    check('Swisse reel cutdown' in al['ishaan'], "Ishaan's mail carries his overdue task: %r" % al['ishaan'])
+    check('No check-in yet' in al['ekta'] and 'Tanishq' not in al['ekta'], 'before a check-in only the check-in is mailed: %r' % al['ekta'])
+    check(out['rights'] == ['r@example.com'], "a manager's ask to her own report goes; a peer's hand-written ask, an attendance ask outside the line and an ask during a pending leave request never do: %r" % out['rights'])
+    check(out['ringNow'] == ['s@example.com'], "past the window only the founder's ringNow ask goes, never a manager's: %r" % out['ringNow'])
     return checks
 
 

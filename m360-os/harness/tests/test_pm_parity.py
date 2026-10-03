@@ -8,7 +8,7 @@ m3 owes an overdue task and one m2 sent back at 11:00; a done task that was over
 Kaavish has five asks out: a check-out ask to m2 and m3 at 19:50, a custom ask to m3 at 12:10, a task ask
 to m2 at 13:00, an overdue ask to m3 at 11:20 and a check-in ask to m3 at 11:05. The bots are on.
 
-At 11:30 and at 20:00 the page's M.pm.items(ctx, rep, {now}) and pm.js items(state, rep, now) are read for
+At 11:30, 20:00 and 20:45 the page's M.pm.items(ctx, rep, {now}) and pm.js items(state, rep, now) are read for
 m1, m2 and m3. Every step 1 and every ask step (K#1, K#a.<askId>) for noin, noeod, overdue, sentback,
 chase and the asks the server judges must carry the same id and the same time on both sides. The fixture
 is written once into the page's store and read back from it, so both sides see the same documents.
@@ -56,11 +56,11 @@ PAGE = r'''([reps, times, kinds, asks]) => {
     for (const rep of reps) {
       const rows = [];
       for (const it of M.pm.items(ctx, rep, {now}) || []) {
-        const ask = it.source === 'ask' || !!it.askId;
-        if (ask ? !asks.includes(it.kind) : !kinds.includes(it.kind)) continue;
+        /* an ask on a key the bot holds too rides the bot's item: read the steps one by one */
         for (const s of it.steps || []) {
           const st = String(s.step);
-          if (st === '1' || st.indexOf('a.') === 0) rows.push([s.id || (it.K + '#' + st), s.at]);
+          const take = st.indexOf('a.') === 0 ? asks.includes(it.kind) : st === '1' && it.source !== 'ask' && kinds.includes(it.kind);
+          if (take) rows.push([s.id || (it.K + '#' + st), s.at]);
         }
       }
       out[now][rep] = rows.sort();
@@ -90,7 +90,7 @@ def test(h):
 
     ctx = h.browser.new_context(viewport={'width': 1280, 'height': 900}, locale='en-IN', timezone_id='Asia/Kolkata')
     h.contexts.append(ctx)
-    ctx.clock.set_fixed_time(datetime(tue.year, tue.month, tue.day, 20, 0, tzinfo=IST))
+    ctx.clock.set_fixed_time(datetime(tue.year, tue.month, tue.day, 20, 45, tzinfo=IST))
     pg = ctx.new_page()
     pg.set_default_timeout(15000)
     pg.on('pageerror', lambda e: h.console.append(('pageerror', str(e))))
@@ -148,7 +148,7 @@ def test(h):
         coll, did = path.split('/')
         if coll in state:
             state[coll][did] = pg.evaluate('p => window.__db.get(p)', path)
-    times = [ms(11, 30), ms(20, 0)]
+    times = [ms(11, 30), ms(20, 0), ms(20, 45)]
     reps = [M1, M2, M3]
     fixture = json.dumps({'state': state, 'reps': reps, 'times': times, 'kinds': list(KINDS), 'asks': list(ASKS)})
     tmp = tempfile.mkdtemp()
@@ -171,13 +171,14 @@ def test(h):
     check(K(M3, 'overdue', 't1') + '#1' in m and at[K(M3, 'overdue', 't1') + '#1'] == ms(11, 45), 'server: overdue at start plus grace plus 30: %r' % m)
     check(K(M3, 'overdue', 't1') + '#a.a4' in m and K(M3, 'noin') + '#a.a5' in m and K(M3, 'custom', 'a2') + '#a.a2' not in m, 'server: asks show from their time: %r' % m)
     check(not any(':t5:' in x for x in m), 'server: a done task is never overdue: %r' % m)
-    e2, e3 = ids(times[1], M2), ids(times[1], M3)
+    e2, e3 = ids(times[2], M2), ids(times[2], M3)
     check(K(M2, 'noeod') + '#1' in e2 and at[K(M2, 'noeod') + '#1'] == ms(19, 30), 'server: noeod at the cut: %r' % e2)
     check(K(M2, 'chase', 't4') + '#1' in e2 and at[K(M2, 'chase', 't4') + '#1'] == ms(12, 5), 'server: chase five minutes after the ask: %r' % e2)
     check(K(M2, 'noout') + '#a.a1' in e2 and K(M3, 'noout') + '#a.a1' not in e3, 'server: a check-out ask holds only for who is checked in: %r %r' % (e2, e3))
     check(K(M3, 'sentback', 't3') + '#1' in e3 and at[K(M3, 'sentback', 't3') + '#1'] == ms(15, 0), 'server: sent back plus four hours: %r' % e3)
     check(K(M2, 'task', 't4') + '#a.a3' in e2 and K(M3, 'custom', 'a2') + '#a.a2' in e3, 'server: task and custom asks: %r %r' % (e2, e3))
-    check(ids(times[1], M1) == [], 'server: m1, in and posted, has nothing: %r' % ids(times[1], M1))
+    check(ids(times[2], M1) == [], 'server: m1, in and posted, has nothing: %r' % ids(times[2], M1))
+    check(K(M2, 'noout') + '#a.a1' not in ids(times[1], M2), 'server: a check-out ask waits for the 20:30 the watch uses: %r' % ids(times[1], M2))
 
     page = pg.evaluate(PAGE, [reps, times, list(KINDS), list(ASKS)])
     if page.get('missing'):

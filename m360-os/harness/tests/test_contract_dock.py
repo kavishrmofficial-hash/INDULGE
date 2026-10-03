@@ -61,6 +61,9 @@ def test(h):
     turns = [{'role': 'user', 'content': 'message everyone on the swisse team that the shoot moved to Thursday'}]
     for i in range(10):
         turns.append({'role': 'assistant', 'content': 'Sent to teammate %d' % (i + 1), 'act': True})
+    # and one turn the way v32 keeps them: the acts of a turn ride the answer
+    turns.append({'role': 'user', 'content': 'tell the swisse team the call is at four'})
+    turns.append({'role': 'assistant', 'content': 'Done.', 'acts': ['Told teammate %d' % (i + 1) for i in range(10)]})
     turns.append({'role': 'assistant', 'content': '\n'.join('Line %d of a long answer about the Swisse shoot and who knows what.' % (i + 1) for i in range(30))})
 
     def ctx_for(w, hh, dsf, dark, **extra):
@@ -139,9 +142,10 @@ def test(h):
                 check(head2 and comp2 and abs(head2['y'] - head['y']) < 2 and abs(comp2['b'] - comp['b']) < 2, '%s: scrolling the body moves neither header nor composer' % name)
                 acts = p.evaluate('''() => { const box = document.querySelector('.buddy-bubble .panel-body');
                   const toggles = box.querySelectorAll('.agent-receipt-toggle').length;
-                  const shown = [...box.querySelectorAll('*')].filter(e => e.children.length === 0 && /^Sent to teammate/.test(e.textContent.trim()) && e.offsetParent).length;
-                  return {toggles, shown}; }''')
-                check(acts['toggles'] >= 1 or acts['shown'] < 10, '%s: ten act lines fold: %r' % (name, acts))
+                  const own = re => [...box.querySelectorAll('*')].filter(e => e.offsetParent && [...e.childNodes].some(n => n.nodeType === 3 && re.test(n.textContent))).length;
+                  return {toggles, old: own(/Sent to teammate/), now: own(/Told teammate/)}; }''')
+                check(acts['now'] < 10, '%s: ten acts of one turn fold: %r' % (name, acts))
+                check(acts['old'] < 10, '%s: ten act lines already in the thread (the old one line per turn) fold: %r' % (name, acts))
                 small = p.evaluate('''() => [...document.querySelectorAll('.buddy-bubble *')].filter(e => e.offsetParent && e.children.length === 0 && e.textContent.trim())
                   .map(e => parseFloat(getComputedStyle(e).fontSize)).filter(s => s < 12.5)''')
                 check(not small, '%s: text in the pop-up is 13 px or more: %r' % (name, small[:4]))
@@ -169,11 +173,18 @@ def test(h):
         check(True, "'m360:ask' opens the pop-up")
         p.locator('#buddy-close').click()
         p.wait_for_timeout(400)
-        p.evaluate('() => M.assistant.open("who has not checked in")')
+        p.evaluate('() => M.assistant.open()')
         p.wait_for_selector('#buddy-input', timeout=8000)
-        check(p.input_value('#buddy-input') == 'who has not checked in', 'M.assistant.open puts the text in the input')
         for sel in ('#buddy-send', '#buddy-talk', '#buddy-conv', '#buddy-expand', '#buddy-close'):
             check(p.locator(sel).count() == 1, 'the pop-up has %s' % sel)
+        p.locator('#buddy-close').click()
+        p.wait_for_timeout(400)
+        # with text, it opens and asks it (the palette's "Ask m360: ..."); the words show either way
+        p.evaluate('() => M.assistant.open("who has not checked in")')
+        p.wait_for_selector('.buddy-bubble[role="dialog"]', timeout=8000)
+        p.wait_for_timeout(1500)
+        said = p.input_value('#buddy-input') == 'who has not checked in' or 'who has not checked in' in p.inner_text('.buddy-bubble')
+        check(said, 'M.assistant.open(text) opens the pop-up with the text, in the input or asked')
         p.locator('#buddy-expand').click()
         p.wait_for_selector('.drawer #ask-input', timeout=8000)
         check(p.locator('.buddy-bubble[role="dialog"]').count() == 0 or True, 'expand opens the drawer')

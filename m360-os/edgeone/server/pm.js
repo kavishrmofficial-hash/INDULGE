@@ -11,8 +11,10 @@
 
    A report hears by mail when the step is at least 15 minutes old, nobody marked it told, there is no
    answer on K, no manager took it (mine) or let it go (drop), they are away (no beacon in 2 minutes and
-   no activity bucket in 30), and nobody switched the mail off. A manager hears once a day ('esc') when a
-   step 2 is due and they are away. Every mail is claimed first:
+   no activity bucket in 30), it is inside their ring window (their hours, never over lunch or after they
+   checked out), and nobody switched the mail off. An ask counts only from someone with the right to make
+   it: the founder, or up the person's line (attendance: their direct manager). A manager hears once a day
+   ('esc') when a step 2 is due and they are away. Every mail is claimed first:
      x/pm/<ymd IST>/<uid>/<slot>      {at, id, to, slot, keys, steps, sent?, error?}   slot am, pm or esc
      x/pm/index                       {last, mails, lastError}
    written, read back, and sent only when the claim is still ours, so two instances never send twice.
@@ -135,9 +137,20 @@ function inCoach(state, rep, ymd, P) {
   const joined = (state.members[rep] || {}).joined;
   const n = Number(P.coachDays) || 0;
   if (!n || !YMD.test(joined || '') || joined > ymd) return false;
+  /* the page's coachUntil: the Nth working day from "joined" (that day counted) is the first one out */
   let d = joined, count = 0;
-  for (let i = 0; i < 60 && d <= ymd; i++, d = addDays(d, 1)) if (isWorkingDay(state.settings, d) && ++count > n) return false;
-  return count <= n;
+  for (let i = 0; i < 120 && d <= ymd; i++, d = addDays(d, 1)) if (isWorkingDay(state.settings, d)) count++;
+  return count < n;
+}
+const isFounder = (state, u) => !!u && (u === state.founderUid || ((state.members[u] || {}).role === 'founder' && state.members[u].active !== false));
+/* who may ask rep at all: the founder, or someone up rep's line; about attendance only the founder or the
+   direct manager (canSee). The agent checks the same when the ask is made, so an ask written by hand into
+   someone's own me doc outside these rights is never mailed */
+function mayAsk(state, x, rep, kind) {
+  if (!x || x === rep || !state.members[x] || state.members[x].active === false) return false;
+  if (isFounder(state, x)) return true;
+  if (kind === 'noin' || kind === 'noout' || kind === 'noeod') return managerFrom(state.members, state.founderUid, rep) === x;
+  return chainOf(state.members, state.founderUid, rep).indexOf(x) >= 0;
 }
 
 /* every item about rep today that this pass can judge: [{K, rep, kind, sub, ymd, s1, step, source, from, askId?, mgr, t?}] */
@@ -149,8 +162,9 @@ export function items(state, rep, now) {
   const ymd = ymdOf(now);
   if (!isWorkingDay(state.settings, ymd)) return out;
   if (m.joined && YMD.test(m.joined) && m.joined > ymd) return out;
+  /* approved leave clears the day; a pending request holds it (the page's "held"), asks included */
   const lv = leaveState(state, rep, ymd);
-  if (lv.approved) return out;
+  if (lv.approved || lv.pending) return out;
   const P = policy(state.settings);
   const d0 = dayStart(ymd), mins = minsOf(now);
   const start = startMins(state, rep), cut = cutMins(state.settings);
@@ -160,7 +174,7 @@ export function items(state, rep, now) {
   const mgr = managerFrom(members, state.founderUid, rep);
   const cfg = mgr ? cfgOf(state, mgr, ymd) : null;
   const paused = cfg && cfg.pause[rep] && String(cfg.pause[rep]) >= ymd;
-  const auto = !!(mgr && P.on && cfg.on && !offByFounder(P, mgr) && !paused && !lv.pending);
+  const auto = !!(mgr && P.on && cfg.on && !offByFounder(P, mgr) && !paused);
   const kindOn = k => P.kinds[k] !== false && (!cfg || cfg.kinds[k] !== false) && ruleOn(state.settings, k);
   const push = (kind, sub, s1, extra) => out.push({K: key(rep, kind, sub, ymd), rep, kind, sub: sub || '-', ymd, s1, step: '1', source: 'bot', from: mgr, mgr, ...extra});
   if (auto) {
@@ -180,18 +194,19 @@ export function items(state, rep, now) {
       }
     }
     if (kindOn('chase')) {
-      const best = {};
-      for (const x of chainOf(members, state.founderUid, rep)) {
-        const ch = (((state.me[x] || {}).pm) || {}).chase || {};
-        for (const id of Object.keys(ch)) {
-          const c = ch[id], t = tasks[id];
-          if (!c || c.rep !== rep || !openTask(t) || t.owner !== rep) continue;
-          const at = Number(c.at) || 0;
-          const s1 = ymdOf(at) === ymd ? at + 5 * MIN : (at < d0 ? d0 + (start + 30) * MIN : null);
-          if (s1 != null && (!best[id] || s1 < best[id].s1)) best[id] = {s1, by: x, t};
+      /* the nearest one up the line who asked for the task wins, the way the page reads it */
+      const chain = chainOf(members, state.founderUid, rep);
+      for (const id of Object.keys(tasks).sort()) {
+        const t = tasks[id];
+        if (!openTask(t) || t.owner !== rep) continue;
+        for (const x of chain) {
+          const c = ((((state.me[x] || {}).pm) || {}).chase || {})[id];
+          if (!c || !Number(c.at)) continue;
+          const at = Number(c.at);
+          push('chase', id, ymdOf(at) === ymd ? at + 5 * MIN : d0 + (start + 30) * MIN, {t, by: x});
+          break;
         }
       }
-      for (const id of Object.keys(best).sort()) push('chase', id, best[id].s1, {t: best[id].t, by: best[id].by});
     }
   }
   /* manual asks, from anyone, to rep: only while the condition they ask about still holds */
@@ -199,20 +214,21 @@ export function items(state, rep, now) {
     const asks = (((state.me[x] || {}).pm) || {}).asks || {};
     for (const askId of Object.keys(asks).sort()) {
       const a = asks[askId];
-      if (!isObj(a) || a.withdrawn || !Array.isArray(a.to) || a.to.indexOf(rep) < 0 || !ASK_KINDS.has(a.kind)) continue;
+      if (!isObj(a) || a.withdrawn || !Array.isArray(a.to) || a.to.indexOf(rep) < 0 || !ASK_KINDS.has(a.kind) || !mayAsk(state, x, rep, a.kind)) continue;
       const at = Number(a.showAt || a.at) || 0;
       if (!at || ymdOf(at) !== ymd || at > now) continue;
       const t = a.sub ? tasks[a.sub] : null;
+      /* attendance holds from the moment the manager's watch shows it, as on the page */
       let holds = true, sub = '';
-      if (a.kind === 'noin') holds = !(ci && ci.in);
-      else if (a.kind === 'noout') holds = !!(ci && ci.in && !ci.out);
-      else if (a.kind === 'noeod') holds = !eod;
+      if (a.kind === 'noin') holds = !(ci && ci.in) && mins > start;
+      else if (a.kind === 'noout') holds = !!(ci && ci.in && !ci.out) && mins > cut + 60;
+      else if (a.kind === 'noeod') holds = !eod && mins > cut;
       else if (a.kind === 'overdue') { holds = !!(openTask(t) && t.due && t.due < ymd); sub = a.sub; }
       else if (a.kind === 'task') { holds = openTask(t); sub = a.sub; }
       else if (a.kind === 'custom') sub = askId;
       if (!holds) continue;
       out.push({K: key(rep, a.kind, sub, ymd), rep, kind: a.kind, sub: sub || '-', ymd, s1: at, step: 'a.' + askId, source: 'ask', from: x, askId, mgr,
-        ringNow: !!a.ringNow, t, ci});
+        askAt: Number(a.at) || at, ringNow: !!a.ringNow && isFounder(state, x), t, ci});
     }
   }
   for (const it of out) it.id = it.K + '#' + it.step;
@@ -244,6 +260,7 @@ function takenByManager(state, it, ymd) {
   return false;
 }
 const toldOf = (state, uid) => (((state.me[uid] || {}).pm) || {}).told || {};
+const ackOf = (state, uid) => (((state.me[uid] || {}).pm) || {}).ack || {};
 
 /* when step 2 is due for an automatic item, or null when it does not escalate */
 function escAt(state, it, ymd, P) {
@@ -259,11 +276,8 @@ function escAt(state, it, ymd, P) {
 /* the manager who hears step 2: past one on leave or inactive that day */
 function managerFor(state, rep, ymd) {
   const ch = chainOf(state.members, state.founderUid, rep);
-  const first = ch[0];
-  if (!first) return null;
-  const fm = state.members[first] || {};
-  if (fm.active === false || leaveState(state, first, ymd).approved) return ch[1] || null;
-  return first;
+  for (const u of ch) if ((state.members[u] || {}).active !== false && !leaveState(state, u, ymd).approved) return u;
+  return ch[0] || null;
 }
 
 /* the people who have been nowhere near m360 for a while */
@@ -280,10 +294,19 @@ function awayOf(state, uid, now, beacons) {
   }
   return true;
 }
-/* inside a person's own hours: from start minus 30 to the EOD cut plus 90 */
-function inHours(state, uid, now) {
-  const mins = minsOf(now);
-  return isWorkingDay(state.settings, ymdOf(now)) && mins >= rawStart(state, uid) - 30 && mins <= cutMins(state.settings) + 90;
+/* the page's ring window (C6), less the focus timer only a device knows: a working day they are not on leave,
+   from their start minus 30 to the EOD cut plus 90, never over lunch, nothing once they have checked out, and
+   before they check in only the check-in itself */
+function inWindow(state, uid, now, kind) {
+  const ymd = ymdOf(now), mins = minsOf(now);
+  if (!isWorkingDay(state.settings, ymd) || leaveState(state, uid, ymd).approved) return false;
+  if (mins < rawStart(state, uid) - 30 || mins > cutMins(state.settings) + 90) return false;
+  const s = state.settings || {};
+  const lf = toMins(s.lunchFrom != null ? s.lunchFrom : '13:30'), lt = toMins(s.lunchTo != null ? s.lunchTo : '14:30');
+  if (lf != null && lt != null && lt > lf && mins >= lf && mins < lt) return false;
+  const ci = (((state.checkin[uid] || {}).days) || {})[ymd] || null;
+  if (ci && ci.out) return false;
+  return !!(ci && ci.in) || kind === 'noin';
 }
 
 /* ---------- the words (spec Part E) ---------- */
@@ -311,7 +334,8 @@ function reportLine(state, it, nameOf) {
 function managerLine(state, it, nameOf, esc, now) {
   const t = it.t || {}, title = t.title || 'that task', who = first(nameOf(it.rep));
   const thing = it.kind === 'noin' ? 'the check-in' : 'the ' + title;
-  const nudged = toldOf(state, it.rep)[it.id];
+  /* a told mark is negative when the page showed the step without a sound */
+  const nudged = Math.abs(Number(toldOf(state, it.rep)[it.id]) || 0);
   const seen = nudged ? ' Nudged at ' + hhmm(nudged) + '.' : ' The nudge has not been seen yet.';
   const a = ((((state.me[it.rep] || {}).pm) || {}).ack || {})[it.K];
   if (a && a.how === 'blocked') return who + ' is blocked on ' + thing + '.';
@@ -374,8 +398,13 @@ export function plan(state, now, ctx) {
     const told = toldOf(state, rep);
     const mine = (((state.me[rep] || {}).pm) || {});
     const done = mailed[rep] || none;
-    const due = list.filter(it => now >= it.s1 + 15 * MIN && !told[it.id] && !reportCovered(state, it, ymd) && !takenByManager(state, it, ymd) &&
-      (it.source === 'ask' || cfgOf(state, it.mgr, ymd).mail) && !done.keys.has(it.K) && (it.ringNow || inHours(state, rep, now)));
+    /* an answer covers an ask only when it came after the ask, as on the page */
+    const covered = it => it.source === 'ask' ? (Number((ackOf(state, it.rep)[it.K] || {}).at) || 0) >= it.askAt : reportCovered(state, it, ymd);
+    const seenK = new Set();
+    const due = list.filter(it => now >= it.s1 + 15 * MIN && !told[it.id] && !covered(it) && !takenByManager(state, it, ymd) &&
+      (it.source === 'ask' || cfgOf(state, it.mgr, ymd).mail) && !done.keys.has(it.K) && (it.ringNow || inWindow(state, rep, now, it.kind)))
+      /* the bot's step and an ask on the same key make one line in the mail */
+      .filter(it => !seenK.has(it.K) && seenK.add(it.K));
     if (due.length && mine.mail !== false && emailOf(rep) && awayOf(state, rep, now, beacons)) {
       /* the slot: a check-in and anything due before 15:00 go in the morning one, the EOD line and later ones in the evening */
       const slotOf = it => it.kind === 'noin' ? 'am' : it.kind === 'noeod' ? 'pm' : (minsOf(it.s1) < 15 * 60 ? 'am' : 'pm');
@@ -394,7 +423,7 @@ export function plan(state, now, ctx) {
   }
   for (const g of Object.keys(esc).sort()) {
     const done = mailed[g] || none;
-    if (done.slots.has('esc') || ((state.me[g] || {}).pm || {}).mail === false || !emailOf(g) || !awayOf(state, g, now, beacons) || !inHours(state, g, now)) continue;
+    if (done.slots.has('esc') || ((state.me[g] || {}).pm || {}).mail === false || !emailOf(g) || !awayOf(state, g, now, beacons) || !inWindow(state, g, now, 'esc')) continue;
     out.push({to: g, slot: 'esc', items: esc[g]});
   }
   return out;
@@ -403,6 +432,9 @@ export function plan(state, now, ctx) {
 export function pmDesk(h) {
   const {getJ, putJ, docKey, listAll, readColl, inventory, ownerUid, appSettings, mailOn, sendMail, env, levelOf, LEVEL, HttpError} = h;
   const EVERY = env && env.PM_RECHECK_MS != null ? Number(env.PM_RECHECK_MS) : 600000;
+  /* the pause between writing a claim and reading it back, so a second instance's claim made at the same
+     moment lands first and only one of them still sees its own id */
+  const SETTLE = env && env.PM_SETTLE_MS != null ? Number(env.PM_SETTLE_MS) : 400;
   let nextAt = 0, busy = false;
 
   async function coll(inv, name) {
@@ -486,6 +518,7 @@ export function pmDesk(h) {
         const its = job.slot === 'esc' ? job.items.map(x => x.it) : job.items;
         const row = {at: now, id, to: job.to, slot: job.slot, keys: its.map(it => it.K), steps: job.slot === 'esc' ? job.items.map(x => x.it.K + '#' + x.esc.step) : its.map(it => it.id)};
         await putJ(k, row);
+        if (SETTLE > 0) await new Promise(r => setTimeout(r, SETTLE));
         const again = await getJ(k).catch(() => null);
         if (!again || again.id !== id) continue;
         const m = job.slot === 'esc' ? managerMail(state, job.to, job.items, nameOf, site, now) : reportMail(state, job.to, job.items, nameOf, site);

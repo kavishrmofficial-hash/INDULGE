@@ -19,9 +19,13 @@ Tuesday m2 and m3 are still checked in and m1 checked out at 19:40.
 3. Parity: update_task through the agent writes dueLog and keeps a shipped task's due date for a
    member; reassign_task refuses someone who neither owns nor made the task.
 4. Taint: after look_up chat in a turn, send_message is held for a tap (a pending card), never sent.
-5. Spoken yes: isYes and isNo hold to the strict grammar; pending cards carry their turn and the time.
+5. Spoken yes: isYes and isNo hold to the strict grammar; pending cards carry their turn and the time; a
+   yes approves only inside 15 seconds, only when exactly one card waits for the turn, and never when the
+   mic opened before the agent stopped speaking (M.agent.yesFor).
 6. The act tool's description lists every founder action by name and stays under 3,600 characters.
 7. Undo: nudge_people run by the grammar writes an ask; undo('last') withdraws it.
+8. Rights at run time: a member calling change_setting by hand, and then approving whatever waits, leaves
+   the settings as they were.
 
 Expected to fail until builder 2's 56-z-agent.js and the 56-brain.js changes are merged.
 
@@ -183,6 +187,41 @@ def test(h):
         check(all(r['y']) and all(r['n']), 'the strict yes and no words: %r' % r)
         check(not any(r['oy']) and not any(r['ny']), 'anything else is never a yes: %r' % r)
     section('spoken yes', spoken_yes)
+
+    def spoken_window():
+        be('founder')
+        r = p.evaluate('''() => { const ctx = M.lastCtx;
+          if (typeof M.agent.yesFor !== 'function') return {missing: true};
+          const h1 = M.brain.hold('Send it', 'one card', async () => 'ran', {turn: {id: 't-yes', via: 'voice'}});
+          const card = M.brain.pending.list.find(x => x.id === h1.id) || {};
+          const at = Number(card.at) || Date.now();
+          const y = (text, o) => M.agent.yesFor(ctx, text, {turn: 't-yes', promptAt: at, ...o});
+          const out = {inside: y('yes', {at: at + 5000}) === h1.id, late: y('yes', {at: at + 16000}), other: y('yes but only to Aanya', {at: at + 2000}),
+            echo: y('yes', {at: at + 2000, micAt: at + 500, spokeEnd: at + 1500})};
+          const h2 = M.brain.hold('Send that too', 'a second card', async () => 'ran', {turn: {id: 't-yes', via: 'voice'}});
+          out.two = y('yes', {at: at + 3000});
+          M.brain.drop(h1.id); M.brain.drop(h2.id);
+          return out; }''')
+        if r.get('missing'):
+            check(False, 'M.agent.yesFor (the spoken-yes window, F9) is in this build')
+            return
+        check(r['inside'], 'a yes inside 15 seconds approves the one card: %r' % r)
+        check(r['late'] is None and r['other'] is None, 'a yes after 15 seconds, or anything past the strict words, approves nothing: %r' % r)
+        check(r['echo'] is None, 'a yes heard on a mic opened while the agent was still speaking approves nothing: %r' % r)
+        check(r['two'] is None, 'with two cards waiting a yes approves neither: %r' % r)
+    section('spoken window', spoken_window)
+
+    def run_rights():
+        be('m3')
+        r = p.evaluate('''async () => { const ctx = M.lastCtx, nm = %r;
+          const before = (window.__db.get('settings/app') || {}).grace;
+          let res;
+          try { res = await M.brain.act(ctx, nm, () => {}, 'change_setting', {key: 'grace', value: 55}); } catch (e) { res = String(e.message || e); }
+          for (const x of M.brain.pending.list.slice()) { try { await M.brain.approve(x.id); } catch (e) { /* refused */ } }
+          await new Promise(r => setTimeout(r, 500));
+          return {before: before == null ? null : before, after: (window.__db.get('settings/app') || {}).grace, res: typeof res === 'string' ? res : JSON.stringify(res || null).slice(0, 200)}; }''' % NM)
+        check(r['after'] == r['before'], 'a member calling change_setting by hand changes nothing: %r' % r)
+    section('rights at run time', run_rights)
 
     def catalogue():
         be('founder')

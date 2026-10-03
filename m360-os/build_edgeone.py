@@ -60,7 +60,7 @@ self.addEventListener('notificationclick', e => {
   const href = /^#[A-Za-z0-9_\\-\\/.:=~]*$/.test(raw) ? raw : '#home';
   e.waitUntil(self.clients.matchAll({type: 'window', includeUncontrolled: true}).then(list => {
     const open = list.find(c => new URL(c.url).origin === location.origin);
-    if (open) return open.focus().then(c => { (c || open).postMessage({href}); });
+    if (open) return open.focus().catch(() => open).then(c => { (c || open).postMessage({href}); });
     return self.clients.openWindow('/' + href);
   }));
 });
