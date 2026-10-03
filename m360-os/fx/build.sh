@@ -5,7 +5,7 @@
 set -e
 cd "$(dirname "$0")"
 OUT=../src/js/00-a-fx.vendor.js
-python3 patch-metal.py
+python3 patches.py
 npx esbuild entry.jsx --bundle --minify --format=iife --target=es2020 --jsx=automatic \
   --alias:react=./shims/react.js --alias:react-dom=./shims/react-dom.js --alias:react/jsx-runtime=./shims/jsx-runtime.js \
   --alias:react/jsx-dev-runtime=./shims/jsx-runtime.js --alias:react-dom/client=./shims/react-dom.js \

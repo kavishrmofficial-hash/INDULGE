@@ -59,7 +59,8 @@
 .metal{display:inline-flex; vertical-align:middle}
 .metal .btn,.metal .iconbtn{background:transparent !important; box-shadow:none}
 .metal-ink .btn,.metal-ink .iconbtn{color:#fff}
-.metal-paper .btn,.metal-paper .iconbtn{color:var(--ink) !important}
+/* light metal stays light in both themes, so its label keeps the fixed ink (the --ink token turns light in dark mode) */
+.metal-paper .btn,.metal-paper .iconbtn{color:#0E0E0E !important}
 .metal .btn:hover{transform:none}
 .new-metal{width:100%}
 .new-metal .btn{width:100%}
@@ -68,8 +69,11 @@
 .orb-big{display:inline-flex; align-items:center; justify-content:center; width:140px; height:140px; transform:scale(calc(1 + var(--lvl,0) * .35)); transition:transform .08s linear}
 .orb-big canvas{transform:scale(2.1); transform-origin:50% 50%}
 .orb-mark{display:inline-flex; width:32px; height:32px; align-items:center; justify-content:center}
-.orb-voice{position:absolute; left:0; right:0; bottom:0; height:120px; pointer-events:none; z-index:0}
-.orb-voice-in{height:120px}
+/* the voice beam frames the whole phone screen, as voice-glow's mobile type is drawn to: it sits behind
+   the screen's content, edge to edge (the beam sets its own position inline, hence the importance) */
+.orb-voice{position:absolute !important; inset:0 !important; pointer-events:none; z-index:0}
+.orb-voice-in{position:absolute; inset:0}
+.orb-screen > :not(.orb-voice){position:relative; z-index:1}
 .ask-voice{display:block; border-radius:14px}
 .ask-row canvas{flex:none}
 .buddy-bot{margin-right:8px}
