@@ -200,14 +200,17 @@
     return html`<span class=${'voice-pill' + (live ? ' is-live' : '')}><${Voice} type="pill" on=${!!live} stream=${live && mic ? mic.stream : null}>${children}<//></span>`;
   }
 
-  /* BotAvatar: the library's plush fabric shading, bodies by feature, all in flame; paused holds it still */
-  function Bot({type, feature, state, size, seed, face, label, id, className, paused}) {
+  /* BotAvatar: the library's plush fabric shading, bodies by feature, all in flame; paused holds it still.
+     headphones, jumpEvery (seconds between idle hops) and interactive (eyes that follow the pointer) go
+     straight through, as the package ships them */
+  function Bot({type, feature, state, size, seed, face, label, id, className, paused, headphones, jumpEvery, interactive}) {
     useSettled();
     const th = M.useResolvedTheme();
     const fx = FX();
     const body = type || BOTS[feature] || 'clover';
     if (!fx) return M.parts.Bot ? html`<${M.parts.Bot} state=${state} size=${size} seed=${seed} label=${label} id=${id}/>` : null;
-    return html`<${fx.BotAvatar} type=${body} state=${state || 'default'} size=${size || 28} seed=${seed || 0} face=${face || 'eyes'} color=${FLAME} theme=${th} paused=${!!paused} id=${id} className=${className} aria-label=${label || 'm360'}/>`;
+    return html`<${fx.BotAvatar} type=${body} state=${state || 'default'} size=${size || 28} seed=${seed || 0} face=${face || 'eyes'} color=${FLAME} theme=${th} paused=${!!paused} headphones=${!!headphones}
+      jumpEvery=${jumpEvery == null ? undefined : jumpEvery} interactive=${interactive == null ? undefined : !!interactive} id=${id} className=${className} aria-label=${label || 'm360'}/>`;
   }
 
   /* BellToggle from React Bits; its count badge is drawn only where a count is passed, so a plain

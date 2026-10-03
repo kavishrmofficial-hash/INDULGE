@@ -73,7 +73,7 @@ def test(h):
     page.wait_for_timeout(800)
     t = [x for x in tasks(page) if x['title'] == 'Follow up with the client']
     check(t and t[0]['owner'] == 'u_m1', 'Ask m360 tool created a task for me: %r' % t)
-    check(page.locator('.bubble.act').count() >= 1, 'action bubble shows what the AI did')
+    check(page.locator('.buddy-bubble .agent-receipt').count() >= 1, 'a receipt shows what the AI did')
     calls = page.evaluate('window.__sampleCalls')
     askp = [c for c in calls if c.get('tools')]
     check(askp and 'act' in askp[-1]['tools'], 'members get the brain tools too')
@@ -83,15 +83,16 @@ def test(h):
     check(aanya and 'LATE' not in aanya[0] and 'verified' not in aanya[0] and 'points' not in aanya[0], 'teammate privacy in member prompt: %r' % aanya)
     check('PIPELINE' not in mp and 'CLIENTS:' not in mp and '₹' not in mp, 'no money in a member prompt')
     page.keyboard.press('Escape')
+    page.wait_for_function('() => !document.querySelector(".buddy-bubble")')
 
     # ---- the cursor buddy: points at things on screen, and goes to other sections to show you ----
     h.go(page, 'm2', hash='#home', width=1280, seed=True)
     page.wait_for_timeout(300)
     page.mouse.move(400, 300)
     page.wait_for_timeout(150)
-    check(page.locator('.buddy').count() == 1, 'the pointer rides next to the cursor')
+    check(page.locator('#buddy-dock .buddy-home').count() == 1 and page.evaluate('() => document.querySelector(".buddy").classList.contains("docked")'), 'the buddy waits in the dock, its pointer at rest')
     page.locator('.buddy-home').click()
-    page.fill('#buddy-input', 'show me the leave form')
+    page.fill('#buddy-input', 'where is the leave form')
     page.keyboard.press('Enter')
     page.wait_for_function("() => /Request leave/.test((document.querySelector('.buddy-bubble') || {}).innerText || '')", timeout=8000)
     page.wait_for_timeout(300)
@@ -102,7 +103,7 @@ def test(h):
     check(ring and btn and abs(ring['x'] + 6 - btn['x']) < 3 and abs(ring['y'] + 6 - btn['y']) < 3, 'ring sits on the Request leave button: %r %r' % (ring, btn))
     check('Request leave' in page.locator('.buddy-bubble').inner_text(), 'buddy answers in its bubble')
     page.keyboard.press('Escape')
-    page.wait_for_timeout(200)
+    page.wait_for_timeout(400)
     check(page.locator('.buddy-bubble').count() == 0 and page.locator('.buddy-ring').count() == 0, 'Escape puts the buddy away')
 
     # ---- member AI: wrap your day with an AI draft ----
@@ -160,7 +161,14 @@ def test(h):
     # ---- AI off and AI refused ----
     h.go(page, 'm1', hash='#home', width=1280, seed=True, noai=True)
     page.wait_for_timeout(300)
-    check(page.locator('.buddy-home').count() == 0 and 'Your day, sorted' not in page.inner_text('main'), 'no AI surfaces without sample')
+    check('Your day, sorted' not in page.inner_text('main'), 'no AI surfaces without sample')
+    # the dock stays: without the AI its panel says so in one line and offers what still works with no model
+    page.locator('#buddy-dock .buddy-home').click()
+    page.fill('#buddy-input', 'what is overdue')
+    page.keyboard.press('Enter')
+    page.wait_for_selector('.buddy-bubble .panel-err')
+    check('AI is off' in page.inner_text('.buddy-bubble .panel-err') and page.locator('.buddy-bubble .panel-chips .chip').count() >= 3, 'the AI-off line and the chips: %r' % page.inner_text('.buddy-bubble .panel-err'))
+    page.keyboard.press('Escape')
     h.go(page, 'm1', hash='#home', width=390, seed=True, aierr='not_granted')
     page.wait_for_timeout(300)
     page.evaluate('() => { const k = Object.keys(window.__db.store()); }')

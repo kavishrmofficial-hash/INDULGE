@@ -4,11 +4,14 @@
    language Whisper heard. Everywhere else the browser's best voice is picked and the line is read in
    sentences, so it breathes, and listening falls back to the browser's own recognition.
    One line at a time; a new line stops the old one. say() resolves when the line has been heard to the
-   end (or was cut off), so the buddy can move its mouth while it talks and the tour can move on. */
+   end (or was cut off), so the buddy can move its mouth while it talks and the tour can move on.
+   endedAt() and done() tell a listener when the last line finished, so a microphone opened after it
+   never hears m360's own voice. */
 'use strict';
 (function () {
   const GOOD = ['samantha', 'karen', 'moira', 'tessa', 'fiona', 'aria', 'jenny', 'sonia', 'libby', 'neerja', 'natasha', 'google uk english female', 'google us english', 'zira', 'susan', 'ava', 'allison', 'serena', 'kate'];
-  let audio = null, serverOn = null, status = null, voicesCache = null, checkedAt = 0, speaking = false, seq = 0, said = 0;
+  let audio = null, serverOn = null, status = null, voicesCache = null, checkedAt = 0, speaking = false, seq = 0, said = 0, endedAt = 0;
+  const waiting = new Set();
 
   function browserVoices() {
     try { const v = window.speechSynthesis ? window.speechSynthesis.getVoices() : []; if (v && v.length) voicesCache = v; } catch (e) { /* none */ }
@@ -19,7 +22,8 @@
   const state = on => {
     if (speaking === on) return;
     speaking = on;
-    try { window.dispatchEvent(new CustomEvent('m360:speech', {detail: {on}})); } catch (e) { /* none */ }
+    if (!on) { endedAt = Date.now(); waiting.forEach(f => f()); waiting.clear(); }
+    try { window.dispatchEvent(new CustomEvent('m360:speech', {detail: {on, at: Date.now()}})); } catch (e) { /* none */ }
   };
 
   /* the most human sounding voice this browser has, in the language asked for */
@@ -116,6 +120,10 @@
     stop,
     pick,
     speaking: () => speaking,
+    /* when the last line finished (or was cut off) */
+    endedAt: () => endedAt,
+    /* resolves once nothing is being said, at once when quiet */
+    done: () => speaking ? new Promise(res => waiting.add(res)) : Promise.resolve(),
     voices: browserVoices,
     /* a recording to the box: {text, language}; throws when there is no box */
     listen: async (blob, lang) => {

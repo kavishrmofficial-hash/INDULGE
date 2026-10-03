@@ -29,9 +29,6 @@
   .badge{animation:pop .3s var(--spring) both}
   /* the tab mark slides to the tab you chose */
   .tabbar::before{transition:left .34s var(--spring), opacity .2s ease}
-  /* the pointer buddy's home button breathes while idle */
-  .buddy-home .mark{transition:transform .2s var(--spring)}
-  .buddy-home:active .mark{transform:scale(.9)}
 }
 @keyframes viewin{from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none}}
 @keyframes toastin{from{opacity:0; transform:translateY(14px) scale(.96)} to{opacity:1; transform:none}}
@@ -44,7 +41,7 @@
   .tabbar[data-mark="0"]::before{opacity:0}
 }
 
-/* ---------- the voice orb: on phones the buddy's button is a small sphere; a tap opens the screen ---------- */
+/* ---------- the voice orb: the sphere that listens, on the phone sheet and in a thinking line ---------- */
 .vorb{display:inline-block; width:var(--sz,28px); height:var(--sz,28px); border-radius:999px; position:relative; flex:none;
   background:radial-gradient(circle at 32% 28%, rgba(255,255,255,.95) 0, rgba(255,255,255,.35) 18%, rgba(255,255,255,0) 38%), radial-gradient(circle at 68% 72%, rgba(10,10,10,.55) 0, rgba(10,10,10,0) 46%), var(--flame);
   box-shadow:0 6px 18px rgba(245,57,1,.35), inset 0 -4px 10px rgba(10,10,10,.25)}
@@ -58,26 +55,16 @@
 @keyframes orbbreathe{0%,100%{transform:scale(1)} 50%{transform:scale(1.06)}}
 @keyframes orbring{from{opacity:.7; transform:scale(.85)} to{opacity:0; transform:scale(1.6)}}
 @keyframes orbthink{0%,100%{transform:scale(1) rotate(0)} 50%{transform:scale(1.1) rotate(8deg)}}
-@media (max-width:860px){
-  .buddy-home.orb-home{padding:0 14px 0 10px; height:48px; gap:8px}
-  .buddy-home.orb-home .lbl{display:none}
-  .buddy-home.orb-home .k{display:none}
-  .buddy-home.orb-home .vorb{--sz:30px}
-}
-.orb-screen{position:fixed; inset:0; z-index:95; background:var(--paper); color:var(--ink); display:flex; flex-direction:column;
-  padding:calc(14px + env(safe-area-inset-top,0px)) 20px calc(18px + env(safe-area-inset-bottom,0px)); overflow:hidden; overscroll-behavior:contain}
-.orb-top{display:flex; align-items:center; justify-content:space-between; min-height:44px}
-.orb-top .micro{color:var(--micro)}
+/* the phone sheet (85-orb.js): up to 88% of the screen, the panel inside it (99-dock.css) */
+.orb-screen{position:fixed; left:0; right:0; bottom:0; z-index:95; max-height:88dvh; min-height:min(440px,88dvh); background:var(--paper); color:var(--ink); display:flex; flex-direction:column;
+  border-radius:22px 22px 0 0; padding:0 0 env(safe-area-inset-bottom,0px); overflow:hidden; overscroll-behavior:contain; box-shadow:0 -14px 44px var(--shadow)}
 .orb-stage{flex:0 0 auto; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:18px 0 10px; gap:14px}
 .orb-stage .vorb{--sz:124px; will-change:transform}
 .orb-stage .vorb.live{box-shadow:0 10px 40px rgba(245,57,1,.45), inset 0 -8px 20px rgba(10,10,10,.25)}
 .orb-tap{border:0; background:transparent; padding:12px; cursor:pointer; border-radius:999px; display:inline-flex}
 .orb-hint{font-size:13px; color:var(--ink62); letter-spacing:.02em; min-height:18px; text-align:center}
-.orb-body{flex:1 1 auto; min-height:0; overflow:auto; display:flex; flex-direction:column; gap:14px; padding:6px 2px 10px; -webkit-overflow-scrolling:touch}
-/* what you said and the answer each keep their full height; the body scrolls, they never overlap */
-.orb-body > *{flex-shrink:0}
-/* listening: the prompt and the words line up under the centred sphere */
-.orb-screen[data-mode=listening] .orb-body{align-items:center; text-align:center}
+/* listening with nothing said yet: the words line up under the centred sphere */
+.orb-screen[data-mode=listening] .orb-stage + .orb-heard{align-self:center; text-align:center}
 .orb-heard{font-size:clamp(22px,6.4vw,30px); font-weight:500; letter-spacing:-.02em; line-height:1.22; min-height:1.3em; color:var(--ink)}
 .orb-heard.quiet{color:var(--ink62); font-weight:300}
 .orb-w{display:inline-block}
@@ -87,15 +74,13 @@
 @keyframes wordrise{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:none}}
 .orb-answer{font-size:17px; line-height:1.5; padding-top:12px; border-top:1px solid var(--line)}
 .orb-answer .ai-out b{font-weight:600}
-.orb-acts{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
-.orb-foot{flex:none; display:flex; gap:10px; align-items:center; padding-top:10px}
-.orb-foot .input{flex:1 1 auto; min-width:0; min-height:48px; font-size:16px}
-.orb-pill{border:1px solid var(--line2); background:var(--paper); color:var(--ink); border-radius:999px; min-height:40px; padding:6px 14px; font:inherit; font-size:14px; cursor:pointer; text-align:left}
-.orb-pill:active{background:var(--warm)}
 @media (prefers-reduced-motion:no-preference){
-  .orb-screen{animation:orbopen .3s var(--ease) both}
+  .orb-screen{animation:orbopen .32s var(--ease) both}
 }
-@keyframes orbopen{from{opacity:0; transform:translateY(18px)} to{opacity:1; transform:none}}
+@media (prefers-reduced-motion:reduce){
+  .orb-screen{animation:fade .12s ease both}
+}
+@keyframes orbopen{from{opacity:0; transform:translateY(40px)} to{opacity:1; transform:none}}
 
 /* ---------- how did the day go: the full screen rating after a check-out ---------- */
 .dayrate{position:fixed; inset:0; z-index:96; background:var(--ground, var(--dark)); color:#fff; display:flex; align-items:center; justify-content:center;

@@ -1,4 +1,4 @@
-/* m360 OS shell: gates, five simple sections, founder HQ, the floating Ask m360 button. */
+/* m360 OS shell: gates, five simple sections, founder HQ, the buddy in its dock. */
 'use strict';
 (function () {
   const {html, React, U, UI} = M;
@@ -260,7 +260,7 @@
     const mod = M.isMac ? '\u2318' : 'Ctrl';
     const rows = [[mod + ' K', 'Search or do anything'], ['/', 'Same, from anywhere'], ['n', 'New task'], ['i', 'Inbox'], ['f', 'Focus timer'], ['b', 'Slow breathing, five minutes'],
       ['g then h', 'Home'], ['g then w', 'Work'], ['g then a', 'Accounts'], ['g then v', 'Vibe'], ['g then m', 'Me'], ['g then c', 'Calendar'], ['g then r', 'Reviews'],
-      ['Ctrl + Option, held', 'Talk to the cursor buddy'], ['?', 'This sheet']];
+      ['Ctrl + Option, held', 'Talk to m360, let go to send'], ['Ctrl + Option + L', 'Conversation mode, on and off'], ['?', 'This sheet']];
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Keyboard shortcuts">
       <div class="keys">${rows.map(r => html`<${React.Fragment} key=${r[0]}><span class="kbd">${r[0]}</span><span>${r[1]}</span><//>`)}</div>
     <//>`;
@@ -279,6 +279,7 @@
     const [keysOpen, setKeysOpen] = React.useState(false);
     const [askInitial, setAskInitial] = React.useState('');
     const theme = M.useTheme();
+    const askAt = initial => { if (M.assistant && M.assistant.open) M.assistant.open(initial || ''); else { setAskInitial(initial || ''); setAskOpen(true); } };
 
     React.useEffect(() => {
       if (!route.page) M.nav(ctx.isFounder ? '#hq' : '#home');
@@ -309,11 +310,13 @@
         else if (k === '?') { e.preventDefault(); setKeysOpen(true); }
       };
       window.addEventListener('keydown', on);
-      const open = () => setAskOpen(true);
+      /* Ask m360 opens the buddy's pop-up at the dock; only its expand button opens the wide drawer */
+      const open = e => askAt(e && e.detail && e.detail.initial);
+      const wide = e => { setAskInitial((e && e.detail && e.detail.initial) || ''); setAskOpen(true); };
       const inbox = () => setInboxOpen(true);
       const keys = () => setKeysOpen(true);
-      window.addEventListener('m360:ask', open); window.addEventListener('m360:inbox', inbox); window.addEventListener('m360:keys', keys);
-      return () => { window.removeEventListener('keydown', on); window.removeEventListener('m360:ask', open); window.removeEventListener('m360:inbox', inbox); window.removeEventListener('m360:keys', keys); };
+      window.addEventListener('m360:ask', open); window.addEventListener('m360:askwide', wide); window.addEventListener('m360:inbox', inbox); window.addEventListener('m360:keys', keys);
+      return () => { window.removeEventListener('keydown', on); window.removeEventListener('m360:ask', open); window.removeEventListener('m360:askwide', wide); window.removeEventListener('m360:inbox', inbox); window.removeEventListener('m360:keys', keys); };
     }, []);
 
     const r = resolve(route.page, route.id, ctx.isFounder, ctx.isOwner);
@@ -347,7 +350,7 @@
       <//>`;
     };
     const newMenu = where => newOpen === where ? html`<${NewMenu} onClose=${() => setNewOpen(false)}
-      onTask=${() => setNewTask(true)} onAsk=${() => setAskOpen(true)}/>` : null;
+      onTask=${() => setNewTask(true)} onAsk=${() => askAt('')}/>` : null;
 
     const tabKeys = ctx.isFounder ? ['home', 'chat', 'hq', 'work'] : ['home', 'chat', 'work', 'accounts', 'me'];
     const moreKeys = (ctx.isFounder ? (ctx.isOwner ? ['accounts', 'workspace', 'base', 'radar', 'web', 'vibe', 'break', 'me', 'books', 'admin'] : ['accounts', 'workspace', 'base', 'radar', 'web', 'vibe', 'break', 'me', 'admin']) : ['workspace', 'base', 'radar', 'web', 'break']).concat(['map']);
@@ -369,7 +372,7 @@
         <div class="side-tools">
           <button type="button" class="iconbtn bellbtn" aria-label="Inbox" title="Inbox (i)" onClick=${() => setInboxOpen(true)}><${M.icons.bell}/><${Badge} n=${b.inbox || 0}/></button>
           <button type="button" class="iconbtn" aria-label="Focus timer" title="Focus (f)" onClick=${() => M.focus && M.focus.open()}><${M.icons.timer}/></button>
-          <button type="button" class="iconbtn" aria-label="Ask m360" title="Ask m360" onClick=${() => setAskOpen(true)}><span class="flame-t" aria-hidden="true" style=${{fontSize: '16px'}}>\u2726</span></button>
+          <button type="button" class="iconbtn" aria-label="Ask m360" title="Ask m360" onClick=${() => askAt('')}><span class="flame-t" aria-hidden="true" style=${{fontSize: '16px'}}>\u2726</span></button>
           <button type="button" class="iconbtn" aria-label=${'Theme: ' + theme} title="Theme" onClick=${() => M.toast('Theme: ' + M.theme.cycle())}>${M.theme.resolved() === 'dark' ? html`<${M.icons.sun}/>` : html`<${M.icons.moon}/>`}</button>
         </div>
         ${M.parts.FocusPill ? html`<${M.parts.FocusPill}/>` : null}
@@ -414,7 +417,7 @@
         </div>
       </main>
 
-      ${M.parts.Buddy ? html`<${M.parts.Buddy} onOpenChat=${() => setAskOpen(true)}/>` : null}
+      ${M.parts.Buddy ? html`<${M.parts.Buddy}/>` : null}
 
       <nav class="tabbar" style=${{'--tn': tabKeys.length + (moreKeys.length ? 1 : 0), '--ti': Math.max(0, tabKeys.indexOf(r.s) >= 0 ? tabKeys.indexOf(r.s) : (moreKeys.indexOf(r.s) >= 0 ? tabKeys.length : -1))}} data-mark=${tabKeys.indexOf(r.s) >= 0 || moreKeys.indexOf(r.s) >= 0 ? '1' : '0'}>
         ${tabKeys.map(k => html`<button key=${k} type="button"
@@ -431,7 +434,7 @@
       <//>
 
       ${askOpen && M.parts.Ask ? html`<${M.parts.Ask} initial=${askInitial} onClose=${() => { setAskOpen(false); setAskInitial(''); }}/>` : null}
-      ${palOpen && M.parts.Palette ? html`<${M.parts.Palette} onClose=${() => setPalOpen(false)} onAsk=${q => { setAskInitial(q); setAskOpen(true); }}/>` : null}
+      ${palOpen && M.parts.Palette ? html`<${M.parts.Palette} onClose=${() => setPalOpen(false)} onAsk=${q => askAt(q)}/>` : null}
       ${inboxOpen && M.parts.Inbox ? html`<${M.parts.Inbox} onClose=${() => setInboxOpen(false)}/>` : null}
       ${keysOpen ? html`<${Keys} onClose=${() => setKeysOpen(false)}/>` : null}
       ${M.parts.FocusHost ? html`<${M.parts.FocusHost}/>` : null}
@@ -443,6 +446,7 @@
       ${M.parts.DayRateHost ? html`<${M.parts.DayRateHost}/>` : null}
       ${M.parts.ChatWatch ? html`<${M.parts.ChatWatch}/>` : null}
       ${M.parts.InboxWatch ? html`<${M.parts.InboxWatch}/>` : null}
+      ${M.parts.PmWatch ? html`<${M.parts.PmWatch}/>` : null}
       <${NewerBuild}/>
       ${M.parts.Notices ? html`<${M.parts.Notices}/>` : null}
       ${M.parts.MusicDock ? html`<${M.parts.MusicDock}/>` : null}

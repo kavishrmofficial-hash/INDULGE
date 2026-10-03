@@ -3,7 +3,7 @@
 
 On a phone (390 wide, a touch pointer, a vibration motor): a tab tap nudges the phone and slides the
 tab mark; every button nudges; the preference turns nudges off and on. The orb: a tap on the sphere
-opens the white screen, it listens at once, the words land as they are said, a second tap sends them,
+opens the sheet, it listens at once, the words land as they are said, a second tap sends them,
 the answer streams in under the words and the screen closes. The day rating: a check-out from Home
 takes over the screen; the keyboard and a drag move the meter, the face and the ground change with it,
 the value lands in the day's check-in entry and Home reads it back; Not now records nothing. The
@@ -131,8 +131,8 @@ def test(h):
     h.ready(p)
     p.wait_for_function('() => !!M.buddy')
     orb = p.locator('.buddy-home.orb-home')
-    check(orb.count() == 1, 'the buddy button is the orb on a phone')
-    check(orb.locator('.orb-mark canvas, .vorb').count() == 1, 'the orb carries the sphere')
+    check(orb.count() == 1, 'the buddy button is the phone dock')
+    check(orb.locator('.dock-char canvas, .dock-char .mark').count() == 1, 'the dock carries the character')
     box = orb.bounding_box()
     check(box and box['height'] >= 44, 'the orb is a thumb target: %r' % box)
     orb.click()
