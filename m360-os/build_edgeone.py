@@ -52,6 +52,18 @@ self.addEventListener('fetch', e => {
   e.respondWith(fetch(fresh ? new Request(e.request, {cache: 'no-cache'}) : e.request).then(r => { if (r.ok && cacheable) { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); } return r; })
     .catch(() => caches.match(e.request).then(m => m || (e.request.mode === 'navigate' ? caches.match('/index.html') : Response.error()))));
 });
+/* a tap on a notification m360 showed (60-notices.js, data.href like '#home'): an open m360 comes forward and
+   goes there, else m360 opens on that screen */
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const raw = String((e.notification.data && e.notification.data.href) || '');
+  const href = /^#[A-Za-z0-9_\\-\\/.:=~]*$/.test(raw) ? raw : '#home';
+  e.waitUntil(self.clients.matchAll({type: 'window', includeUncontrolled: true}).then(list => {
+    const open = list.find(c => new URL(c.url).origin === location.origin);
+    if (open) return open.focus().catch(() => open).then(c => { (c || open).postMessage({href}); });
+    return self.clients.openWindow('/' + href);
+  }));
+});
 '''
 
 
