@@ -3,7 +3,8 @@
    Kaavish. A manager sees their reports' private detail (check-in times, late marks, scores, leave),
    and gets a watch on each report for the day: not checked in past start and grace, no check-out
    after the EOD cut, no EOD line, nothing moved on their tasks by mid afternoon, overdue work, a
-   late check-in. The watch sits on the manager's Home and lands in their inbox. */
+   late check-in, and every quiet stretch (nothing recorded on m360 for settings.quietMins, see
+   M.quiet). The watch sits on the manager's Home and lands in their inbox. */
 'use strict';
 (function () {
   const {U} = M;
@@ -59,6 +60,13 @@
     }
     if (!moved && a.in && mins > 14 * 60) out.push({k: 'idle', hot: true, at: atMin(14 * 60), text: 'nothing moved on their tasks today' + (open ? ' (' + open + ' open)' : ''), ref: ref});
     if (overdue) out.push({k: 'overdue', hot: overdue > 1, at: dayStart, text: overdue + (overdue === 1 ? ' overdue task' : ' overdue tasks'), ref: ref});
+    /* quiet stretches (M.quiet): one flag per stretch, keyed by when it began so the inbox counts it once;
+       a stretch still running is hot, a closed one only when it ran past twice the threshold */
+    if (M.quiet) {
+      const q = M.quiet.day(ctx, uid, ymd, {now: now.getTime()});
+      for (const st of q.stretches) out.push({k: 'quiet', key: 'quiet' + U.hhmm(st.from).replace(':', ''), hot: st.live || st.quietMs >= 2 * q.mins * 60000,
+        at: st.from, text: M.quiet.line(st) + (q.status ? ', status: ' + q.status : ''), ref, live: st.live});
+    }
     return out;
   }
 

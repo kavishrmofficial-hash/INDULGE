@@ -93,6 +93,14 @@ const rand = (n = 24) => {
 };
 const newId = () => 'u_' + rand(14);
 const isObj = x => x && typeof x === 'object' && !Array.isArray(x);
+/* an update that only carries activity stamps: {act: {YYYY-MM-DD: null | {HHMM: 0 | 1}}}, nothing else */
+const isActOnly = d => {
+  if (!isObj(d) || Object.keys(d).length !== 1 || !isObj(d.act)) return false;
+  const days = Object.keys(d.act);
+  if (!days.length || days.length > 16) return false;
+  return days.every(k => YMD.test(k) && (d.act[k] === null || (isObj(d.act[k]) && Object.keys(d.act[k]).length <= 288 &&
+    Object.keys(d.act[k]).every(b => /^([01]\d|2[0-3])[0-5]\d$/.test(b) && (d.act[k][b] === 0 || d.act[k][b] === 1)))));
+};
 /* a deep merge where a null value removes the key (so rolling documents can shed old days), and keys that
    would reach the prototype never land */
 const BAD_KEY = new Set(['__proto__', 'constructor', 'prototype']);
@@ -725,6 +733,9 @@ export function createApp({store, env = {}}) {
         await log(v.uid, 'delete', path, '');
         return {ok: true, doc: null};
       }
+      /* a page's activity stamp (me/<self>.act, times only, see M.stamp) is bookkeeping: it keeps no
+         backup version and writes no log line, so the history and the log stay about real changes */
+      const stampOnly = op === 'update' && s.length === 2 && s[0] === 'me' && s[1] === v.uid && isActOnly(data);
       let next = data, cur = null;
       if (op === 'update' || path === 'roster/team') cur = await getJ(key);
       if (op === 'update') {
@@ -734,10 +745,10 @@ export function createApp({store, env = {}}) {
       const str = JSON.stringify(next);
       if (str.length > MAX_DOC) throw new HttpError(400, 'invalid_argument', 'document over 256 KiB');
       /* every move is backed up: safety.js keeps the version being replaced */
-      if (hooks.beforeWrite) await hooks.beforeWrite(key, path, v.uid, cur).catch(() => {});
+      if (hooks.beforeWrite && !stampOnly) await hooks.beforeWrite(key, path, v.uid, cur).catch(() => {});
       await store.set(key, str);
       await bumpMarker(s.slice(0, -1).join('/'), s[s.length - 1], digest([str])).catch(() => {});
-      await log(v.uid, op, path, summarize(path, data));
+      if (!stampOnly) await log(v.uid, op, path, summarize(path, data));
       /* someone taken off the roster is signed out of every device at once */
       if (path === 'roster/team') {
         const was = (cur && cur.members) || {}, now = (next && next.members) || {};

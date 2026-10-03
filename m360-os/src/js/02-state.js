@@ -10,7 +10,8 @@
     office: null, start: '10:30', grace: 15, eodCut: '19:30', mondayCut: '12:00',
     wfhCap: 2, revCap: 2, ackHours: 48, blockerDays: 2, holidays: [],
     rules: {}, points: {}, leaderboardIncludesFounder: false,
-    locked: false, lockNote: '', joinPolicy: 'open', alert: null, signoff: true
+    locked: false, lockNote: '', joinPolicy: 'open', alert: null, signoff: true,
+    quietMins: 120, lunchFrom: '13:30', lunchTo: '14:30'
   };
 
   /* view as: the founder previews the app as one member. Held in memory only, never persisted. */

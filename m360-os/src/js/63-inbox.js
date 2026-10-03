@@ -65,7 +65,7 @@
     /* the manager's watch: each report's day, as flags; the founder gets whoever reports to them */
     if (M.lines) {
       const td = U.ymd(new Date(ctx.now || Date.now()));
-      for (const r of M.lines.board(ctx, me)) for (const f of r.flags) push('team:' + r.uid + ':' + f.k + ':' + td, 'flag', f.at || (ctx.now || Date.now()), T`${nm(r.uid)} ${f.text}`, f.ref, r.uid, f.hot);
+      for (const r of M.lines.board(ctx, me)) for (const f of r.flags) push('team:' + r.uid + ':' + (f.key || f.k) + ':' + td, 'flag', f.at || (ctx.now || Date.now()), T`${nm(r.uid)} ${f.text}`, f.ref, r.uid, f.hot);
     }
     /* kudos to me */
     const kmap = ctx.coll.kudos.map;
