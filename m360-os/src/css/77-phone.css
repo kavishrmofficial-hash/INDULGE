@@ -1,6 +1,6 @@
-/* phones: bottom sheets, 40px targets, rows that wrap so nothing is cut at an edge, the board as
-   snap panes, the compact home hero, and room for the keyboard. Everything here sits under 860px, the
-   width where the sidebar gives way to the topbar and tabbar. */
+/* phones: bottom sheets, 40px targets, tabs, segments and stat rows that scroll sideways under a soft
+   edge, chip rows that wrap, the board as snap panes, the compact home hero, and room for the keyboard.
+   Everything here sits under 860px, the width where the sidebar gives way to the topbar and tabbar. */
 @media (max-width:860px){
   /* ---------- chrome ---------- */
   .topbar{top:0; height:auto; min-height:56px; padding:env(safe-area-inset-top,0px) 12px 0 16px}
@@ -34,12 +34,23 @@
   /* inputs keep 16px so iOS does not zoom the page on focus */
   .input,select.input,textarea.input,.pal-in input,.ask-in input,.buddy-bubble .input{font-size:16px}
 
-  /* ---------- rows wrap: a phone never cuts a chip, a tab or a segment at the edge ---------- */
+  /* ---------- one row, scrolled sideways: tabs, segments and a section hero's stats run under a soft
+     right edge, so nothing wraps into a second row and nothing is cut hard. tabIntoView (01-ui.js)
+     brings the active tab into view. ---------- */
   .tbl-wrap,.heat{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent); mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent); padding-right:32px}
-  .seg{flex-wrap:wrap; overflow:visible; max-width:100%}
-  .tabs.section-tabs{flex-wrap:wrap; gap:0 16px}
-  .tabs.section-tabs .tab{min-height:44px}
-  .hero > div > .row:not(.between):not(.nowrap),.home-hero .hero-chips{flex-wrap:wrap; gap:8px}
+  .seg{max-width:100%; -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 20px),transparent); mask-image:linear-gradient(90deg,#000 calc(100% - 20px),transparent)}
+  .tabs.section-tabs{flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; gap:0 18px; -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent); mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
+  .tabs.section-tabs::-webkit-scrollbar{display:none}
+  .tabs.section-tabs .tab{min-height:44px; flex:none}
+  .hero:not(.section-hero) > div > .row:not(.between):not(.nowrap),.home-hero .hero-chips{flex-wrap:wrap; gap:8px}
+  .section-hero > div:last-child > .row{flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent); mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent)}
+  .section-hero > div:last-child > .row::-webkit-scrollbar{display:none}
+  .section-hero > div:last-child > .row > *,.section-hero .chipline{flex:none}
+  /* HQ's eight tiles: one sideways row that snaps, two in view, the next one peeking */
+  .hero.ink .grid4{display:flex; overflow-x:auto; scroll-snap-type:x mandatory; gap:8px; scrollbar-width:none; margin-right:-20px; padding-right:20px}
+  .hero.ink .grid4::-webkit-scrollbar{display:none}
+  .hero.ink .grid4 > .stat{flex:0 0 46%; scroll-snap-align:start}
+  .hero .stat .l{letter-spacing:.06em}
   .hero .stat{padding:14px 14px 12px}
   /* quick actions: two rows of three */
   .quick{grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px}
@@ -53,6 +64,8 @@
   /* a feed post: who and when on the first line, pin and delete on their own line */
   .post-head{flex-wrap:wrap}
   .post-head > .row.nowrap:not(.grow){width:100%; justify-content:flex-end; margin-top:2px}
+  /* the seven reactions stay on one line */
+  .row.reacts{flex-wrap:nowrap; gap:2px; overflow-x:auto; scrollbar-width:none}
   /* the leaderboard row stays on one line: the name gives way, the bar keeps 60px */
   .lb-row{flex-wrap:nowrap}
   .lb-row .bar{flex:0 1 80px}
@@ -81,6 +94,9 @@
   .drawer-foot{position:sticky; bottom:0; background:var(--paper); padding-bottom:calc(14px + env(safe-area-inset-bottom))}
   .drawer-body{padding-bottom:16px}
   .drawer .grid2{grid-template-columns:1fr}
+  /* the New menu as a sheet: the same items, full width */
+  .newmenu.newmenu-sheet{position:static; padding:0; border:0; box-shadow:none; background:transparent}
+  .newmenu-sheet .newmenu-item{min-height:52px}
   .pal-scrim{padding:12px 12px 12px; align-items:flex-start}
   .pal{max-height:calc(100vh - 24px); max-height:calc(100dvh - 24px)}
   .breathe{min-height:100dvh}
@@ -94,6 +110,8 @@
   .home-hero .hero-chips{margin-top:16px}
   .home-hero .hero-panel{padding:16px 16px 14px; border-radius:16px}
   .home-hero .btn.xl{height:52px}
+  .hero-panel .moods{display:grid; grid-template-columns:repeat(5,1fr); gap:6px}
+  .hero-panel .mood{padding:0 4px}
   .install-hint{padding:16px 18px}
   .install-hint .ic{width:40px; height:40px; border-radius:12px; background:var(--ink); color:var(--on-ink); display:inline-flex; align-items:center; justify-content:center; flex:none}
   .install-hint .ic .mark{width:26px; color:var(--on-ink)}
@@ -102,15 +120,28 @@
   .head-row .row{width:100%}
   .head-row .row > .btn:only-child{flex:1 1 auto}
   .cal-dow{white-space:nowrap; overflow:hidden; letter-spacing:.06em; padding:0 2px 4px; text-align:center}
-  .ask-in{flex-wrap:wrap}
-  .ask-in .input{flex:1 1 180px}
+  /* the Ask row stays one line: attach, the question, Talk, Ask */
+  .ask-in{flex-wrap:nowrap}
+  .ask-in .input{flex:1 1 0; min-width:0}
   .grid4.two{gap:10px}
+  /* the address bar keeps 16px so iOS does not zoom (css.css sets 14px at the same weight) */
+  .web-address .input{font-size:16px; min-height:44px}
+  /* Your team: Open and the faces are full size targets on the founder's main card */
+  .team-flag .linky{min-width:44px; justify-content:flex-end}
+  .team-row .rowbtn{min-width:40px; min-height:40px}
+  /* the Ask orb steps down below the tabbar while the page scrolls down (58-buddy.js) */
+  .buddy-home.away{transform:translateY(140px); opacity:0; pointer-events:none}
+}
+@media (max-width:860px) and (prefers-reduced-motion:no-preference){
+  .buddy-home{transition:transform .2s var(--ease), opacity .2s}
 }
 @media (min-width:861px){
   .sheet-handle,.install-hint{display:none}
 }
 @media (max-width:400px){
   .tab-item{font-size:11px}
+  /* Talk is a microphone alone here; the button still reads Talk to a screen reader */
+  .ask-in .micbtn{font-size:0; gap:0; padding:0 11px}
 }
 /* the folded tables below 600px: the week as day boxes, the CRM row with its long cells full width,
    a project task with its meta under the title */

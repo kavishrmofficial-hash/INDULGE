@@ -390,15 +390,20 @@
     const remove = async key => { const s = savedMap[key]; if (!s) return; try { await ctx.W.merge('expenses/' + s.month, {rows: {[key]: null}, updated: Date.now()}); } catch (e) { return; } dropRow(key); M.toast('Removed'); };
 
     const cellProps = (r, c, key, f) => ({'data-r': r, 'data-c': c, onKeyDown: e => onKey(e, r, c, key, f), onPaste: e => onPaste(e, r, c, key, f)});
+    /* phones: 16px type and a thumb's height, so iOS never zooms the page into a field */
+    const PH = {fontSize: '16px', minHeight: '44px', padding: '10px 12px'};
+    const cell = phone ? {...CELL, ...PH} : CELL;
+    const cellSel = phone ? {...CELL_SEL, ...PH, paddingRight: '28px'} : CELL_SEL;
+    const cellNum = phone ? {...CELL_NUM, ...PH} : CELL_NUM;
     const input = (r, c, key, row, f) => {
       const p = cellProps(r, c, key, f);
       const v = row[f];
-      if (f === 'category') return html`<select class="input" style=${CELL_SEL} value=${v} aria-label=${COL_LABEL[f]} ...${p} onChange=${e => setCell(key, f, e.target.value)}>${CATS.map(x => html`<option key=${x} value=${x}>${x}</option>`)}</select>`;
-      if (f === 'method') return html`<select class="input" style=${CELL_SEL} value=${v || 'bank'} aria-label=${COL_LABEL[f]} ...${p} onChange=${e => setCell(key, f, e.target.value)}>${METHODS.map(x => html`<option key=${x.v} value=${x.v}>${x.label}</option>`)}</select>`;
-      if (f === 'recurring') return html`<select class="input" style=${CELL_SEL} value=${v || ''} aria-label=${COL_LABEL[f]} ...${p} onChange=${e => setCell(key, f, e.target.value)}>${REPEATS.map(x => html`<option key=${x.v} value=${x.v}>${x.label}</option>`)}</select>`;
+      if (f === 'category') return html`<select class="input" style=${cellSel} value=${v} aria-label=${COL_LABEL[f]} ...${p} onChange=${e => setCell(key, f, e.target.value)}>${CATS.map(x => html`<option key=${x} value=${x}>${x}</option>`)}</select>`;
+      if (f === 'method') return html`<select class="input" style=${cellSel} value=${v || 'bank'} aria-label=${COL_LABEL[f]} ...${p} onChange=${e => setCell(key, f, e.target.value)}>${METHODS.map(x => html`<option key=${x.v} value=${x.v}>${x.label}</option>`)}</select>`;
+      if (f === 'recurring') return html`<select class="input" style=${cellSel} value=${v || ''} aria-label=${COL_LABEL[f]} ...${p} onChange=${e => setCell(key, f, e.target.value)}>${REPEATS.map(x => html`<option key=${x.v} value=${x.v}>${x.label}</option>`)}</select>`;
       const money = f === 'amount' || f === 'gstInput';
       const shown = v == null ? '' : (money && v === 0 ? '' : String(v));
-      return html`<input class=${'input' + (money ? ' num' : '')} style=${money ? CELL_NUM : CELL} type="text" inputMode=${money ? 'decimal' : undefined}
+      return html`<input class=${'input' + (money ? ' num' : '')} style=${money ? cellNum : cell} type="text" inputMode=${money ? 'decimal' : undefined}
         list=${f === 'vendor' ? 'exp-vendors' : undefined} placeholder=${f === 'date' ? 'yyyy-mm-dd' : f === 'vendor' ? 'paid to' : f === 'desc' ? 'what for' : ''} value=${shown} aria-label=${COL_LABEL[f]} ...${p}
         onInput=${e => setCell(key, f, e.target.value)} onBlur=${f === 'date' ? e => { const d = parseDate(e.target.value); if (d && d !== e.target.value) setCell(key, f, d); } : undefined}/>`;
     };

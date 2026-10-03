@@ -109,6 +109,8 @@
     const [auto, setAuto] = useState(() => store.get('buddyAuto') !== '0');
     const [talking, setTalking] = useState(false);
     const [followUp, setFollowUp] = useState(false);
+    const [away, setAway] = useState(false);            /* phones: the orb stepped down while the page scrolls */
+    const narrow = M.usePhone();
     const pointerRef = useRef(null);
     const trailRef = useRef([]);
     const mouse = useRef({x: window.innerWidth - 90, y: window.innerHeight - 90});
@@ -622,6 +624,23 @@
       return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('keydown', esc); };
     }, [on, hidden, reset, listen, finishTour, ctx]);
 
+    /* phones: the orb steps down out of the way while the page scrolls down past the top, and comes back
+       on the way up and near the end of the page. One check per frame, never blocking the scroll. */
+    useEffect(() => {
+      if (!narrow) { setAway(false); return undefined; }
+      let last = window.scrollY, raf = 0;
+      const check = () => {
+        raf = 0;
+        const y = window.scrollY, left = document.documentElement.scrollHeight - window.innerHeight - y;
+        if (y < 120 || left < 160 || y < last) setAway(false);
+        else if (y > last) setAway(true);
+        last = y;
+      };
+      const onScroll = () => { if (!raf) raf = requestAnimationFrame(check); };
+      window.addEventListener('scroll', onScroll, {passive: true});
+      return () => { window.removeEventListener('scroll', onScroll); if (raf) cancelAnimationFrame(raf); };
+    }, [narrow]);
+
     /* a test and script hook: M.buddy.run('click', {id}) etc, and the tour */
     useEffect(() => {
       M.buddy = {
@@ -695,7 +714,7 @@
         </div>
         ${mode === 'listening' ? html`<div class="row nowrap buddy-heard" style=${{fontWeight: 500, minHeight: '22px', gap: '8px'}}><${M.fx.Orb} state="listening" size=${20} dark=${true} label="listening"/><span>${heard || 'Go ahead, I\'m listening.'}</span></div>` : null}
         ${mode === 'asking' ? html`<div class="stack tight">
-          <${M.fx.Beam} dark=${true} radius=${12} size="sm"><input id="buddy-input" class="input" value=${q} autoFocus=${true} placeholder="Where do I check in? Open a new task for me."
+          <${M.fx.Beam} dark=${true} radius=${12} size="sm"><input id="buddy-input" class="input" value=${q} autoFocus=${true} placeholder="Ask anything"
             onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') ask(q); }} aria-label="Ask m360"/><//>
           <div class="row between"><span class="tiny" style=${{color: 'rgba(255,255,255,.6)'}}>${coarse() && !fine() ? 'Hold the button to talk' : 'Hold Ctrl + Option to talk'}</span>
             <span class="row nowrap">
@@ -736,7 +755,7 @@
           <button type="button" class="linky tiny" onClick=${() => { store.set('buddyHidden', hidden ? '0' : '1'); setHidden(!hidden); reset(); }}>${hidden ? 'Show pointer' : 'Hide pointer'}</button>
         </div>` : null}
       </div>` : null}
-      <button ref=${homeRef} type="button" class=${'buddy-home' + (mode === 'listening' ? ' live' : '') + (phone ? ' orb-home' : '')} aria-label="Ask m360"
+      <button ref=${homeRef} type="button" class=${'buddy-home' + (mode === 'listening' ? ' live' : '') + (phone ? ' orb-home' : '') + (away && mode === 'idle' ? ' away' : '')} aria-label="Ask m360"
         onPointerDown=${homeDown} onPointerUp=${homeUp} onPointerCancel=${() => { if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = 0; } }}
         onKeyDown=${e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tapHome(); } }} onContextMenu=${e => e.preventDefault()}>
         ${phone ? html`<${M.parts.OrbMark}/>` : html`<${M.Mark} width="46px"/>`}<span class="lbl">ask</span> <span class="k">${coarse() && !fine() ? 'hold to talk' : 'hold ⌃⌥'}</span>

@@ -1125,10 +1125,10 @@
       <div class="bs-chips row">
         <${Chip} on=${fl.mine} onClick=${() => setF('mine')(!fl.mine)}>Mine<//>
         ${STAGES.filter(s => s.v).map(s => html`<${Chip} key=${s.v} on=${fl.stage === s.v} onClick=${() => setF('stage')(fl.stage === s.v ? '' : s.v)}>${s.label}<//>`)}
+        <${Chip} on=${fl.archived} onClick=${() => setF('archived')(!fl.archived)}>Archived<//>
         <${FilterSelect} id="base-country" label="Country" value=${fl.country} onChange=${setF('country')} options=${[{v: '', label: 'Any country'}].concat(countries.map(c => ({v: c, label: c})))}/>
         <${FilterSelect} id="base-source" label="Source" value=${fl.source} onChange=${setF('source')} options=${[{v: '', label: 'Any source'}].concat(SOURCES)}/>
         ${tags.length ? html`<${FilterSelect} id="base-tag" label="Tag" value=${fl.tag} onChange=${setF('tag')} options=${[{v: '', label: 'Any tag'}].concat(tags.map(t => ({v: t, label: t})))}/>` : null}
-        <${Chip} on=${fl.archived} onClick=${() => setF('archived')(!fl.archived)}>Archived<//>
       </div>
       ${dq && res.orgs.length ? html`<div class="row bs-orgstrip" id="base-orgs">
         <span class="tiny ink62">companies</span>
@@ -1182,9 +1182,9 @@
       <div class="bs-chips row">
         <${Chip} on=${fl.map === 'yes'} onClick=${() => setF('map')(fl.map === 'yes' ? '' : 'yes')}>Mapped to a client<//>
         <${Chip} on=${fl.map === 'no'} onClick=${() => setF('map')(fl.map === 'no' ? '' : 'no')}>Not mapped<//>
+        <${Chip} on=${fl.archived} onClick=${() => setF('archived')(!fl.archived)}>Archived<//>
         ${industries.length ? html`<${FilterSelect} id="companies-industry" label="Industry" value=${fl.industry} onChange=${setF('industry')} options=${[{v: '', label: 'Any industry'}].concat(industries.map(c => ({v: c, label: c})))}/>` : null}
         <${FilterSelect} id="companies-country" label="Country" value=${fl.country} onChange=${setF('country')} options=${[{v: '', label: 'Any country'}].concat(countries.map(c => ({v: c, label: c})))}/>
-        <${Chip} on=${fl.archived} onClick=${() => setF('archived')(!fl.archived)}>Archived<//>
       </div>
       <div class="row between">
         ${res.loading ? html`<${M.fx.Orb} state="searching" size=${20} label="searching" className="bs-orb"/>` : null}<span class="small ink62 num grow" id="companies-count">${res.loading && !rows.length ? 'Looking' : res.total + ' ' + (res.total === 1 ? 'company' : 'companies') + (dq ? ' for "' + dq + '"' : '')}</span>

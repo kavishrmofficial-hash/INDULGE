@@ -11,6 +11,9 @@
 
   const MEMBER_CHIPS = ['What should I do next?', "What's overdue on me?", 'Summarise my week', 'Add a task for me to follow up with the client tomorrow'];
   const FOUNDER_CHIPS = ["Who's overloaded right now?", "What's slipping this week?", 'Which client needs love?', "Draft Monday's plan meeting agenda", "Who's been late this week?"];
+  /* read replies aloud: a speaker with sound waves, so it never reads as a second microphone beside Talk */
+  const Speaker = () => html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4Z"/><path d="M15.6 9.2a4 4 0 0 1 0 5.6M18.3 6.6a7.6 7.6 0 0 1 0 10.8"/></svg>`;
 
   function instructions(ctx, nmMe) {
     return 'INSTRUCTIONS: You are chatting inside m360 with ' + nmMe + (ctx.isFounder ? ', the founder' : ', a team member') + '. ' +
@@ -56,6 +59,7 @@
 
   function AskPanel({inline, initial, onBusy}) {
     const ctx = M.useCtx();
+    const phone = M.usePhone();
     const [turns, setTurns] = useState(() => M.chat.turns);   /* {role, content, act?} for display */
     useEffect(() => {
       M.chat.watch(ctx);
@@ -74,6 +78,7 @@
     const [canImg, setCanImg] = useState(false);
     const ctl = useRef(null);
     const endRef = useRef(null);
+    const listRef = useRef(null);
     const sentInitial = useRef(false);
     const fileRef = useRef(null);
     const lang = useRef('en');                        /* the language the last spoken question came in */
@@ -90,7 +95,13 @@
 
     useEffect(() => () => { if (ctl.current) ctl.current.abort(); }, []);
     useEffect(() => { if (onBusy) onBusy(busy); }, [busy]);
-    useEffect(() => { if (endRef.current && endRef.current.scrollIntoView) endRef.current.scrollIntoView({block: 'nearest'}); }, [turns, live]);
+    /* the newest line stays in view. Inline (HQ's card) the list scrolls itself, so the page never moves
+       under the reader; an empty chat moves nothing at all */
+    useEffect(() => {
+      if (!turns.length && !live) return;
+      if (inline) { const l = listRef.current; if (l) l.scrollTop = l.scrollHeight; return; }
+      if (endRef.current && endRef.current.scrollIntoView) endRef.current.scrollIntoView({block: 'nearest'});
+    }, [turns, live]);
     useEffect(() => { if (initial) { sentInitial.current = initial; send(initial); } }, [initial]);
 
     async function send(text) {
@@ -143,13 +154,19 @@
     }
 
     const chips = ctx.isFounder ? FOUNDER_CHIPS : MEMBER_CHIPS;
+    const aloudBtn = html`<button type="button" class=${'iconbtn' + (aloud ? ' on' : '')} id=${inline ? 'ask-aloud-inline' : 'ask-aloud'} aria-pressed=${aloud} aria-label="Read replies aloud" title=${aloud ? 'Replies are read aloud' : 'Read replies aloud'}
+      onClick=${() => { const v = !aloud; setAloud(v); M.prefs.set('askAloud', v ? '1' : '0'); if (!v && M.speech) M.speech.stop(); }}><${Speaker}/></button>`;
+    const clear = turns.length || M.chat.summary ? html`<button type="button" class="linky tiny" style=${{alignSelf: 'flex-start'}} onClick=${() => { setTurns([]); M.chat.summary = ''; M.chat.save(ctx, [], {summary: ''}); }}>Clear chat</button>` : null;
+    const mark = html`<div class="row" style=${{gap: '8px', alignItems: 'center'}}><${M.Mark} width="54px"/><span class="micro">ask</span></div>`;
+    /* phones: no tooltips under a finger, so the read aloud toggle sits up top with Clear chat, away from Talk */
     return html`<div class="stack" style=${{gap: '12px'}}>
-      ${!inline ? html`<div class="row" style=${{gap: '8px', alignItems: 'center'}}><${M.Mark} width="54px"/><span class="micro">ask</span></div>` : null}
+      ${phone ? html`<div class="row between nowrap ask-tools">${!inline ? mark : html`<span/>`}<span class="row nowrap" style=${{gap: '10px'}}>${clear}${aloudBtn}</span></div>`
+        : !inline ? mark : null}
       ${turns.length === 0 && !busy ? html`<div class="stack tight">
         <div style=${{fontWeight: 600}}>${ctx.isFounder ? 'Ask about anyone, any client, any number. Or tell it to hand out work.' : 'Ask about your work, or tell it to add and move tasks for you.'}</div>
         <div class="row" style=${{gap: '8px'}}>${chips.map(c => html`<button key=${c} type="button" class="chip" onClick=${() => send(c)}>${c}</button>`)}</div>
       </div>` : null}
-      <div class="stack" style=${{gap: '10px', maxHeight: inline ? '420px' : 'none', overflowY: inline ? 'auto' : 'visible'}}>
+      <div ref=${listRef} class="stack" style=${{gap: '10px', maxHeight: inline ? '420px' : 'none', overflowY: inline ? 'auto' : 'visible'}}>
         ${turns.map((t, i) => t.act
           ? html`<div key=${i} class="bubble act">${t.content}</div>`
           : t.role === 'user' ? html`<div key=${i} class="bubble me" style=${t.err ? {borderColor: 'var(--flame)'} : null}>${t.img ? html`<span class="tiny ink62">[image] </span>` : null}${t.content}</div>`
@@ -164,15 +181,14 @@
         ${!(M.fx && M.fx.has()) && M.parts.VoiceGlow ? html`<${M.parts.VoiceGlow} on=${micLive || busy} processing=${busy && !micLive}/>` : null}
         ${canImg ? html`<input ref=${fileRef} type="file" accept="image/*" multiple=${true} style=${{display: 'none'}} id=${inline ? 'ask-file-inline' : 'ask-file'} onChange=${e => { attach(e.target.files); e.target.value = ''; }}/>
           <button type="button" class="iconbtn" aria-label="Attach an image" title="A photo or a screenshot" onClick=${() => fileRef.current && fileRef.current.click()}><${M.icons.plus}/></button>` : null}
-        <input id=${inline ? 'ask-inline' : 'ask-input'} class="input" value=${q} placeholder=${ctx.isFounder ? 'Ask HQ anything…' : 'Ask m360 anything…'}
+        <input id=${inline ? 'ask-inline' : 'ask-input'} class="input" value=${q} placeholder="Ask m360 anything…"
           onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') send(); }} onPaste=${e => { const fs = Array.from((e.clipboardData && e.clipboardData.files) || []).filter(f => /^image\//.test(f.type)); if (fs.length && canImg) { e.preventDefault(); attach(fs); } }} aria-label="Ask m360"/>
         ${M.parts.MicButton ? html`<${M.parts.MicButton} sm=${true} label="Talk" onLive=${setMicLive} onText=${(t, lg) => { lang.current = lg || 'en'; send(t); }}/>` : null}
-        <button type="button" class=${'iconbtn' + (aloud ? ' on' : '')} id=${inline ? 'ask-aloud-inline' : 'ask-aloud'} aria-pressed=${aloud} aria-label="Read replies aloud" title=${aloud ? 'Replies are read aloud' : 'Read replies aloud'}
-          onClick=${() => { const v = !aloud; setAloud(v); M.prefs.set('askAloud', v ? '1' : '0'); if (!v && M.speech) M.speech.stop(); }}><${M.icons.voice}/></button>
+        ${phone ? null : aloudBtn}
         ${busy ? html`<${UI.Btn} kind="sec" onClick=${() => ctl.current && ctl.current.abort()}>Stop<//>`
           : html`<${M.fx.Metal} kind="ink"><button type="button" class="btn" disabled=${!q.trim() && !imgs.length} onClick=${() => send()}>Ask</button><//>`}
       </div><//>
-      ${turns.length || M.chat.summary ? html`<button type="button" class="linky tiny" style=${{alignSelf: 'flex-start'}} onClick=${() => { setTurns([]); M.chat.summary = ''; M.chat.save(ctx, [], {summary: ''}); }}>Clear chat</button>` : null}
+      ${phone ? null : clear}
     </div>`;
   }
 

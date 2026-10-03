@@ -443,6 +443,7 @@
   /* ---------- the page ---------- */
   function Letters({id}) {
     const ctx = M.useCtx();
+    const phone = M.usePhone();   /* the list sits above the letter on a phone */
     const [sel, setSel] = useState(id || '');
     const [kind, setKind] = useState('offer');
     const [openId, setOpenId] = useState(null);
@@ -522,7 +523,7 @@
             </div>`;
             return M.fx ? html`<div style=${{marginTop: '12px'}}><${M.fx.Beam} radius=${16}>${pickRow}<//></div>` : pickRow;
           })()}
-        <//>` : html`<${UI.Card} title="Letters"><${UI.Empty} text="Pick a person on the left."/><//>`}
+        <//>` : html`<${UI.Card} title="Letters"><${UI.Empty} text=${phone ? 'Pick a person above.' : 'Pick a person on the left.'}/><//>`}
       </div>
       ${person && shown ? html`<div style=${{gridColumn: '1 / -1'}}>
         ${shown.editedAt ? html`<div class="tiny ink62" style=${{marginBottom: '8px'}}>Edited ${U.timeAgo(shown.editedAt)}</div>` : null}
