@@ -156,6 +156,43 @@
     return lines.join('\n');
   };
 
+  /* quiet stretches (M.quiet), today and this week, for the people the viewer may see. The founder's
+     log fills the hours before the stamps; it is read at most once every five minutes, and a slow read
+     never holds the prompt up for long. only: one uid. */
+  let quietLog = {key: '', at: 0, data: {}};
+  async function quietExtra(ctx, from, to) {
+    if (!ctx.isFounder || !M.logs || !M.logs.read) return {};
+    const key = from + '/' + to;
+    if (quietLog.key === key && Date.now() - quietLog.at < 300000) return quietLog.data;
+    const docs = await Promise.race([M.logs.read(ctx, {from, to}).catch(() => null), new Promise(r => setTimeout(() => r(null), 4000))]);
+    if (!docs) return {};
+    quietLog = {key, at: Date.now(), data: M.quiet.fromLog(docs)};
+    return quietLog.data;
+  }
+  ai.quietSlice = async function (ctx, nm, only) {
+    if (!M.quiet || !ctx.settings) return '';
+    const c = M.quiet.cfg(ctx);
+    if (!c.on) return 'QUIET STRETCHES: the watch is switched off.';
+    nm = nm || await names(ctx);
+    const td = today(), now = Number(ctx.now) || Date.now();
+    const log = await quietExtra(ctx, U.ymd(U.mondayOf(U.parseYmd(td))), td);
+    const rows = [];
+    for (const m of ctx.activeMembers) {
+      if (!ctx.canSee(m.uid) || (only && only !== m.uid)) continue;
+      const st = (ctx.coll.me.map[m.uid] || {}).status;
+      const status = st && st.text && st.at && U.ymd(new Date(st.at)) === td ? ', status: ' + st.text : '';
+      for (const d of M.quiet.week(ctx, m.uid, td, {now, extra: log[m.uid] || {}})) {
+        for (const x of d.stretches) rows.push({live: !!x.live, today: d.ymd === td, ms: x.quietMs,
+          text: '- ' + (nm[m.uid] || 'someone') + ', ' + (d.ymd === td ? 'today' : U.fmtDay(d.ymd)) + ': ' + M.quiet.line(x) + (x.live ? ', QUIET NOW' : '') + (d.ymd === td ? status : '')});
+      }
+    }
+    rows.sort((a, b) => (b.live - a.live) || (b.today - a.today) || (b.ms - a.ms));
+    const thr = c.mins % 60 ? M.quiet.dur(c.mins * 60000) : c.mins / 60 + 'h';
+    return ['QUIET STRETCHES (' + thr + ' or more inside a working day with nothing recorded on m360, lunch aside; today and this week):']
+      .concat(rows.length ? rows.slice(0, 14).map(r => r.text) : ['- none'])
+      .concat(rows.length > 14 ? ['- and ' + (rows.length - 14) + ' more'] : []).join('\n');
+  };
+
   ai.teamSlice = async function (ctx) {
     const nm = await names(ctx);
     const td = today();
@@ -189,6 +226,8 @@
       ].filter(Boolean);
       out.push('- ' + bits.join('; '));
     }
+    const quiet = await ai.quietSlice(ctx, nm);
+    if (quiet) out.push(quiet);
     const projects = Object.keys(ctx.coll.projects.map).map(id => ({id, ...ctx.coll.projects.map[id]})).filter(p => !p.archived && p.status !== 'done');
     out.push('PROJECTS:');
     projects.forEach(p => {

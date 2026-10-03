@@ -1,0 +1,57 @@
+/* ---------- v30: quiet stretches on HQ. The board: one strip per person, the working day on a time
+   axis, the worked window in col, a tick per mark, focus under it, lunch shaded, every quiet stretch
+   in flame, a now line on today. The tape's quiet rows carry their time in flame. ---------- */
+.tape-row.quiet .tm{color:var(--flame)}
+
+.qb-days{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 14px}
+.qb-days .chip{color:var(--ink)}
+.qb-days .chip.on{color:var(--on-ink)}
+.qb{display:grid; min-width:0}
+.qb-row,.qb-axis{display:grid; grid-template-columns:minmax(0,180px) minmax(0,1fr) minmax(0,200px); grid-template-areas:"who strip sum"; column-gap:16px; row-gap:6px; align-items:center; min-width:0}
+.qb-axis > .qb-hours{grid-area:strip}
+.rowbtn.qb-row{display:grid; width:100%; padding:10px 0; border-top:1px solid var(--line); border-radius:0}
+.qb-row:hover .qb-nm b{text-decoration:underline; text-underline-offset:3px}
+.qb-who{grid-area:who; display:flex; align-items:center; gap:10px; min-width:0}
+.qb-who .av{flex:none}
+.qb-nm{display:flex; flex-direction:column; gap:1px; min-width:0}
+.qb-nm b{font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.qb-sum{grid-area:sum; display:flex; flex-direction:column; gap:2px; min-width:0; color:var(--ink62)}
+.qb-sum.hot > span:first-child{color:var(--flame); font-weight:500}
+.qb-key{margin-top:12px}
+
+/* the hours: one scale over the strips on a wide screen, one under each strip on a phone */
+.qb-hours{position:relative; display:block; height:16px; min-width:0}
+.qb-hours span{position:absolute; top:0; transform:translateX(-50%); font-size:11px; line-height:16px; color:var(--micro); font-variant-numeric:tabular-nums; white-space:nowrap}
+.qb-hours span.first{transform:none}
+.qb-hours span.last{transform:translateX(-100%)}
+.qb-hours.per{display:none; grid-area:hours}
+
+/* the strip: hour lines every --qb-step, then the bands and ticks on top */
+.qb-strip{grid-area:strip; position:relative; display:block; height:30px; min-width:0; border-radius:8px; overflow:hidden;
+  box-shadow:inset 0 0 0 1px var(--line); background-image:repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px var(--qb-step, 10%))}
+.qb-strip i{position:absolute; font-style:normal}
+.qb-lunch{top:0; bottom:0; background:repeating-linear-gradient(135deg, var(--line2) 0 2px, transparent 2px 6px)}
+.qb-day{top:7px; bottom:7px; background:var(--col); border-radius:5px}
+.qb-f{bottom:2px; height:3px; background:var(--ink62); border-radius:2px}
+.qb-t{top:10px; bottom:10px; width:2px; margin-left:-1px; background:var(--ink); border-radius:1px; opacity:.7}
+.qb-t.k-task,.qb-t.k-post,.qb-t.k-kudos{top:7px; bottom:7px; opacity:1}
+.qb-t.k-in,.qb-t.k-out,.qb-t.k-eod{top:2px; bottom:2px; opacity:1}
+.qb-q{top:5px; bottom:5px; background:var(--flame); border-radius:5px; display:flex; align-items:center; justify-content:center; overflow:hidden}
+.qb-q b{position:relative; font-size:11px; font-weight:600; color:#fff; white-space:nowrap}
+/* the lunch hour shows through a stretch: it never counts toward the length */
+.qb-ql{top:0; bottom:0; background:repeating-linear-gradient(135deg, rgba(255,255,255,.5) 0 2px, transparent 2px 6px)}
+.qb-q.live{border-top-right-radius:0; border-bottom-right-radius:0}
+.qb-now{top:0; bottom:0; width:2px; margin-left:-1px; background:var(--flame)}
+.qb-now::before{content:""; position:absolute; top:1px; left:-2px; width:6px; height:6px; border-radius:999px; background:var(--flame)}
+@media (prefers-reduced-motion:no-preference){
+  .qb-now::before{animation:pulse 2.2s ease-in-out infinite}
+}
+
+/* phones: the summary drops under the name, the strip takes the full width with its own hours */
+@media (max-width:700px){
+  .qb-row{grid-template-columns:minmax(0,1fr); grid-template-areas:"who" "sum" "strip" "hours"; row-gap:6px}
+  .qb-axis{display:none}
+  .qb-hours.per{display:block}
+  .qb-sum{padding-left:38px}
+  .rowbtn.qb-row{padding:12px 0}
+}

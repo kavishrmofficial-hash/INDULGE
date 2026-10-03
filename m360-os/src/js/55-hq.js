@@ -53,6 +53,7 @@
       const out = await r.run(o => M.ai.json(ctx,
         'You are briefing Kaavish, the founder, at the start of his day. Read the company data and tell him what matters. ' +
         'Be specific: names, clients, numbers. Prioritise what needs his decision or a nudge today. ' +
+        'QUIET STRETCHES are long spells inside someone\'s working day with nothing recorded on m360: name who and when under risks or people, as a reason to check in with them. ' +
         'Reply with only JSON: {"headline": "one punchy sentence", "pulse": "one line on attendance and mood", ' +
         '"risks": [{"title": "short", "detail": "one sentence"}] (up to 4), "wins": ["short"] (up to 3), ' +
         '"people": [{"name": "first name", "note": "nudge, praise or help, one sentence"}] (up to 4), "money": ["short"] (up to 3), ' +
@@ -199,11 +200,24 @@
     return P ? html`<div class="embedded"><${P} id=${id || null}/></div>` : null;
   }
 
+  /* ---------- quiet stretches: the founder's log for the board's week, read once for the whole page ---------- */
+  const useLog = (M.quiet && M.quiet.useLog) || (() => null);
+  function useQuiet(ctx, on) {
+    const td = U.todayStr();
+    const days = M.tape ? M.tape.pickDays(ctx) : [];
+    const log = useLog(ctx, on && days.length ? days[days.length - 1].ymd : null, td);
+    const today = useMemo(() => M.tape ? M.tape.quietRows(ctx, td, log) : [], [ctx, td, log]);
+    const now = today.filter(r => r.live).length;
+    const n = today.reduce((k, r) => k + r.stretches.length, 0);
+    return {log, today, now, summary: now ? now + ' quiet now' : n ? n + (n === 1 ? ' quiet stretch' : ' quiet stretches') + ' today' : 'steady so far'};
+  }
+
   /* ---------- page ---------- */
   function HQ({tab, id}) {
     const ctx = M.useCtx();
     const n = useNumbers(ctx);
     const t = tab || 'brief';
+    const q = useQuiet(ctx, t !== 'dashboard' && t !== 'hiring');
     const Panel = M.parts.AskPanel;
     const hqRev = (M.reviews && M.reviews.queue) ? M.reviews.queue(ctx).filter(x => M.reviews.canReview(ctx, x)).length : 0;
     const hqLeave = (M.leave && M.leave.pending) ? M.leave.pending(ctx).length : 0;
@@ -234,6 +248,7 @@
       ${t === 'dashboard' ? html`<${Embed} page="Command"/>` : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>` : html`<div class="stack" style=${{gap: '20px'}}>
         <${IntelBrief}/>
         ${M.parts.BaseNudges ? html`<${M.parts.BaseNudges}/>` : null}
+        ${M.parts.QuietBoard ? html`<${UI.Fold} title="Quiet stretches" summary=${q.summary} open=${q.now > 0} hot=${q.now > 0} id="fold-quiet"><${M.parts.QuietBoard} log=${q.log} today=${q.today}/><//>` : null}
         <div class="split">
           <div class="stack" style=${{gap: '20px'}}>
             <${UI.Fold} title="Workload" summary=${n.open + ' open across ' + ctx.activeMembers.length + ' people'} hot=${n.overdue > 0} id="fold-workload"><${Workload}/><//>
@@ -244,7 +259,7 @@
             <${UI.Fold} title="Live now" summary=${Object.keys(ctx.online).length + ' online'} id="fold-live"><${LiveNow}/><//>
             ${M.parts.Reviews ? html`<${UI.Fold} title="Waiting on your review" summary=${hqRev + (hqRev === 1 ? ' piece' : ' pieces')} open=${hqRev > 0} hot=${hqRev > 0} id="fold-hqreviews"><${M.parts.Reviews} compact=${true}/><//>` : null}
             ${M.parts.LeaveApprovals ? html`<${UI.Fold} title="Leave approvals" summary=${hqLeave + ' pending'} open=${hqLeave > 0} hot=${hqLeave > 0} id="fold-approvals"><${M.parts.LeaveApprovals}/><//>` : null}
-            ${M.parts.Tape ? html`<${UI.Fold} title="The tape" summary="today, newest first" id="fold-tape"><${M.parts.Tape}/><//>` : null}
+            ${M.parts.Tape ? html`<${UI.Fold} title="The tape" summary="today, newest first" id="fold-tape"><${M.parts.Tape} quiet=${q.today}/><//>` : null}
           </div>
         </div>
       </div>`}
