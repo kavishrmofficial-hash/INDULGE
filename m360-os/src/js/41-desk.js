@@ -20,6 +20,10 @@
     {k: 'ackHours', label: 'handbook read window, hours', type: 'number'},
     {k: 'blockerDays', label: 'blocker days', type: 'number'}
   ];
+  /* quiet stretches (M.quiet, rule R17): how long with nothing saved on m360 counts as quiet */
+  const QUIET_MINS = [60, 90, 120, 150, 180, 240];
+  const minsLabel = n => n % 60 ? (n > 60 ? Math.floor(n / 60) + 'h ' : '') + (n % 60) + 'm' : (n / 60) + (n === 60 ? ' hour' : ' hours');
+  const HHMM = /^\d{1,2}:\d{2}$/;
   const POINT_LABELS = {
     checkinOnTime: 'on-time check-in', eod: 'eod line', planOnTime: 'monday outcomes on time',
     planLate: 'monday outcomes late', outcomeHit: 'outcome hit', outcomeMiss: 'outcome miss',
@@ -148,6 +152,41 @@
   }
 
   /* ---------- settings ---------- */
+  /* the minute a quiet stretch is flagged, for a last save at `last`: the lunch hour does not count */
+  function flagAt(last, mins, lunch) {
+    let t = last, left = mins;
+    if (lunch && t < lunch[1]) {
+      if (t < lunch[0]) { const run = Math.min(left, lunch[0] - t); t += run; left -= run; }
+      if (left > 0) t = Math.max(t, lunch[1]);
+    }
+    return t + left;
+  }
+
+  /* the working day as a strip: someone checks in at start, saves a quarter hour later, then nothing.
+     A save marks its whole five-minute block (M.stamp), so the quiet starts where that block ends */
+  function QuietDay({start, cut, mins, lunchFrom, lunchTo}) {
+    const s = U.minutes(HHMM.test(start) ? start : '10:30');
+    const e = Math.max(U.minutes(HHMM.test(cut) ? cut : '19:30'), s + 60);
+    const lunch = HHMM.test(lunchFrom) && HHMM.test(lunchTo) && U.minutes(lunchTo) > U.minutes(lunchFrom) ? [U.minutes(lunchFrom), U.minutes(lunchTo)] : null;
+    const saved = s + 15, last = saved + 5, at = flagAt(last, mins, lunch);
+    const hm = m => U.pad(Math.floor(m / 60) % 24) + ':' + U.pad(m % 60);
+    const pos = m => Math.max(0, Math.min(100, (m - s) / (e - s) * 100));
+    const span = (a, b) => ({left: pos(a) + '%', width: Math.max(0, pos(b) - pos(a)) + '%'});
+    const aside = lunch && last < lunch[1] && at > lunch[0];
+    return html`<div id="quiet-day">
+      <div class="qr-strip" aria-hidden="true">
+        ${lunch ? html`<span class="qr-lunch" style=${span(lunch[0], lunch[1])}/>` : null}
+        <span class="qr-quiet" style=${span(last, Math.min(at, e))}/>
+        <span class="qr-save" style=${{left: pos(saved) + '%'}}/>
+        ${at < e ? html`<span class="qr-flag" style=${{left: pos(at) + '%'}}/>` : null}
+      </div>
+      <div class="qr-ends tiny ink62 num"><span>${hm(s)}</span>${lunch ? html`<span>lunch ${hm(lunch[0])} to ${hm(lunch[1])}</span>` : null}<span>${hm(e)}</span></div>
+      <p class="small" id="quiet-example" style=${{margin: '10px 0 0'}}>In at ${hm(s)}, a save at ${hm(saved)}, then nothing: quiet from ${hm(last)}, ${at < e
+        ? html`flagged at <b class="num">${hm(at)}</b>${aside ? ', lunch aside' : ''}.`
+        : 'no flag before the ' + hm(e) + ' cut.'}</p>
+    </div>`;
+  }
+
   function Settings() {
     const ctx = M.useCtx();
     const s = ctx.settings;
@@ -157,10 +196,14 @@
       start: s.start, grace: String(s.grace), eodCut: s.eodCut, mondayCut: s.mondayCut,
       wfhCap: String(s.wfhCap), revCap: String(s.revCap), ackHours: String(s.ackHours), blockerDays: String(s.blockerDays),
       holidays: (s.holidays || []).slice(), rules: {...s.rules}, points: {...s.points},
-      leaderboardIncludesFounder: !!s.leaderboardIncludesFounder, signoff: s.signoff === false ? 'no' : 'yes', newHoliday: ''
+      leaderboardIncludesFounder: !!s.leaderboardIncludesFounder, signoff: s.signoff === false ? 'no' : 'yes', newHoliday: '',
+      quietMins: String(Number(s.quietMins) || 120), lunchFrom: s.lunchFrom || '', lunchTo: s.lunchTo || ''
     }));
     const set = (k, v) => setF(x => ({...x, [k]: v}));
     const names = (M.rules && M.rules.NAMES) || {};
+    const quietMins = Math.max(30, Math.min(480, Math.round(Number(f.quietMins) || 120)));
+    const quietOpts = (QUIET_MINS.indexOf(quietMins) >= 0 ? QUIET_MINS : QUIET_MINS.concat([quietMins]).sort((a, b) => a - b))
+      .map(n => ({v: String(n), label: minsLabel(n)}));
 
     async function useHere() {
       const loc = await M.getLoc();
@@ -169,6 +212,10 @@
       M.toast('Office set');
     }
     async function save() {
+      /* lunch is both times or neither; empty means no lunch hour */
+      const lunchFrom = String(f.lunchFrom || '').trim(), lunchTo = String(f.lunchTo || '').trim();
+      if (!!lunchFrom !== !!lunchTo || (lunchFrom && !(HHMM.test(lunchFrom) && HHMM.test(lunchTo)))) return M.toast('Set both lunch times, or clear both for no lunch hour', true);
+      if (lunchFrom && U.minutes(lunchTo) <= U.minutes(lunchFrom)) return M.toast('Lunch has to end after it starts', true);
       const office = (f.lat !== '' && f.lng !== '')
         ? {lat: Number(f.lat), lng: Number(f.lng), radius: Number(f.radius) || 200, label: f.label || 'Office'}
         : null;
@@ -178,7 +225,8 @@
         office, start: f.start, grace: Number(f.grace) || 0, eodCut: f.eodCut, mondayCut: f.mondayCut,
         wfhCap: Number(f.wfhCap) || 0, revCap: Number(f.revCap) || 0, ackHours: Number(f.ackHours) || 0,
         blockerDays: Number(f.blockerDays) || 0, holidays: f.holidays, rules: f.rules, points,
-        leaderboardIncludesFounder: f.leaderboardIncludesFounder, signoff: f.signoff !== 'no', updated: Date.now()
+        leaderboardIncludesFounder: f.leaderboardIncludesFounder, signoff: f.signoff !== 'no',
+        quietMins, lunchFrom, lunchTo, updated: Date.now()
       });
       M.toast('Settings saved');
     }
@@ -201,6 +249,20 @@
           ${THRESHOLDS.map(t => html`<${UI.Input} key=${t.k} label=${t.label} type=${t.type}
             value=${f[t.k]} onChange=${v => set(t.k, v)}/>`)}
         </div>
+      <//>
+
+      <${UI.Card} title="Quiet stretches" id="quiet-card"
+        action=${f.rules.R17 === false ? html`<span class="pill warm">R17 off</span>` : html`<span class="pill ink">R17 on</span>`}>
+        <p class="small ink62" style=${{marginTop: 0}}>A stretch of someone's working day with nothing saved on m360 shows up for them, their manager and you. The lunch hour is left out; clear both times for none.</p>
+        <div class="qr-fields">
+          <${UI.Select} id="quiet-mins" label="quiet stretch after" value=${String(quietMins)} options=${quietOpts}
+            onChange=${v => set('quietMins', v)}/>
+          <${UI.Input} id="lunch-from" label="lunch from" type="time" value=${f.lunchFrom} onChange=${v => set('lunchFrom', v)}/>
+          <${UI.Input} id="lunch-to" label="lunch to" type="time" value=${f.lunchTo} onChange=${v => set('lunchTo', v)}/>
+        </div>
+        ${f.lunchFrom || f.lunchTo ? html`<button type="button" class="linky small" id="lunch-clear" style=${{marginTop: '8px'}}
+          onClick=${() => setF(x => ({...x, lunchFrom: '', lunchTo: ''}))}>No lunch hour</button>` : null}
+        <${QuietDay} start=${f.start} cut=${f.eodCut} mins=${quietMins} lunchFrom=${f.lunchFrom} lunchTo=${f.lunchTo}/>
       <//>
 
       <${UI.Card} title="Holidays">

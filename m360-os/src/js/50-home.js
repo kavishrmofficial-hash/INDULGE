@@ -216,6 +216,48 @@
     </header>`;
   }
 
+  /* ---------- quiet: the person hears first ----------
+     A quiet stretch (M.quiet) reaches the manager's watch at settings.quietMins. Half an hour before
+     that (never under 30 minutes in) the person gets one gentle line here, with the three ways to
+     answer it. It goes the moment they save anything or set a status, and it never rings. A status
+     ends nothing on the manager's watch, it is read beside the flag, and the line says so. Nothing
+     shows on leave, holidays, Sundays, before the check-in or after the check-out (M.quiet.day has
+     no running gap then), or for anyone without a manager. */
+  const MIN = 60000;
+  /* a stretch is only as true as the marks behind it: until every collection M.quiet reads has arrived,
+     a gap would run from the check-in, so nothing quiet shows on a page still loading */
+  const QUIET_FROM = ['checkin', 'eod', 'tasks', 'feed', 'kudos', 'me', 'leave', 'leavedec'];
+  const quietReady = ctx => QUIET_FROM.every(k => !ctx.coll[k] || ctx.coll[k].ready);
+  function QuietNudge({onStatus}) {
+    const ctx = M.useCtx();
+    const mgr = M.quiet && M.lines ? M.lines.managerOf(ctx, ctx.uid) : null;
+    if (!mgr || !quietReady(ctx)) return null;
+    const td = U.todayStr();
+    const q = M.quiet.day(ctx, ctx.uid, td, {now: Number(ctx.now) || Date.now()});
+    const idle = q.idle;
+    /* a mark after the gap began is a save the minute clock has not caught up with */
+    if (!idle || q.marks.some(m => m.s > idle.from)) return null;
+    /* a status set since answers it too, until the quiet runs on that long again past it */
+    const st = todayStatus(ctx, ctx.uid);
+    let quiet = idle.quietMs;
+    if (st && st.at > idle.from) {
+      const d0 = U.parseYmd(td).getTime();
+      const l = q.lunch ? Math.max(0, Math.min(idle.to, d0 + q.lunch[1] * MIN) - Math.max(st.at, d0 + q.lunch[0] * MIN)) : 0;
+      quiet = Math.max(0, idle.to - st.at - l);
+    }
+    if (quiet < Math.max(30, q.mins - 30) * MIN) return null;
+    const after = q.mins % 60 ? M.quiet.dur(q.mins * MIN) : q.mins / 60 + (q.mins === 60 ? ' hour' : ' hours');
+    return html`<section class="card warm quiet-nudge" id="quiet-nudge">
+      <div class="row nowrap qn-line"><span class="dotflame"/><span class="grow" style=${{fontWeight: 500}}>Nothing saved since ${U.hhmm(idle.from)}. Move a task, post what you are on, or set a status.</span></div>
+      <div class="row qn-act">
+        <${UI.Btn} kind="sec" sm=${true} id="qn-board" onClick=${() => M.nav('#tasks')}>Open the board<//>
+        <${UI.Btn} kind="sec" sm=${true} id="qn-post" onClick=${() => M.intend('#feed', 'post')}>Post an update<//>
+        <${UI.Btn} kind="sec" sm=${true} id="qn-status" onClick=${onStatus}>Set a status<//>
+      </div>
+      <div class="tiny ink62 qn-why">After ${after} with nothing saved (lunch aside), it reaches ${mgr === ctx.founderUid ? 'Kaavish' : 'your manager and Kaavish'}, with any status you set beside it.</div>
+    </section>`;
+  }
+
   /* ---------- add m360 to the home screen: one card, once, on phones in a browser ----------
      Chromium hands over its install prompt through beforeinstallprompt, kept for the Install
      button. iOS has no prompt, so the card says where the option lives. The card never shows
@@ -461,10 +503,24 @@
   }
 
   /* ---------- your team: each report's day, with the watch flags ---------- */
+  /* one flag line. A quiet stretch (M.quiet) keeps a line of its own, keyed by when it began; the one
+     still running carries the listening orb, so it reads as happening now. Quiet lines come last, in
+     time order, and open the person's day. */
+  function TeamFlag({f}) {
+    const quiet = f.k === 'quiet';
+    const mark = quiet && f.live
+      ? html`<span class="tf-live" role="img" aria-label="happening now" title="happening now"><${M.fx.Orb} state="listening" size=${20}/></span>`
+      : html`<span class="dotflame" style=${f.hot ? null : {background: 'var(--line2)'}}/>`;
+    return html`<div class=${'small team-flag' + (quiet ? ' quiet' : '')} data-k=${f.k} data-hot=${f.hot ? '1' : '0'} data-live=${quiet ? (f.live ? '1' : '0') : undefined}>
+      ${mark}<span class="grow">${U.cap(f.text)}</span>${f.ref ? html`<button type="button" class="linky tiny" onClick=${() => M.nav(f.ref)}>${quiet ? 'See the day' : 'Open'}</button>` : null}</div>`;
+  }
+  const flagOrder = flags => flags.filter(f => f.k !== 'quiet').concat(flags.filter(f => f.k === 'quiet').sort((a, b) => (a.at || 0) - (b.at || 0)));
+
   function TeamWatch() {
     const ctx = M.useCtx();
     if (!M.lines) return null;
-    const board = M.lines.board(ctx, ctx.uid);
+    const ready = quietReady(ctx);
+    const board = M.lines.board(ctx, ctx.uid).map(r => ready ? r : {...r, flags: r.flags.filter(f => f.k !== 'quiet')});
     if (!board.length) return null;
     const td = U.todayStr();
     const hot = board.reduce((n, r) => n + r.flags.filter(f => f.hot).length, 0);
@@ -480,7 +536,7 @@
             <button type="button" class="rowbtn" style=${{width: 'auto'}} aria-label="Open their page" onClick=${() => M.nav('#people/' + r.uid)}><${UI.Avatar} id=${r.uid} size=${30}/></button>
             <div class="grow" style=${{minWidth: 0}}>
               <div class="row between"><span style=${{fontWeight: 500}}><${UI.Name} id=${r.uid}/></span><span class="tiny ink62">${where}${a.in ? ', ' + U.hhmm(a.in) : ''}${a.out ? ' to ' + U.hhmm(a.out) : ''}${rate != null ? ' ' + M.dayrate.faceFor(rate)[1] : ''}</span></div>
-              ${r.flags.length ? r.flags.map(f => html`<div key=${f.k} class="small team-flag" data-k=${f.k} data-hot=${f.hot ? '1' : '0'}><span class="dotflame" style=${f.hot ? null : {background: 'var(--line2)'}}/><span class="grow">${U.cap(f.text)}</span>${f.ref ? html`<button type="button" class="linky tiny" onClick=${() => M.nav(f.ref)}>Open</button>` : null}</div>`) : html`<div class="small ink62">Moving along.</div>`}
+              ${r.flags.length ? flagOrder(r.flags).map(f => html`<${TeamFlag} key=${f.key || f.k} f=${f}/>`) : html`<div class="small ink62">Moving along.</div>`}
             </div>
           </div>`; })}</div>
       <//>
@@ -722,6 +778,7 @@
 
     return html`<div class="stack" style=${{gap: '18px'}}>
       <${Hero} onStatus=${() => setStatus(true)}/>
+      <${QuietNudge} onStatus=${() => setStatus(true)}/>
       ${M.parts.NoticePermit ? html`<${M.parts.NoticePermit}/>` : null}
       ${M.parts.JoinBanner ? html`<${M.parts.JoinBanner}/>` : null}
       ${M.parts.FindYourWay ? html`<${M.parts.FindYourWay}/>` : null}

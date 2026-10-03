@@ -43,7 +43,8 @@ READY_JS = ("() => M.lastCtx && M.lastCtx.coll.tasks.map['t1'] && M.lastCtx.coll
 DAY = 86400000
 
 EXPECTED_M1 = {'R02': 'medium', 'R03': 'medium', 'R04': 'medium', 'R07': 'high', 'R08': 'medium', 'R09': 'medium',
-               'R10': 'high', 'R11': 'low', 'R12': 'high', 'R13': 'medium', 'R14': 'medium', 'R15': 'low', 'R16': 'medium'}
+               'R10': 'high', 'R11': 'low', 'R12': 'high', 'R13': 'medium', 'R14': 'medium', 'R15': 'low', 'R16': 'medium',
+               'R17': 'medium'}
 
 
 def by_uid(flags, uid):
@@ -178,6 +179,9 @@ def check_m1(flags):
     assert 'approvals is empty' in r15['text'] and r15['ref'] == '#clients' and r15['section'] == 'clients', r15
     r16 = one(m1, 'R16')
     assert 'Priya S' in r16['text'] and r16['ref'] == '#hiring' and r16['section'] == 'hiring-panel', r16
+    # in at 13:40 and nothing recorded since: the afternoon to the 19:30 cut is one closed quiet stretch
+    r17 = one(m1, 'R17')
+    assert r17['text'] == 'Quiet from 13:40 to 19:30, 5h 00m, lunch aside' and r17['ref'] == '#today' and r17['section'] == 'the-week', r17
 
 
 def test(h):
@@ -238,10 +242,11 @@ def test(h):
 
     # static exports
     names = h.ctx(page, 'M.rules.NAMES')
-    assert sorted(names) == ['R%02d' % i for i in range(1, 17)], sorted(names)
+    assert sorted(names) == ['R%02d' % i for i in range(1, 18)], sorted(names)
     assert names['R01'] == 'Check in by start time' and names['R04'] == 'EOD line by 19:30' and names['R16'] == 'Hiring panel on time', names
+    assert names['R17'] == 'Keep work moving', names
     assert h.ctx(page, 'M.rules.name("R04", {eodCut: "18:45"})') == 'EOD line by 18:45'
-    assert h.ctx(page, 'M.rules.SECTION_RULES("the-week")') == ['R01', 'R02', 'R03', 'R04', 'R05', 'R06', 'R11']
+    assert h.ctx(page, 'M.rules.SECTION_RULES("the-week")') == ['R01', 'R02', 'R03', 'R04', 'R05', 'R06', 'R17', 'R11']
     assert h.ctx(page, 'M.rules.SECTION_RULES("house-rules")') == ['R07', 'R08', 'R11']
     assert h.ctx(page, 'M.rules.SECTION_RULES("ladder")') == ['R12', 'R11']
     assert h.ctx(page, 'M.rules.SECTION_RULES("hiring-panel")') == ['R16', 'R11']

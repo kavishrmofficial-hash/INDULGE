@@ -141,6 +141,7 @@
     ['break', 'the reset room: sparks this week, the streak, Five (the word of the day), the squads, the care reminders due'],
     ['inbox', 'what is waiting in the inbox'],
     ['online', 'who has m360 open right now and where they are'],
+    ['quiet', 'quiet stretches today and this week: long spells in a working day with nothing recorded on m360 (you and your reports; the founder sees everyone), q a name'],
     ['base', 'the Base, the contacts database, for a name, company, city or stage'],
     ['who', 'one teammate: role, pod, profile, today, open tasks'],
     ['web', 'a web page read as text, q is the address (team site)'],
@@ -419,6 +420,11 @@
         const on = ctx.online || {};
         const here = ctx.activeMembers.filter(m => on[m.uid]);
         return 'ONLINE NOW: ' + (here.length ? here.map(m => nameOf(nm, m.uid) + ' on ' + (on[m.uid].page || 'home')).join(', ') : 'nobody else') + '. NOT OPEN: ' + ctx.activeMembers.filter(m => !on[m.uid]).map(m => nameOf(nm, m.uid)).join(', ');
+      }
+      case 'quiet': {
+        const uid = q ? M.ai.findMember(ctx, nm, q) : null;
+        if (q && !uid) return 'No teammate matches "' + q + '".';
+        return (await M.ai.quietSlice(ctx, nm, uid)) || 'Quiet stretches are not on this build.';
       }
       case 'base': case 'contacts': return M.intel && M.intel.slice ? cut(M.intel.slice(ctx, q, nm), 8000) : 'The Base is not on this build.';
       case 'who': {

@@ -594,22 +594,24 @@
     askRef.current = ask;
 
     /* ---------- voice: hold Ctrl + Option (Ctrl + Alt) ---------- */
+    /* the hold lives in a ref: the listeners below are re-attached whenever the context changes, and a
+       hold that spans that moment must still end on the key up */
+    const holdRef = useRef(false);
     useEffect(() => {
       if (!on || hidden) return;
-      let holding = false;
       const start = () => {
-        holding = true; spoke.current = true;
+        holdRef.current = true; spoke.current = true;
         reset();
         setAnchor({x: pos.current.x, y: pos.current.y});
         if (!listen({follow: false})) { spoke.current = false; openAt(pos.current.x, pos.current.y); }
       };
       const stop = () => {
-        if (!holding) return;
-        holding = false;
+        if (!holdRef.current) return;
+        holdRef.current = false;
         if (rec.current) { try { rec.current.stop(); } catch (e) { /* stopped */ } }
       };
-      const down = e => { if (e.ctrlKey && e.altKey && !holding && !e.repeat && (e.key === 'Control' || e.key === 'Alt')) { e.preventDefault(); start(); } };
-      const up = e => { if (holding && (e.key === 'Control' || e.key === 'Alt')) stop(); };
+      const down = e => { if (e.ctrlKey && e.altKey && !holdRef.current && !e.repeat && (e.key === 'Control' || e.key === 'Alt')) { e.preventDefault(); start(); } };
+      const up = e => { if (holdRef.current && (e.key === 'Control' || e.key === 'Alt')) stop(); };
       const esc = e => {
         if (e.key !== 'Escape' || !e.isTrusted) return;   /* the buddy's own press_key never closes the buddy */
         if (modeRef.current === 'welcome') M.tour.mark(ctx, 'asked');
