@@ -165,12 +165,41 @@ def seed(h, page):
     page.wait_for_timeout(500)
 
 
+def seed_pm(h, page):
+    """The personal managers on top of the week: m1 reports to Kaavish, m2 to m1 and m3 to m2, the bots
+    are on, m1's bot has its own settings, m3 owes a task m2 sent back, and Kaavish asked m2 about the
+    EOD line by voice. Kept apart from seed(), which many tests read with everyone reporting to Kaavish."""
+    now = browser_today(page)
+    team = page.evaluate('() => window.__db.get("roster/team")')
+    members = team['members']
+    members[M2]['reportsTo'] = M1
+    members[M3]['reportsTo'] = M2
+    h.seed_doc(page, 'roster/team', dict(team, members=members))
+    app = page.evaluate('() => window.__db.get("settings/app")') or {}
+    h.seed_doc(page, 'settings/app', dict(app, pm={'on': True, 'wait': 60, 'perDay': 4, 'digestAt': '17:30', 'mail': True}))
+    me1 = page.evaluate('() => window.__db.get("me/u_m1")') or {}
+    h.seed_doc(page, 'me/' + M1, dict(me1, pm={'cfg': {'wait': 60, 'voice': 'warm', 'mail': True,
+                                                       'kinds': {'noin': True, 'noeod': True, 'overdue': True, 'sentback': True, 'chase': True, 'quiet': True},
+                                                       'at': ms(now - timedelta(days=2))},
+                                               'chase': {'t3': {'rep': M2, 'at': ms(now, 10, 0)}}}))
+    h.seed_doc(page, 'tasks/t5', {
+        'title': 'Nykaa carousel', 'owner': M3, 'client': 'swisse-wellness-uae', 'project': 'p1', 'section': 's3',
+        'due': ymd(now + timedelta(days=1)), 'status': 'doing', 'priority': 'normal', 'link': '', 'revisions': 1,
+        'by': M2, 'created': ms(now - timedelta(days=3)), 'updated': ms(now, 9, 20),
+        'sentBackAt': ms(now, 9, 20), 'sentBackBy': M2, 'sentBackNote': 'Tighten the first frame.'})
+    mef = page.evaluate('() => window.__db.get("me/u_founder")') or {}
+    h.seed_doc(page, 'me/' + F, dict(mef, pm={'asks': {'qa1': {'kind': 'noeod', 'to': [M2], 'ask': 'why', 'at': ms(now, 9, 0),
+                                                                'tellBy': ms(now, 21, 45), 'via': 'voice'}}}))
+    page.wait_for_timeout(300)
+
+
 def qa(h):
     problems = []
     # one context: Playwright isolates localStorage per context, so the seed must live in the
     # same session that walks the pages
     page = h.session('founder', width=1280, hash='#today', reset=True, seed=True)
     seed(h, page)
+    seed_pm(h, page)
 
     for ident, pages in (('founder', PAGES), ('m1', MEMBER_PAGES), ('m2', MEMBER_PAGES)):
         for w in (1280, 768, 390):

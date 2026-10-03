@@ -18,6 +18,7 @@
      e/<email>                           {uid}                         email to person
      i/<code>                            {email, name, title, role, by, until}   pending invites
      r/<uid>~<ms>~<page>                 ""                            presence beacons
+     x/pm/<ymd>/<uid>/<am|pm|esc>        {at, id, to, slot, keys, steps, sent}   the personal managers' mail ledger (pm.js)
 */
 import {RULES} from './rules.js';
 import {SEED} from './seed.js';
@@ -34,6 +35,7 @@ import {booksDesk} from './books.js';
 import {securityActions} from './security.js';
 import {fileActions} from './files.js';
 import {baseActions} from './base.js';
+import {pmDesk} from './pm.js';
 
 const LEVEL = {view: 0, interact: 1, admin: 2, owner: 3};
 const SESSION_DAYS = 180;
@@ -117,6 +119,16 @@ const isActOnly = (d, now) => {
     if (!(at >= now - 5 * 60000 - ACT_SKEW && at <= now + ACT_SKEW)) return false;
   }
   return live === 1;
+};
+/* the personal manager's "first shown" marks (me/<self>.pm.told: step id to a time, or null when an old
+   one rolls off) are bookkeeping too, written as a page shows or rings a step: no version, no log line.
+   Anything more in the same write (an answer, a setting) goes the normal way */
+const isPmToldOnly = d => {
+  if (!isObj(d) || Object.keys(d).length !== 1 || !isObj(d.pm)) return false;
+  if (Object.keys(d.pm).length !== 1 || !isObj(d.pm.told)) return false;
+  const ids = Object.keys(d.pm.told);
+  return ids.length > 0 && ids.length <= 400 && ids.every(k => k.length <= 200 &&
+    (d.pm.told[k] === null || (typeof d.pm.told[k] === 'number' && Number.isFinite(d.pm.told[k]))));
 };
 /* the private mark that someone answered this week's pulse (data/users/<uid>/state {pulse}) lands a
    moment after the anonymous answer: a log line or a dated version of it would tie the two together */
@@ -753,10 +765,12 @@ export function createApp({store, env = {}}) {
         await log(v.uid, 'delete', path, '');
         return {ok: true, doc: null};
       }
-      /* a page's activity stamp (me/<self>.act, times only, see M.stamp) is bookkeeping: it keeps no
-         backup version and writes no log line, so the history and the log stay about real changes.
-         The pulse mark keeps neither too, so nothing dated sits next to an anonymous answer */
-      const stampOnly = op === 'update' && s.length === 2 && s[0] === 'me' && s[1] === v.uid && isActOnly(data, Date.now());
+      /* a page's activity stamp (me/<self>.act, times only, see M.stamp) and its personal manager's told
+         marks (me/<self>.pm.told) are bookkeeping: they keep no backup version and write no log line, so
+         the history and the log stay about real changes. The pulse mark keeps neither too, so nothing
+         dated sits next to an anonymous answer */
+      const ownMe = op === 'update' && s.length === 2 && s[0] === 'me' && s[1] === v.uid;
+      const stampOnly = ownMe && (isActOnly(data, Date.now()) || isPmToldOnly(data));
       const quietWrite = stampOnly || isPulseMark(path, data);
       let next = data, cur = null;
       if (op === 'update' || path === 'roster/team') cur = await getJ(key);
@@ -1179,6 +1193,10 @@ export function createApp({store, env = {}}) {
   Object.assign(actions, peekActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError}));
   Object.assign(actions, handshakeActions({env, getJ, putJ, levelOf, LEVEL, HttpError, peek: (v, body) => actions.peek(v, body)}));
   Object.assign(actions, voiceActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError, log}));
+  /* the personal managers' mail pass for people who are away, the outside pinger's tick, and the mail ledger */
+  const pm = pmDesk({store, getJ, putJ, docKey, listAll, readColl, inventory, ownerUid, appSettings, mailOn: async () => !!(await mailConf()),
+    sendMail, ymdIST, env, log, levelOf, LEVEL, HttpError});
+  Object.assign(actions, pm.actions);
 
   const json = (obj, status = 200, extra = {}) => new Response(JSON.stringify(obj), {
     status, headers: {'content-type': 'application/json', 'cache-control': 'no-store', ...extra}
@@ -1210,6 +1228,8 @@ export function createApp({store, env = {}}) {
       await holiday().catch(() => {});
       /* the books' pass: retainer drafts on the billing day, reminder steps when auto-chase is on */
       await books.run(site).catch(() => {});
+      /* the personal managers: email to someone who is away, at most every ten minutes per instance */
+      await pm.run(site).catch(() => {});
       /* once a day per instance, off the request's path: old log days go */
       const today = ymdIST(Date.now());
       if (logPruneDay !== today) { logPruneDay = today; pruneOldLogs(LOG_DAYS).catch(() => {}); }
