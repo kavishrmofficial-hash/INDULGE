@@ -113,7 +113,8 @@
     useSettled();
     const fx = FX();
     if (!fx || still()) return html`<span class=${'pill flame' + (className ? ' ' + className : '')}>${children}</span>`;
-    return html`<span class=${'metal-badge-host' + (className ? ' ' + className : '')}><${fx.MetalBadge} theme=${theme()}>${children}<//></span>`;
+    /* the badge ships at a fixed 45px; every badge here fits its word (the fit rule), so no label spills over its neighbour */
+    return html`<span class=${'metal-badge-host fit' + (className ? ' ' + className : '')}><${fx.MetalBadge} theme=${theme()}>${children}<//></span>`;
   }
 
   /* VoiceBeam under an input (default), round a recording pill (pill), or along a phone screen

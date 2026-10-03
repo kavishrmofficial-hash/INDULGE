@@ -96,8 +96,8 @@
         setHits(r || []);
       } finally { setLooking(false); }
     };
-    /* someone who joined in the last thirty days wears a metal "new hire" badge (metal-fx) */
-    const isNew = r => !!(r.joined && r.active !== false && U.daysBetween(r.joined, U.todayStr()) <= 30 && U.daysBetween(r.joined, U.todayStr()) >= 0);
+    /* someone who joined in the last thirty days wears a metal "new hire" badge (metal-fx); the founder never does */
+    const isNew = r => !!(r.joined && r.active !== false && r.role !== 'founder' && U.daysBetween(r.joined, U.todayStr()) <= 30 && U.daysBetween(r.joined, U.todayStr()) >= 0);
     const rows = Object.keys(members).map(uid => ({uid, ...members[uid]}))
       .sort((a, b) => String(a.empId || '').localeCompare(String(b.empId || '')));
     const onlyFounder = rows.filter(r => r.active !== false).length <= 1;
