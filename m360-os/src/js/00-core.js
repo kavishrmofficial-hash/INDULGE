@@ -185,11 +185,15 @@ M.logWrite = function logWrite(db, uid, a, p, d) {
 /* activity stamps: the moments someone saved work, in five-minute buckets on their own profile,
    me/<uid>.act[YYYY-MM-DD][HHMM] (1 for saved work, 0 for a running focus timer). Times only, never
    what was saved. One write per bucket at most; the profile keeps the last ACT_DAYS days. The pulse
-   stays anonymous and profile, games, music and the log itself never count as work. M.quiet reads them. */
-const ACT_SKIP = /^(log|pulse|me|play|music|spotify)(\/|$)/;
+   stays anonymous and profile, games, music and the log itself never count as work, nor does the
+   bookkeeping a page writes on its own in the private space (read marks, AI caches, Break, Care).
+   M.quiet reads them. */
+const ACT_SKIP = /^(log|pulse|me|play|music|spotify)(\/|$)|^data\/users\/[^/]+\/(state|ai|break|care)$/;
 const ACT_DAYS = 8;
 const actDone = new Set();
 let actRefused = false;
+const actMissing = e => e && (e.code === 'not_found' || (e.code === 'invalid_argument' && /missing/i.test(String(e.message || ''))));
+const actDenied = e => e && (e.code === 'permission_denied' || e.code === 'forbidden' || (e.code === 'invalid_argument' && /not allowed/i.test(String(e.message || ''))));
 M.stamp = function stamp(db, uid, p, focus) {
   try {
     if (actRefused || !db || !uid || (p != null && ACT_SKIP.test(String(p)))) return;
@@ -200,23 +204,29 @@ M.stamp = function stamp(db, uid, p, focus) {
     const ctx = M.lastCtx;
     const mine = ctx && ctx.uid === uid && ctx.coll && ctx.coll.me ? ((ctx.coll.me.map[uid] || {}).act || {}) : null;
     const day = (mine && mine[ymd]) || {};
-    /* saved work outranks a focus mark in the same bucket; a focus mark never overwrites one */
-    if (actDone.has(uid + ymd + b + (focus ? 'f' : 'w')) || day[b] === 1 || (focus && day[b] === 0)) return;
-    actDone.add(uid + ymd + b + (focus ? 'f' : 'w'));
+    /* saved work outranks a focus mark in the same bucket; a focus mark never overwrites one, even one
+       this page wrote a moment ago that the snapshot has not brought back yet */
+    const k = uid + ymd + b;
+    if (actDone.has(k + 'w') || day[b] === 1 || (focus && (actDone.has(k + 'f') || day[b] === 0))) return;
+    actDone.add(k + (focus ? 'f' : 'w'));
     const act = {[ymd]: {[b]: focus ? 0 : 1}};
-    /* the first stamp of a day drops the days past the window */
-    if (mine && !mine[ymd]) {
+    /* days past the window go with the next stamp, as nulls the merge removes */
+    if (mine) {
       const keep = U.ymd(U.addDays(now, -(ACT_DAYS - 1)));
       for (const d of Object.keys(mine)) if (d < keep && mine[d] != null) act[d] = null;
     }
     const path = 'me/' + uid;
     queued(path, () => db.doc(path).update({act}).catch(e => {
-      if (e && (e.code === 'not_found' || (e.code === 'invalid_argument' && /missing/i.test(String(e.message || ''))))) return db.doc(path).set({act});
-      if (e && (e.code === 'permission_denied' || e.code === 'forbidden' || e.code === 'locked')) actRefused = true;
+      if (actMissing(e)) return db.doc(path).set({act});
       throw e;
-    })).catch(() => { /* a stamp never gets in the way of the work it marks */ });
-  } catch (e) { /* same */ }
+    })).catch(e => {
+      /* refused by the rules: no more tries this visit. Anything else waits for the next bucket */
+      if (actDenied(e)) actRefused = true;
+    });
+  } catch (e) { /* a stamp never gets in the way of the work it marks */ }
 };
+/* does a write to this path count as someone's work */
+M.stamp.counts = p => !!p && !ACT_SKIP.test(String(p));
 /* uidGetter is optional: without it the writer is read from the live context */
 M.makeWrites = (db, uidGetter) => {
   const fail = e => { M.toast(WRITE_MSG[e && e.code] || 'That did not save. Try again in a moment.', true); throw e; };

@@ -16,7 +16,14 @@
     plain: nameOf => strings.reduce((acc, str, i) => acc + str + (i < vals.length ? ((vals[i] && vals[i][NAME]) ? nameOf(vals[i][NAME]) : (vals[i] == null ? '' : String(vals[i]))) : ''), '')
   });
 
+  /* the list, worked out once per context: the badge, the drawer and the watcher all read the same one */
+  const memo = new WeakMap();
   function items(ctx) {
+    let list = memo.get(ctx);
+    if (!list) { list = build(ctx); memo.set(ctx, list); }
+    return list;
+  }
+  function build(ctx) {
     const out = [];
     const me = ctx.uid, since = ctx.now - KEEP_DAYS * 86400000;
     const push = (id, kind, at, line, ref, actor, hot) => { if (at >= since) out.push({id, kind, at, text: line.el, plain: line.plain, ref, actor, hot: !!hot}); };

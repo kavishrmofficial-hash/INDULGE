@@ -26,6 +26,28 @@
   const chainOf = (ctx, uid) => { const out = []; let cur = managerOf(ctx, uid); while (cur && out.indexOf(cur) < 0 && out.length < 8) { out.push(cur); cur = managerOf(ctx, cur); } return out; };
   const isManager = (ctx, uid) => reportsOf(ctx, uid).length > 0;
 
+  /* the tasks, read once per version of the map for every watch that follows: each person's own tasks,
+     and the last moment they moved anything (their task updated, a task they created or approved, a
+     comment of theirs) */
+  const taskIdx = new WeakMap();
+  function tasksBy(tmap) {
+    let ix = taskIdx.get(tmap);
+    if (ix) return ix;
+    ix = {owned: {}, moved: {}};
+    const touch = (u, at) => { at = Number(at) || 0; if (u && at > (ix.moved[u] || 0)) ix.moved[u] = at; };
+    for (const id of Object.keys(tmap)) {
+      const t = tmap[id];
+      if (!t || t.deleted) continue;
+      if (t.owner) { (ix.owned[t.owner] = ix.owned[t.owner] || []).push(t); touch(t.owner, t.updated); }
+      touch(t.by, t.created);
+      touch(t.approvedBy, t.approvedAt);
+      const cs = t.comments || {};
+      for (const cid of Object.keys(cs)) if (cs[cid]) touch(cs[cid].by, cs[cid].at);
+    }
+    taskIdx.set(tmap, ix);
+    return ix;
+  }
+
   /* the day's watch on one person, as the manager should read it */
   function watch(ctx, uid, at) {
     const now = at ? new Date(at) : new Date(ctx.now || Date.now());
@@ -46,26 +68,19 @@
     const eod = ((ctx.coll.eod.map[uid] || {}).days || {})[ymd];
     if (!eod && mins > cut) out.push({k: 'noeod', hot: true, at: atMin(cut), text: 'no EOD line today', ref});
     /* movement: anything of theirs created, moved, finished or commented on today */
-    const tmap = ctx.coll.tasks.map;
-    let moved = false, overdue = 0, open = 0;
-    for (const id of Object.keys(tmap)) {
-      const t = tmap[id];
-      if (!t || t.deleted) continue;
-      const theirs = t.owner === uid;
-      if (theirs && t.status !== 'done') { open++; if (t.due && t.due < ymd) overdue++; }
-      if (moved) continue;
-      if ((theirs && (Number(t.updated) || 0) >= dayStart) || (t.by === uid && (Number(t.created) || 0) >= dayStart) || (t.approvedBy === uid && (Number(t.approvedAt) || 0) >= dayStart)) { moved = true; continue; }
-      const cs = t.comments || {};
-      for (const cid of Object.keys(cs)) if (cs[cid] && cs[cid].by === uid && (Number(cs[cid].at) || 0) >= dayStart) { moved = true; break; }
-    }
+    const ix = tasksBy(ctx.coll.tasks.map);
+    const moved = (ix.moved[uid] || 0) >= dayStart;
+    let overdue = 0, open = 0;
+    for (const t of (ix.owned[uid] || [])) if (t.status !== 'done') { open++; if (t.due && t.due < ymd) overdue++; }
     if (!moved && a.in && mins > 14 * 60) out.push({k: 'idle', hot: true, at: atMin(14 * 60), text: 'nothing moved on their tasks today' + (open ? ' (' + open + ' open)' : ''), ref: ref});
     if (overdue) out.push({k: 'overdue', hot: overdue > 1, at: dayStart, text: overdue + (overdue === 1 ? ' overdue task' : ' overdue tasks'), ref: ref});
-    /* quiet stretches (M.quiet): one flag per stretch, keyed by when it began so the inbox counts it once;
-       a stretch still running is hot, a closed one only when it ran past twice the threshold */
+    /* quiet stretches (M.quiet): one flag per stretch, keyed by when it began so the inbox counts it once,
+       from while it runs to after it closes; at is the moment it ran past the threshold, when the flag
+       first shows. A stretch still running is hot, a closed one only when it ran past twice the threshold */
     if (M.quiet) {
       const q = M.quiet.day(ctx, uid, ymd, {now: now.getTime()});
       for (const st of q.stretches) out.push({k: 'quiet', key: 'quiet' + U.hhmm(st.from).replace(':', ''), hot: st.live || st.quietMs >= 2 * q.mins * 60000,
-        at: st.from, text: M.quiet.line(st) + (q.status ? ', status: ' + q.status : ''), ref, live: st.live});
+        at: st.at || st.from, from: st.from, text: M.quiet.line(st) + (q.status ? ', status: ' + q.status : ''), ref, live: st.live});
     }
     return out;
   }

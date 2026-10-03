@@ -93,13 +93,24 @@ const rand = (n = 24) => {
 };
 const newId = () => 'u_' + rand(14);
 const isObj = x => x && typeof x === 'object' && !Array.isArray(x);
-/* an update that only carries activity stamps: {act: {YYYY-MM-DD: null | {HHMM: 0 | 1}}}, nothing else */
-const isActOnly = d => {
+/* an update that only carries the page's activity stamp (M.stamp), exactly as the page writes it:
+   {act: {YYYY-MM-DD: {HHMM: 0 | 1}}} with one five-minute bucket on today (IST, a day either side for a
+   device clock near midnight), plus null for old days being dropped; nothing else */
+const ACT_BUCKET = /^([01]\d|2[0-3])[0-5][05]$/;
+const isActOnly = (d, now) => {
   if (!isObj(d) || Object.keys(d).length !== 1 || !isObj(d.act)) return false;
-  const days = Object.keys(d.act);
+  const days = Object.keys(d.act), today = Date.parse(ymdIST(now));
   if (!days.length || days.length > 16) return false;
-  return days.every(k => YMD.test(k) && (d.act[k] === null || (isObj(d.act[k]) && Object.keys(d.act[k]).length <= 288 &&
-    Object.keys(d.act[k]).every(b => /^([01]\d|2[0-3])[0-5]\d$/.test(b) && (d.act[k][b] === 0 || d.act[k][b] === 1)))));
+  let live = 0;
+  for (const k of days) {
+    const v = d.act[k];
+    if (!YMD.test(k)) return false;
+    if (v === null) continue;
+    if (!isObj(v) || ++live > 1 || !(Math.abs(Date.parse(k) - today) <= 86400000)) return false;
+    const b = Object.keys(v);
+    if (b.length !== 1 || !ACT_BUCKET.test(b[0]) || (v[b[0]] !== 0 && v[b[0]] !== 1)) return false;
+  }
+  return live === 1;
 };
 /* a deep merge where a null value removes the key (so rolling documents can shed old days), and keys that
    would reach the prototype never land */
@@ -735,7 +746,7 @@ export function createApp({store, env = {}}) {
       }
       /* a page's activity stamp (me/<self>.act, times only, see M.stamp) is bookkeeping: it keeps no
          backup version and writes no log line, so the history and the log stay about real changes */
-      const stampOnly = op === 'update' && s.length === 2 && s[0] === 'me' && s[1] === v.uid && isActOnly(data);
+      const stampOnly = op === 'update' && s.length === 2 && s[0] === 'me' && s[1] === v.uid && isActOnly(data, Date.now());
       let next = data, cur = null;
       if (op === 'update' || path === 'roster/team') cur = await getJ(key);
       if (op === 'update') {

@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+"""v30 test: activity stamps on the standalone server.
+
+The real API function code (edgeone/server/core.js, with the safety module's version history) runs in
+Node against an in-memory blob store; two people are signed in by sessions written straight into the
+store, so no password is involved. Checks: a stamp-only update of me/<self> (one five-minute bucket on
+today, plus nulls for old days) stores the bucket and adds no history version and no log line; act with
+another field, a bad bucket key, a value of 2, two buckets at once, a day far off, or a stamp written
+with set all take the normal path, logged and backed up; a stamp on someone else's profile is refused
+for a member, and the founder's goes the normal way; a real write is still logged.
+
+Run: cd m360-os && python3 harness/tests/test_quiet_server.py
+"""
+import json
+import os
+import subprocess
+import sys
+import tempfile
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+CORE = os.path.join(ROOT, 'edgeone', 'server', 'core.js')
+
+SCRIPT = r'''
+import {createApp} from %(core)s;
+const data = new Map();
+const store = {
+  async get(key, opts) { if (!data.has(key)) return null; const v = data.get(key); return opts && opts.type === 'json' ? JSON.parse(v) : v; },
+  async set(key, value) { data.set(key, String(value)); },
+  async delete(key) { data.delete(key); },
+  async list(opts) { const p = (opts && opts.prefix) || ''; return {blobs: [...data.keys()].filter(k => k.startsWith(p)).sort().map(k => ({key: k, etag: '"' + data.get(k).length + '"'})), directories: []}; }
+};
+/* nothing leaves this process */
+const offline = async () => new Response('', {status: 404});
+globalThis.fetch = offline;
+const app = createApp({store, env: {fetch: offline}});
+
+const now = Date.now();
+const ymdIST = ms => new Date(ms + 330 * 60000).toISOString().slice(0, 10);
+const today = ymdIST(now), old = ymdIST(now - 20 * 86400000), far = ymdIST(now - 40 * 86400000);
+const put = (k, v) => data.set(k, JSON.stringify(v));
+const TOK = {f: 'sessfounder0000000001', a: 'sessmembera0000000001', c: 'sessmemberc0000000001'};
+put('o/owner', {uid: 'u_f'});
+for (const [u, n] of [['u_f', 'Kaavish'], ['u_a', 'Durvesh'], ['u_b', 'Aanya'], ['u_c', 'Ishaan']]) put('p/' + u, {name: n, email: u + '@example.com', at: now});
+put('d/roster~team', {members: {u_f: {role: 'founder', active: true}, u_a: {role: 'member', active: true}, u_b: {role: 'member', active: true}, u_c: {role: 'member', active: true}}});
+put('d/me~u_a', {name: 'Durvesh', act: {[old]: {'1100': 1}}});
+put('d/me~u_b', {name: 'Aanya'});
+put('s/' + TOK.f, {uid: 'u_f', at: now, last: now});
+put('s/' + TOK.a, {uid: 'u_a', at: now, last: now});
+put('s/' + TOK.c, {uid: 'u_c', at: now, last: now});
+
+const call = async (who, body) => {
+  const r = await app(new Request('http://localhost/api/m360', {method: 'POST', headers: {'content-type': 'application/json', cookie: 'm360s=' + TOK[who]}, body: JSON.stringify(body)}));
+  return {status: r.status, body: await r.json()};
+};
+const hist = uid => [...data.keys()].filter(k => k.startsWith('h/me~' + uid + '/')).length;
+const logs = (uid, p) => { const d = JSON.parse(data.get('d/log~' + today + '-' + uid) || '{"e":{}}'); return Object.values(d.e).filter(x => !p || x.p === p).length; };
+const doc = k => JSON.parse(data.get(k) || 'null');
+const snap = (uid, p) => ({hist: hist(uid), logs: logs(uid, p)});
+const out = {today};
+/* a version is keyed by its millisecond: writes here are spaced so two never share one */
+const write = async (who, op, path, d) => { await new Promise(r => setTimeout(r, 3)); return call(who, {a: 'write', op, path, data: d}); };
+
+/* the once-a-day upkeep runs on the first call; get it out of the way */
+await call('a', {a: 'snapshot'});
+
+/* 1. a stamp-only update: stored, no version, no log line; old days drop with it */
+let before = snap('u_a', 'me/u_a');
+let r = await write('a', 'update', 'me/u_a', {act: {[today]: {'1040': 1}, [old]: null}});
+let after = snap('u_a', 'me/u_a');
+out.stamp = {status: r.status, bucket: ((doc('d/me~u_a').act || {})[today] || {})['1040'], old: old in (doc('d/me~u_a').act || {}), name: doc('d/me~u_a').name, hist: after.hist - before.hist, logs: after.logs - before.logs};
+before = after;
+r = await write('a', 'update', 'me/u_a', {act: {[today]: {'1045': 0}}});
+after = snap('u_a', 'me/u_a');
+out.focus = {status: r.status, act: (doc('d/me~u_a').act || {})[today], hist: after.hist - before.hist, logs: after.logs - before.logs};
+
+/* 2. act with another field: the normal path */
+before = after;
+r = await write('a', 'update', 'me/u_a', {act: {[today]: {'1050': 1}}, status: {text: 'At the shoot', at: now}});
+after = snap('u_a', 'me/u_a');
+out.mixed = {status: r.status, bucket: doc('d/me~u_a').act[today]['1050'], hist: after.hist - before.hist, logs: after.logs - before.logs};
+
+/* 3. malformed stamps: each saved, each logged and backed up */
+const bad = {
+  minute: {act: {[today]: {'1047': 1}}},
+  value2: {act: {[today]: {'1100': 2}}},
+  twobuckets: {act: {[today]: {'1105': 1, '1110': 1}}},
+  extrakey: {act: {[today]: {'1115': 1}}, x: 1},
+  badday: {act: {'2026-1-1': {'1120': 1}}},
+  farday: {act: {[far]: {'1125': 1}}},
+  twodays: {act: {[today]: {'1130': 1}, [old]: {'1130': 1}}},
+  nullsonly: {act: {[old]: null}},
+  notobject: {act: {[today]: 1}}
+};
+out.bad = {};
+for (const k of Object.keys(bad)) {
+  before = snap('u_a', 'me/u_a');
+  r = await write('a', 'update', 'me/u_a', bad[k]);
+  after = snap('u_a', 'me/u_a');
+  out.bad[k] = {status: r.status, hist: after.hist - before.hist, logs: after.logs - before.logs};
+}
+
+/* 4. someone else's profile: refused for a member, the normal path for the founder */
+r = await write('a', 'update', 'me/u_b', {act: {[today]: {'1140': 1}}});
+out.other = {status: r.status, code: (r.body.error || {}).code, act: doc('d/me~u_b').act || null};
+before = {hist: hist('u_b'), logs: logs('u_f', 'me/u_b')};
+r = await write('f', 'update', 'me/u_b', {act: {[today]: {'1145': 1}}});
+out.founder = {status: r.status, hist: hist('u_b') - before.hist, logs: logs('u_f', 'me/u_b') - before.logs, logsB: logs('u_b')};
+
+/* 5. the first stamp on a profile that does not exist yet: set, the normal path */
+r = await write('c', 'update', 'me/u_c', {act: {[today]: {'1150': 1}}});
+out.missing = {status: r.status, code: (r.body.error || {}).code};
+r = await write('c', 'set', 'me/u_c', {act: {[today]: {'1150': 1}}});
+out.created = {status: r.status, bucket: ((doc('d/me~u_c') || {}).act || {})[today], logs: logs('u_c', 'me/u_c')};
+
+/* 6. a real write is logged as ever */
+before = logs('u_a', 'tasks/t1');
+r = await write('a', 'set', 'tasks/t1', {title: 'Cut the teaser', owner: 'u_a', by: 'u_a', status: 'todo', created: now, updated: now});
+out.task = {status: r.status, logs: logs('u_a', 'tasks/t1') - before};
+console.log(JSON.stringify(out));
+'''
+
+
+def main():
+    tmp = tempfile.mkdtemp()
+    path = os.path.join(tmp, 'quiet_server.mjs')
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(SCRIPT % {'core': json.dumps('file://' + CORE)})
+    p = subprocess.run(['node', path], capture_output=True, text=True, timeout=120)
+    if p.returncode != 0:
+        print(p.stdout[-2000:], p.stderr[-2000:])
+        raise SystemExit('node failed')
+    out = json.loads(p.stdout.strip().splitlines()[-1])
+    checks = []
+
+    def check(cond, msg):
+        if not cond:
+            raise AssertionError(msg)
+        checks.append(msg)
+
+    s = out['stamp']
+    check(s['status'] == 200 and s['bucket'] == 1 and s['name'] == 'Durvesh', 'a stamp is stored on the profile: %r' % s)
+    check(not s['old'], 'the old day goes with the stamp: %r' % s)
+    check(s['hist'] == 0 and s['logs'] == 0, 'a stamp keeps no version and no log line: %r' % s)
+    f = out['focus']
+    check(f['status'] == 200 and f['act'] == {'1040': 1, '1045': 0} and f['hist'] == 0 and f['logs'] == 0, 'a focus mark is a stamp too: %r' % f)
+    m = out['mixed']
+    check(m['status'] == 200 and m['bucket'] == 1 and m['hist'] == 1 and m['logs'] == 1, 'act with another field is logged and backed up: %r' % m)
+    for k, v in out['bad'].items():
+        check(v['status'] == 200 and v['hist'] == 1 and v['logs'] == 1, 'a malformed stamp (%s) takes the normal path: %r' % (k, v))
+    o = out['other']
+    check(o['status'] == 403 and o['act'] is None, 'a stamp on someone else is refused: %r' % o)
+    fo = out['founder']
+    check(fo['status'] == 200 and fo['hist'] == 1 and fo['logs'] == 1 and fo['logsB'] == 0, 'the founder writing another profile goes the normal way: %r' % fo)
+    check(out['missing']['status'] == 400 and out['missing']['code'] == 'invalid_argument', 'an update on a missing profile is refused: %r' % out['missing'])
+    c = out['created']
+    check(c['status'] == 200 and c['bucket'] == {'1150': 1} and c['logs'] == 1, 'the first stamp creates the profile, logged: %r' % c)
+    check(out['task']['status'] == 200 and out['task']['logs'] == 1, 'a real write is logged: %r' % out['task'])
+    return checks
+
+
+if __name__ == '__main__':
+    out = main()
+    print('%d checks' % len(out))
+    print('PASS')
