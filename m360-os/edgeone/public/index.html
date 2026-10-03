@@ -2448,8 +2448,31 @@ a.pill.cl-social .k{color:var(--micro); letter-spacing:.1em}
 @media (prefers-reduced-motion:no-preference){
   .qr-quiet,.qr-flag,.qr-lunch{transition:left .25s ease, width .25s ease}
 }
+
+/* ==== 98-notice.css ==== */
+/* notices, the m360 card: black in both themes, the flame logo in a circle with the person's face tucked on
+   it when a person sent it, the title and the line, and a thin flame line that runs down the card's life.
+   The desktop app shows the same card over other windows (desktop/notice.html), with a small app line on top. */
+.notice{position:relative; overflow:hidden; gap:2px; align-items:center; background:#0E0E0E; color:#fff; border:1px solid rgba(255,255,255,.09);
+  border-radius:18px; padding:10px 8px 12px 10px; box-shadow:0 18px 44px rgba(10,10,10,.34), 0 2px 6px rgba(10,10,10,.18);
+  animation:notice-in .52s cubic-bezier(.16,1.18,.3,1) both}
+@keyframes notice-in{0%{opacity:0; transform:translateX(26px) scale(.96)} 60%{opacity:1} 100%{opacity:1; transform:none}}
+.notice-body{gap:11px; align-items:center; color:#fff}
+.notice-logo{position:relative; flex:none; width:36px; height:36px; border-radius:999px; background:#F53901; display:inline-flex; align-items:center; justify-content:center;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.14), 0 6px 16px rgba(245,57,1,.32)}
+.notice-logo .mark{width:23px; color:#0E0E0E}
+.notice-who{position:absolute; right:-5px; bottom:-5px; border-radius:999px; box-shadow:0 0 0 2px #0E0E0E; display:inline-flex}
+.notice-title{font-size:14px; font-weight:600; color:#fff; letter-spacing:-.01em}
+.notice-text{font-size:13px; color:rgba(255,255,255,.72); line-height:1.38; margin-top:1px}
+.notice-x{color:rgba(255,255,255,.5); align-self:flex-start}
+.notice-x:hover{color:#fff; background:rgba(255,255,255,.1)}
+.notice-life{position:absolute; left:14px; right:14px; bottom:5px; height:2px; border-radius:2px; background:rgba(255,255,255,.08); overflow:hidden; pointer-events:none}
+.notice-life::after{content:''; position:absolute; inset:0; background:#F53901; transform-origin:left center; animation:notice-life var(--life, 6500ms) linear both}
+@keyframes notice-life{from{transform:scaleX(1)} to{transform:scaleX(0)}}
+.notice:hover .notice-life::after{animation-play-state:paused}
+@media (prefers-reduced-motion:reduce){ .notice{animation:none} .notice-life::after{animation:none; transform:scaleX(0)} }
 </style>
-<script>window.M360_BUILD = "e1b80c8.261003-1406";</script><script>
+<script>window.M360_BUILD = "7f2455b.261003-1452";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -23941,8 +23964,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 /* ==== 60-notices.js ==== */
 /* module: notices. Small cards in the top right corner, the way a phone shows a message: who, and a line
    of what, unless previews are off (Me, Prefs), in which case only who. A tap opens the thing. They stack,
-   they slide away after a few seconds, and when the tab is hidden the same notice goes through the
-   browser's own notification, honouring the same preview setting. */
+   they slide away after a few seconds, and when the tab is hidden the same notice goes out of the page:
+   in the m360 desktop app as its own card over every other window (black, the flame logo, our type; see
+   desktop/notice.html), in a browser through the system's notification with the flame logo as its icon
+   (the system draws that one, so its look is the system's). Both honour the same preview setting. */
 'use strict';
 (function () {
   const {html, React, UI} = M;
@@ -23966,11 +23991,16 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       list = list.filter(x => x.key !== n.key).concat([item]).slice(-MAX);
       emit();
       setTimeout(() => { list = list.filter(x => x.id !== item.id); emit(); }, n.life || LIFE);
-      /* the tab is away: the browser shows it too */
+      /* the tab is away: the notice goes out of the page too */
       try {
-        if ((document.hidden || !document.hasFocus()) && window.Notification && Notification.permission === 'granted') {
-          const nn = new Notification(n.title, {body: M.notices.previews() ? String(n.body || '').slice(0, 140) : 'New message', tag: n.key || ('m360-' + item.id), icon: 'icons/icon-192.png'});
-          nn.onclick = () => { try { window.focus(); if (n.href) M.nav(n.href); nn.close(); } catch (e) { /* closed */ } };
+        if (document.hidden || !document.hasFocus()) {
+          const body = M.notices.previews() ? String(n.body || '').slice(0, 140) : (n.hidden || 'New message');
+          const desk = window.m360desktop;
+          if (desk && typeof desk.notify === 'function') desk.notify({key: n.key || ('m360-' + item.id), title: String(n.title).slice(0, 80), body, href: n.href || '', life: n.life || LIFE});
+          else if (window.Notification && Notification.permission === 'granted') {
+            const nn = new Notification(n.title, {body, tag: n.key || ('m360-' + item.id), icon: 'icons/notify-256.png', badge: 'icons/notify-badge-96.png'});
+            nn.onclick = () => { try { window.focus(); if (n.href) M.nav(n.href); nn.close(); } catch (e) { /* closed */ } };
+          }
         }
       } catch (e) { /* no notices here */ }
     },
@@ -23987,21 +24017,31 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     useEffect(() => { const un = M.notices.on(setItems); setItems(list); return un; }, []);
     if (!items.length) return null;
     const previews = M.notices.previews();
+    /* black in both themes, the flame logo in a circle (the person's face tucked on it when a person sent
+       it), the title and the line; a thin flame line runs down the notice's life. As compact as a phone's
+       banner, so it covers as little of the page under it as it can */
     return html`<div class="notices" id="notices" aria-live="polite">
-      ${items.map(n => html`<div key=${n.id} class="notice" role="status">
+      ${items.map(n => html`<div key=${n.id} class="notice" role="status" style=${{'--life': (n.life || LIFE) + 'ms'}}>
         <button type="button" class="notice-body" onClick=${() => { M.notices.dismiss(n.id); if (n.href) M.nav(n.href); }}>
-          ${n.who ? html`<${UI.Avatar} id=${n.who} size=${34}/>` : html`<span class="notice-mark"><${M.Mark} width="34px"/></span>`}
+          <span class="notice-logo" aria-hidden="true"><${M.Mark} width="23px"/>${n.who ? html`<span class="notice-who"><${UI.Avatar} id=${n.who} size=${16}/></span>` : null}</span>
           <span class="grow" style=${{minWidth: 0}}>
             <span class="notice-title">${n.title}</span>
             <span class="notice-text">${previews ? (n.body || '') : (n.hidden || 'New message')}</span>
           </span>
         </button>
         <button type="button" class="notice-x" aria-label="Dismiss" onClick=${() => M.notices.dismiss(n.id)}><${M.icons.x}/></button>
+        <span class="notice-life" aria-hidden="true"/>
       </div>`)}
     </div>`;
   }
 
   M.parts.Notices = Notices;
+
+  /* the desktop app's own card was tapped: bring the page to what it was about */
+  try {
+    const desk = window.m360desktop;
+    if (desk && typeof desk.onNotice === 'function') desk.onNotice(p => { if (p && p.href && M.nav) M.nav(String(p.href)); });
+  } catch (e) { /* an older desktop app */ }
 
   /* the one-time card on Home: browsers only grant notifications from a tap, so this asks for it */
   function NoticePermit() {
