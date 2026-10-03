@@ -26,6 +26,13 @@
   /* every word of the query has to appear somewhere in the text */
   const matches = (q, text) => { const t = norm(text); return q.every(w => t.includes(w)); };
 
+  /* one registry command, run through the agent with its rights and its ledger */
+  function runCommand(ctx, c) {
+    const live = M.lastCtx && M.lastCtx.uid === ctx.uid ? M.lastCtx : ctx;
+    M.agent.exec(live, null, c.name, c.input, {turn: {id: U.uid(), via: 'typed', said: c.label}})
+      .then(r => M.toast((r && (r.say || r.note)) || 'Done'), e => M.toast(String((e && e.message) || 'That did not go through').replace(/^./, x => x.toUpperCase()), true));
+  }
+
   /* actions and pages: the palette's own rows; entities come from the search index */
   function buildItems(ctx, query, closeThen) {
     const q = norm(query).split(/\s+/).filter(Boolean);
@@ -52,6 +59,8 @@
       [M.haptic.on() ? 'Turn phone nudges off' : 'Turn phone nudges on', 'play', () => M.haptic.set(!M.haptic.on())]
     ];
     if (window.M360_STANDALONE) acts.push(['Sign out', 'out', () => window.M360_API('logout').then(() => location.reload(), () => location.reload())]);
+    /* the agent's registry: what it can run straight away, with nothing to fill in */
+    if (M.agent && M.agent.commandsFor) M.agent.commandsFor(ctx).forEach(c => acts.push([c.label, 'send', () => runCommand(ctx, c)]));
     acts.forEach(([label, icon, fn], i) => { if (!q.length ? i < 5 : matches(q, label)) go(fn, 'actions', label, icon, '', 'a' + i); });
 
     if (!q.length) {
@@ -107,7 +116,9 @@
       if (real > 0 && M.parts.SearchAll) list.push({key: 'more', group: 'more', label: 'Show all ' + real + (real === 1 ? ' result' : ' results'), icon: 'search', more: 'all',
         run: () => setShowAll({q: query, group: 'all'})});
       list.sort((a, b) => ORDER.indexOf(a.group) - ORDER.indexOf(b.group));
-      if (query && M.ai.on(ctx)) list.push({key: 'ai', group: 'ask', label: 'Ask m360: ' + query, icon: null, ai: true, run: () => closeThen(() => onAsk(query))});
+      /* Ask m360 opens the buddy's pop-up with the words in it; without AI the agent's grammar still runs there */
+      const asker = M.assistant && M.assistant.open ? () => M.assistant.open(query) : (M.ai.on(ctx) ? () => onAsk(query) : null);
+      if (query && asker) list.push({key: 'ai', group: 'ask', label: 'Ask m360: ' + query, icon: null, ai: true, run: () => closeThen(asker)});
       return list;
     }, [q, ctx, names, log, remoteHits]);
 
@@ -152,4 +163,5 @@
   }
 
   M.parts.Palette = Palette;
+  M.palette = {PAGES};
 })();

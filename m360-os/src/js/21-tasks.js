@@ -127,6 +127,38 @@
   /* a task is never erased by its owner: it goes to the founder's bin, with who and when, and can come back */
   const binTask = (ctx, id) => ctx.W.update('tasks/' + id, {deleted: true, deletedBy: ctx.uid, deletedAt: Date.now(), updated: Date.now()});
 
+  /* one save of an existing task, the way the drawer saves it: the status through the gate and its
+     bookkeeping, a shipped task keeping its owner, dates and project unless the founder changes them,
+     the 20% mark as a reviewer's call, and every move of the due date or the owner kept in dueLog and
+     ownerLog. patch holds the drawer's fields (title, status, owner, due, priority, project, client,
+     section, link, shown20); a field left out stays as it is. Returns {status, prev, msg, locked}, where
+     locked says the founder's fields were asked to change on a shipped task and were kept. */
+  async function saveTask(ctx, id, patch) {
+    const task = ctx.coll.tasks.map[id];
+    if (!task) throw new Error('that task is gone');
+    const uid = ctx.uid;
+    const now = Date.now();
+    const p = patch || {};
+    const pick = k => p[k] !== undefined ? p[k] : (task[k] === undefined || task[k] === null ? '' : task[k]);
+    const f = {title: String(pick('title')).trim(), status: p.status || task.status || 'todo', owner: pick('owner'), due: pick('due'), priority: pick('priority') || 'normal',
+      project: pick('project'), client: pick('client'), section: pick('section'), link: String(pick('link')).trim(), shown20: p.shown20 !== undefined ? !!p.shown20 : !!task.shown20};
+    if (!f.title) throw new Error('a task needs a title');
+    const prev = task.status || 'todo';
+    const sp = prev === f.status ? {patch: {doneAt: task.doneAt || null}, msg: 'Saved', status: prev} : statusPatch(task, f.status, uid, ctx);
+    const locked = task.status === 'done' && !ctx.isFounder;
+    const fx = locked ? {owner: task.owner || '', due: task.due || '', project: task.project || '', client: task.client || '', section: task.section || ''} : {owner: f.owner, due: f.due, project: f.project, client: f.client, section: f.section};
+    const kept = locked && (fx.owner !== f.owner || fx.due !== f.due || fx.project !== f.project);
+    const shown20 = canSign(ctx, task) ? f.shown20 : !!task.shown20;
+    const logs = {};
+    if ((task.due || '') !== (fx.due || '')) logs.dueLog = (Array.isArray(task.dueLog) ? task.dueLog : []).slice(-9).concat([{from: task.due || '', to: fx.due || '', by: uid, at: now}]);
+    if ((task.owner || '') !== (fx.owner || '')) logs.ownerLog = (Array.isArray(task.ownerLog) ? task.ownerLog : []).slice(-9).concat([{from: task.owner || '', to: fx.owner || '', by: uid, at: now}]);
+    await ctx.W.update('tasks/' + id, {
+      title: f.title, ...fx, priority: f.priority, link: f.link, shown20, ...logs, ...sp.patch, status: sp.status, updated: now
+    });
+    if (sp.patch.approvedBy) await sign(ctx, id);
+    return {status: sp.status, prev, msg: sp.msg, locked: kept};
+  }
+
   /* @mentions: names in a comment become ids the inbox can use */
   function useMentions(text, setText) {
     const ctx = M.useCtx();
@@ -319,22 +351,11 @@
           if (st === 'done' && canSign(ctx, draft)) await sign(ctx, id);
           M.toast(st === 'review' && f.status === 'done' ? 'Task created, sent for sign-off' : 'Task created');
         } else {
-          const prev = (task && task.status) || 'todo';
-          const sp = prev === f.status ? {patch: {doneAt: (task && task.doneAt) || null}, msg: 'Saved', status: prev} : statusPatch(task, f.status, uid, ctx);
           /* a shipped task keeps its owner, dates and project unless the founder changes them; the 20% mark is a reviewer's call */
-          const locked = task.status === 'done' && !ctx.isFounder;
-          const fx = locked ? {owner: task.owner || '', due: task.due || '', project: task.project || '', client: task.client || '', section: task.section || ''} : {owner: f.owner, due: f.due, project: f.project, client: f.client, section: f.section};
-          if (locked && (fx.owner !== f.owner || fx.due !== f.due || fx.project !== f.project)) M.toast('A shipped task keeps its owner, due date and project. Ask the founder to change those.');
-          const shown20 = canSign(ctx, task) ? !!f.shown20 : !!task.shown20;
-          const logs = {};
-          if ((task.due || '') !== (fx.due || '')) logs.dueLog = (Array.isArray(task.dueLog) ? task.dueLog : []).slice(-9).concat([{from: task.due || '', to: fx.due || '', by: uid, at: now}]);
-          if ((task.owner || '') !== (fx.owner || '')) logs.ownerLog = (Array.isArray(task.ownerLog) ? task.ownerLog : []).slice(-9).concat([{from: task.owner || '', to: fx.owner || '', by: uid, at: now}]);
-          await W.update(path, {
-            title, ...fx, priority: f.priority, link: f.link.trim(), shown20, ...logs, ...sp.patch, status: sp.status, updated: now
-          });
-          if (sp.patch.approvedBy) await sign(ctx, taskId);
-          if (sp.status === 'done' && prev !== 'done') M.burst(document.querySelector('.drawer-foot'));
-          M.toast(sp.msg);
+          const r = await saveTask(ctx, taskId, {...f, title});
+          if (r.locked) M.toast('A shipped task keeps its owner, due date and project. Ask the founder to change those.');
+          if (r.status === 'done' && r.prev !== 'done') M.burst(document.querySelector('.drawer-foot'));
+          M.toast(r.msg);
         }
         ok = true;
       } catch (e) { /* the write layer toasts the failure */ }
@@ -389,6 +410,7 @@
         ${!isNew && M.focus && f.owner === uid && f.status !== 'done' ? html`<button type="button" class="linky" onClick=${() => { onClose(); M.focus.open(taskId); }}>Start focus</button>` : null}
         ${href ? html`<a class="linky" href=${href} target="_blank" rel="noopener noreferrer">Open the output</a>` : null}
       </div>
+      ${!isNew && task.status !== 'done' && M.parts.PmChaseButton ? html`<${M.parts.PmChaseButton} taskId=${taskId} task=${task}/>` : null}
 
       <hr class="hair" style=${{margin: '2px 0'}}/>
       <${UI.Micro} plain>subtasks<//>
@@ -544,5 +566,5 @@
 
   M.pages.Tasks = Tasks;
   M.parts.TaskDrawer = TaskDrawer;
-  M.tasks = {isOverdue, progress, open, STATUSES, PRIORITIES, dueLabel, revNote, moveTask, statusPatch, gate, canSign, counted, signoffOn, statusOpts, binTask, sign, commit, signedBy, SIGNOFF_SINCE};
+  M.tasks = {isOverdue, progress, open, STATUSES, PRIORITIES, dueLabel, revNote, moveTask, statusPatch, gate, canSign, counted, signoffOn, statusOpts, binTask, sign, commit, signedBy, SIGNOFF_SINCE, save: saveTask};
 })();

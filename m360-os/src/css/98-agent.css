@@ -1,0 +1,70 @@
+/* ---------- the agent: the ask preview card, folded receipts, the history list ---------- */
+/* the ask preview: a paper card in both themes, inside the pop-up, the drawer or the phone sheet */
+.pending-act.ask-preview,.buddy-bubble .pending-act.ask-preview{background:var(--paper); color:var(--ink); border:1px solid var(--line2); border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:8px; min-width:0; box-shadow:0 1px 0 var(--line)}
+.ask-preview .ask-title{font-size:15px; font-weight:600; line-height:1.3; overflow-wrap:anywhere}
+.ask-preview .ask-warn{font-size:13px; line-height:1.4; padding:8px 10px; border-radius:10px; background:var(--warm); border-left:3px solid var(--flame)}
+.ask-preview .ask-from{font-size:13px}
+.ask-preview .ask-voice{font-size:13px; color:var(--flame-text); font-weight:600}
+.ask-people{display:flex; flex-direction:column; gap:2px; max-height:240px; overflow:auto; overscroll-behavior:contain; margin:0 -4px; padding:0 4px}
+.ask-person{display:grid; grid-template-columns:auto auto minmax(0,1fr); align-items:center; gap:10px; min-height:44px; padding:4px 6px; border-radius:10px; cursor:pointer; color:var(--ink)}
+.ask-person:hover{background:var(--warm)}
+.ask-person input{width:18px; height:18px; margin:0; accent-color:var(--flame); flex:none}
+.ask-person .ask-who{display:flex; flex-direction:column; min-width:0; line-height:1.3}
+.ask-person .ask-who b{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.ask-person .ask-who .tiny{font-size:13px; overflow-wrap:anywhere}
+.ask-person:not(.on) .ask-who b{color:var(--ink62)}
+.ask-person .ask-off{color:var(--flame-text)}
+.ask-preview .ask-left,.ask-preview .ask-channels,.ask-preview .ask-quiet{font-size:13px; line-height:1.4; overflow-wrap:anywhere}
+.ask-preview .ask-quiet{color:var(--ink)}
+.ask-preview .ask-opt{display:flex; align-items:center; gap:8px; min-height:32px; font-size:13px; color:var(--ink); cursor:pointer}
+.ask-preview .ask-opt input{width:16px; height:16px; margin:0; accent-color:var(--flame)}
+.ask-preview .ask-note{width:100%; min-height:56px; font-size:14px; resize:vertical; box-sizing:border-box}
+.ask-preview .ask-actions{display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; margin-top:2px}
+/* without the metal (reduced motion, no effects) the send button is plain ink; inside the metal the host colours it */
+.ask-preview .ask-actions>.btn{background:var(--ink); color:var(--on-ink); border-color:var(--ink)}
+.ask-preview .ask-actions .btn:disabled{opacity:.45}
+.ask-preview .linky,.buddy-bubble .ask-preview .linky{color:var(--ink); font-size:13px; min-height:32px}
+.buddy-bubble .pending-act .ask-from,.buddy-bubble .pending-act .ask-voice{color:inherit}
+
+/* folded receipts: "Messaged 9 people", two faces and the rest, rows that land one after another */
+.agent-receipts{display:flex; flex-direction:column; gap:6px; min-width:0}
+.agent-receipt{border:1px solid var(--line); border-radius:12px; background:var(--paper); color:var(--ink); min-width:0; overflow:hidden}
+.agent-receipt.one{border:0; background:transparent; color:var(--ink62); font-size:13px; padding:0 2px; overflow-wrap:anywhere}
+.agent-receipt-toggle{display:flex; align-items:center; gap:10px; width:100%; min-height:40px; padding:6px 10px; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer}
+.agent-receipt-toggle:hover{background:var(--warm)}
+.agent-receipt-toggle .grow{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.agent-receipt-toggle .chev{width:18px; height:18px; flex:none; color:var(--ink62); transition:transform .22s var(--ease, ease)}
+.agent-receipt.open .chev{transform:rotate(180deg)}
+.agent-receipt-faces{display:inline-flex; align-items:center; flex:none}
+.agent-receipt-faces>*+*{margin-left:-6px}
+.agent-receipt-more{display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:20px; padding:0 5px; margin-left:4px; border-radius:999px; background:var(--col); color:var(--ink); font-size:12px}
+.agent-receipt-rows{display:flex; flex-direction:column; padding:2px 10px 8px; border-top:1px solid var(--line)}
+.agent-receipt-row{display:flex; align-items:center; gap:8px; min-height:30px; animation:agent-land .26s var(--ease, ease) both}
+.agent-receipt-row .tiny{font-size:13px; overflow-wrap:anywhere}
+.agent-receipt-row .tick{width:8px; height:8px; border-radius:999px; background:var(--ink); flex:none}
+@keyframes agent-land{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+
+/* History: the private ledger with Undo */
+.agent-history{display:flex; flex-direction:column; gap:10px; min-width:0}
+.agent-run{border-bottom:1px solid var(--line); padding-bottom:10px; min-width:0}
+.agent-run:last-child{border-bottom:0}
+.agent-run-head{gap:10px; align-items:baseline; flex-wrap:nowrap}
+.agent-run-head .agent-said{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500}
+.agent-run-head .num{flex:none; font-size:13px}
+.agent-act{display:flex; align-items:center; gap:8px; min-height:28px; color:var(--ink)}
+.agent-act .tiny{font-size:13px; overflow-wrap:anywhere; min-width:0}
+.agent-act-dot{width:6px; height:6px; border-radius:999px; background:var(--ink); flex:none}
+.agent-act.held .agent-act-dot{background:transparent; box-shadow:inset 0 0 0 1.5px var(--ink62)}
+.agent-act.failed .agent-act-dot{background:var(--flame)}
+.agent-act.undone{color:var(--ink62)}
+.agent-act.undone .agent-act-dot{background:var(--line2)}
+.agent-act .agent-undo{flex:none; min-height:32px; font-size:13px}
+
+@media (prefers-reduced-motion: reduce){
+  .agent-receipt-row{animation:none}
+  .agent-receipt-toggle .chev{transition:none}
+}
+@media (max-width:480px){
+  .pending-act.ask-preview{padding:10px}
+  .ask-people{max-height:200px}
+}
