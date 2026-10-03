@@ -4,19 +4,34 @@
 'use strict';
 (function () {
   const {html, React, U, UI} = M;
-  const {useState, useMemo} = React;
+  const {useState, useEffect, useMemo} = React;
   const MIN = 60000, HOUR = 3600000;
   const LIMIT = 40;
-  /* M.quiet.useLog when the quiet module is in the build; the founder's log, or {} for anyone else */
-  const useLog = (M.quiet && M.quiet.useLog) || (() => null);
+  const NONE = {};
+
+  /* the founder's log as quiet marks for the last seven days (M.ai.quietLog: one read on a visit, shared
+     with the AI and kept five minutes); the activity stamps carry today live from there. {} for anyone
+     else, or when on is false */
+  function useLog(ctx, on) {
+    const [log, setLog] = useState(NONE);
+    const td = U.todayStr();
+    useEffect(() => {
+      if (!on || !ctx.isFounder || !M.ai || !M.ai.quietLog) return undefined;
+      let live = true;
+      M.ai.quietLog(ctx).then(d => { if (live && d) setLog(d); }, () => {});
+      return () => { live = false; };
+    }, [on, ctx.isFounder, td]);
+    return log;
+  }
 
   /* ---------- quiet stretches, as M.quiet reads each day ---------- */
-  /* everyone who checked in on ymd, with their quiet time. log is the founder's log ({uid: {ymd: [at]}})
-     so the hours before the stamps read too. Quiet now first, then the most quiet time. */
+  /* everyone else who checked in on ymd, with their quiet time (the viewer's own day is theirs to read on
+     their page). log is the founder's log ({uid: {ymd: [at]}}) so the hours before the stamps read too.
+     Quiet now first, then the most quiet time. */
   function quietRows(ctx, ymd, log) {
     if (!M.quiet) return [];
     const now = Number(ctx.now) || Date.now();
-    return ctx.activeMembers.filter(m => ctx.canSee(m.uid)).map(m => {
+    return ctx.activeMembers.filter(m => m.uid !== ctx.uid && ctx.canSee(m.uid)).map(m => {
       const r = M.quiet.day(ctx, m.uid, ymd, {now, extra: ((log || {})[m.uid] || {})[ymd]});
       r.total = r.stretches.reduce((n, x) => n + x.quietMs, 0);
       r.longest = r.stretches.reduce((n, x) => Math.max(n, x.quietMs), 0);
@@ -73,7 +88,7 @@
   function Tape({quiet}) {
     const ctx = M.useCtx();
     const [all, setAll] = useState(false);
-    const log = useLog(ctx, quiet ? null : U.todayStr());
+    const log = useLog(ctx, !quiet);
     const list = tape(ctx, quiet || quietRows(ctx, U.todayStr(), log));
     /* folded: the newest eight, and every quiet stretch wherever it sits */
     const short = list.filter((e, i) => i < 8 || e.k === 'quiet');
@@ -158,9 +173,10 @@
     const ctx = M.useCtx();
     const days = pickDays(ctx);
     const td = days[0].ymd;
-    const [pick, setPick] = useState(td);
-    const ymd = days.some(d => d.ymd === pick) ? pick : td;
-    const own = useLog(ctx, log ? null : days[days.length - 1].ymd, td);
+    /* null is today, so the board moves on with the clock at midnight */
+    const [pick, setPick] = useState(null);
+    const ymd = pick && days.some(d => d.ymd === pick) ? pick : td;
+    const own = useLog(ctx, !log);
     const lx = log || own;
     const now = Number(ctx.now) || Date.now();
     const todayRows = useMemo(() => today || quietRows(ctx, td, lx), [ctx, td, lx, today]);
@@ -179,9 +195,9 @@
     };
     return html`<${UI.Card} id="quiet-board" title="Quiet stretches" action=${html`<span id="quiet-now" data-n=${live} class=${'pill ' + (live ? 'flame' : '')}>${live ? live + ' quiet now' : 'nobody quiet now'}</span>`}>
       <div class="qb-days" role="group" aria-label="Pick a day">${days.map(d => html`<button key=${d.ymd} type="button" data-ymd=${d.ymd}
-        class=${'chip' + (d.ymd === ymd ? ' on' : '')} aria-pressed=${d.ymd === ymd} onClick=${() => setPick(d.ymd)}>${d.label}</button>`)}</div>
+        class=${'chip' + (d.ymd === ymd ? ' on' : '')} aria-pressed=${d.ymd === ymd} onClick=${() => setPick(d.ymd === td ? null : d.ymd)}>${d.label}</button>`)}</div>
       ${!c.on ? html`<${UI.Empty} text="The quiet watch is switched off in the rules."/>`
-        : !rows.length ? html`<${UI.Empty} text=${isToday ? 'Nobody has checked in yet today.' : 'Nobody checked in that day.'}/>`
+        : !rows.length ? html`<${UI.Empty} text=${!ctx.isWorkingDay(ymd) ? 'A day off, so the quiet watch rests.' : isToday ? 'Nobody has checked in yet today.' : 'Nobody checked in that day.'}/>`
         : html`<div class="qb">
           <div class="qb-axis"><${Hours} ax=${ax}/></div>
           ${rows.map(r => {
@@ -217,7 +233,7 @@
     <//>`;
   }
 
-  M.tape = {tape, quietRows, pickDays};
+  M.tape = {tape, quietRows, pickDays, useLog};
   M.parts.Tape = Tape;
   M.parts.QuietBoard = QuietBoard;
   M.parts.MoodHeat = MoodHeat;

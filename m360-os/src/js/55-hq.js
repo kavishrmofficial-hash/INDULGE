@@ -201,15 +201,16 @@
   }
 
   /* ---------- quiet stretches: the founder's log for the board's week, read once for the whole page ---------- */
-  const useLog = (M.quiet && M.quiet.useLog) || (() => null);
+  const noLog = () => null;
   function useQuiet(ctx, on) {
     const td = U.todayStr();
-    const days = M.tape ? M.tape.pickDays(ctx) : [];
-    const log = useLog(ctx, on && days.length ? days[days.length - 1].ymd : null, td);
+    /* the tape module loads after this one, so its hook is picked at render (the same one every time) */
+    const log = ((M.tape && M.tape.useLog) || noLog)(ctx, on);
     const today = useMemo(() => M.tape ? M.tape.quietRows(ctx, td, log) : [], [ctx, td, log]);
     const now = today.filter(r => r.live).length;
     const n = today.reduce((k, r) => k + r.stretches.length, 0);
-    return {log, today, now, summary: now ? now + ' quiet now' : n ? n + (n === 1 ? ' quiet stretch' : ' quiet stretches') + ' today' : 'steady so far'};
+    const off = !!(M.quiet && !M.quiet.cfg(ctx).on);
+    return {log, today, now, summary: off ? 'switched off' : now ? now + ' quiet now' : n ? n + (n === 1 ? ' quiet stretch' : ' quiet stretches') + ' today' : 'steady so far'};
   }
 
   /* ---------- page ---------- */
