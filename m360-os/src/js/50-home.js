@@ -54,6 +54,7 @@
     const [mood, setMood] = useState(0);
     const [busy, setBusy] = useState(false);
     const [pick, setPick] = useState(false);
+    const phone = M.usePhone();
     const cap = Number(ctx.settings.wfhCap) || 0;
     const used = (M.att && M.att.wfhUsed) ? M.att.wfhUsed(ctx, ctx.uid, new Date()) : 0;
     const wfhFull = used >= cap;
@@ -90,8 +91,8 @@
       ${pick ? html`<div>
         <div style=${{fontWeight: 500, marginBottom: '8px'}}>Where are you checking in from?</div>
         <div class="row">${PLACES.map(p => html`<button key=${p.v} type="button" class="btn on-dark sec sm" disabled=${busy} onClick=${() => manual(p)}>${p.v}</button>`)}</div>
-      </div>` : html`<div><${M.fx.Beam} dark=${true} radius=${14} block=${false}><${M.fx.Metal} kind="paper"><button type="button" class="btn xl on-dark" disabled=${busy} onClick=${tap}>
-        ${busy ? html`<${M.fx.Orb} state="searching" size=${20} dark=${false} label="finding your location"/> Checking in` : (mode === 'wfh' ? 'Check in, WFH' : 'Check in, office')}</button><//><//></div>`}
+      </div>` : html`<div><${M.fx.Metal} kind="paper" block=${phone}><button type="button" class="btn xl on-dark" disabled=${busy} onClick=${tap}>
+        ${busy ? html`<${M.fx.Orb} state="searching" size=${20} dark=${false} label="finding your location"/> Checking in` : (mode === 'wfh' ? 'Check in, WFH' : 'Check in, office')}</button><//></div>`}
       <div class="tiny" style=${{color: 'rgba(255,255,255,.6)'}}>WFH days used this week: ${used} of ${cap}. Checking in records the time and your location at that moment. Kaavish can see both.</div>
     </div>`;
   }
@@ -204,10 +205,10 @@
           <${UI.Micro} plain><span class="sky" aria-hidden="true">${night ? html`<span class="moon"/>` : html`<span class="sun"/>`}</span>${U.dateLabel(now)} <${Clock}/><//>
           <h1 class="hi">${sky.greeting},<br/>${first}.</h1>
           <div class="hero-chips">
-            <span class=${chip}><b class="flame-t num"><${M.fx.MetalText} size=${15} color=${M.fx.FLAME}>${String(inStreak)}<//></b> day streak</span>
+            <span class=${chip}><b class="num"><${M.fx.MetalText} size=${15} color=${chipInk}>${String(inStreak)}<//></b> day streak</span>
             <span class=${chip}><b class="num">${eodStreak}</b> EOD lines in a row</span>
             <span class=${chip}>level <b class="num"><${M.fx.MetalText} size=${15} color=${chipInk}>${String(lv.lvl)}<//></b></span>
-            <button type="button" class=${chip} onClick=${onStatus}>${st ? html`<span class="dotflame"/>${st.text}` : 'Set a status'}</button>
+            <button type="button" class=${'chip ' + chip} onClick=${onStatus}><${M.icons.edit}/>${st ? st.text : 'Set a status'}</button>
           </div>
           ${hol ? html`<div class="hero-tomorrow" id="hero-tomorrow"><span class="dotflame"/><span>${M.holidays.line(hol)}</span></div>` : null}
         </div>
@@ -510,9 +511,9 @@
     const quiet = f.k === 'quiet';
     const mark = quiet && f.live
       ? html`<span class="tf-live" role="img" aria-label="happening now" title="happening now"><${M.fx.Orb} state="listening" size=${20}/></span>`
-      : html`<span class="dotflame" style=${f.hot ? null : {background: 'var(--line2)'}}/>`;
+      : html`<span class="dotflame" style=${f.hot ? null : {background: 'var(--ink62)'}}/>`;
     return html`<div class=${'small team-flag' + (quiet ? ' quiet' : '')} data-k=${f.k} data-hot=${f.hot ? '1' : '0'} data-live=${quiet ? (f.live ? '1' : '0') : undefined}>
-      ${mark}<span class="grow">${U.cap(f.text)}</span>${f.ref ? html`<button type="button" class="linky tiny" onClick=${() => M.nav(f.ref)}>${quiet ? 'See the day' : 'Open'}</button>` : null}</div>`;
+      ${mark}<span class=${'grow' + (f.hot ? '' : ' ink62')} style=${{fontWeight: f.hot ? 500 : 400}}>${U.cap(f.text)}</span>${f.ref ? html`<button type="button" class="linky tiny" onClick=${() => M.nav(f.ref)}>${quiet ? 'See the day' : 'Open'}</button>` : null}</div>`;
   }
   const flagOrder = flags => flags.filter(f => f.k !== 'quiet').concat(flags.filter(f => f.k === 'quiet').sort((a, b) => (a.at || 0) - (b.at || 0)));
 
@@ -556,7 +557,7 @@
       <div class="card-head"><h2 class="card-title">Rule box</h2>
         ${flags.length ? html`<span class="pill flame">${flags.length}</span>` : html`<span class="pill ink">clear</span>`}</div>
       ${flags.length ? list.map((f, i) => html`<div class="listrow" key=${f.rule + i}>
-        <span class="dotflame" style=${f.severity === 'low' ? {background: 'var(--line2)'} : null}/>
+        <span class="dotflame" style=${f.severity === 'low' ? {background: 'var(--ink62)'} : null}/>
         <div class="grow"><div style=${{fontWeight: 500}}>${names[f.rule] || f.rule}</div><div class="small ink62">${f.text}</div></div>
         ${f.ref ? html`<button type="button" class="linky small" onClick=${() => M.nav(f.ref)}>Open</button>` : null}
       </div>`) : html`<div class="small ink62">All clear.</div>`}
@@ -684,7 +685,7 @@
         </div>`)}
       </div>
       <div class="wk-key tiny ink62">
-        <span><i class="k office"/>office</span><span><i class="k wfh"/>WFH</span><span><i class="k late"/>late</span><span><i class="k off"/>leave</span>
+        <span><i class="k office"/>office</span><span><i class="k wfh"/>WFH</span><span><i class="k late"/>late</span><span><i class="k miss"/>no check-in</span><span><i class="k off"/>leave</span>
       </div>
     </section>`;
   }
@@ -785,10 +786,10 @@
       ${M.parts.JoinBanner ? html`<${M.parts.JoinBanner}/>` : null}
       ${M.parts.FindYourWay ? html`<${M.parts.FindYourWay}/>` : null}
       <${Announcement}/>
-      ${M.parts.Quote ? html`<${M.parts.Quote}/>` : null}
       ${Celebrate ? html`<${Celebrate}/>` : null}
       <${Quick} onTask=${() => setTask('new')}/>
       <${TeamWatch}/>
+      ${M.parts.Quote ? html`<${M.parts.Quote}/>` : null}
       ${M.parts.PlanToday ? html`<${M.parts.PlanToday}/>` : null}
       ${M.parts.SpotifyMini ? html`<${M.parts.SpotifyMini}/>` : null}
       <${InstallHint}/>
@@ -802,6 +803,7 @@
           ${newHire && Onboard ? html`<${F} title="Onboarding" summary="your first weeks, step by step" id="fold-onboard"><${Onboard} uid=${ctx.uid} compact=${true}/><//>` : null}
           ${M.ai.on(ctx) ? html`<${F} title="Your day, sorted" summary="an AI plan for the rest of today" id="fold-brief"><${Brief}/><//>` : null}
           <${F} title="My projects" summary=${n(projN, 'active project', 'active projects')} id="fold-projects"><${MyProjects}/><//>
+          <${F} title="Around the studio" summary="the feed and this week's ladder" id="fold-buzz"><${Buzz}/><//>
         </div>
         <div class="stack" style=${{gap: '18px'}}>
           <${F} title="My numbers" summary=${ptsWk + ' points ' + (brWk.label || 'this week')} id="fold-numbers"><${Numbers}/><//>
@@ -809,7 +811,6 @@
           <${F} title="Rule box" summary=${flagN ? n(flagN, 'flag on you', 'flags on you') : 'all clear'} hot=${flagN > 0} open=${flagN > 0} id="fold-rules"><${HeadsUp}/><//>
           <${Nudges}/>
           <${F} title="Who's in today" summary=${inN + ' of ' + ctx.activeMembers.length + ' in'} id="fold-crew"><${Crew}/><//>
-          <${F} title="Around the studio" summary="the feed and this week's ladder" id="fold-buzz"><${Buzz}/><//>
           ${Day ? html`<${F} title="Your day" summary="calendar, mail and files" id="fold-day"><${Day}/><//>` : null}
         </div>
       </div>

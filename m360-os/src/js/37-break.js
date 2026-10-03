@@ -123,7 +123,7 @@
     const place = pos === 0 ? 'leading' : pos === 1 ? 'second' : pos === 2 ? 'third' : 'fourth';
     return html`<div class="brk-sparks row" style=${{gap: '14px', flexWrap: 'wrap', alignItems: 'center'}} id="sparks">
       ${care}
-      <span class="chipline"><b class="num"><${M.fx.MetalText} size=${15} color=${M.fx.FLAME}>${String(me.week)}<//></b> sparks this week <span class="tiny ink62 num">${me.lastWeek ? 'last week ' + me.lastWeek : WEEK_GOAL + ' shows up'}</span></span>
+      <span class="chipline"><b class="num"><${M.fx.MetalText} size=${15}>${String(me.week)}<//></b> sparks this week <span class="tiny ink62 num">${me.lastWeek ? 'last week ' + me.lastWeek : WEEK_GOAL + ' shows up'}</span></span>
       <span class="chipline"><b class="num"><${M.fx.MetalText} size=${15}>${String(me.streak)}<//></b> workday streak${me.covered ? html` <span class="tiny ink62">${U.fmtDay(me.covered).split(' ')[0]} covered</span>` : me.best > me.streak ? html` <span class="tiny ink62 num">best ${me.best}</span>` : ''}</span>
       <span class="chipline"><b><${M.fx.MetalText} size=${15}>${me.level.name}<//></b> <span class="tiny ink62 num">${me.level.weeks} ${me.level.weeks === 1 ? 'week' : 'weeks'} shown up${me.level.next ? ', ' + me.level.next + ' at ' + me.level.nextAt : ''}</span></span>
       ${my && sq.length > 1 ? html`<span class="chipline" id="squad-chip"><b>${my.name}</b> <span class="tiny ink62 num">${my.week} sparks, ${place}</span></span>` : null}
@@ -142,7 +142,7 @@
       <div class="stack tight">
         ${sq.map((s, i) => html`<div key=${s.name} class=${'row between brk-row' + (s.mine ? ' mine' : '')}>
           <span class="row nowrap"><b class="num">${i + 1}.</b> <b>${s.name}</b>${s.mine ? html` <${M.fx.MetalBadge}>yours<//>` : null} <${UI.AvatarRow} ids=${s.ids} size=${20}/></span>
-          <span class="num">${s.mine ? html`<${M.fx.MetalText} size=${15} color=${M.fx.FLAME}>${String(s.week)}<//>` : s.week}</span>
+          <span class="num">${s.mine ? html`<${M.fx.MetalText} size=${15}>${String(s.week)}<//>` : s.week}</span>
         </div>`)}
       </div>
     <//>`;

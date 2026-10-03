@@ -356,7 +356,7 @@
     <//>` : null;
     return html`<div class="stack" style=${{gap: '16px'}} id="handshake">
       <div class="row" style=${{gap: '8px', flexWrap: 'wrap'}}>
-        <span class="chipline"><b class="num"><${M.fx.MetalText} size=${15} weight=${700} color=${ready.length ? M.fx.FLAME : undefined}>${String(ready.length)}<//></b> ready</span>
+        <span class="chipline"><b class="num"><${M.fx.MetalText} size=${15} weight=${600}>${String(ready.length)}<//></b> ready</span>
         <span class="chipline"><b class="num">${hold.length}</b> held</span>
         <span class="chipline"><b class="num">${waiting.length}</b> waiting on accepts</span>
         <span class="chipline"><b class="num"><${M.fx.MetalText} size=${15} weight=${700}>${String(sent.length)}<//></b> sent</span>
