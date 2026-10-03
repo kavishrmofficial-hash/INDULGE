@@ -275,7 +275,7 @@
   function Voice() {
     const ctx = M.useCtx();
     return html`<${React.Fragment}>
-      <${UI.PageHead} micro="pulse and ideas" title="Voice"/>
+      <${UI.PageHead} micro="pulse and ideas" title="Pulse and ideas"/>
       <${PulseCard}/>
       ${ctx.isFounder ? html`<${TeamEnergyCard}/>` : null}
       <${IdeasCard}/>

@@ -2,7 +2,7 @@
 'use strict';
 (function () {
   const {html, React, U, UI, icons} = M;
-  const {useState, useEffect, useMemo} = React;
+  const {useState, useEffect, useMemo, useRef} = React;
 
   /* stages in board order, each with its default probability in percent */
   const STAGES = [
@@ -83,13 +83,14 @@
   };
 
   /* ---------- founder metrics bar ---------- */
-  /* the founder's figures, cast in metal; members never get this bar */
-  function Tile({id, v, l, flame, beam}) {
-    const card = html`<${UI.Card} id=${id}><div class="kpi">
-      <div class=${'v num' + (flame ? ' flame-t' : '')}><${M.fx.MetalText} key=${String(v)} size=${26} weight=${600} color=${flame ? 'var(--flame)' : undefined}>${String(v)}<//></div>
+  /* the founder's figures; one headline is cast in metal and the rest stay plain; members never get this bar */
+  function Tile({id, v, l, flame, metal}) {
+    const nil = v == null;
+    return html`<${UI.Card} id=${id}><div class="kpi">
+      <div class=${'v num' + (flame ? ' flame-t' : '') + (nil ? ' nil' : '')}>${nil ? 'not yet'
+        : metal ? html`<${M.fx.MetalText} key=${String(v)} size=${26} weight=${600} color=${flame ? 'var(--flame)' : undefined}>${String(v)}<//>` : String(v)}</div>
       <div class="l">${l}</div>
     </div><//>`;
-    return beam ? html`<${M.fx.Beam}>${card}<//>` : card;
   }
 
   function MetricsBar({m}) {
@@ -97,15 +98,15 @@
     const od = m.overdue.length;
     return html`<${React.Fragment}>
       <div class="kpi-rail">
-        <${Tile} id="kpi-weighted" v=${U.inr(m.weighted)} l="weighted pipeline" beam=${true}/>
-        <${Tile} id="kpi-open" v=${inPlay} l="pitches in play"/>
-        <${Tile} id="kpi-win" v=${m.winRate90 == null ? 'no data' : m.winRate90 + '%'} l="win rate, 90 days"/>
-        <${Tile} id="kpi-overdue" v=${od} l="next steps overdue" flame=${od > 0}/>
+        <${Tile} id="kpi-weighted" v=${U.inr(m.weighted)} l="weighted pipeline" metal=${true}/>
+        <${Tile} id="kpi-open" v=${inPlay} l=${inPlay === 1 ? 'pitch in play' : 'pitches in play'}/>
+        <${Tile} id="kpi-win" v=${m.winRate90 == null ? null : m.winRate90 + '%'} l="win rate, 90 days"/>
+        <${Tile} id="kpi-overdue" v=${od} l=${od === 1 ? 'next step overdue' : 'next steps overdue'} flame=${od > 0}/>
       </div>
       <${UI.Card} title="Count by stage" id="stage-counts">
-        <div class="row">
-          ${STAGES.map(s => html`<${UI.Pill} key=${s.v} kind=${m.byStage[s.v].count ? 'warm' : undefined}>
-            ${s.label} <span class="num">${m.byStage[s.v].count}</span><//>`)}
+        <div class="row stage-counts">
+          ${STAGES.map(s => html`<span key=${s.v} class=${'stage-count' + (m.byStage[s.v].count ? '' : ' sub')}>
+            ${s.label} <span class="num">${m.byStage[s.v].count}</span></span>`)}
         </div>
       <//>
     <//>`;
@@ -138,13 +139,24 @@
     const today = U.todayStr();
     const now = ctx.now || Date.now();
     const hottest = (all.filter(p => isOverdue(p, today)).sort((a, b) => nextKey(a) < nextKey(b) ? -1 : nextKey(a) > nextKey(b) ? 1 : 0)[0] || {}).id || null;
-    return html`<${UI.Card}><div class="board-wrap"><div class="board">
+    /* the board opens on its first stage with pitches when that stage sits past the middle of the view */
+    const wrapRef = useRef(null);
+    const filled = STAGES.filter(s => all.some(p => stageOf(p).v === s.v)).map(s => s.v).join(',');
+    useEffect(() => {
+      const wrap = wrapRef.current;
+      if (!wrap || wrap.scrollWidth <= wrap.clientWidth) return;
+      const col = wrap.querySelector('.colm:not(.empty)');
+      if (!col) return;
+      const x = col.getBoundingClientRect().left - wrap.getBoundingClientRect().left + wrap.scrollLeft;
+      if (x > wrap.clientWidth * 0.5) wrap.scrollTo({left: x - 6, behavior: 'auto'});
+    }, [filled]);
+    return html`<${UI.Card}><div class="board-wrap" ref=${wrapRef}><div class="board">
       ${STAGES.map(s => {
         const list = all.filter(p => stageOf(p).v === s.v).sort(sortCol);
-        return html`<div class="colm" key=${s.v} data-stage=${s.v}>
+        /* an empty stage folds to its heading and count */
+        return html`<div class=${'colm' + (list.length ? '' : ' empty')} key=${s.v} data-stage=${s.v}>
           <div class="col-head"><span>${s.label}</span><span class="num">${list.length}</span></div>
-          ${list.length ? list.map(p => html`<${PitchCard} key=${p.id} p=${p} fe=${fin[p.id]} founder=${ctx.isFounder} today=${today} now=${now} onOpen=${onOpen} beam=${p.id === hottest}/>`)
-            : html`<div style=${{padding: '2px 6px'}}><${UI.Empty} text="No pitches"/></div>`}
+          ${list.map(p => html`<${PitchCard} key=${p.id} p=${p} fe=${fin[p.id]} founder=${ctx.isFounder} today=${today} now=${now} onOpen=${onOpen} beam=${p.id === hottest}/>`)}
         </div>`;
       })}
     </div></div><//>`;
@@ -329,7 +341,7 @@
     const m = ctx.isFounder ? metrics(ctx) : null;
     const nOpen = all.filter(p => !isClosed(p)).length;
     return html`<${React.Fragment}>
-      <${UI.PageHead} micro=${nOpen + ' in play'} title="Pitches">
+      <${UI.PageHead} micro=${nOpen + ' in play'} title="Pipeline">
         <${UI.Btn} onClick=${() => setOpen('new')}><${icons.plus}/>New pitch<//>
       <//>
       ${m ? html`<${MetricsBar} m=${m}/>` : null}

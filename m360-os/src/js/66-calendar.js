@@ -88,7 +88,7 @@
     for (let d = new Date(start); cells.length < 42; d = U.addDays(d, 1)) { cells.push(U.ymd(d)); if (d > monthEnd && d.getDay() === 0) break; }
     const ev = useMemo(() => events(ctx, cells[0], cells[cells.length - 1], mine), [ctx, cells[0], cells[cells.length - 1], mine]);
     const mid = U.monthId(m);
-    const title = U.MONTHS[m.getMonth()] + ' ' + m.getFullYear();
+    const monthLabel = U.MONTHS[m.getMonth()] + ' ' + m.getFullYear();
     const names = M.useProfiles(Object.values(ev).flat().map(e => e.uid).filter(Boolean));
     const who = e => (names[e.uid] && names[e.uid].name) || 'Someone';
     const label = e => e.kind === 'leave' ? who(e) + ' on leave' : e.kind === 'wfh' ? who(e) + ' at home' : e.text;
@@ -97,7 +97,7 @@
     const go = ref => { setDay(null); M.nav(ref); };
 
     return html`<div class="stack" style=${{gap: '14px'}}>
-      <${UI.PageHead} micro="everything with a date" title=${title}>
+      <${UI.PageHead} micro=${monthLabel} title="Calendar">
         <${UI.Seg} options=${[{v: 'mine', label: 'Mine'}, {v: 'all', label: 'Everyone'}]} value=${mine ? 'mine' : 'all'} onChange=${v => setMine(v === 'mine')} ariaLabel="Whose calendar"/>
         <div class="row nowrap">
           <${UI.Btn} kind="sec" sm=${true} onClick=${() => setM(new Date(m.getFullYear(), m.getMonth() - 1, 1))} ariaLabel="Previous month"><${icons.chevL}/><//>

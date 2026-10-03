@@ -63,8 +63,8 @@
     for (const raw of lines) {
       const line = raw.replace(/\s+$/, '');
       if (!line.trim()) { flushList(); flushPara(); continue; }
-      if (line.slice(0, 3) === '## ') { flushList(); flushPara(); nodes.push(html`<h2 key=${'h' + (n++)}>${inline(line.slice(3), 'h' + n)}</h2>`); continue; }
-      if (line.slice(0, 2) === '# ') { flushList(); flushPara(); nodes.push(html`<h1 key=${'h' + (n++)}>${inline(line.slice(2), 'h' + n)}</h1>`); continue; }
+      if (line.slice(0, 3) === '## ') { flushList(); flushPara(); nodes.push(html`<h4 key=${'h' + (n++)}>${inline(line.slice(3), 'h' + n)}</h4>`); continue; }
+      if (line.slice(0, 2) === '# ') { flushList(); flushPara(); nodes.push(html`<h3 key=${'h' + (n++)}>${inline(line.slice(2), 'h' + n)}</h3>`); continue; }
       if (line.slice(0, 2) === '- ') { flushPara(); list.push(line.slice(2)); continue; }
       flushList(); para.push(line.trim());
     }
@@ -154,19 +154,20 @@
       && (readsOf(ctx, m.uid)[current.id] || 0) >= (current.updated || 0)) : [];
     const others = ctx.activeMembers.filter(m => m.uid !== ctx.founderUid);
     const meRead = current && !isUnread(current);
+    const unread = list.filter(isUnread).length;
 
     return html`<div class="stack" style=${{gap: '18px'}}>
       <${UI.PageHead} micro="the source of truth" title="Handbook">
         ${ctx.isFounder ? html`<${UI.Btn} onClick=${() => setEdit('new')}>New section<//>` : null}
       <//>
       <div class="grid2" style=${wide ? {gridTemplateColumns: '260px minmax(0,1fr)'} : null}>
-        <${UI.Card}>
+        <${UI.Card} title=${unread && M.fx ? html`<span class="row nowrap hb-sections">Sections<${M.fx.MetalBadge}>${unread + ' new'}<//></span>` : 'Sections'}>
           <div class="stack tight">
             ${list.length ? list.map(s => html`<button type="button" key=${s.id}
               class=${'side-item' + (current && s.id === current.id ? ' active' : '')}
               onClick=${() => M.nav('#handbook/' + s.id)}>
               <span class="grow">${s.title}</span>
-              ${isUnread(s) ? (M.fx ? html`<${M.fx.MetalBadge}>new<//>` : html`<span class="dotflame"/>`) : null}
+              ${isUnread(s) ? html`<span class="dotflame"/>` : null}
             </button>`) : html`<${UI.Empty} text="No sections yet."/>`}
           </div>
         <//>
@@ -174,7 +175,7 @@
         ${current ? html`<${UI.Card}>
           <div class="row between">
             <div>
-              <h2 class="pgt" style=${{fontSize: '26px'}}>${current.title}</h2>
+              <h2 class="pgt">${current.title}</h2>
               <div class="tiny ink62">updated ${current.updated ? U.timeAgo(current.updated) : 'never'}</div>
             </div>
             ${ctx.isFounder ? html`<div class="row nowrap">

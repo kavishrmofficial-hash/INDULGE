@@ -286,15 +286,16 @@
         </div>
       </header>
       <${M.SectionTabs} section="books" active=${t}/>
-      ${t === 'overview' ? html`<${Overview}/>` : t === 'billing' ? (id && ctx.coll.clients.map[id] ? html`<${BillingPage} clientId=${id}/>` : html`<${Setup}/>`) : Page ? html`<${Page} id=${id}/>` : html`<${UI.Empty} text="This part of the books is not in this build."/>`}
+      ${t === 'overview' ? html`<${Overview}/>` : t === 'billing' ? (id && ctx.coll.clients.map[id] ? html`<${BillingPage} clientId=${id}/>` : html`<${Setup}/>`) : Page ? html`<div class="embedded"><${Page} id=${id}/></div>` : html`<${UI.Empty} text="This part of the books is not in this build."/>`}
     </div>`;
   }
 
   /* ---------- overview ---------- */
-  /* the headline totals are cast in metal (metal-fx MetalText), flame when they need a call */
-  function Tile({v, l, to, hot}) {
+  /* the headline total is cast in metal (metal-fx MetalText) and the rest stay plain, flame when they need a call */
+  function Tile({v, l, to, hot, metal}) {
     const phone = M.usePhone();
-    const inner = html`<span class="v num">${M.fx ? html`<${MetalNum} size=${phone ? 26 : 30} weight=${600} color=${hot ? M.fx.FLAME : undefined}>${String(v)}<//>` : v}</span><span class="l">${l}</span>`;
+    const nil = v == null;
+    const inner = html`<span class=${'v num' + (hot ? ' flame-t' : '') + (nil ? ' nil' : '')}>${nil ? 'not yet' : metal && M.fx ? html`<${MetalNum} size=${phone ? 26 : 30} weight=${600} color=${hot ? M.fx.FLAME : undefined}>${String(v)}<//>` : v}</span><span class="l">${l}</span>`;
     return to ? html`<button type="button" class=${'stat rowbtn' + (hot ? ' hot' : '')} onClick=${() => M.nav(to)}>${inner}</button>` : html`<div class=${'stat' + (hot ? ' hot' : '')}>${inner}</div>`;
   }
   function Overview() {
@@ -342,13 +343,13 @@
         <${Tile} v=${U.inr(billed)} l=${'billed, FY ' + fy} to="#invoices"/>
         <${Tile} v=${U.inr(collected)} l=${'collected, FY ' + fy} to="#invoices"/>
         <${Tile} v=${U.inr(outstanding)} l=${open.length + ' open, outstanding'} to="#invoices" hot=${overdue.length > 0}/>
-        <${Tile} v=${overdue.length ? U.inr(overdueAmt) : '0'} l=${overdue.length + ' overdue'} to="#invoices" hot=${overdue.length > 0}/>
+        <${Tile} v=${overdue.length ? U.inr(overdueAmt) : '0'} l="overdue" to="#invoices" hot=${overdue.length > 0}/>
       </div>
       <div class="grid4">
         <${Tile} v=${U.inr(collMonth)} l="collected this month"/>
         <${Tile} v=${U.inr(expMonth)} l="expenses this month" to="#expenses"/>
-        <${Tile} v=${run ? U.inr(payMonth) : 'no run'} l="payroll this month" to="#payroll"/>
-        <${Tile} v=${U.inr(collMonth - expMonth - payMonth)} l="net this month" hot=${collMonth - expMonth - payMonth < 0}/>
+        <${Tile} v=${run ? U.inr(payMonth) : null} l="payroll this month" to="#payroll"/>
+        <${Tile} v=${U.inr(collMonth - expMonth - payMonth)} l="net this month" hot=${collMonth - expMonth - payMonth < 0} metal=${true}/>
       </div>
       ${fx ? html`<div class="card flame small">An invoice in a foreign currency has no INR rate on it, so the totals above leave it out. Open it and set the rate.</div>` : null}
       <div class="split">

@@ -367,8 +367,8 @@
         <li>Paste the client ID below. There is no client key to paste; each person signs in to their own Spotify.</li>
         <li>A new Spotify app runs in development mode: add each teammate's Spotify email under User Management, up to 25 people. Full playback in the page needs Spotify Premium on their account.</li>
       </ol>
-      <div class="row" style=${{gap: '8px', alignItems: 'end'}}>
-        <div class="grow" style=${{maxWidth: '520px'}}><${UI.Input} id="spotify-client-id" label="client id (the 32 character Client ID at the top of the app page, above the other key)" value=${id} onChange=${v => { setId(v); setVerdict(null); }} placeholder="32 letters and digits"/></div>
+      <div class="row" style=${{gap: '8px', alignItems: 'center'}}>
+        <div class="grow" style=${{maxWidth: '520px'}}><${UI.Input} id="spotify-client-id" label="client id" hint="The 32 character Client ID at the top of the app page, above the other key." value=${id} onChange=${v => { setId(v); setVerdict(null); }} placeholder="32 letters and digits"/></div>
         <${UI.Btn} id="spotify-save" disabled=${id.trim() === cur || busy} onClick=${save}>${cur ? 'Save' : 'Switch Spotify on'}<//>
         ${standalone() && cur ? html`<${UI.Btn} kind="sec" id="spotify-check" disabled=${busy} onClick=${() => check(cur)}>${busy ? 'Checking' : 'Check the ID'}<//>` : null}
       </div>

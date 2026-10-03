@@ -91,12 +91,12 @@ def test(h):
     page = h.open('founder', width=1280, hash='#pitches', reset=True, seed=True)
     h.roster(page, ('u_m1', 'u_m2'))
     page.wait_for_timeout(250)
-    check('Pitches' in page.locator('h1.pgt').inner_text(), 'page title')
+    check('Pipeline' in page.locator('h1.pgt').inner_text(), 'page title')
     check(page.locator('.colm').count() == 7, 'seven stage columns')
     check(tile(page, 'kpi-weighted') == '₹0', 'weighted tile starts at zero, got %r' % tile(page, 'kpi-weighted'))
-    check(tile(page, 'kpi-win') == 'no data', 'win rate tile reads no data without closed pitches')
+    check(tile(page, 'kpi-win') == 'not yet', 'win rate tile reads not yet without closed pitches')
     check(tile(page, 'kpi-overdue') == '0', 'overdue tile starts at 0')
-    check(page.locator('#stage-counts .pill', has_text='Lead 0').count() == 1, 'stage count pill Lead 0')
+    check(page.locator('#stage-counts .stage-count', has_text='Lead 0').count() == 1, 'stage count pill Lead 0')
     stages = h.ctx(page, 'M.pitches.STAGES.map(s => s.v + ":" + s.prob).join(",")')
     check(stages == 'lead:10,qualified:25,diagnostic:40,proposal:55,negotiation:75,won:100,lost:0', 'STAGES export: ' + stages)
     no_overflow(h, page, 'empty board 1280', checks)
@@ -122,7 +122,7 @@ def test(h):
     check(p['created'] > 0 and p['updated'] == p['created'], 'created and updated stamps')
     check(page.locator('.colm[data-stage="lead"] .tcard', has_text=BRAND).count() == 1, 'card in the Lead column')
     check('0 days in stage' in page.locator('.colm[data-stage="lead"]').inner_text(), 'days in stage on the card')
-    check(page.locator('#stage-counts .pill', has_text='Lead 1').count() == 1, 'stage count pill Lead 1')
+    check(page.locator('#stage-counts .stage-count', has_text='Lead 1').count() == 1, 'stage count pill Lead 1')
     check('1 in play' in page.inner_text('.page-head'), 'page micro counts the open pitch')
 
     # 2. move the stage through the Seg, saving each time; stageAt increases every move
@@ -276,7 +276,7 @@ def test(h):
     # 10. a member sees the board, no metrics bar and no value
     page.set_viewport_size({'width': 1280, 'height': 900})
     m1 = other_page(h, page, 'm1', 1280, '#pitches')
-    check('Pitches' in m1.locator('h1.pgt').inner_text(), 'member opens pitches')
+    check('Pipeline' in m1.locator('h1.pgt').inner_text(), 'member opens pitches')
     check(m1.locator('.kpi-rail').count() == 0, 'no metrics bar for a member')
     check(m1.locator('.tcard', has_text=BRAND).count() == 1, 'member sees the card')
     check('₹' not in m1.inner_text('body'), 'no value shown to a member')

@@ -97,7 +97,7 @@
             </div>
           </div>
           <div class="row nowrap">
-            <${UI.Btn} sm disabled=${busy === req.id} onClick=${() => decide(uid, req.id, 'approved')}>Approve<//>
+            <button type="button" class="btn sm" disabled=${busy === req.id} onClick=${() => decide(uid, req.id, 'approved')}>Approve</button>
             <${UI.Btn} kind="sec" sm disabled=${busy === req.id} onClick=${() => decide(uid, req.id, 'declined')}>Decline<//>
           </div>
         </div>
