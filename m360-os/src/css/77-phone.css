@@ -46,6 +46,15 @@
   .section-hero > div:last-child > .row{flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent); mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent)}
   .section-hero > div:last-child > .row::-webkit-scrollbar{display:none}
   .section-hero > div:last-child > .row > *,.section-hero .chipline{flex:none}
+  /* Break's sparks row sets its wrap inline, so its one row needs the weight */
+  .section-hero .brk-sparks{flex-wrap:nowrap !important}
+  /* the soft edge shows only while more waits to the right: a row that fits, or one scrolled to its
+     end, keeps its last tab, segment or stat crisp */
+  @supports (animation-timeline:scroll()){
+    .seg,.tabs.section-tabs,.section-hero > div:last-child > .row{-webkit-mask-image:none; mask-image:none; animation:edgemore linear both; animation-timeline:scroll(self inline)}
+    .seg{--edge:20px}
+    .tabs.section-tabs{--edge:28px}
+  }
   /* HQ's eight tiles: one sideways row that snaps, two in view, the next one peeking */
   .hero.ink .grid4{display:flex; overflow-x:auto; scroll-snap-type:x mandatory; gap:8px; scrollbar-width:none; margin-right:-20px; padding-right:20px}
   .hero.ink .grid4::-webkit-scrollbar{display:none}
@@ -110,7 +119,8 @@
   .home-hero .hero-chips{margin-top:16px}
   .home-hero .hero-panel{padding:16px 16px 14px; border-radius:16px}
   .home-hero .btn.xl{height:52px}
-  .hero-panel .moods{display:grid; grid-template-columns:repeat(5,1fr); gap:6px}
+  /* the five moods share one row; each column keeps its word on one line while the row has room */
+  .hero-panel .moods{display:grid; grid-template-columns:repeat(5,minmax(0,auto)); gap:6px}
   .hero-panel .mood{padding:0 4px}
   .install-hint{padding:16px 18px}
   .install-hint .ic{width:40px; height:40px; border-radius:12px; background:var(--ink); color:var(--on-ink); display:inline-flex; align-items:center; justify-content:center; flex:none}
@@ -130,10 +140,10 @@
   .team-flag .linky{min-width:44px; justify-content:flex-end}
   .team-row .rowbtn{min-width:40px; min-height:40px}
   /* the Ask orb steps down below the tabbar while the page scrolls down (58-buddy.js) */
-  .buddy-home.away{transform:translateY(140px); opacity:0; pointer-events:none}
+  .buddy-home.away{transform:translateY(140px); opacity:0; pointer-events:none; visibility:hidden}
 }
 @media (max-width:860px) and (prefers-reduced-motion:no-preference){
-  .buddy-home{transition:transform .2s var(--ease), opacity .2s}
+  .buddy-home{transition:transform .2s var(--ease), opacity .2s, visibility .2s}
 }
 @media (min-width:861px){
   .sheet-handle,.install-hint{display:none}
@@ -155,6 +165,10 @@
   .trow{flex-wrap:wrap}
   .trow .rowbtn.grow{flex:1 1 60%; min-width:0}
   .trow-meta{flex-basis:100%; padding-left:34px; gap:8px}
+}
+@keyframes edgemore{
+  from,96%{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - var(--edge,24px)),transparent); mask-image:linear-gradient(90deg,#000 calc(100% - var(--edge,24px)),transparent)}
+  to{-webkit-mask-image:none; mask-image:none}
 }
 @keyframes boardpos{from{background-position:0% 50%, 0 50%} to{background-position:100% 50%, 0 50%}}
 
