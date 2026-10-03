@@ -219,13 +219,19 @@
   /* ---------- quiet: the person hears first ----------
      A quiet stretch (M.quiet) reaches the manager's watch at settings.quietMins. Half an hour before
      that (never under 30 minutes in) the person gets one gentle line here, with the three ways to
-     answer it. It goes the moment they save anything or set a status, and it never rings. Nothing
+     answer it. It goes the moment they save anything or set a status, and it never rings. A status
+     ends nothing on the manager's watch, it is read beside the flag, and the line says so. Nothing
      shows on leave, holidays, Sundays, before the check-in or after the check-out (M.quiet.day has
      no running gap then), or for anyone without a manager. */
   const MIN = 60000;
+  /* a stretch is only as true as the marks behind it: until every collection M.quiet reads has arrived,
+     a gap would run from the check-in, so nothing quiet shows on a page still loading */
+  const QUIET_FROM = ['checkin', 'eod', 'tasks', 'feed', 'kudos', 'me', 'leave', 'leavedec'];
+  const quietReady = ctx => QUIET_FROM.every(k => !ctx.coll[k] || ctx.coll[k].ready);
   function QuietNudge({onStatus}) {
     const ctx = M.useCtx();
-    if (!M.quiet || !M.lines || !M.lines.managerOf(ctx, ctx.uid)) return null;
+    const mgr = M.quiet && M.lines ? M.lines.managerOf(ctx, ctx.uid) : null;
+    if (!mgr || !quietReady(ctx)) return null;
     const td = U.todayStr();
     const q = M.quiet.day(ctx, ctx.uid, td, {now: Number(ctx.now) || Date.now()});
     const idle = q.idle;
@@ -248,7 +254,7 @@
         <${UI.Btn} kind="sec" sm=${true} id="qn-post" onClick=${() => M.intend('#feed', 'post')}>Post an update<//>
         <${UI.Btn} kind="sec" sm=${true} id="qn-status" onClick=${onStatus}>Set a status<//>
       </div>
-      <div class="tiny ink62 qn-why">After ${after} with nothing saved (lunch aside), it shows on your manager's Home.</div>
+      <div class="tiny ink62 qn-why">After ${after} with nothing saved (lunch aside), it reaches ${mgr === ctx.founderUid ? 'Kaavish' : 'your manager and Kaavish'}, with any status you set beside it.</div>
     </section>`;
   }
 
@@ -513,7 +519,8 @@
   function TeamWatch() {
     const ctx = M.useCtx();
     if (!M.lines) return null;
-    const board = M.lines.board(ctx, ctx.uid);
+    const ready = quietReady(ctx);
+    const board = M.lines.board(ctx, ctx.uid).map(r => ready ? r : {...r, flags: r.flags.filter(f => f.k !== 'quiet')});
     if (!board.length) return null;
     const td = U.todayStr();
     const hot = board.reduce((n, r) => n + r.flags.filter(f => f.hot).length, 0);

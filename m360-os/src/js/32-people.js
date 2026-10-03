@@ -199,13 +199,15 @@
      sees exactly what their manager sees. Times only, never what was saved. */
   const MIN = 60000, HOUR = 3600000;
   const OFF_DAY = {leave: 'On leave today.', holiday: 'A holiday today.', sunday: 'Sunday. The OS rests too.'};
-  /* whole hours from the check-in (or an earlier mark) to the later of the EOD cut, the check-out and the last mark */
+  /* whole hours from the check-in (or an earlier mark) to the later of the EOD cut, the check-out and the last mark,
+     always an even count, so phones (every other label) still label both ends */
   function quietAxis(ctx, q, ymd) {
     const d0 = U.parseYmd(ymd).getTime();
     const cut = d0 + U.minutes(String(ctx.settings.eodCut || '19:30')) * MIN;
     const ms = q.marks;
-    const lo = Math.min(q.from, ms.length ? ms[0].s : q.from), hi = Math.max(cut, q.to, ms.length ? ms[ms.length - 1].e : 0);
-    const a = Math.max(0, Math.floor((lo - d0) / HOUR)), b = Math.min(24, Math.max(a + 4, Math.ceil((hi - d0) / HOUR)));
+    const lo = Math.min(q.from, ms.length ? ms[0].s : q.from), hi = Math.max(cut, q.to, ...ms.map(m => m.e));
+    let a = Math.max(0, Math.floor((lo - d0) / HOUR)), b = Math.min(24, Math.max(a + 4, Math.ceil((hi - d0) / HOUR)));
+    if ((b - a) % 2) { if (b < 24) b++; else a--; }
     return {d0, a: d0 + a * HOUR, b: d0 + b * HOUR, h0: a, hours: b - a};
   }
   const pctOf = (x, ax) => Math.max(0, Math.min(100, 100 * (x - ax.a) / (ax.b - ax.a)));
@@ -262,9 +264,13 @@
     const extra = log[uid] || {};
     const now = nowDate(ctx).getTime();
     const q = M.quiet.day(ctx, uid, today, {now, extra: extra[today]});
-    if (!q.on || (ctx.members[uid] || {}).active === false) return null;
+    /* until every collection M.quiet reads has arrived, a gap would run from the check-in: show nothing yet */
+    const ready = ['checkin', 'eod', 'tasks', 'feed', 'kudos', 'me', 'leave', 'leavedec'].every(k => !ctx.coll[k] || ctx.coll[k].ready);
+    if (!q.on || !ready || (ctx.members[uid] || {}).active === false) return null;
     const week = M.quiet.week(ctx, uid, today, {now, extra});
-    const self = ctx.uid === uid;
+    /* the person is told who else reads this: their manager, and Kaavish, who sees every person's day */
+    const mgr = ctx.uid === uid && M.lines ? M.lines.managerOf(ctx, uid) : null;
+    const who = !mgr ? '' : mgr === ctx.founderUid ? 'Kaavish sees this too. ' : 'Your manager and Kaavish see this too. ';
     const a = M.att ? M.att.dayStatus(ctx, uid, today) : null;
     const out = q.marks.find(m => m.k === 'out');
     const n = q.stretches.length;
@@ -292,7 +298,7 @@
             <span class="pq-wk-d">${d.ymd === today ? 'Today' : U.DAYS_S[U.parseYmd(d.ymd).getDay()]}</span><span class="grow num">${weekText(d)}</span></div>`)
             : html`<div class="small sub">No check-ins yet this week.</div>`}
         </div>
-        <div class="tiny sub">${self ? 'Your manager sees this too. ' : ''}Times only, never what was saved.</div>
+        <div class="tiny sub" id="person-quiet-who">${who}Times only, never what was saved.</div>
       </div>
     <//>`;
   }

@@ -3,8 +3,9 @@
    under it, lunch shaded, quiet in flame, a now line) with the week under it, and the person's own
    nudge on Home. ---------- */
 
-/* your team: the orb sits where the dot would, centred on the same line */
-.team-flag .tf-live{flex:none; display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; margin-left:-7px}
+/* your team: the orb sits where the dot would, centred on the same line, and takes no more room than
+   the dot did, so every line's text starts in the same place */
+.team-flag .tf-live{flex:none; display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; margin:0 -7px}
 .team-flag .tf-live canvas{display:block}
 .team-flag .tf-live .vorb.mini{margin-right:0}
 .team-flag.quiet[data-live="1"] > .grow{color:var(--ink); font-weight:500}
