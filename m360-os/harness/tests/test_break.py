@@ -96,7 +96,8 @@ def part(h):
     # squads and the streak repair are pure
     sq = p.evaluate('() => M.play.squads({activeMembers: ["a", "b", "c", "d", "e", "f", "g", "h"].map(uid => ({uid}))}, "2026-10")')
     check(len(sq) == 2 and sorted(len(s['ids']) for s in sq) == [4, 4] and sq[0]['name'] != sq[1]['name'], 'eight people make two squads of four: %r' % sq)
-    rep = p.evaluate('''() => { const td = M.U.todayStr(); const back = M.play.workdayBack(td, 2);
+    rep = p.evaluate('''() => { let td = M.U.todayStr(); if (M.U.parseYmd(td).getDay() === 0) td = M.play.workdayBack(td, 1);   /* a Sunday folds into Saturday */
+      const back = M.play.workdayBack(td, 2);
       return [M.play.nextStreak({lastDay: back, streak: 3, repairs: {}}, td), M.play.nextStreak({lastDay: back, streak: 3, repairs: {[M.play.weekOf(td)]: "x"}}, td), M.play.nextStreak({lastDay: M.play.workdayBack(td, 1), streak: 3}, td)]; }''')
     check(rep[0]['streak'] == 5 and rep[0].get('repaired') and rep[1]['streak'] == 1 and rep[2]['streak'] == 4, 'one missed workday a week is covered: %r' % rep)
     # Reset: the breathing protocols

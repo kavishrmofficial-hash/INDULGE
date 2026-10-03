@@ -198,6 +198,8 @@ def t(h):
     p.wait_for_selector('.side-tools')
     p.evaluate('window.__sampleCalls = []')
     p.locator('.side-tools').get_by_role('button', name='Ask m360').click()
+    # v32: Ask opens the dock's pop-up; expand opens the full drawer with the ask- ids
+    p.locator('#buddy-expand').click()
     p.fill('#ask-input', 'who do we know at Tata Motors')
     p.keyboard.press('Enter')
     p.wait_for_selector('.bubble.ai:has-text("Priya Iyer")', timeout=10000)

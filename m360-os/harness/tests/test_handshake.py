@@ -140,6 +140,7 @@ def standalone_part():
             k.get_by_role('button', name='Set up the workspace').click(); k.wait_for_selector('.sidebar'); k.wait_for_timeout(600)
             # "DM:" with a screenshot in Ask m360 runs the desk
             k.locator('.side-tools .iconbtn[aria-label="Ask m360"]').click()
+            k.locator('#buddy-expand').click()   # v32: Ask opens the pop-up; expand opens the drawer
             k.wait_for_selector('.drawer #ask-file', state='attached')
             k.locator('#ask-file').set_input_files({'name': 'connections.png', 'mimeType': 'image/png', 'buffer': PNG})
             k.wait_for_selector('#ask-attached img')

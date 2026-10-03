@@ -378,6 +378,18 @@
       if (lookT && (m = /who is (\w+)\??$/i.exec(last.trim()))) { const r = await lookT.execute({what: 'who', q: m[1]}, sig); return done(String(r).split('\n')[0]); }
       if (/what can you do/i.test(last)) return done('I can look anything up and do most things here: tasks, notes, posts, kudos, messages, leave, check in, EOD, the week, pitches, clients, reminders, and mail or meetings on the team site.');
       if (actT && /add a task/i.test(last)) { await actT.execute({action: 'create_task', input: {title: 'Follow up with the client', owner: 'me', due: tomorrow}}, sig); return done('Done. Added a follow up for tomorrow.'); }
+      /* the Base (ahead of the pointer, which answers anything):  "who do we know at <company>" goes through the who_do_we_know_at tool and answers with the names it returns */
+      const wdwk = tools.find(x => x.name === 'who_do_we_know_at');
+      const mw = /who do we know at\s+(.+?)\s*[?.]?\s*$/i.exec(String(last).trim());
+      if (wdwk && mw) {
+        const r = await wdwk.execute({company: mw[1]}, {signal: new AbortController().signal});
+        const people = (r && r.people) || [];
+        const out = people.length
+          ? 'At ' + mw[1] + ' we know ' + people.length + (people.length === 1 ? ' person' : ' people') + ':\n' + people.map(p => '- ' + p.name + (p.title ? ', ' + p.title : '') + (p.stage ? ' (' + p.stage + ')' : '')).join('\n')
+          : 'Nobody at ' + mw[1] + ' in the Base yet.';
+        if (opts.onText) opts.onText({text: out, delta: out});
+        return res({text: out, truncated: false, modelTierApplied: 'default'});
+      }
       const pointAt = tools.find(x => x.name === 'point_at');
       if (pointAt && !/add a task/i.test(last)) {
         const sig = {signal: new AbortController().signal};
@@ -425,18 +437,6 @@
         }
         if (opts.onText) opts.onText({text: said, delta: said});
         return res({text: said, truncated: false, modelTierApplied: 'quick'});
-      }
-      /* the Base: "who do we know at <company>" goes through the who_do_we_know_at tool and answers with the names it returns */
-      const wdwk = tools.find(x => x.name === 'who_do_we_know_at');
-      const mw = /who do we know at\s+(.+?)\s*[?.]?\s*$/i.exec(String(last).trim());
-      if (wdwk && mw) {
-        const r = await wdwk.execute({company: mw[1]}, {signal: new AbortController().signal});
-        const people = (r && r.people) || [];
-        const out = people.length
-          ? 'At ' + mw[1] + ' we know ' + people.length + (people.length === 1 ? ' person' : ' people') + ':\n' + people.map(p => '- ' + p.name + (p.title ? ', ' + p.title : '') + (p.stage ? ' (' + p.stage + ')' : '')).join('\n')
-          : 'Nobody at ' + mw[1] + ' in the Base yet.';
-        if (opts.onText) opts.onText({text: out, delta: out});
-        return res({text: out, truncated: false, modelTierApplied: 'default'});
       }
       if (tools.length && /add a task/i.test(last)) {
         const t = tools.find(x => x.name === 'create_task');
