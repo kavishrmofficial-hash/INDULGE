@@ -560,13 +560,13 @@ def main():
             d.get_by_role('button', name='Brief me').click()
             d.wait_for_selector('text=finish the hero reel script', timeout=15000)
             before = len([k for k in json.loads(urllib.request.urlopen(base + '__store').read()) if k.startswith('d/tasks~')])
-            # the palette hands a question to Ask m360
+            # the palette hands a question to Ask m360, which opens at the dock (a phone gets the sheet)
             d.keyboard.press('Control+k')
             d.wait_for_selector('#pal-input')
             d.fill('#pal-input', 'add a task to cut the teaser')
             d.wait_for_selector('.pal-item.ai')
             d.keyboard.press('Enter')
-            d.wait_for_selector('.drawer:has-text("Ask m360")')
+            d.wait_for_selector('.buddy-bubble[role="dialog"], #orb-screen, .drawer:has-text("Ask m360")')
             d.wait_for_function('n => fetch("/__store").then(r => r.json()).then(s => Object.keys(s).filter(k => k.startsWith("d/tasks~")).length > n)', arg=before, timeout=15000)
 
             # ---- sign out ----
