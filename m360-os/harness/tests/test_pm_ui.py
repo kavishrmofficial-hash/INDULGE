@@ -200,7 +200,10 @@ def test(h):
         check(pg.locator('.pm-menu button[data-do="again"]').is_disabled(), '%s: nudge again, once a day' % label)
         st = ev('M.pm.items(ctx, "u_m3").find(i => i.K === a).steps.find(s => s.step === "1m").state', kn)
         check(st == 'due', '%s: the tap brings step 1m: %r' % (label, st))
+        pg.wait_for_function('() => !!(document.activeElement && document.activeElement.closest(".pm-menu"))')
         pg.keyboard.press('Escape')
+        pg.wait_for_function('k => !document.querySelector(".pm-menu") && document.activeElement && document.activeElement.getAttribute("data-k") === k', arg=kn)
+        check(True, '%s: the menu takes the focus and Escape gives it back to the chip' % label)
         # the inbox: the bot's lines with the pill face, nothing of it bubbles on its own
         tap('.bellbtn:visible')
         pg.wait_for_selector('.drawer .inbox-item')

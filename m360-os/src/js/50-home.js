@@ -780,8 +780,7 @@
     const ptsWk = (M.points && M.points.pointsFor) ? M.points.pointsFor(ctx, ctx.uid, brWk.from, brWk.to).total : 0;
     const n = (k, one, many) => k + ' ' + (k === 1 ? one : many);
     /* the personal manager's card takes the quiet nudge's place while the bot chases this person or an ask is open */
-    const pmMgr = M.pm && M.lines ? M.lines.managerOf(ctx, ctx.uid) : null;
-    const pmCard = !!(M.parts.PmCard && M.pm && M.pm.loaded(ctx) && ((M.pm.botOn(ctx, pmMgr) && M.pm.cfgOf(ctx, pmMgr).kinds.quiet) || M.pm.cardItems(ctx, Number(ctx.now) || Date.now()).length));
+    const pmCard = !!(M.parts.PmCard && M.pm && M.pm.loaded(ctx) && (M.pm.chases(ctx, ctx.uid, 'quiet') || M.pm.cardItems(ctx, Number(ctx.now) || Date.now()).length));
     M.useIntent('eod', () => setTimeout(() => { const el = document.getElementById('fold-eod') || document.getElementById('wrap-shipped'); if (el) el.scrollIntoView({block: 'center', behavior: M.reduced() ? 'auto' : 'smooth'}); const f = document.getElementById('wrap-shipped'); if (f) f.focus({preventScroll: true}); }, 80));
 
     return html`<div class="stack" style=${{gap: '18px'}}>

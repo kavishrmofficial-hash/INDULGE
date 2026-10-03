@@ -37,6 +37,8 @@
     const away = useRef(null);
     const pass = () => {
       const c = ref.current;
+      /* the working one went away (its host unmounted): the next one standing takes over */
+      if (!lead) lead = me.current;
       if (lead !== me.current || !c || !c.uid || c.viewAs || !c.ready || !M.pm || !M.pm.loaded(c)) return;
       if (c.coll.chat && c.coll.chat.ready === false) return;
       const P = M.pm.P(c);
@@ -56,11 +58,15 @@
       const gap = (document.hidden ? 2.25 : 1) * M.pm.PASS;
       const ready = fresh.filter(x => nowP - seen.current.get(x.stepId) >= gap - 50);
       const ring = ready.filter(x => x.ring);
+      /* a blocked answer's step 2 rang as the note's direct message: listed, marked seen, never a second bubble */
+      const chat = ready.filter(x => x.chat && !document.hidden);
+      if (chat.length) M.pm.told(c, chat.map(x => x.stepId), true);
       if (!ring.length) return;
       /* bubbles at least fifteen minutes apart: what comes due in between waits and rides the next one */
       const lastRing = Number(M.prefs.get('pmRing.' + uid, '0')) || 0;
-      if (!away.current && Date.now() - lastRing < 15 * MIN && Date.now() >= lastRing) return;
-      const more = ready.filter(x => !x.ring && !x.inBudget && !x.held).length;
+      if (!away.current && !ring.some(x => x.now) && Date.now() - lastRing < 15 * MIN && Date.now() >= lastRing) return;
+      const over = ready.filter(x => !x.ring && !x.inBudget && !x.held);
+      const more = over.length;
       const mgrSteps = ring.filter(x => x.step === '2' || x.step === '2b');
       const answers = ring.filter(x => x.step === 'r' || x.step === 't');
       const one = ring[0];
@@ -80,6 +86,8 @@
       M.prefs.set('pmRing.' + uid, String(Date.now()));
       away.current = false;
       M.pm.told(c, ring.map(x => x.stepId));
+      /* the ones past the day's cap were named in this bubble ("and 2 more"): seen, so no later bubble repeats them */
+      if (over.length) M.pm.told(c, over.map(x => x.stepId), true);
     };
     /* a pass on every context change and every M.pm.PASS (20 s); the clock is checked each second, so a
        changed PASS takes at once */
@@ -230,7 +238,7 @@
     /* a step the card shows and that will not ring is marked as seen once it is on screen */
     useEffect(() => {
       if (!list.length || document.hidden || ctx.viewAs) return;
-      const ids = fm.filter(x => shown.has(x.item.K) && !x.told && !x.ring && !x.held && (x.state !== 'sorted')).map(x => x.stepId);
+      const ids = fm.filter(x => shown.has(x.item.K) && !x.told && !x.ring && !x.held && x.item.state !== 'sorted').map(x => x.stepId);
       if (ids.length) M.pm.told(ctx, ids, true);
     }, [ctx]);
     if (!list.length) return null;
@@ -314,13 +322,24 @@
         setPos({right: Math.max(8, window.innerWidth - r.right), ...(up ? {bottom: window.innerHeight - r.top + 6} : {top: r.bottom + 6})});
       };
       place();
+      /* the keyboard follows the menu in, and Escape brings it back to the chip */
+      const t = setTimeout(() => { const first = document.querySelector('.pm-menu[data-for="' + it.K + '"] button:not(:disabled)'); if (first) first.focus({preventScroll: true}); }, 0);
       const off = e => { if (!(e.target.closest && (e.target.closest('.pm-menu') || e.target.closest('.pm-chip-wrap')))) setOpen(false); };
-      const key = e => { if (e.key === 'Escape') setOpen(false); };
+      const key = e => {
+        if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); if (btn.current) btn.current.focus({preventScroll: true}); return; }
+        const menu = document.querySelector('.pm-menu[data-for="' + it.K + '"]');
+        if (!menu || !(e.key === 'ArrowDown' || e.key === 'ArrowUp')) return;
+        const list = Array.from(menu.querySelectorAll('button:not(:disabled)'));
+        const i = list.indexOf(document.activeElement);
+        if (!list.length) return;
+        e.preventDefault();
+        list[(i + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length].focus();
+      };
       window.addEventListener('pointerdown', off, true);
-      window.addEventListener('keydown', key);
+      window.addEventListener('keydown', key, true);
       window.addEventListener('scroll', place, true);
       window.addEventListener('resize', place);
-      return () => { window.removeEventListener('pointerdown', off, true); window.removeEventListener('keydown', key); window.removeEventListener('scroll', place, true); window.removeEventListener('resize', place); };
+      return () => { clearTimeout(t); window.removeEventListener('pointerdown', off, true); window.removeEventListener('keydown', key, true); window.removeEventListener('scroll', place, true); window.removeEventListener('resize', place); };
     }, [open]);
     const now = Number(ctx.now) || Date.now();
     const c = chipOf(ctx, it, now);
@@ -359,9 +378,11 @@
     const ctx = M.useCtx();
     if (!M.pm || !M.pm.on(ctx)) return null;
     const on = M.pm.botOn(ctx, ctx.uid);
+    /* only the founder switches a bot off while the policy holds them on: then there is nothing to turn on here */
+    const held = M.pm.P(ctx).require || !!M.pm.P(ctx).off[ctx.uid];
     return html`<span class="pm-team-head row nowrap" id="pm-team-head">
       <${Bot} size=${28} state=${on ? 'default' : 'sleeping'} label="Your bot"/>
-      ${on ? html`<span class="tiny ink62">Your bot is on</span>` : html`<button type="button" class="linky tiny" onClick=${() => M.nav('#me')}>Turn on your bot</button>`}
+      ${on ? html`<span class="tiny ink62">Your bot is on</span>` : held ? html`<span class="tiny ink62">Your bot is off</span>` : html`<button type="button" class="linky tiny" onClick=${() => M.nav('#me')}>Turn on your bot</button>`}
     </span>`;
   }
   /* what the bot holds about a report beyond the watch's flags: sent back work, chases, a blocker
@@ -401,12 +422,15 @@
     if (!M.pm || !M.pm.loaded(ctx)) return null;
     const allowed = ctx.isFounder || uid === ctx.uid || M.lines.chainOf(ctx, uid).indexOf(ctx.uid) >= 0;
     if (!allowed) return null;
-    const days = M.pm.log(ctx, uid, 6);
+    /* further up the line, the same as the note up the line: work and blockers, never attendance */
+    const sees = r => ctx.isFounder || ctx.canSee(r);
+    const fair = (r, it) => sees(r) || M.pm.TASK_KINDS.has(it.kind) || it.kind === 'waiton';
+    const days = M.pm.log(ctx, uid, 6).map(d => ({...d, items: d.items.filter(it => fair(uid, it))}));
     const any = days.some(d => d.items.length);
     if (!M.pm.on(ctx) && !any) return null;
     const own = uid === ctx.uid;
     /* for the managers above: the team's items still open with them */
-    const team = !own ? M.lines.reportsOf(ctx, uid).flatMap(r => M.pm.items(ctx, r).filter(it => it.mgrDueAt && it.state === 'open')) : [];
+    const team = !own ? M.lines.reportsOf(ctx, uid).flatMap(r => M.pm.items(ctx, r).filter(it => it.mgrDueAt && it.state === 'open' && fair(r, it))) : [];
     return html`<${UI.Card} title="Bot log" id="person-pm" action=${html`<${Bot} size=${28} state=${any ? 'default' : 'sleeping'} label="Bot log"/>`}>
       ${days.map(d => html`<div class="pm-log-day" key=${d.ymd}>
         <div class="micro">${d.ymd === U.todayStr() ? 'today' : U.fmtDay(d.ymd)}</div>
@@ -459,9 +483,9 @@
     for (const it of M.pm.items(ctx, other, {now})) if (it.mgr === ctx.uid || (it.kind === 'waiton' && it.facts.r === ctx.uid)) take(it, false);
     if (!rows.length) return null;
     rows.sort((a, b) => a.at - b.at);
-    const mgr = rows[0].mine ? other : ctx.uid;
+    const bots = Array.from(new Set(rows.map(r => r.it.botName).filter(Boolean)));
     return html`<div class="pm-dm" id="pm-dm">
-      <div class="pm-dm-label tiny ink62"><${Bot} size=${20} label="bot"/><span>${M.pm.botName(ctx, mgr)}, automatic, only you two see this</span></div>
+      <div class="pm-dm-label tiny ink62"><${Bot} size=${20} label="bot"/><span>${bots.join(' and ') || 'The bot'}, automatic, only you two see this</span></div>
       ${rows.map(({it, at, mine}) => html`<div class="pm-dm-row" key=${it.K} data-k=${it.K}>
         <span class="tiny ink62 num">${U.hhmm(at)}</span>
         <div class="grow">
@@ -555,9 +579,9 @@
             <thead><tr><th>Manager</th><th>Bot</th><th>Nudges</th><th>Sorted first</th><th>Reached them</th><th>Up a level</th><th>Let go</th><th>Again</th><th>Disputes</th><th>Paused</th></tr></thead>
             <tbody>${a.rows.map(r => html`<tr key=${r.uid} data-uid=${r.uid}>
               <td><${UI.Name} id=${r.uid}/><div class="tiny ink62">${r.team} ${r.team === 1 ? 'report' : 'reports'}, waits ${r.wait}m</div></td>
-              <td><button type="button" class=${'pill' + (r.on ? ' ink' : '')} data-bot=${r.uid} aria-pressed=${r.on} onClick=${() => save({off: {[r.uid]: r.on ? true : null}})}>${r.on ? 'on' : 'off'}</button></td>
+              <td><button type="button" class=${'pill' + (!P.off[r.uid] ? ' ink' : '')} data-bot=${r.uid} aria-pressed=${!P.off[r.uid]} aria-label=${'Bot for this manager: ' + (P.off[r.uid] ? 'off' : 'on')} onClick=${() => save({off: {[r.uid]: P.off[r.uid] ? null : true}})}>${P.off[r.uid] ? 'off' : r.on ? 'on' : !P.on ? 'on with the switch' : 'off by them'}</button></td>
               <td class="num">${r.nudges}</td><td class="num">${r.sorted}</td><td class="num">${r.mgr}</td><td class="num">${r.up}</td><td class="num">${r.letgo}</td><td class="num">${r.again}</td><td class="num">${r.disputes}</td>
-              <td class="small">${r.paused.length ? r.paused.map((u, i) => html`<span key=${u}>${i ? ', ' : ''}<${UI.Name} id=${u}/></span>`) : r.coach.length ? html`<span class="ink62">coach days: ${r.coach.length}</span>` : html`<span class="ink62">none</span>`}</td>
+              <td class="small">${r.paused.length ? r.paused.map((u, i) => html`<span key=${u}>${i ? ', ' : ''}<${UI.Name} id=${u}/></span>`) : r.coach.length ? html`<span class="ink62">coach days: ${r.coach.length}</span>` : html`<span class="ink62">none</span>`}${r.kindsOff && r.kindsOff.length ? html`<div class="tiny ink62">does not chase: ${r.kindsOff.map(k => KIND_NAME[k]).join(', ')}</div>` : null}</td>
             </tr>`)}</tbody>
           </table></div>
           <div class="tiny ink62">Only you can switch a manager's bot off. Every pause a manager sets shows here.</div>
@@ -608,14 +632,15 @@
         <div class="pm-preview row nowrap"><${Bot} size=${24} label="preview"/><span class="small">${preview}</span></div>
         ${standalone() ? html`<div class="row between fx-bell-row"><span>Email them when they are away</span>
           ${M.fx && M.fx.Bell ? html`<${M.fx.Bell} id="pm-bot-mail" size="sm" badge=${false} offLabel="No email" onLabel="Email when away" pressed=${cfg.mail} onChange=${v => set({mail: !!v})}/>` : null}</div>` : null}
-        <div class="pm-admin-row"><div class="small" style=${{marginBottom: '6px'}}>Pause for a person until</div>
+        <div class="pm-admin-row"><div class="small" style=${{marginBottom: '6px'}}>${P.require ? 'Pause for a person, today only' : 'Pause for a person until'}</div>
           <div class="row" id="pm-bot-pause">
             <select class="input pm-sel" aria-label="Who" value=${pauseWho} onChange=${e => setPauseWho(e.target.value)}>
               <option value="">Pick a person</option>${reps.map(u => html`<option key=${u} value=${u}>${M.pm.first(ctx, u)}</option>`)}
             </select>
-            <input type="date" class="input pm-time" aria-label="Until" min=${U.todayStr()} value=${pauseTo} onInput=${e => setPauseTo(e.target.value)}/>
-            <${UI.Btn} sm=${true} kind="sec" disabled=${busy || !pauseWho || !pauseTo} onClick=${() => set({pause: {[pauseWho]: pauseTo}}).then(() => { setPauseWho(''); setPauseTo(''); })}>Pause<//>
+            ${P.require ? null : html`<input type="date" class="input pm-time" aria-label="Until" min=${U.todayStr()} value=${pauseTo} onInput=${e => setPauseTo(e.target.value)}/>`}
+            <${UI.Btn} sm=${true} kind="sec" disabled=${busy || !pauseWho || (!P.require && !pauseTo)} onClick=${() => set({pause: {[pauseWho]: P.require ? U.todayStr() : pauseTo}}).then(() => { setPauseWho(''); setPauseTo(''); })}>${P.require ? 'Pause today' : 'Pause'}<//>
           </div>
+          ${P.require ? html`<div class="tiny ink62">Kaavish sees every pause.</div>` : null}
           ${Object.keys(cfg.pause).filter(u => cfg.pause[u] >= U.todayStr()).map(u => html`<div class="row between small" key=${u}><span>${M.pm.first(ctx, u)}, paused until ${U.fmtDay(cfg.pause[u])}</span><button type="button" class="linky tiny" onClick=${() => set({pause: {[u]: null}})}>Resume</button></div>`)}
         </div>
         ${nx ? html`<div class="tiny ink62">From ${U.fmtDay(nx.from)}: ${nx.wait ? 'waits ' + nx.wait + ' minutes' : ''}${nx.wait && nx.kinds ? ', ' : ''}${nx.kinds ? 'also chases ' + Object.keys(nx.kinds).map(k => KIND_NAME[k]).join(', ') : ''}.</div>` : null}

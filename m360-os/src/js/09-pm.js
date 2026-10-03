@@ -67,6 +67,7 @@
   const on = ctx => P(ctx).on;
   const meOf = (ctx, u) => (((ctx && ctx.coll && ctx.coll.me) || {}).map || {})[u] || {};
   const pmOf = (ctx, u) => meOf(ctx, u).pm || {};
+  const isFounderUid = (ctx, u) => !!u && (u === ctx.founderUid || ((ctx.members || {})[u] || {}).role === 'founder');
   const ruleOn = (ctx, k) => !(KINDS[k] && KINDS[k].rule && ctx.settings && ctx.settings.rules && ctx.settings.rules[KINDS[k].rule] === false);
 
   /* a manager's bot as it stands on a day: the stricter changes they made wait in cfg.next until its date */
@@ -89,6 +90,14 @@
   /* the founder alone switches a manager's bot off (off map); a manager may only when the policy lets them */
   const botOn = (ctx, mgr) => { const p = P(ctx); return !!mgr && p.on && !p.off[mgr] && (p.require || cfgOf(ctx, mgr).on); };
   const managerOf = (ctx, u) => (M.lines ? M.lines.managerOf(ctx, u) : null);
+  /* does the bot chase this person on this kind today: the policy, the manager's bot, no pause, the rule */
+  function chases(ctx, rep, kind, ymd) {
+    const mgr = managerOf(ctx, rep);
+    if (!mgr || !botOn(ctx, mgr)) return false;
+    const day = ymd || U.ymd(new Date(nowOf(ctx)));
+    const c = cfgOf(ctx, mgr, day);
+    return !!c.kinds[kind] && !(c.pause[rep] && c.pause[rep] >= day) && ruleOn(ctx, kind);
+  }
   const chainOf = (ctx, u) => (M.lines ? M.lines.chainOf(ctx, u) : []);
   const available = (ctx, u, ymd) => !!u && !!ctx.members[u] && ctx.members[u].active !== false && !(ctx.onLeave && ctx.onLeave(u, ymd));
   /* who hears step 2: the manager, or the next one up while they are on leave or gone */
@@ -385,7 +394,7 @@
           if (s1 !== Infinity && still) add({kind: 'sentback', sub: id, source: 'bot', s1, facts});
           else if (s1 !== Infinity && !still && (Number(t.updated) || 0) > s1 && U.ymd(new Date(Number(t.updated))) === ymd) add({kind: 'sentback', sub: id, source: 'bot', s1, holds: false, sortedAt: Number(t.updated), facts});
         }
-        if (R07 && kindOn('chase') && open(t)) {
+        if (bot && R07 && kindOn('chase') && open(t)) {
           for (const x of chainOf(ctx, rep)) {
             const c = (pmOf(ctx, x).chase || {})[id];
             if (!c || !c.at) continue;
@@ -431,8 +440,14 @@
       }
     }
 
-    /* manual asks addressed to this person, from anyone */
+    /* manual asks addressed to this person, from whoever may ask them: the founder, anyone up their line,
+       and for attendance their own manager. Anyone can write their own profile, so the record alone
+       proves nothing; an ask past those rights never shows or rings */
+    const upLine = chainOf(ctx, rep);
     for (const x of Object.keys(ctx.coll.me.map || {})) {
+      if (x === rep) continue;
+      const fx = isFounderUid(ctx, x);
+      if (!fx && upLine.indexOf(x) < 0) continue;
       const asks = pmOf(ctx, x).asks || {};
       for (const id of Object.keys(asks)) {
         const ak = asks[id];
@@ -440,6 +455,7 @@
         const at = Number(ak.showAt) || Number(ak.at) || 0;
         if (!at || U.ymd(new Date(at)) !== ymd || at > now) continue;
         const kind = KINDS[ak.kind] ? ak.kind : 'custom';
+        if (KINDS[kind].att && !fx && mgr !== x) continue;
         let sub = '-', holds = true, facts = {};
         if (kind === 'overdue' || kind === 'task') {
           const t = tmap[ak.sub];
@@ -467,7 +483,7 @@
           if (kind === 'noout') facts = {in: hm(a.in), last: lastSave(ctx, rep, ymd)};
           if (kind === 'noin') facts = {start: ctx.startFor(rep)};
         }
-        add({kind, sub, source: 'ask', from: x, s1: at, holds, facts, ask: {id, by: x, at: Number(ak.at) || at, via: ak.via || 'typed', ask: ak.ask || 'why', tellBy: ak.tellBy || null, ringNow: !!ak.ringNow, note: !!ak.note}});
+        add({kind, sub, source: 'ask', from: x, s1: at, holds, facts, ask: {id, by: x, at: Number(ak.at) || at, via: ak.via || 'typed', ask: ak.ask || 'why', tellBy: ak.tellBy || null, ringNow: !!ak.ringNow && fx, note: !!ak.note}});
       }
     }
 
@@ -635,7 +651,7 @@
     const w = window_(ctx, u, now);
     if (!w.ok) return false;
     if (w.out && !(x.item && x.item.kind === 'short' && now - w.out <= 10 * MIN)) return false;
-    if (!w.in && !(x.item && x.item.kind === 'noin' && REP_STEPS.has(x.step))) return false;
+    if (!w.in && !(x.item && x.item.kind === 'noin' && (REP_STEPS.has(x.step) || x.step.startsWith('a.')))) return false;
     return true;
   }
   const focusOn = () => { try { return !!(M.focus && M.focus.get && M.focus.get() && (!M.focus.left || M.focus.left() > 0)); } catch (e) { return false; } };
@@ -680,11 +696,17 @@
       ...pick(out.filter(x => x.step === 'digest'), 1), ...out.filter(x => x.step === 'r' || x.step === 't').map(x => x.stepId)]);
     const focus = focusOn();
     for (const x of out) {
-      const ringNow = x.step.startsWith('a.') && x.item.asks.some(a => a.ringNow && a.by === ctx.founderUid && x.step === 'a.' + a.id);
+      const ringNow = x.step.startsWith('a.') && x.item.asks.some(a => a.ringNow && isFounderUid(ctx, a.by) && x.step === 'a.' + a.id);
+      /* a blocked answer comes with its note as a direct message, which already rang through the chat
+         watcher: the manager's step 2 lists it, silently */
+      const chatRang = MGR_STEPS.has(x.step) && x.item.ack && x.item.ack.how === 'blocked' && !!M.rooms && !!ctx.coll.chat &&
+        M.rooms.messagesOf(ctx, M.rooms.dmId(x.item.rep, me)).some(m => m.by === x.item.rep && m.pm === x.item.K);
       const win = ringNow || inWindow(ctx, me, now, x);
       x.inBudget = okSet.has(x.stepId);
       x.held = focus && win && x.inBudget && !x.told;
-      x.ring = !x.told && x.step !== '0' && x.inBudget && win && !focus && x.item.state !== 'sorted';
+      x.ring = !x.told && x.step !== '0' && x.inBudget && win && !focus && x.item.state !== 'sorted' && !chatRang;
+      x.chat = chatRang;
+      x.now = ringNow;
       x.bundle = null;
     }
     out.sort((x, y) => x.at - y.at || ordOf(x.item.kind) - ordOf(y.item.kind));
@@ -760,7 +782,7 @@
         const seen = it ? toldAt(ctx, u, K + '#a.' + id) : 0;
         const how = live ? live.how : '';
         const text = how ? (COPY.back[how] ? COPY.back[how](first(ctx, u), how === 'onit' ? live.eta : it && it.kind) : first(ctx, u) + ': answered') : '';
-        return {uid: u, K, seen: seen || null, how, eta: live ? live.eta : null, at: live ? Number(live.at) : null, sorted: !!(it && it.state === 'sorted'), text, waiting: !it};
+        return {uid: u, K, seen: seen || null, how, eta: live ? live.eta : null, at: live ? Number(live.at) : null, sorted: !!(it && it.state === 'sorted'), text, waiting: !it && Number(ak.showAt) > now};
       });
       out.push({askId: id, kind: ak.kind, sub: ak.sub, at: Number(ak.at) || 0, showAt: ak.showAt || null, tellBy: ak.tellBy || null, via: ak.via || 'typed', withdrawn: !!ak.withdrawn, to: ak.to.slice(), rows,
         answered: rows.filter(r => r.how).length});
@@ -840,8 +862,11 @@
     const rows = {};
     for (const g of mgrs) {
       const cfg = cfgOf(ctx, g);
+      /* every pause this week shows, a resumed one too (the plog marks), and the kinds a manager switched off */
+      const plog = Object.keys((pmOf(ctx, g).cfg || {}).plog || {}).map(k => k.split(':')).filter(x => x[1] >= lo && x[1] <= hi).map(x => x[0]);
+      const paused = Array.from(new Set(Object.keys(cfg.pause).filter(u => cfg.pause[u] >= U.ymd(new Date(now))).concat(plog)));
       rows[g] = {uid: g, on: botOn(ctx, g), wait: cfg.wait, team: M.lines.reportsOf(ctx, g).length, nudges: 0, sorted: 0, mgr: 0, up: 0, letgo: 0, again: 0, disputes: 0, emails: 0,
-        paused: Object.keys(cfg.pause).filter(u => cfg.pause[u] >= U.ymd(new Date(now))), coach: M.lines.reportsOf(ctx, g).filter(u => { const c = coachUntil(ctx, u); return c && U.ymd(new Date(now)) < c; })};
+        paused, kindsOff: BOT_KINDS.filter(k => p.kinds[k] && !cfg.kinds[k]), coach: M.lines.reportsOf(ctx, g).filter(u => { const c = coachUntil(ctx, u); return c && U.ymd(new Date(now)) < c; })};
     }
     const zero = {hours: 0, budget: 0, early: 0, offday: 0, ruleoff: 0};
     const bad = [];
@@ -924,6 +949,8 @@
   }
   /* does the document already hold the patch: told keeps the earliest time, an answer keeps the first at */
   function covers(doc, patch, inTold) {
+    /* a newer write on the same thing (a changed answer, a later setting) stands: the older patch is done */
+    if (doc && patch && patch.at != null && doc.at != null && Number(doc.at) > Number(patch.at)) return true;
     for (const k of Object.keys(patch || {})) {
       const v = patch[k], d = doc ? doc[k] : undefined;
       if (v === null) { if (d != null) return false; continue; }
@@ -1050,14 +1077,31 @@
         if (BOT_KINDS.indexOf(x) < 0) continue;
         if (patch.kinds[x] && !now.kinds[x]) nk[x] = true; else k[x] = !!patch.kinds[x];
       }
+      /* switching every kind off is switching the bot off, which only the founder can do */
+      const left = BOT_KINDS.filter(x => (x in k ? k[x] : now.kinds[x]) || nk[x]);
+      if (p.require && !left.length) throw new Error('Only Kaavish can switch a bot off. Keep one thing on.');
       if (Object.keys(k).length) out.kinds = k;
       if (Object.keys(nk).length) next.kinds = nk;
     }
     if (patch.voice) out.voice = patch.voice === 'brief' ? 'brief' : 'warm';
     if (patch.mail != null) out.mail = !!patch.mail;
     if (patch.pause) {
+      /* while managers cannot switch their bot off, a pause lasts the day it is set: a pause running for
+         weeks would be the switch by another name. Each one leaves a mark the founder's audit counts */
       out.pause = {};
-      for (const u of Object.keys(patch.pause)) out.pause[u] = patch.pause[u] ? String(patch.pause[u]).slice(0, 10) : null;
+      const plog = {};
+      for (const u of Object.keys(patch.pause)) {
+        if (!patch.pause[u]) { out.pause[u] = null; continue; }
+        if (M.lines.reportsOf(ctx, ctx.uid).indexOf(u) < 0) continue;
+        let until = String(patch.pause[u]).slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(until) || until < td) continue;
+        if (p.require && until > td) until = td;
+        out.pause[u] = until;
+        plog[u + ':' + td] = Date.now();
+      }
+      const old = U.ymd(U.addDays(U.parseYmd(td), -KEEP_DAYS));
+      for (const k of Object.keys(cur.plog || {})) if (k.split(':')[1] < old) plog[k] = null;
+      if (Object.keys(plog).length) out.plog = plog;
     }
     if (Object.keys(next).length) out.next = {from: nextWorking(ctx, td), ...next};
     await write(ctx, {cfg: out});
@@ -1070,9 +1114,10 @@
     const ids = (stepIds || []).filter(Boolean);
     if (!ids.length || !ctx || !ctx.uid || viewing()) return Promise.resolve();
     const have = toldOf(ctx, ctx.uid);
+    const dev = new Set(devList(ctx.uid));
     const now = Date.now();
     const t = {};
-    for (const id of ids) if (!have[id]) t[id] = silent ? -now : now;
+    for (const id of ids) if (!have[id] && !dev.has(id)) t[id] = silent ? -now : now;
     if (!Object.keys(t).length) return Promise.resolve();
     devMark(ctx.uid, Object.keys(t));
     return write(ctx, {told: t}, true).catch(() => {});
@@ -1096,6 +1141,8 @@
     let todayN = 0;
     for (const id of Object.keys(mineAsks)) { const x = mineAsks[id]; if (x && !x.withdrawn && U.ymd(new Date(Number(x.at) || 0)) === ymd) todayN += (x.to || []).length; }
     const att = KINDS[kind].att;
+    if (ag.on === false) return {askId: null, sent: [], skipped: Array.from(new Set(o.to || [])).map(u => ({uid: u, why: 'asks are switched off'})), already: []};
+    const reach = Math.max(1, Number(ag.bulkMax) || 12);
     for (const u of Array.from(new Set(o.to || []))) {
       const m = ctx.members[u];
       if (!m || m.active === false) { skipped.push({uid: u, why: 'not on the team'}); continue; }
@@ -1106,6 +1153,7 @@
       if (!ctx.isWorkingDay(U.ymd(new Date(showAt || now)), u)) { skipped.push({uid: u, why: 'not working today'}); continue; }
       if (Object.keys(mineAsks).some(id => { const x = mineAsks[id]; return x && !x.withdrawn && x.kind === kind && (x.to || []).indexOf(u) >= 0 && U.ymd(new Date(Number(x.at) || 0)) === ymd && (kind !== 'custom'); })) { skipped.push({uid: u, why: 'already asked today'}); continue; }
       if (todayN + sentList.length >= ag.perSenderDay) { skipped.push({uid: u, why: 'your asks for today are used up'}); continue; }
+      if (sentList.length >= reach) { skipped.push({uid: u, why: 'more than ' + reach + ' people in one ask'}); continue; }
       if ((kind === 'overdue' || kind === 'task') && !(tasksOf(ctx)[o.sub] && tasksOf(ctx)[o.sub].owner === u)) { skipped.push({uid: u, why: 'not their task'}); continue; }
       if (!showAt && ['noin', 'noout', 'noeod', 'quiet', 'idle'].indexOf(kind) >= 0 && !M.lines.watch(ctx, u, now).some(f => f.k === kind && (kind !== 'quiet' || f.live))) { skipped.push({uid: u, why: 'already sorted'}); continue; }
       for (const x of Object.keys(ctx.coll.me.map || {})) {
@@ -1151,7 +1199,7 @@
     if (M.rooms && M.rooms.edit) for (const u of ak.to || []) { try { await M.rooms.edit(ctx, M.rooms.dmId(ctx.uid, u), 'ask.' + askId + '.' + u, 'Withdrawn'); } catch (e) { /* the line stays */ } }
   }
 
-  M.pm = {P, on, cfgOf, botOn, managerFor, key, parseKey, items, forMe, board, sent, digest, log, inboxItems, helloLine, badge, audit,
+  M.pm = {P, on, cfgOf, botOn, chases, managerFor, key, parseKey, items, forMe, board, sent, digest, log, inboxItems, helloLine, badge, audit,
     answer, handle, chase, ask, withdraw, setCfg, setMail, told, qmerge, flush, covers, devList, learn, first, botName, window: window_, coachUntil, loaded,
     COPY, KINDS, ORDER, BOT_KINDS, TASK_KINDS, PASS: 20000};
 })();

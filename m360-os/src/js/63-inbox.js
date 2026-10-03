@@ -74,9 +74,8 @@
     if (M.lines) {
       const td = U.ymd(new Date(ctx.now || Date.now()));
       /* while the viewer's bot chases a kind, it makes first contact: the flag still lists here, silently */
-      const pmCfg = M.pm && M.pm.botOn(ctx, me) ? M.pm.cfgOf(ctx, me, td) : null;
-      const chased = k => !!pmCfg && !!pmCfg.kinds[k];
-      for (const r of M.lines.board(ctx, me)) for (const f of r.flags) push('team:' + r.uid + ':' + (f.key || f.k) + ':' + td, 'flag', f.at || (ctx.now || Date.now()), T`${nm(r.uid)} ${f.text}`, f.ref, r.uid, f.hot, chased(f.k));
+      const chased = (r, k) => !!M.pm && M.lines.managerOf(ctx, r) === me && M.pm.chases(ctx, r, k, td);
+      for (const r of M.lines.board(ctx, me)) for (const f of r.flags) push('team:' + r.uid + ':' + (f.key || f.k) + ':' + td, 'flag', f.at || (ctx.now || Date.now()), T`${nm(r.uid)} ${f.text}`, f.ref, r.uid, f.hot, chased(r.uid, f.k));
     }
     /* the personal manager: steps due to the viewer, answers to their asks, the note up the line */
     if (M.pm && M.pm.loaded(ctx)) for (const it of M.pm.inboxItems(ctx)) push(it.id, 'pm', it.at, T`${it.line}`, it.ref, it.actor, it.hot, true, true);

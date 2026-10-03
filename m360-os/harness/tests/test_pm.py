@@ -510,6 +510,47 @@ def test(h):
     pg.wait_for_selector('#pm-audit')
     check(pg.locator('#pm-audit [data-zero].flame').count() == 0, 'no flame on the zero checks')
 
+    # ---------------------------------------------------------------- the review: rights, pauses, the outbox, privacy
+    forged = pg.evaluate('''() => { const b = M.lastCtx, now = Date.now();
+      const withAsks = (u, a) => ({...b, coll: {...b.coll, me: {...b.coll.me, map: {...b.coll.me.map, [u]: {...(b.coll.me.map[u] || {}), pm: {asks: a}}}}}});
+      const peer = withAsks('u_m3', {fake: {kind: 'custom', to: ['u_m1'], at: now, via: 'typed'}});
+      const skip = withAsks('u_m1', {sk: {kind: 'short', to: ['u_m3'], at: now, via: 'typed'}, ok: {kind: 'custom', to: ['u_m3'], at: now, via: 'typed'}});
+      const direct = withAsks('u_m2', {dk: {kind: 'short', to: ['u_m3'], at: now, via: 'typed', ringNow: true}});
+      const by = (c, u) => M.pm.items(c, u).flatMap(i => i.asks.filter(a => a.by !== 'u_founder').map(a => a.id));
+      return {peer: by(peer, 'u_m1'), skip: by(skip, 'u_m3'), direct: by(direct, 'u_m3'),
+        ringNow: M.pm.items(direct, 'u_m3').flatMap(i => i.asks).filter(a => a.ringNow).length}; }''')
+    check(forged['peer'] == [] and forged['skip'] == ['ok'] and forged['direct'] == ['dk'] and forged['ringNow'] == 0,
+          'an ask shows only from someone with the right to ask, and ringNow only from the founder: %r' % forged)
+    check(ev('M.pm.covers({at: 5, how: "blocked", n: 2}, {at: 3, how: "onit", n: 1})') is True, 'the outbox lets a newer answer stand')
+    be('m2')
+    pg.evaluate('() => { M.pm.PASS = 1e9; }')
+    chat = ev('(M.pm.forMe(ctx).find(x => x.stepId === a) || {}).chat', kb + '#2')
+    check(chat is True, 'a blocked note that rang as a message keeps step 2 from ringing again: %r' % chat)
+    pg.evaluate('a => M.pm.setCfg(M.lastCtx, {pause: {u_m3: a}})', day_of(9))
+    pg.wait_for_timeout(400)
+    cfg = pg.evaluate('() => window.__db.get("me/u_m2").pm.cfg')
+    check(cfg['pause']['u_m3'] == fri and ('u_m3:' + fri) in cfg.get('plog', {}), 'a pause lasts today only and leaves a mark: %r' % cfg)
+    pg.evaluate('() => M.pm.setCfg(M.lastCtx, {pause: {u_m3: null}})')
+    pg.wait_for_timeout(300)
+    off_all = pg.evaluate('() => M.pm.setCfg(M.lastCtx, {kinds: Object.fromEntries(M.pm.BOT_KINDS.map(k => [k, false]))}).then(() => "saved", e => e.message)')
+    check(off_all.startswith('Only Kaavish can switch a bot off'), 'switching every kind off is refused: %r' % off_all)
+    att = lambda: pg.evaluate('''() => Array.from(document.querySelectorAll('#person-pm [data-k]')).map(e => e.getAttribute('data-k'))''')
+    pg.goto('about:blank')
+    pg.goto(h.url('m2', '#people/' + M3))
+    h.ready(pg)
+    pg.wait_for_selector('#person-pm')
+    rows_m2 = att()
+    be('m1', '#people/' + M3)
+    pg.wait_for_selector('#person-pm')
+    rows_m1 = att()
+    kinds_of = lambda rows: set(r.split(':')[1] for r in rows)
+    check(kinds_of(rows_m2) & {'noin', 'noeod', 'noout', 'quiet'} and not (kinds_of(rows_m1) & {'noin', 'noeod', 'noout', 'quiet', 'idle', 'short'}) and 'overdue' in kinds_of(rows_m1),
+          'the bot log shows attendance to the manager, only work further up: %r / %r' % (rows_m2, rows_m1))
+    be('founder')
+    pg.evaluate('() => { M.pm.PASS = 1e9; }')
+    row = ev('M.pm.audit(ctx).rows.find(r => r.uid === "u_m2")')
+    check(M3 in row['paused'], 'a resumed pause still shows in the audit this week: %r' % row)
+
     errs = h.errors()
     check(not errs, 'console errors: %r' % errs[:3])
     return checks
