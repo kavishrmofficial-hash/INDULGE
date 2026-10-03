@@ -30,7 +30,8 @@
       if (!state) return;
       const s = state;
       const doc = ctx.coll.me.map[ctx.uid] || {};
-      const sessions = [{task: s.task, mins: s.mins, at: Date.now()}].concat(((doc.focus || {}).sessions) || []).slice(0, KEEP);
+      /* banked at the moment the timer ended, even when the page reopens later (the quiet watch reads the span) */
+      const sessions = [{task: s.task, mins: s.mins, at: Math.min(Date.now(), s.start + s.mins * 60000)}].concat(((doc.focus || {}).sessions) || []).slice(0, KEEP);
       try { await ctx.W.merge('me/' + ctx.uid, {focus: {sessions}}); } catch (e) { M.toast('That session did not save. It stays on the clock; try again in a moment.', true); return; }
       state = null; persist(); emit();
       M.burst(document.querySelector('.focus-pill') || document.body);

@@ -10,6 +10,7 @@
 (function () {
   const {U} = M;
   const MIN = 60000;
+  const LOADS = ['me', 'checkin', 'eod', 'tasks', 'feed', 'kudos', 'leave', 'leavedec'];
   const BUCKET = 5 * MIN;
   const FOCUS_MAX = 180;
   const SIGNIN = new Set(['login', 'logout', 'signup', 'accept', 'setup', 'link', 'signoutall', 'invited', 'magic', 'pw', 'pw2', 'reset', 'resetpw']);
@@ -135,6 +136,9 @@
     const c = cfg(ctx);
     const res = {uid, ymd, on: c.on, mins: c.mins, lunch: c.lunch, from: null, to: null, marks: [], stretches: [], live: null, idle: null, status: ''};
     if (!c.on || !ctx || !ctx.members || !ctx.members[uid] || ctx.members[uid].active === false || !ctx.settings) return res;
+    /* a page still loading reads nothing: until every collection a day is made of has arrived (a read
+       error counts as arrived), a stretch would run from the check-in and ring a manager for nothing */
+    if (LOADS.some(k => ctx.coll && ctx.coll[k] && ctx.coll[k].ready === false)) { res.pending = true; return res; }
     const a = M.att ? M.att.dayStatus(ctx, uid, ymd) : null;
     if (!a || !a.in || (a.status !== 'office' && a.status !== 'wfh')) return res;
     const d0 = U.parseYmd(ymd).getTime();

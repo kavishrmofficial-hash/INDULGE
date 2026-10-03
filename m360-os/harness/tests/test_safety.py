@@ -513,7 +513,8 @@ def mock(h):
     res = p.inner_text('#safety-import-result')
     check(res.startswith('1 added'), 'import result: ' + res)
     check(doc(p, 'tasks/t1') and doc(p, 'tasks/t1')['title'] == 'Write hero reel script', 'task not restored by import')
-    added = p.evaluate('n => window.__dbWrites.slice(n).filter(w => !w.path.startsWith("log/")).map(w => w.path)', n_writes)
+    # the log and the viewer's own activity stamp (me/<self>, M.stamp) are bookkeeping, never part of the import
+    added = p.evaluate('n => window.__dbWrites.slice(n).filter(w => !w.path.startsWith("log/") && w.path !== "me/" + M.lastCtx.uid).map(w => w.path)', n_writes)
     check(added == ['tasks/t1'], 'import wrote more than the missing task: %r' % added)
     check(doc(p, 'tasks/t2')['title'] == 'Lock the shot list', 'import touched an existing task')
     # a day backup from the standalone server imports the same way

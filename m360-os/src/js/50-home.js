@@ -547,7 +547,9 @@
   function HeadsUp() {
     const ctx = M.useCtx();
     const [all, setAll] = useState(false);
-    const flags = ctx.myFlags || [];
+    /* the most pressing first: a running quiet stretch or a missed check-in never hides behind a low reminder */
+    const SEV = {high: 0, medium: 1, low: 2};
+    const flags = (ctx.myFlags || []).slice().sort((a, b) => (SEV[a.severity] == null ? 1 : SEV[a.severity]) - (SEV[b.severity] == null ? 1 : SEV[b.severity]));
     const names = (M.rules && M.rules.NAMES) || {};
     const list = all ? flags : flags.slice(0, 3);
     return html`<section class="card">

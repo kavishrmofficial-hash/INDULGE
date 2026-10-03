@@ -33,6 +33,6 @@ skips `*.vendor.js` and `*.vendor.css`: they are other people's code, kept as sh
 colours moved to the m360 palette, and em dashes replaced in strings, since the page build refuses them).
 
 Two edits to the packages, both applied by `build.sh`: `entry.jsx` tints the metal's chromatic preset
-flame (`PRESETS.chromatic.modes.*.colorTint`), and `patch-metal.py` fixes one line of metal-fx 2.0.11
+flame (`PRESETS.chromatic.modes.*.colorTint`), and `patches.py` fixes one line of metal-fx 2.0.11 (and lets the orbs and bots draw sharp at 3x)
 (the glow's next resting point is clamped when a metal control changes size, as its current point
 already is). On an upgrade, the patch stops the build if that line has moved, so it can be checked.
