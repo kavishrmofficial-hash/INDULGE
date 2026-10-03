@@ -13,6 +13,8 @@ Run: cd m360-os && python3 harness/tests/test_effects.py
 """
 import os
 import sys
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from harness.lib import run  # noqa: E402
@@ -44,6 +46,10 @@ FAKE_SR = '''() => {
   window.SpeechRecognition.prototype.abort = function () { clearTimeout(this._t); };
   window.webkitSpeechRecognition = window.SpeechRecognition;
 }'''
+
+
+# Home has no Check in on a Sunday (IST), so that one check waits for a working day
+SUNDAY = datetime.now(ZoneInfo('Asia/Kolkata')).weekday() == 6
 
 
 def test(h):
@@ -131,7 +137,7 @@ def test(h):
     newm = p.evaluate('() => { const b = document.querySelector(".sidebar .btn.new-trigger"); return b && b.closest(".metal-fx-root") ? b.closest(".metal-fx-root").dataset.theme : null; }')
     check(newm == 'dark', 'the New button is dark metal: %r' % newm)
     checkin = p.evaluate('() => { const b = document.querySelector("#tapin .btn.xl"); return b && b.closest(".metal-fx-root") ? b.closest(".metal-fx-root").dataset.theme : null; }')
-    check(checkin == 'light', 'the check-in button is light metal on the dark panel: %r' % checkin)
+    check(checkin == 'light' or SUNDAY, 'the check-in button is light metal on the dark panel: %r' % checkin)
     # v31: the thought is decorative, so it no longer carries a beam (one moving thing per view)
     check(not p.evaluate('() => document.getElementById("quote-card").parentElement.hasAttribute("data-beam")'), 'the thought sits still, without a beam')
 
