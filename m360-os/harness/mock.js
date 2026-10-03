@@ -100,14 +100,24 @@
   }
 
   /* ---------------- store ---------------- */
-  const KEY = 'm360db';
+  /* one localStorage key per document, as the server merges per document: pages in one test share the
+     store, and a page writing one document never puts back another page's documents from a stale copy */
+  const PRE = 'm360db:';
   let store = {};
-  let lastRaw = null;
-  try { if (q.get('reset') === '1') localStorage.removeItem(KEY); lastRaw = localStorage.getItem(KEY); store = JSON.parse(lastRaw || '{}'); } catch (e) { store = {}; }
-  function persist() { try { lastRaw = JSON.stringify(store); localStorage.setItem(KEY, lastRaw); } catch (e) {} }
-  /* every page in a test shares one stored blob; a write starts from the latest blob, so a page never puts
-     back a stale copy over what another page just wrote (the server merges per document) */
-  function refresh() { try { const raw = localStorage.getItem(KEY); if (raw !== lastRaw && raw != null) { store = JSON.parse(raw); lastRaw = raw; return true; } } catch (e) {} return false; }
+  function loadAll() {
+    const out = {};
+    for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith(PRE)) { try { out[k.slice(PRE.length)] = JSON.parse(localStorage.getItem(k)); } catch (e) {} } }
+    return out;
+  }
+  try {
+    localStorage.removeItem('m360db');
+    if (q.get('reset') === '1') { const ks = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith(PRE)) ks.push(k); } ks.forEach(k => localStorage.removeItem(k)); }
+    store = loadAll();
+  } catch (e) { store = {}; }
+  /* the document as stored now, which another page may have just written */
+  function readOne(path) { try { const raw = localStorage.getItem(PRE + path); if (raw == null) delete store[path]; else store[path] = JSON.parse(raw); } catch (e) {} }
+  function persistOne(path) { try { if (store[path] === undefined) localStorage.removeItem(PRE + path); else localStorage.setItem(PRE + path, JSON.stringify(store[path])); } catch (e) {} }
+  function persist() { for (const p of Object.keys(store)) persistOne(p); }
   function deepFreeze(o) { if (o && typeof o === 'object' && !Object.isFrozen(o)) { Object.freeze(o); Object.keys(o).forEach(k => deepFreeze(o[k])); } return o; }
   const clone = x => JSON.parse(JSON.stringify(x));
   function merge(a, b) {
@@ -139,17 +149,14 @@
     const cl = collListeners.get(c); if (cl) cl.forEach(fn => setTimeout(() => fn(), 0));
   }
   window.addEventListener('storage', ev => {
-    if (ev.key !== KEY) return;
-    /* the event can trail a later write; read the blob as it is now */
-    if (refresh()) notifyAll();
+    if (ev.key === null) { store = loadAll(); for (const p of docListeners.keys()) notify(p); for (const c of collListeners.keys()) collListeners.get(c).forEach(fn => setTimeout(() => fn(), 0)); return; }
+    if (!ev.key.startsWith(PRE)) return;
+    const path = ev.key.slice(PRE.length);
+    readOne(path); notify(path);
   });
-  function notifyAll() {
-    for (const p of docListeners.keys()) notify(p);
-    for (const c of collListeners.keys()) { const cl = collListeners.get(c); cl.forEach(fn => setTimeout(() => fn(), 0)); }
-  }
   function write(path, data, mode) {
     return new Promise((res, rej) => setTimeout(() => {
-      if (refresh()) notifyAll();
+      readOne(path);
       const a = access(path);
       if (!a.write) return rej(err('invalid_argument', 'write not allowed at ' + path));
       if (mode !== 'delete' && (data === null || typeof data !== 'object' || Array.isArray(data))) return rej(err('invalid_argument', 'body must be an object'));
@@ -162,7 +169,7 @@
         store[path] = body;
       }
       window.__dbWrites.push({path, mode, at: Date.now()});
-      persist(); notify(path); res();
+      persistOne(path); notify(path); res();
     }, 8));
   }
 
@@ -229,8 +236,7 @@
     };
   }
   const db = Object.freeze({doc: docRef, collection: collRef});
-  const fresh = () => { if (refresh()) notifyAll(); };
-  window.__db = {store: () => (fresh(), store), set: (p, d) => { fresh(); store[p] = clone(d); persist(); notify(p); }, get: p => (fresh(), store[p]), del: p => { fresh(); delete store[p]; persist(); notify(p); }};
+  window.__db = {store: () => store, set: (p, d) => { store[p] = clone(d); persistOne(p); notify(p); }, get: p => (readOne(p), store[p]), del: p => { delete store[p]; persistOne(p); notify(p); }};
 
   /* ---------------- user ---------------- */
   const profOf = id => {
@@ -502,7 +508,6 @@
     xhr.send();
     if (xhr.status === 200) {
       const seed = JSON.parse(xhr.responseText);
-      if (refresh()) notifyAll();
       for (const p of Object.keys(seed)) store[p] = seed[p];
       persist();
     }
