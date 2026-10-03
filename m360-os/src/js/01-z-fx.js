@@ -115,9 +115,11 @@
       return () => { if (ro) ro.disconnect(); if (io) io.disconnect(); };
     }, [enabled]);
     if (!enabled) return children;
+    /* focus is followed on every beam: a field focused as it mounts (the palette) is known to be a field
+       only after this first render */
     const active = vis && !tall && (!hush || modal) && (!field || focus);
     return html`<span ref=${host} class=${'beam-host' + (block === false ? ' inline' : '')} data-beam-live=${active ? '1' : '0'} data-beam-tall=${tall ? '1' : '0'}
-      onFocus=${field ? () => setFocus(true) : undefined} onBlur=${field ? e => setFocus(!!e.relatedTarget && e.currentTarget.contains(e.relatedTarget)) : undefined}>
+      onFocus=${() => setFocus(true)} onBlur=${e => setFocus(!!e.relatedTarget && e.currentTarget.contains(e.relatedTarget))}>
       <${fx.BorderBeam} size=${field ? 'line' : (size || 'md')} colorVariant="sunset" staticColors=${true} strength=${strength == null ? 0.7 : strength} theme=${dark == null ? th : (dark ? 'dark' : 'light')} borderRadius=${radius == null ? 20 : radius} duration=${duration} active=${active}>${children}<//>
     </span>`;
   }
@@ -142,7 +144,7 @@
     const paused = (chrome && !hover && !focus) || (hush && place !== 'modal');
     return html`<span class=${'metal-host' + (block ? ' block' : '')} ref=${host}
       onPointerEnter=${chrome ? () => setHover(true) : undefined} onPointerLeave=${chrome ? () => setHover(false) : undefined}
-      onFocus=${chrome ? () => setFocus(true) : undefined} onBlur=${chrome ? () => setFocus(false) : undefined}>
+      onFocus=${chrome ? e => setFocus(e.target.matches(':focus-visible')) : undefined} onBlur=${chrome ? () => setFocus(false) : undefined}>
       <${fx.MetalFx} preset="chromatic" variant=${circle ? 'circle' : 'button'} theme=${dark ? 'dark' : 'light'} strength=${strength == null ? 1 : strength} innerShadow=${!!circle} paused=${paused} className=${'metal ' + (dark ? 'metal-ink' : 'metal-paper') + (className ? ' ' + className : '')}>${children}<//>
     </span>`;
   }
