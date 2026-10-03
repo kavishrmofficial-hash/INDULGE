@@ -982,6 +982,7 @@
       return quietWrite(ctx.db, p, {runs: ledger.runs, at: Date.now()});
     }).catch(() => {});
     tellLedger();
+    return ledger.writing;
   }
   const trimInput = x => { try { const s = JSON.stringify(x || {}); return s.length > 400 ? {text: s.slice(0, 400)} : JSON.parse(s); } catch (e) { return {}; } };
   /* one turn is one run; each act in it is a row */
@@ -1110,7 +1111,8 @@
     if (!undoable(hit.a)) throw new Error('too late to undo that one: it ran at ' + U.hhmm(hit.a.doneAt || hit.a.at));
     const say = await undoRow(ctx, hit.a);
     hit.a.status = 'undone';
-    persist(ctx);
+    /* the ledger reads undone before Undo says it is done */
+    await persist(ctx);
     return {ok: true, undone: hit.a.action, say};
   }
 
