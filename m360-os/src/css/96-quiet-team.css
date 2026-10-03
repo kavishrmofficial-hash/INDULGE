@@ -1,0 +1,68 @@
+/* ---------- v30: quiet stretches outside HQ. Your team's quiet lines (the running one carries the
+   listening orb), the person page's day strip (the worked window in col, a tick per mark, focus
+   under it, lunch shaded, quiet in flame, a now line) with the week under it, and the person's own
+   nudge on Home. ---------- */
+
+/* your team: the orb sits where the dot would, centred on the same line */
+.team-flag .tf-live{flex:none; display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; margin-left:-7px}
+.team-flag .tf-live canvas{display:block}
+.team-flag .tf-live .vorb.mini{margin-right:0}
+.team-flag.quiet[data-live="1"] > .grow{color:var(--ink); font-weight:500}
+.team-flag .linky{flex:none; white-space:nowrap}
+
+/* the person's own nudge */
+.quiet-nudge{padding:14px 18px}
+.quiet-nudge .qn-line{align-items:flex-start}
+.quiet-nudge .qn-line .dotflame{margin-top:7px}
+.quiet-nudge .qn-act{gap:6px; margin-top:10px}
+.quiet-nudge .qn-why{margin-top:8px}
+
+/* the day strip: hour lines every --pq-step, the bands and ticks on top */
+.pq-wrap{display:grid; gap:4px; min-width:0}
+.pq-strip{position:relative; display:block; height:44px; min-width:0; border-radius:10px; overflow:hidden;
+  box-shadow:inset 0 0 0 1px var(--line); background-image:repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px var(--pq-step, 10%))}
+.pq-strip i{position:absolute; font-style:normal}
+.pq-lunch{top:0; bottom:0; background:repeating-linear-gradient(135deg, var(--line2) 0 2px, transparent 2px 6px)}
+.pq-day{top:10px; bottom:10px; background:var(--col); border-radius:6px}
+.pq-f{bottom:3px; height:4px; background:var(--ink62); border-radius:2px}
+.pq-t{top:15px; bottom:15px; width:2px; margin-left:-1px; background:var(--ink); border-radius:1px; opacity:.7}
+.pq-t.k-task,.pq-t.k-post,.pq-t.k-kudos{top:11px; bottom:11px; opacity:1}
+.pq-t.k-in,.pq-t.k-out,.pq-t.k-eod{top:4px; bottom:4px; opacity:1}
+.pq-q{top:7px; bottom:7px; background:var(--flame); border-radius:6px; display:flex; align-items:center; justify-content:center; overflow:hidden}
+.pq-q.live{border-top-right-radius:0; border-bottom-right-radius:0}
+.pq-q b{position:relative; font-size:12px; font-weight:600; color:#fff; white-space:nowrap}
+.pq-ql{top:0; bottom:0; background:repeating-linear-gradient(135deg, rgba(255,255,255,.45) 0 2px, transparent 2px 6px)}
+.pq-now{top:0; bottom:0; width:2px; margin-left:-1px; background:var(--flame)}
+.pq-now::before{content:""; position:absolute; top:2px; left:-3px; width:8px; height:8px; border-radius:999px; background:var(--flame)}
+@media (prefers-reduced-motion:no-preference){
+  .pq-now::before{animation:pulse 2.2s ease-in-out infinite}
+}
+.pq-hours{position:relative; display:block; height:16px; min-width:0}
+.pq-hours span{position:absolute; top:0; transform:translateX(-50%); font-size:11px; line-height:16px; color:var(--micro); font-variant-numeric:tabular-nums; white-space:nowrap}
+.pq-hours span.first{transform:none}
+.pq-hours span.last{transform:translateX(-100%)}
+
+/* each stretch in words, the key, the week */
+.pq-st{align-items:center}
+.pq-st.live{color:var(--flame); font-weight:500}
+.pq-key{display:flex; flex-wrap:wrap; gap:6px 14px}
+.pq-key span{display:inline-flex; align-items:center; gap:6px}
+.pq-key .k{display:inline-block; flex:none}
+.pq-key .k.t{width:2px; height:12px; background:var(--ink); border-radius:1px}
+.pq-key .k.f{width:12px; height:4px; background:var(--ink62); border-radius:2px}
+.pq-key .k.q{width:14px; height:10px; background:var(--flame); border-radius:3px}
+.pq-key .k.l{width:14px; height:10px; border-radius:3px; box-shadow:inset 0 0 0 1px var(--line); background:repeating-linear-gradient(135deg, var(--line2) 0 2px, transparent 2px 6px)}
+.pq-week{display:grid; gap:2px; padding-top:12px; border-top:1px solid var(--line)}
+.pq-week .micro{margin-bottom:4px}
+.pq-wk{display:flex; gap:12px; align-items:baseline; min-width:0; padding:3px 0}
+.pq-wk-d{flex:none; width:48px; color:var(--ink62)}
+.pq-wk.hot .grow{color:var(--flame)}
+
+/* phones: every other hour label, a slimmer strip */
+@media (max-width:700px){
+  .pq-hours span.odd{display:none}
+  .pq-strip{height:40px}
+  .pq-day{top:9px; bottom:9px}
+  .pq-q{top:6px; bottom:6px}
+  .quiet-nudge{padding:14px 16px}
+}

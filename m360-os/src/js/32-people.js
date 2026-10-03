@@ -192,6 +192,111 @@
     <//>`;
   }
 
+  /* ---------- person page: today on m360 (M.quiet) ----------
+     For the founder, the person and their manager only. The working day as a strip: the worked
+     window, a tick per mark, focus under it, the lunch hour shaded, every quiet stretch in flame and
+     a line at now; each stretch with its times below. Then the week so far, one line a day. The person
+     sees exactly what their manager sees. Times only, never what was saved. */
+  const MIN = 60000, HOUR = 3600000;
+  const OFF_DAY = {leave: 'On leave today.', holiday: 'A holiday today.', sunday: 'Sunday. The OS rests too.'};
+  /* whole hours from the check-in (or an earlier mark) to the later of the EOD cut, the check-out and the last mark */
+  function quietAxis(ctx, q, ymd) {
+    const d0 = U.parseYmd(ymd).getTime();
+    const cut = d0 + U.minutes(String(ctx.settings.eodCut || '19:30')) * MIN;
+    const ms = q.marks;
+    const lo = Math.min(q.from, ms.length ? ms[0].s : q.from), hi = Math.max(cut, q.to, ms.length ? ms[ms.length - 1].e : 0);
+    const a = Math.max(0, Math.floor((lo - d0) / HOUR)), b = Math.min(24, Math.max(a + 4, Math.ceil((hi - d0) / HOUR)));
+    return {d0, a: d0 + a * HOUR, b: d0 + b * HOUR, h0: a, hours: b - a};
+  }
+  const pctOf = (x, ax) => Math.max(0, Math.min(100, 100 * (x - ax.a) / (ax.b - ax.a)));
+  const spanOf = (s, e, ax) => ({left: pctOf(s, ax) + '%', width: Math.max(0.4, pctOf(e, ax) - pctOf(s, ax)) + '%'});
+  /* one stretch in words: "10:50 to 14:30, 3h 40m" or "since 10:50, 2h 50m so far", lunch aside */
+  const stretchText = st => (st.live ? 'Since ' + U.hhmm(st.from) + ', ' + M.quiet.dur(st.quietMs) + ' so far' : U.hhmm(st.from) + ' to ' + U.hhmm(st.to) + ', ' + M.quiet.dur(st.quietMs)) + (st.lunch ? ', lunch aside' : '');
+  /* a day of the week in a line: "steady", "1 quiet stretch, 2h 10m", "2 quiet stretches, longest 3h 45m" */
+  const weekText = d => {
+    const n = d.stretches.length;
+    if (!n) return 'steady';
+    return (n === 1 ? '1 quiet stretch, ' + M.quiet.dur(d.longest) : n + ' quiet stretches, longest ' + M.quiet.dur(d.longest)) + (d.stretches.some(s => s.live) ? ', one running now' : '');
+  };
+
+  function QuietStrip({q, ax, now, label}) {
+    const out = q.marks.find(m => m.k === 'out');
+    const lunch = q.lunch ? [ax.d0 + q.lunch[0] * MIN, ax.d0 + q.lunch[1] * MIN] : null;
+    /* the lunch hour shows through a stretch, as a share of it: it never counts toward the length */
+    const inLunch = st => {
+      const s = lunch ? Math.max(st.from, lunch[0]) : 0, e = lunch ? Math.min(st.to, lunch[1]) : 0;
+      return e > s ? {left: 100 * (s - st.from) / (st.to - st.from) + '%', width: 100 * (e - s) / (st.to - st.from) + '%'} : null;
+    };
+    /* ticks that would land on the same spot are drawn once */
+    const seen = new Set();
+    const ticks = q.marks.filter(m => m.k !== 'f' && m.s >= ax.a && m.s <= ax.b).filter(m => {
+      const k = m.k + Math.round(pctOf(m.s, ax) * 2);
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    const hours = [];
+    for (let h = ax.h0; h <= ax.h0 + ax.hours; h++) hours.push(h);
+    return html`<div class="pq-wrap">
+      <div class="pq-strip" role="img" aria-label=${label} style=${{'--pq-step': (100 / ax.hours) + '%'}}>
+        ${lunch ? html`<i class="pq-lunch" style=${spanOf(lunch[0], lunch[1], ax)}/>` : null}
+        <i class="pq-day" style=${spanOf(q.from, out ? out.s : q.to, ax)}/>
+        ${q.marks.filter(m => m.k === 'f').map((m, i) => html`<i key=${'f' + i} class="pq-f" style=${spanOf(m.s, m.e, ax)}/>`)}
+        ${ticks.map((m, i) => html`<i key=${'t' + i} class=${'pq-t k-' + m.k} style=${{left: pctOf(m.s, ax) + '%'}}/>`)}
+        ${q.stretches.map(st => { const l = inLunch(st); return html`<i key=${st.from} class=${'pq-q' + (st.live ? ' live' : '')} style=${spanOf(st.from, st.to, ax)}>
+          ${l ? html`<i class="pq-ql" style=${l}/>` : null}
+          ${(st.to - st.from) / (ax.b - ax.a) >= 0.12 ? html`<b>${M.quiet.dur(st.quietMs)}</b>` : null}</i>`; })}
+        ${now >= ax.a && now <= ax.b ? html`<i class="pq-now" style=${{left: pctOf(now, ax) + '%'}}/>` : null}
+      </div>
+      <div class="pq-hours" aria-hidden="true">${hours.map((h, i) => html`<span key=${h}
+        class=${(i === 0 ? 'first' : i === hours.length - 1 ? 'last' : '') + (i % 2 ? ' odd' : '')} style=${{left: pctOf(ax.d0 + h * HOUR, ax) + '%'}}>${U.pad(h % 24)}:00</span>`)}</div>
+    </div>`;
+  }
+
+  function QuietDay({uid}) {
+    const ctx = M.useCtx();
+    const today = todayOf(ctx);
+    const mon = U.ymd(U.mondayOf(nowDate(ctx)));
+    /* the founder's log fills the hours before the stamps (M.quiet.useLog reads nothing for anyone else) */
+    const log = M.quiet.useLog(ctx, mon, today);
+    const extra = log[uid] || {};
+    const now = nowDate(ctx).getTime();
+    const q = M.quiet.day(ctx, uid, today, {now, extra: extra[today]});
+    if (!q.on || (ctx.members[uid] || {}).active === false) return null;
+    const week = M.quiet.week(ctx, uid, today, {now, extra});
+    const self = ctx.uid === uid;
+    const a = M.att ? M.att.dayStatus(ctx, uid, today) : null;
+    const out = q.marks.find(m => m.k === 'out');
+    const n = q.stretches.length;
+    const pill = q.live ? html`<span class="pill flame" id="person-quiet-state">quiet now</span>`
+      : n ? html`<span class="pill flame-o" id="person-quiet-state">${n === 1 ? '1 quiet stretch' : n + ' quiet stretches'}</span>`
+        : q.from ? html`<span class="pill ink" id="person-quiet-state">steady</span>` : null;
+    const ax = q.from ? quietAxis(ctx, q, today) : null;
+    const label = q.from ? 'In at ' + U.hhmm(q.from) + (out ? ', out at ' + U.hhmm(out.s) : ', still in') + '. ' +
+      (n ? q.stretches.map(st => U.cap(M.quiet.line(st))).join('. ') + '.' : 'No quiet stretches.') : '';
+    const mins = q.mins % 60 ? M.quiet.dur(q.mins * MIN) : q.mins / 60 + (q.mins === 60 ? ' hour' : ' hours');
+    const thr = q.mins % 60 ? M.quiet.dur(q.mins * MIN) : q.mins / 60 + 'h';
+    return html`<${UI.Card} title="Today on m360" id="person-quiet" action=${pill}>
+      <div class="stack">
+        ${q.from ? html`<${React.Fragment}>
+          <div class="small sub num">${out ? 'In ' + U.hhmm(q.from) + ', out ' + U.hhmm(out.s) : 'In since ' + U.hhmm(q.from)}${q.status ? html`<span> · status: ${q.status}</span>` : null}</div>
+          <${QuietStrip} q=${q} ax=${ax} now=${out ? 0 : now} label=${label}/>
+          ${n ? html`<div class="stack tight pq-list">${q.stretches.map(st => html`<div key=${st.from} class=${'row nowrap small pq-st' + (st.live ? ' live' : '')} data-live=${st.live ? '1' : '0'}>
+            <span class="dotflame"/><span class="grow num">${stretchText(st)}</span></div>`)}</div>`
+            : html`<div class="small sub">Nothing quiet for ${mins} or more today.</div>`}
+          <div class="pq-key tiny sub" aria-hidden="true"><span><i class="k t"/>saved on m360</span><span><i class="k f"/>focus</span><span><i class="k q"/>quiet ${thr}+</span><span><i class="k l"/>lunch</span></div>
+        <//>` : html`<div class="small sub">${(a && OFF_DAY[a.status]) || 'Not checked in yet today.'}</div>`}
+        <div class="pq-week" id="person-quiet-week">
+          <${UI.Micro} plain>this week<//>
+          ${week.length ? week.map(d => html`<div key=${d.ymd} class=${'pq-wk small' + (d.stretches.length ? ' hot' : '')} data-ymd=${d.ymd}>
+            <span class="pq-wk-d">${d.ymd === today ? 'Today' : U.DAYS_S[U.parseYmd(d.ymd).getDay()]}</span><span class="grow num">${weekText(d)}</span></div>`)
+            : html`<div class="small sub">No check-ins yet this week.</div>`}
+        </div>
+        <div class="tiny sub">${self ? 'Your manager sees this too. ' : ''}Times only, never what was saved.</div>
+      </div>
+    <//>`;
+  }
+
   /* ---------- person page: overview ---------- */
   function RocksForm({ctx, uid, qid}) {
     const saved = rocksOf(ctx, uid, qid);
@@ -237,6 +342,7 @@
     const kudos = kudosFor(ctx, uid).slice(0, KUDOS_SHOWN);
     const names = useNames(ctx, kudos.map(k => k.giver));
     return html`<${React.Fragment}>
+      ${M.quiet && ctx.canSee(uid) ? html`<${QuietDay} uid=${uid}/>` : null}
       <${UI.Card} title=${'Rocks, ' + qid} id="person-rocks">
         ${mine ? html`<${RocksForm} ctx=${ctx} uid=${uid} qid=${qid}/>`
           : (rocks.length ? rocks.map((r, i) => html`<div class="listrow" key=${r.id || i}>
