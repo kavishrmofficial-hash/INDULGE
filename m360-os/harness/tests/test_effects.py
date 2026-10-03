@@ -132,14 +132,20 @@ def test(h):
     check(newm == 'dark', 'the New button is dark metal: %r' % newm)
     checkin = p.evaluate('() => { const b = document.querySelector("#tapin .btn.xl"); return b && b.closest(".metal-fx-root") ? b.closest(".metal-fx-root").dataset.theme : null; }')
     check(checkin == 'light', 'the check-in button is light metal on the dark panel: %r' % checkin)
-    check(p.evaluate('() => document.getElementById("quote-card").parentElement.hasAttribute("data-beam")'), 'the thought rides a beam')
+    # v31: the thought is decorative, so it no longer carries a beam (one moving thing per view)
+    check(not p.evaluate('() => document.getElementById("quote-card").parentElement.hasAttribute("data-beam")'), 'the thought sits still, without a beam')
 
     # ---- Ask: the voice beam under the input, bots beside the answers, metal on Ask ----
     p.evaluate(FAKE_SR)
     p.locator('.iconbtn[aria-label="Ask m360"]').first.click()
     p.wait_for_selector('#ask-input')
     check(p.evaluate('() => !!document.querySelector("#ask-input").closest("[data-voice-beam]")'), 'the input sits inside the voice beam')
-    check(p.evaluate('() => { const b = [...document.querySelectorAll(".ask-in .btn")].find(x => x.textContent.trim() === "Ask"); return !!(b && b.closest(".metal-fx-root")); }'), 'the Ask button is metal')
+    ASK_METAL = '() => { const b = [...document.querySelectorAll(".ask-in .btn")].find(x => x.textContent.trim() === "Ask"); return !!(b && b.closest(".metal-fx-root")); }'
+    check(not p.evaluate(ASK_METAL), 'an empty Ask is the plain disabled button, no metal')
+    p.fill('#ask-input', 'what can you do')
+    p.wait_for_function(ASK_METAL)
+    check(True, 'the Ask button turns metal once there is something to ask')
+    p.fill('#ask-input', '')
     p.get_by_role('button', name='Talk').first.click()
     p.wait_for_function('() => { const w = document.querySelector("#ask-input").closest("[data-voice-beam]"); return w && w.hasAttribute("data-active"); }')
     check(True, 'the beam is active while the mic is live')
