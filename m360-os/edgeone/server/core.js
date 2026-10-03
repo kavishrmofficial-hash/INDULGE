@@ -94,9 +94,12 @@ const rand = (n = 24) => {
 const newId = () => 'u_' + rand(14);
 const isObj = x => x && typeof x === 'object' && !Array.isArray(x);
 /* an update that only carries the page's activity stamp (M.stamp), exactly as the page writes it:
-   {act: {YYYY-MM-DD: {HHMM: 0 | 1}}} with one five-minute bucket on today (IST, a day either side for a
-   device clock near midnight), plus null for old days being dropped; nothing else */
+   {act: {YYYY-MM-DD: {HHMM: 0 | 1}}} with one bucket, the five minutes that hold now on the IST clock (a
+   few minutes either way for a device clock), plus null for days past the window being dropped; nothing
+   else. A bucket for any other time (one written ahead to cover a quiet stretch, or from a device on
+   another clock) goes the normal way, with a version and a log line */
 const ACT_BUCKET = /^([01]\d|2[0-3])[0-5][05]$/;
+const ACT_SKEW = 10 * 60000;
 const isActOnly = (d, now) => {
   if (!isObj(d) || Object.keys(d).length !== 1 || !isObj(d.act)) return false;
   const days = Object.keys(d.act), today = Date.parse(ymdIST(now));
@@ -105,13 +108,19 @@ const isActOnly = (d, now) => {
   for (const k of days) {
     const v = d.act[k];
     if (!YMD.test(k)) return false;
-    if (v === null) continue;
-    if (!isObj(v) || ++live > 1 || !(Math.abs(Date.parse(k) - today) <= 86400000)) return false;
+    const day = Date.parse(k);
+    if (v === null) { if (!(day <= today - 6 * 86400000)) return false; continue; }
+    if (!isObj(v) || ++live > 1) return false;
     const b = Object.keys(v);
     if (b.length !== 1 || !ACT_BUCKET.test(b[0]) || (v[b[0]] !== 0 && v[b[0]] !== 1)) return false;
+    const at = day + (Number(b[0].slice(0, 2)) * 60 + Number(b[0].slice(2))) * 60000 - IST_MS;
+    if (!(at >= now - 5 * 60000 - ACT_SKEW && at <= now + ACT_SKEW)) return false;
   }
   return live === 1;
 };
+/* the private mark that someone answered this week's pulse (data/users/<uid>/state {pulse}) lands a
+   moment after the anonymous answer: a log line or a dated version of it would tie the two together */
+const isPulseMark = (path, d) => /^data\/users\/[^/]+\/state$/.test(String(path || '')) && isObj(d) && d.pulse != null;
 /* a deep merge where a null value removes the key (so rolling documents can shed old days), and keys that
    would reach the prototype never land */
 const BAD_KEY = new Set(['__proto__', 'constructor', 'prototype']);
@@ -745,8 +754,10 @@ export function createApp({store, env = {}}) {
         return {ok: true, doc: null};
       }
       /* a page's activity stamp (me/<self>.act, times only, see M.stamp) is bookkeeping: it keeps no
-         backup version and writes no log line, so the history and the log stay about real changes */
+         backup version and writes no log line, so the history and the log stay about real changes.
+         The pulse mark keeps neither too, so nothing dated sits next to an anonymous answer */
       const stampOnly = op === 'update' && s.length === 2 && s[0] === 'me' && s[1] === v.uid && isActOnly(data, Date.now());
+      const quietWrite = stampOnly || isPulseMark(path, data);
       let next = data, cur = null;
       if (op === 'update' || path === 'roster/team') cur = await getJ(key);
       if (op === 'update') {
@@ -756,10 +767,10 @@ export function createApp({store, env = {}}) {
       const str = JSON.stringify(next);
       if (str.length > MAX_DOC) throw new HttpError(400, 'invalid_argument', 'document over 256 KiB');
       /* every move is backed up: safety.js keeps the version being replaced */
-      if (hooks.beforeWrite && !stampOnly) await hooks.beforeWrite(key, path, v.uid, cur).catch(() => {});
+      if (hooks.beforeWrite && !quietWrite) await hooks.beforeWrite(key, path, v.uid, cur).catch(() => {});
       await store.set(key, str);
       await bumpMarker(s.slice(0, -1).join('/'), s[s.length - 1], digest([str])).catch(() => {});
-      if (!stampOnly) await log(v.uid, op, path, summarize(path, data));
+      if (!quietWrite) await log(v.uid, op, path, summarize(path, data));
       /* someone taken off the roster is signed out of every device at once */
       if (path === 'roster/team') {
         const was = (cur && cur.members) || {}, now = (next && next.members) || {};

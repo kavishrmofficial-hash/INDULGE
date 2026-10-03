@@ -5,7 +5,8 @@ m2 leads Pod 1, so m1 reports to m2; m3 is named as reporting to m2 and is on ap
 working Tuesday next week m1 checks in at 10:30. The stamp writer: m1 adds a task from Home at 10:40
 and me/u_m1.act[today]['1040'] is 1, written once; a second save and a focus tick in the same bucket
 write nothing; a pulse and a profile write never stamp; the day ten days back leaves act with the
-first stamp; a save at 10:47 stamps '1045'. A profile that does not exist yet is created by its first
+first stamp; a pulse, its private mark and a chat read mark never stamp, and the pulse and its mark
+leave no log line; a save at 10:47 stamps '1045'. A profile that does not exist yet is created by its first
 stamp, a focus tick stamps 0 and a save in that bucket turns it to 1, and a refused stamp stops the
 tries for the visit. A view-as preview writes nothing.
 
@@ -20,8 +21,10 @@ The engine (M.quiet, through page.evaluate): leave, a holiday, a Sunday and a da
 carry no stretch; a focus session and running focus buckets cover their span; check-out, the EOD cut,
 a past day, now before check-in and a check-in after the cut; the threshold, its clamp and R17; marks
 before check-in and overlapping; the five-minute grid keeps a stretch's start whichever mark of a bucket
-arrives; the moment a stretch passes the threshold, lunch paused; the log reader; and the watch for
-twenty people over two thousand tasks stays quick.
+arrives; the moment a stretch passes the threshold, lunch paused, also for one that starts inside lunch;
+a manager's sign-off never counts as the owner's activity; a focus session longer than any timer covers
+no more than three hours; only today's status rides along; the log reader; and the watch for twenty
+people over two thousand tasks stays quick.
 
 Run: cd m360-os && python3 harness/tests/test_quiet.py
 """
@@ -87,8 +90,10 @@ ENGINE = r'''([today, sunday, monday]) => {
     const tasks = {};
     (o.tasks || []).forEach(([h, m], i) => { tasks['e' + i] = {title: 'x', owner: 'u_m2', by: uid, created: tt(h, m), status: 'todo'}; });
     (o.comments || []).forEach(([h, m], i) => { tasks['c' + i] = {title: 'y', owner: 'u_m2', by: 'u_m2', created: tt(9, 0) - 86400000, status: 'todo', comments: {k: {by: uid, at: tt(h, m), text: 'ok'}}}; });
+    /* [review h, m], [done h, m], who signed it off */
+    (o.done || []).forEach(([r, d, who], i) => { tasks['d' + i] = {title: 'z', owner: uid, by: uid, created: tt(9, 0) - 86400000, status: 'done', reviewAt: tt(...r), doneAt: tt(...d), approvedBy: who, approvedAt: tt(...d)}; });
     const coll = {...base.coll, checkin: {map: {[uid]: {days: ci}}},
-      me: {map: {[uid]: {act: {[day]: a}, focus: {sessions: (o.focus || []).map(([h, m, mins]) => ({at: tt(h, m), mins}))}}}},
+      me: {map: {[uid]: {act: {[day]: a}, focus: {sessions: (o.focus || []).map(([h, m, mins]) => ({at: tt(h, m), mins}))}, status: o.status ? {text: o.status[0], at: tt(...o.status[1]) + (o.status[2] || 0) * 86400000} : null}}},
       eod: {map: {}}, feed: {map: {}}, kudos: {map: {}}, tasks: {map: tasks}};
     const s = o.settings || {};
     const settings = {...base.settings, ...s, rules: {...base.settings.rules, ...(s.rules || {})}};
@@ -98,7 +103,7 @@ ENGINE = r'''([today, sunday, monday]) => {
   const run = o => {
     const c = mk(o), r = M.quiet.day(c, uid, o.day || today);
     return {n: r.stretches.length, s: r.stretches.map(x => [U.hhmm(x.from), U.hhmm(x.to), Math.round(x.quietMs / 60000), x.live, U.hhmm(x.at)]),
-      from: r.from, on: r.on, mins: r.mins, live: !!r.live, idle: r.idle ? U.hhmm(r.idle.from) : null, kinds: r.marks.map(x => x.k)};
+      from: r.from, on: r.on, mins: r.mins, live: !!r.live, idle: r.idle ? U.hhmm(r.idle.from) : null, kinds: r.marks.map(x => x.k), status: r.status};
   };
   const out = {
     gap: run({act: [[10, 40], [10, 45]], now: [14, 40]}),
@@ -128,6 +133,12 @@ ENGINE = r'''([today, sunday, monday]) => {
     comment: run({comments: [[10, 51]], now: [14, 40]}),
     lunchBefore: run({act: [[11, 55]], now: [14, 50]}),
     lunchCross: run({act: [[11, 55]], now: [15, 10]}),
+    lunchIn: run({act: [[13, 40]], now: [16, 50]}),
+    approved: run({done: [[[10, 42], [13, 0], 'u_m2']], now: [14, 40]}),
+    selfDone: run({done: [[[10, 42], [13, 0], uid]], now: [14, 40]}),
+    focusBad: run({focus: [[19, 0, 5400000]], now: [19, 0]}),
+    statusToday: run({status: ['At the shoot', [9, 50]], now: [14, 40]}),
+    statusOld: run({status: ['At the shoot', [18, 0], -1], now: [14, 40]}),
     dur: [M.quiet.dur(50 * 60000), M.quiet.dur(225 * 60000), M.quiet.dur(60 * 60000)],
     cfg: M.quiet.cfg({settings: {quietMins: '90', lunchFrom: '13:00', lunchTo: '14:00', rules: {}}}),
     cfgBad: M.quiet.cfg({settings: {quietMins: 'x', lunchFrom: '14:00', lunchTo: '13:00', rules: {R17: true}}}),
@@ -208,6 +219,9 @@ def test(h):
         h.ready(pg)
         pg.wait_for_timeout(500)
 
+    # the founder's first open writes a roster of one; let it land before the roster below replaces it
+    pg.wait_for_function('() => !!window.__db.get("roster/team")')
+    pg.wait_for_timeout(300)
     h.roster(pg, [M1, M2, M3], extra={M1: {'pod': 'Pod 1'}, M2: {'pod': 'Pod 1', 'role': 'lead'}, M3: {'pod': 'Pod 2', 'reportsTo': M2}})
     for u in (F, M1, M2, M3):
         h.seed_doc(pg, 'checkin/' + u, {'days': {}})
@@ -219,6 +233,7 @@ def test(h):
     h.seed_doc(pg, 'me/' + M1, {'name': 'Durvesh Patil', 'act': {old: {'1000': 1}, recent: {'1100': 1}}})
     pg.evaluate('() => window.__db.del("me/u_m3")')
     base = pg.evaluate('() => window.__db.get("settings/app")')
+    check(sorted(pg.evaluate('() => Object.keys(window.__db.get("roster/team").members)')) == [F, M1, M2, M3], 'the roster holds the four of them')
 
     # ---- view as: the founder's preview writes nothing ----
     be('founder')
@@ -259,14 +274,19 @@ def test(h):
       M.stamp(c.db, c.uid, null, true); }""")
     pg.wait_for_timeout(500)
     check(me_writes(pg, M1) - w0 == 0 and act(pg, M1, today) == {'1040': 1}, 'one write per bucket, a focus tick leaves saved work alone: %r' % act(pg, M1, today))
-    # a pulse answer and a profile write never stamp
+    # a pulse answer, its private mark, a chat read mark and a profile write never stamp; the pulse and
+    # its mark leave no line in the log either, so nothing ties the anonymous answer to m1
     ctx.clock.set_fixed_time(at(10, 46))
     w0 = me_writes(pg, M1)
     pg.evaluate("""async () => { const c = M.lastCtx;
-      await c.W.set('pulse/q' + Date.now(), {week: 'x', score: 4});
+      await c.W.set('pulse/q' + Date.now(), {at: Date.now(), week: 'x', energy: 4});
+      await c.W.merge('data/users/u_m1/state', {pulse: {x: true}});
+      await c.W.merge('data/users/u_m1/state', {chatRead: {general: Date.now()}});
       await c.W.merge('me/u_m1', {status: {text: 'At the Blah Studio shoot', at: Date.now()}}); }""")
     pg.wait_for_timeout(500)
-    check(me_writes(pg, M1) - w0 == 1 and '1045' not in (act(pg, M1, today) or {}), 'pulse and profile writes leave no stamp: %r' % act(pg, M1, today))
+    check(me_writes(pg, M1) - w0 == 1 and '1045' not in (act(pg, M1, today) or {}), 'pulse, bookkeeping and profile writes leave no stamp: %r' % act(pg, M1, today))
+    lines = pg.evaluate('([u, d]) => Object.values(((window.__db.get("log/" + u + "/days/" + d) || {}).e) || {}).filter(x => x.at === Date.now()).map(x => x.p)', [M1, today])
+    check(sorted(lines) == ['data/users/u_m1/state', 'me/u_m1'], 'the pulse and its mark leave no log line, the read mark and the profile do: %r' % lines)
     # a save at 10:47, a focus tick right behind it before the snapshot lands: 1045 is saved work
     ctx.clock.set_fixed_time(at(10, 47))
     pg.evaluate("""async () => { const c = M.lastCtx;
@@ -398,6 +418,11 @@ def test(h):
         check(e[k]['s'][0][0] == '10:50', 'the stretch starts on the bucket edge whichever mark arrives (%s): %r' % (k, e[k]))
     check(e['comment']['s'][0][0] == '10:55', 'a comment marks its bucket: %r' % e['comment'])
     check(e['lunchBefore']['n'] == 0 and e['lunchCross']['s'] == [['12:00', '15:10', 130, True, '15:00']], 'the lunch hour pauses the clock: %r / %r' % (e['lunchBefore'], e['lunchCross']))
+    check(e['lunchIn']['s'] == [['10:35', '13:40', 175, False, '12:35'], ['13:45', '16:50', 140, True, '16:30']], 'a stretch that starts in the lunch hour counts from its end: %r' % e['lunchIn'])
+    check(e['approved']['s'] == [['10:45', '14:40', 175, True, '12:45']], "a manager's sign-off is never the owner's activity: %r" % e['approved'])
+    check(e['selfDone']['s'] == [['10:45', '13:00', 135, False, '12:45']], 'the owner finishing a task is: %r' % e['selfDone'])
+    check(e['focusBad']['s'] == [['10:35', '16:00', 265, False, '12:35']], 'a focus session never covers more than the longest timer: %r' % e['focusBad'])
+    check(e['statusToday']['status'] == 'At the shoot' and e['statusOld']['status'] == '', "only today's status rides along: %r / %r" % (e['statusToday']['status'], e['statusOld']['status']))
     check(e['dur'] == ['50m', '3h 45m', '1h 00m'], 'durations read short: %r' % e['dur'])
     check(e['cfg'] == {'on': True, 'mins': 90, 'lunch': [780, 840]} and e['cfgBad'] == {'on': True, 'mins': 120, 'lunch': None}, 'settings read safely: %r / %r' % (e['cfg'], e['cfgBad']))
     check(len(e['week']) == 1 and e['week'][0][:2] == [today, 1] and e['week'][0][2] == 170, 'the week view: %r' % e['week'])

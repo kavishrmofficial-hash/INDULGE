@@ -169,9 +169,12 @@ function logSummary(d) {
 }
 /* once the rules refuse this viewer's log writes, stop trying for the rest of the visit */
 let logRefused = false;
+/* the private mark that someone answered this week's pulse is written a moment after the anonymous
+   answer: a line for it would tie the answer to them, so it never lands in the log */
+const pulseMark = (p, d) => /^data\/users\/[^/]+\/state$/.test(String(p || '')) && !!d && typeof d === 'object' && d.pulse != null;
 M.logWrite = function logWrite(db, uid, a, p, d) {
   try {
-    if (window.M360_STANDALONE || logRefused || !db || !uid || !p || /^(log|pulse)(\/|$)/.test(String(p))) return;
+    if (window.M360_STANDALONE || logRefused || !db || !uid || !p || /^(log|pulse)(\/|$)/.test(String(p)) || pulseMark(p, d)) return;
     const at = Date.now();
     const id = String(at) + Math.random().toString(36).slice(2, 6).padEnd(4, '0');
     const path = 'log/' + uid + '/days/' + U.todayStr();

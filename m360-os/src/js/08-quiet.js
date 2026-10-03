@@ -11,6 +11,7 @@
   const {U} = M;
   const MIN = 60000;
   const BUCKET = 5 * MIN;
+  const FOCUS_MAX = 180;
   const SIGNIN = new Set(['login', 'logout', 'signup', 'accept', 'setup', 'link', 'signoutall', 'invited', 'magic', 'pw', 'pw2', 'reset', 'resetpw']);
   const counts = p => (M.stamp && M.stamp.counts ? M.stamp.counts(p) : !!p && !/^(log|pulse|me|play|music|spotify)(\/|$)/.test(String(p)));
   const arr = x => Array.isArray(x) ? x : [];
@@ -50,7 +51,10 @@
       const t = tasks[id];
       if (!t || typeof t !== 'object') continue;
       put(t.by, t.created);
-      put(t.owner, t.doneAt); put(t.owner, t.reviewAt);
+      /* a sign-off by someone else stamps doneAt in the same move: that moment is the signer's */
+      const signed = t.approvedBy && t.approvedBy !== t.owner && Math.abs((Number(t.approvedAt) || 0) - (Number(t.doneAt) || 0)) < MIN;
+      if (!signed) put(t.owner, t.doneAt);
+      put(t.owner, t.reviewAt);
       put(t.sentBackBy, t.sentBackAt);
       put(t.approvedBy, t.approvedAt);
       const cs = t.comments || {};
@@ -78,7 +82,8 @@
       const s = d0 + (Number(b.slice(0, 2)) * 60 + Number(b.slice(2))) * MIN;
       add(s, s + BUCKET, act[b] === 0 ? 'f' : 'w');
     }
-    for (const x of arr(me.focus && me.focus.sessions)) if (x && x.at) add(Number(x.at) - (Number(x.mins) || 0) * MIN, x.at, 'f');
+    /* a finished focus session covers its minutes, never more than the longest timer (a bad value never hides the day) */
+    for (const x of arr(me.focus && me.focus.sessions)) if (x && x.at) add(Number(x.at) - Math.min(FOCUS_MAX, Math.max(0, Number(x.mins) || 0)) * MIN, x.at, 'f');
     const ci = ((coll('checkin')[uid] || {}).days || {})[ymd];
     if (ci && ci.in) add(ci.in, ci.in, 'in');
     if (ci && ci.out) add(ci.out, ci.out, 'out');
