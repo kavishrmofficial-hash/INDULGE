@@ -78,8 +78,11 @@
 
   /* ---------- primitives ---------- */
   const UI = M.UI = {};
+  /* true inside a phone fold's body: the hot fold carries the beam, so a card in it is drawn flat */
+  const FoldCtx = UI.FoldCtx = React.createContext(false);
 
   UI.Card = function Card({title, action, flame, className, children, id}) {
+    const inFold = React.useContext(FoldCtx);
     const card = html`<section id=${id} class=${'card' + (flame ? ' flame' : '') + (className ? ' ' + className : '')}>
       ${(title || action) ? html`<div class="card-head">
         ${title ? html`<h2 class="card-title">${title}</h2>` : null}
@@ -87,7 +90,7 @@
       </div>` : null}
       ${children}
     </section>`;
-    return flame && M.fx && M.fx.Beam ? html`<${M.fx.Beam} on=${true}>${card}<//>` : card;
+    return flame && !inFold && M.fx && M.fx.Beam ? html`<${M.fx.Beam} on=${true}>${card}<//>` : card;
   };
 
   /* phones: one column, thumbs, short attention. Sections fold behind a one line summary. */
@@ -119,7 +122,7 @@
         </span>
         <span class="fold-chev"><${M.icons.chevD}/></span>
       </button>
-      ${show ? html`<div class="fold-body">${children}</div>` : null}
+      ${show ? html`<div class="fold-body"><${FoldCtx.Provider} value=${true}>${children}<//></div>` : null}
     </section>`;
     return hot && M.fx && M.fx.Beam ? html`<${M.fx.Beam} on=${true}>${fold}<//>` : fold;
   };
@@ -306,12 +309,12 @@
     return html`<span data-uid=${id || ''}>${(p && p.name) || fallback || 'Someone'}</span>`;
   };
 
-  /* an empty state: a sleeping bot beside the line (bot-avatars); while something loads, the working
-     thinking orb (thinking-orbs) instead */
+  /* an empty state: a sleeping bot beside the line (bot-avatars), held still so nothing moves on a line
+     that says there is nothing here; while something loads, the working thinking orb (thinking-orbs) */
   UI.Empty = function Empty({text}) {
     const loading = /^loading|^opening|^checking|^fetching/i.test(String(text || ''));
     const fx = M.fx;
-    const mark = !fx ? null : loading ? html`<${fx.Orb} state="working" size=${20}/>` : html`<${fx.Bot} feature="empty" state="sleeping" size=${30} label="nothing here yet"/>`;
+    const mark = !fx ? null : loading ? html`<${fx.Orb} state="working" size=${20}/>` : html`<${fx.Bot} feature="empty" state="sleeping" size=${24} paused=${true} label="nothing here yet"/>`;
     return html`<div class=${'sub small empty-line' + (loading ? ' is-loading' : '')}>${mark}<span>${text}</span></div>`;
   };
 

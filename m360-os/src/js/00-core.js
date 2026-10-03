@@ -479,6 +479,12 @@ M.useTheme = function useTheme() {
   React.useEffect(() => M.theme.subscribe(() => set(M.theme.get())), []);
   return t;
 };
+/* the theme as drawn, light or dark: under 'auto' the system can switch it while the preference stays put */
+M.useResolvedTheme = function useResolvedTheme() {
+  const [t, set] = React.useState(M.theme.resolved());
+  React.useEffect(() => M.theme.subscribe(r => set(r)), []);
+  return t;
+};
 
 /* ---------- sounds: tiny synthesized tones, off with one toggle ---------- */
 let audioCtx = null;

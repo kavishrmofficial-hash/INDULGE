@@ -95,11 +95,20 @@
 .metal-host.block .metal-fx-root,.metal-host.block .btn{width:100%}
 .metal-badge-host{display:inline-flex; vertical-align:middle}
 .metal-text-plain{display:inline-block; letter-spacing:-.02em}
-.voice-pill{display:inline-flex; vertical-align:middle; border-radius:22px}
+.voice-pill{display:inline-flex; vertical-align:middle; border-radius:10px; align-items:center; align-self:center}
 .beam-host.inline{display:inline-block}
-/* the metal's glow halo stays within 16px of its button, so a button at the edge never widens the page */
-.metal-host{overflow:clip; overflow-clip-margin:16px}
+/* the metal's glow halo stays within 8px of its button, so it never lands on a control beside it or
+   widens the page, and the focus ring (2px at 3px out) still has room */
+.metal-host{overflow:clip; overflow-clip-margin:8px}
 /* metal-fx keeps its box hidden until its first WebGL frame has been copied; a slow start (a busy phone,
    a throttled tab) would hide the control inside with it. The control shows from the first paint and
    the metal lands over it when its frame is ready. */
 .metal-fx-root{visibility:visible !important; opacity:1 !important}
+/* metal-fx clears the outline of the control it wraps, so the keyboard ring is drawn on the metal itself */
+.metal-fx-root:has(> .metal-fx-content > :focus-visible){outline:2px solid var(--flame); outline-offset:3px; border-radius:var(--r-btn)}
+.metal-fx-root[data-variant='circle']:has(> .metal-fx-content > :focus-visible){border-radius:999px}
+/* the beam clips its box, so a focused control inside draws its ring inward */
+.beam-host :focus-visible{outline-offset:-2px}
+.beam-host .input:focus-visible,.beam-host textarea:focus-visible{outline:0; box-shadow:inset 0 0 0 2px var(--flame)}
+/* the metal badge ships its word in Inter, which the page does not carry: it takes the house type */
+.metal-badge-host span[style*="Inter"]{font-family:'Space Grotesk',system-ui,sans-serif !important; font-size:12px !important; font-weight:500 !important}

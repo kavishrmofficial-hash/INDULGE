@@ -8,9 +8,12 @@ import {BotAvatar} from 'bot-avatars';
 import {MetalFx, MetalText, MetalBadge, useMetalBend, useMetalTextReflection, PRESETS} from 'metal-fx';
 
 /* the one edit to the packages: our agency orange. The metal's chromatic preset burns its silver with
-   a blue tint; here it burns with flame (#F53901) instead, at the same strengths the preset ships. */
+   a blue tint; here it burns with flame (#F53901) instead, at the same strengths the preset ships.
+   Its blue channel dispersion is off, so no blue or violet fringe rides the rim; the red split stays. */
 PRESETS.chromatic.modes.dark.colorTint = '#F539012e';
 PRESETS.chromatic.modes.light.colorTint = '#F5390199';
+PRESETS.chromatic.modes.dark.shiftBlue = 0;
+PRESETS.chromatic.modes.light.shiftBlue = 0;
 import BellToggle from './BellToggle.jsx';
 
 window.FX = {ThinkingOrb, BorderBeam, VoiceBeam, useMicrophone, BotAvatar, MetalFx, MetalText, MetalBadge, useMetalBend, useMetalTextReflection, BellToggle,

@@ -11,6 +11,8 @@ upgrade that moves an anchor, the build stops so the patch can be checked agains
    screen's pixel density, so an orb shown larger (the phone's orb screen) or on a 3x phone is a soft,
    upscaled picture. It now draws at the size it is shown, up to 3x density, with the preset's own look.
 3. bot-avatars 0.2.1. The same density cap of 2: raised to 3, so the bots are sharp on 3x phones.
+4. voice-glow 0.2.1. The same density cap of 2 on the beam's canvas: raised to 3, so the voice beam
+   along the phone's orb screen is drawn at the screen's own density.
 """
 import os
 
@@ -26,6 +28,9 @@ PATCHES = [
     ('node_modules/bot-avatars/dist/index.es.js', 3,
      'Math.min(2, typeof devicePixelRatio == "number" && devicePixelRatio || 1)',
      'Math.min(3, typeof devicePixelRatio == "number" && devicePixelRatio || 1)'),
+    ('node_modules/voice-glow/dist/index.es.js', 1,
+     'Math.min(ln, typeof window < "u" && window.devicePixelRatio || 1)',
+     'Math.min(3, typeof window < "u" && window.devicePixelRatio || 1)'),
 ]
 
 for rel, count, old, new in PATCHES:
