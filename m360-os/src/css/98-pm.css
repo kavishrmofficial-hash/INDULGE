@@ -1,0 +1,125 @@
+/* ---------- v32: personal managers. The person's card on Home (the bot in its pill body, one row per
+   thing, the answers as chips), the manager's chips on Your team with their menu, the bot log, the DM's
+   derived rows, an ask's receipt, the Admin card and the Me card. Tokens only, both themes; on a phone
+   rows wrap and every target is 44px. ---------- */
+
+/* the card */
+.pm-card{padding:18px 20px; overflow:hidden}   /* the metal badge's glow never pushes the page sideways */
+.pm-head{gap:10px; align-items:center; margin-bottom:6px}
+.pm-head .card-title{margin:0; min-width:0}
+.pm-bot{flex:none; display:inline-flex; align-items:center; justify-content:center}
+.pm-rows{display:grid; gap:0}
+.pm-row{display:grid; gap:6px; padding:12px 0; border-bottom:1px solid var(--line); min-width:0}
+.pm-row:last-child{border-bottom:0; padding-bottom:4px}
+.pm-row.sorted{opacity:.72}
+.pm-src{letter-spacing:.02em}
+.pm-line{font-size:15px; line-height:1.45; font-weight:500; color:var(--ink); overflow-wrap:anywhere}
+.pm-meta{gap:4px 12px; align-items:baseline}
+.pm-ladder{min-width:0; overflow-wrap:anywhere}
+.pm-why{padding:8px 10px; border-radius:var(--r-sm); background:var(--warm); overflow-wrap:anywhere}
+.pm-acts{gap:8px; margin-top:2px}
+.pm-said{color:var(--ink); padding:8px 10px; border-radius:var(--r-sm); background:var(--warm); overflow-wrap:anywhere}
+.pm-sorted{color:var(--ink62)}
+.pm-answer{display:grid; gap:8px; min-width:0}
+.pm-chips{gap:6px}
+.pm-ans.on{background:var(--ink); color:var(--on-ink); border-color:var(--ink)}
+.pm-ans[data-how="blocked"]{border-color:var(--flame); color:var(--flame-text)}
+.pm-ans[data-how="blocked"].on{background:var(--flame-deep); border-color:var(--flame-deep); color:var(--paper)}
+.pm-eta{gap:6px; align-items:center}
+.pm-pick{display:inline-flex; align-items:center; gap:6px}
+.pm-pick .input,.pm-time{width:auto; min-height:32px; height:32px; padding:0 8px}
+.pm-note{gap:8px; align-items:center; min-width:0}
+.pm-note .input{min-width:0; min-height:38px}
+.pm-foot{margin-top:10px; padding-top:10px; border-top:1px solid var(--line); gap:6px 12px}
+.pm-answer.compact .pm-chips .chip{height:28px; font-size:12px}
+
+/* the manager's chip beside a flag, and its menu */
+.pm-chip-wrap{position:relative; display:inline-flex; flex:none; margin-left:auto}
+.pm-chip{height:24px; padding:0 10px; border-radius:999px; font-size:12px; line-height:1; white-space:nowrap; cursor:pointer; border:1px solid var(--line2); background:var(--paper); color:var(--ink)}
+.pm-chip.ink{background:var(--col); border-color:var(--col); color:var(--ink)}
+.pm-chip.warm{background:var(--warm); border-color:var(--line2); color:var(--ink)}
+.pm-chip.flame{background:var(--flame-deep); border-color:var(--flame-deep); color:var(--paper)}
+:root[data-theme="dark"] .pm-chip.flame{color:var(--ink)}
+.pm-chip:disabled{cursor:default; opacity:1}
+.pm-chip:not(:disabled):hover{box-shadow:0 0 0 2px var(--line2)}
+.pm-menu{position:fixed; z-index:62; min-width:200px; max-width:calc(100vw - 32px); display:grid; padding:6px; border-radius:14px;
+  background:var(--paper); border:1px solid var(--line2); box-shadow:0 14px 34px var(--shadow)}
+.pm-menu button{text-align:left; padding:9px 10px; border:0; border-radius:10px; background:transparent; color:var(--ink); font-size:14px; cursor:pointer}
+.pm-menu button:hover:not(:disabled){background:var(--warm)}
+.pm-menu button:disabled{color:var(--ink62); cursor:default}
+.pm-menu-note{padding:6px 10px 2px}
+.team-flag:has(.pm-chip-wrap){flex-wrap:wrap}
+.pm-flag{min-width:0}
+.pm-flag .grow{min-width:0; overflow-wrap:anywhere}
+.team-head-acts{gap:8px; align-items:center}
+.pm-team-head{gap:6px; align-items:center}
+
+/* the bot log */
+.pm-log-day{display:grid; gap:4px; padding:8px 0; border-bottom:1px solid var(--line)}
+.pm-log-day:last-of-type{border-bottom:0}
+.pm-log-row{display:flex; gap:10px; align-items:center; flex-wrap:wrap; min-width:0}
+.pm-log-row .grow{min-width:0; overflow-wrap:anywhere}
+.pm-log-t{flex:none; width:40px}
+
+/* the task drawer's chase */
+.pm-chase{gap:8px}
+.pm-chase.on{background:var(--ink); color:var(--on-ink); border-color:var(--ink)}
+
+/* the DM: the bot's rows, derived, with a quiet label */
+.pm-dm{display:grid; gap:8px; margin:8px 0 14px; padding:12px; border-radius:var(--r-card); background:var(--warm); border:1px dashed var(--line2)}
+.pm-dm-label{display:flex; gap:8px; align-items:center}
+.pm-dm-row{display:flex; gap:10px; align-items:flex-start; min-width:0}
+.pm-dm-row .grow{min-width:0; display:grid; gap:4px; overflow-wrap:anywhere}
+.pm-dm-said{color:var(--ink)}
+.chat-ask{font-style:normal}
+
+/* an ask's receipt */
+.pm-receipt{border:1px solid var(--line); border-radius:14px; padding:4px 10px; background:var(--paper)}
+.pm-receipt .agent-receipt-toggle{width:100%; gap:8px; align-items:center; border:0; background:transparent; color:var(--ink); padding:6px 0; cursor:pointer; text-align:left; min-height:36px}
+.pm-chev{display:inline-flex; transition:transform .22s var(--ease)}
+.pm-chev svg{width:16px; height:16px}
+.pm-chev.on{transform:rotate(180deg)}
+.pm-receipt-rows{display:grid; gap:4px; padding:4px 0 8px}
+
+/* Admin and Me */
+.pm-admin-lede{margin-top:0}
+.pm-admin-row{gap:8px 12px}
+.pm-kinds{gap:6px}
+.pm-kinds .pill{cursor:pointer; height:28px}
+.pm-ladder-strip{display:flex; flex-wrap:wrap; gap:6px 16px; padding:10px 12px; border-radius:var(--r-sm); background:var(--warm)}
+.pm-ladder-strip span{display:inline-flex; gap:6px; align-items:baseline; font-size:13px; color:var(--ink62)}
+.pm-ladder-strip b{color:var(--ink); font-weight:600}
+.pm-audit-wrap{margin-top:14px; padding-top:12px; border-top:1px solid var(--line); display:grid; gap:10px; justify-items:start}
+.pm-audit-wrap > div{justify-self:stretch}
+.pm-zero{gap:6px}
+.pm-audit .pill{cursor:pointer}
+.pm-preview{gap:8px; align-items:flex-start; padding:10px 12px; border-radius:var(--r-sm); background:var(--warm)}
+.pm-preview .small{overflow-wrap:anywhere}
+.pm-sel{width:auto; min-height:32px; height:32px; padding:0 8px}
+.pm-me-rep{margin-top:6px}
+.pm-me-mgr + .pm-me-rep{margin-top:16px; padding-top:14px; border-top:1px solid var(--line)}
+.pm-me-log{display:grid; gap:2px}
+
+/* the bot on a notice and in the inbox */
+.notice-logo.notice-bot{background:rgba(255,255,255,.08)}
+.inbox-kind.inbox-bot{background:transparent; overflow:visible}
+
+/* phones: everything wraps, every target is 44px */
+@media (max-width:860px){
+  .pm-card{padding:16px}
+  .pm-chips .chip,.pm-eta .chip,.pm-acts .btn,.pm-note .btn,.pm-chase{min-height:44px; height:auto}
+  .pm-chip{height:32px; min-height:32px; padding:0 12px; font-size:13px}
+  .pm-chip-wrap{min-height:44px; align-items:center; margin-left:16px}
+  /* the flag's words keep the whole line; the chip and Open go under them */
+  .team-flag:has(.pm-chip-wrap) > .grow{flex:1 1 calc(100% - 24px)}
+  .team-flag:has(.pm-chip-wrap) > .linky{margin-left:auto}
+  .pm-menu{left:16px; right:16px !important; top:auto !important; bottom:calc(16px + env(safe-area-inset-bottom, 0px)) !important; min-width:0}
+  .pm-menu button{min-height:44px}
+  .pm-whybtn,.pm-foot .linky{min-height:44px; display:inline-flex; align-items:center}
+  .pm-pick .input,.pm-time,.pm-sel{min-height:44px; height:44px}
+  .pm-note{flex-wrap:wrap}
+  .pm-note .input{flex:1 1 180px; min-height:44px}
+  .pm-kinds .pill{height:36px}
+  .pm-receipt .agent-receipt-toggle{min-height:44px}
+}
+@media (prefers-reduced-motion:reduce){ .pm-chev{transition:none} }

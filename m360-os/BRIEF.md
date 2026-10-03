@@ -345,6 +345,10 @@ Conventions: timestamps are epoch milliseconds. Dates are local "YYYY-MM-DD". We
 | data/users/<founderId>/keeper | founder, private | {notes:{[uid]:{[monthId]:{fight:"yes" or "no" or "", rehire:"yes" or "no" or "", note, at}}}} |
 | data/users/<founderId>/finance | founder, private | {pitch:{[pitchId]:{value, prob}}, clients:{[clientId]:{monthly}}} |
 | data/users/<uid>/state | person, private | {pulse:{[weekId]:true}} |
+| settings/app.pm | founder | the personal managers' policy, read through M.pm.P (deep-merged with the defaults): {on:false, require:true, off:{[managerUid]:true}, kinds:{noin, noeod, overdue, sentback, chase, quiet, waiton, noout:true, idle, short:false}, wait:60, waitMin:30, waitMax:180, carry:120, digestAt:"17:30", perDay:4, mgrPerDay:6, quietMax:2, askPerDay:3, minHours:0, coachDays:10, blockerMins:120, mail:true}. Off until the founder switches it on; a manager cannot switch their own bot off (require), the founder can (off) |
+| settings/app.agent | founder | voice and chat commands: {on:true, bulkMax:12, perSenderDay:40, spokenYes:true, pressConfirmed:true} |
+| me/<uid>.pm | person | the personal manager's side effects, uids, times and codes only: {cfg:{on, kinds, wait, voice:"warm" or "brief", mail, pause:{[repUid]:date}, next:{from:date, wait?, kinds?}, at}, chase:{[taskId]:{rep, at}}, asks:{[askId]:{kind, to:[uid], sub?, ask:"why" or "eta" or "confirm", at, showAt?, tellBy?, ringNow?, via, note?:true, withdrawn?}}, ack:{[K]:{at, how, eta?, until?, n?, again?}}, told:{[stepId]:at}, mail:true or false}. K is rep:kind:sub:date. A told value is positive when the step rang (a bubble, a notice) and negative when a card or the inbox showed it silently. Entries past 8 days, and past 400 a map (asks: 60, 14 days), go as nulls with the next write. Never a name, a reason or a line of text |
+| data/users/<uid>/agent | person, private | the voice and chat ledger: {runs:[{id, at, said, via:"voice" or "typed" or "grammar", acts:[{action, input, result, undo, status}]}]}, the last 200 |
 
 `Loc` = {lat, lng (both rounded to 4 decimals), acc (metres), dist (metres to the office, or null), verified:boolean, place:string, src:"gps" or "self"}.
 
@@ -770,6 +774,16 @@ For members whose joined date is within the last 45 days.
 - **Your requests:** each with its status (pending in flame outline, approved in ink, declined in flame), plus Withdraw on pending requests (tap-again).
 - Approved leave switches off the attendance rules for those days and shows "On leave" everywhere.
 
+
+### 7.20 Personal managers
+Every manager gets a bot (the pill body, in flame) that chases their reports on what the manager's own watch already shows: a missed check-in, a missing EOD line, overdue work, work sent back that has not moved, a task someone up the line asked it to chase, a long quiet stretch, a blocker left waiting, a missed check-out (idle and short days are off by default). It ships off: Kaavish switches it on in Admin > Personal managers.
+- **The person hears first.** At the moment the flag shows (10:45 for the check-in) the person gets the line on Home ("From Shreya's bot"), in the inbox and as one bubble. They have the wait (an hour, 30 minutes to 3 hours by the founder's floor and ceiling) to answer: on it with a time, blocked with a note, a reply, off today, "Not right" (a correction request). An answer in time covers it; blocked brings the manager in at once.
+- **Then the manager.** With no covering answer, step 2 reaches the manager (or the next one up while they are on leave). Their chip on Your team says where it stands and offers Nudge again (once a day), I will handle it, Let it go today, Message, Copy a message.
+- **Then one note a day.** What a manager leaves for longer than carry (2 hours) goes into one note at 17:30 to their own manager: task kinds and blockers for everyone, attendance only when that is Kaavish.
+- **Fair by construction.** The same templates and times for everyone; nothing on leave, holidays, Sundays, outside the person's hours, over lunch or while a focus timer runs; at most 4 bubbles a person a day, bundled at least fifteen minutes apart; new joiners hear only from the bot for 10 working days; stricter settings start tomorrow; "See what Shreya sees" shows the person their manager's view; the founder's audit counts every pause, waiver and dispute and checks that should always read zero.
+- **Asks.** A voice or chat ask ("flag the people who haven't checked out") is the same record: one DM line per person, the card row, the inbox, the bubble, and the answers back to the sender.
+- **Nothing counts.** Bot items never feed points, the ladder, reviews or anything public. On the team site a person who is away gets email; nothing reaches a closed phone yet (Web Push comes later).
+
 ---
 
 ## 8. Live rule box (the rules engine)
@@ -957,6 +971,7 @@ Build all of this in, and state it in the final message.
 - **Credentials:** no passwords, codes or credentials anywhere in the app, including the access register.
 - **Connectors:** connector data never leaves the viewer's own screen.
 - **Location fallback:** if the frame blocks location, check-ins fall back to self-reported places marked unverified, and R03 flags office days.
+- **Personal managers:** the bot stores uids, times and answer codes on each person's own profile (me/<uid>.pm) for 8 days, and the asks a sender made (who, what kind, when, never their words). Typed answers and an asker's own words travel only as direct messages. On the team site a DM is readable by the two people only; on claude.ai, me/ and DMs are readable by any member who digs into the data, as everything in the shared workspace is.
 
 ---
 
@@ -1149,6 +1164,7 @@ Your evaluation goes to Kaavish only. Write what you would say to his face.
 - **Your work.** Tasks, outcomes, EOD lines, comments, posts and kudos.
 - **When you save.** The time of each save you make on m360, and when a focus timer runs. Never what you read or what you saved. A long quiet stretch in your working day shows up for you, your manager and Kaavish.
 - **Leave.** Dates and type. Details go to Kaavish directly.
+- **Your manager's bot.** Your manager's bot reads the same flags your manager sees on Home. It tells you first and gives you an hour. It keeps when a line reached your screen and your answer code, for 8 days, on your own profile. Your typed words go to your manager as a direct message. Answering never counts toward points, reviews or the ladder.
 
 # Who sees what
 - Teammates see your status, check-in time, outcomes, EOD lines, tasks, posts and your points total.

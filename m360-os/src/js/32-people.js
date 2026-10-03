@@ -349,6 +349,7 @@
     const names = useNames(ctx, kudos.map(k => k.giver));
     return html`<${React.Fragment}>
       ${M.quiet && ctx.canSee(uid) ? html`<${QuietDay} uid=${uid}/>` : null}
+      ${M.parts.PmLog ? html`<${M.parts.PmLog} uid=${uid}/>` : null}
       <${UI.Card} title=${'Rocks, ' + qid} id="person-rocks">
         ${mine ? html`<${RocksForm} ctx=${ctx} uid=${uid} qid=${qid}/>`
           : (rocks.length ? rocks.map((r, i) => html`<div class="listrow" key=${r.id || i}>

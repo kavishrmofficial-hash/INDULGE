@@ -507,13 +507,13 @@
   /* one flag line. A quiet stretch (M.quiet) keeps a line of its own, keyed by when it began; the one
      still running carries the listening orb, so it reads as happening now. Quiet lines come last, in
      time order, and open the person's day. */
-  function TeamFlag({f}) {
+  function TeamFlag({f, uid}) {
     const quiet = f.k === 'quiet';
     const mark = quiet && f.live
       ? html`<span class="tf-live" role="img" aria-label="happening now" title="happening now"><${M.fx.Orb} state="listening" size=${20}/></span>`
       : html`<span class="dotflame" style=${f.hot ? null : {background: 'var(--ink62)'}}/>`;
     return html`<div class=${'small team-flag' + (quiet ? ' quiet' : '')} data-k=${f.k} data-hot=${f.hot ? '1' : '0'} data-live=${quiet ? (f.live ? '1' : '0') : undefined}>
-      ${mark}<span class=${'grow' + (f.hot ? '' : ' ink62')} style=${{fontWeight: f.hot ? 500 : 400}}>${U.cap(f.text)}</span>${f.ref ? html`<button type="button" class="linky tiny" onClick=${() => M.nav(f.ref)}>${quiet ? 'See the day' : 'Open'}</button>` : null}</div>`;
+      ${mark}<span class=${'grow' + (f.hot ? '' : ' ink62')} style=${{fontWeight: f.hot ? 500 : 400}}>${U.cap(f.text)}</span>${M.parts.PmFlagChip && uid ? html`<${M.parts.PmFlagChip} uid=${uid} f=${f}/>` : null}${f.ref ? html`<button type="button" class="linky tiny" onClick=${() => M.nav(f.ref)}>${quiet ? 'See the day' : 'Open'}</button>` : null}</div>`;
   }
   const flagOrder = flags => flags.filter(f => f.k !== 'quiet').concat(flags.filter(f => f.k === 'quiet').sort((a, b) => (a.at || 0) - (b.at || 0)));
 
@@ -528,7 +528,7 @@
     const all = board.reduce((n, r) => n + r.flags.length, 0);
     const F = UI.Fold;
     return html`<${F} title="Your team" summary=${all ? all + (all === 1 ? ' thing to look at' : ' things to look at') : 'all moving'} hot=${hot > 0} open=${all > 0} id="fold-team">
-      <${UI.Card} flame=${hot > 0} id="team-watch" title="Your team" action=${all ? html`<span class=${'pill ' + (hot ? 'flame' : 'warm')}>${all}</span>` : html`<span class="pill ink">all moving</span>`}>
+      <${UI.Card} flame=${hot > 0} id="team-watch" title="Your team" action=${html`<span class="row nowrap team-head-acts">${M.parts.PmTeamHead ? html`<${M.parts.PmTeamHead}/>` : null}${all ? html`<span class=${'pill ' + (hot ? 'flame' : 'warm')}>${all}</span>` : html`<span class="pill ink">all moving</span>`}</span>`}>
         <div class="stack tight">${board.map(r => {
           const a = M.att.dayStatus(ctx, r.uid, td);
           const where = a.status === 'office' ? 'in office' : a.status === 'wfh' ? 'WFH' : a.status === 'leave' ? 'on leave' : a.status === 'holiday' ? 'holiday' : a.status === 'sunday' ? 'Sunday' : 'not in yet';
@@ -537,7 +537,8 @@
             <button type="button" class="rowbtn" style=${{width: 'auto'}} aria-label="Open their page" onClick=${() => M.nav('#people/' + r.uid)}><${UI.Avatar} id=${r.uid} size=${30}/></button>
             <div class="grow" style=${{minWidth: 0}}>
               <div class="row between"><span style=${{fontWeight: 500}}><${UI.Name} id=${r.uid}/></span><span class="tiny ink62">${where}${a.in ? ', ' + U.hhmm(a.in) : ''}${a.out ? ' to ' + U.hhmm(a.out) : ''}${rate != null ? ' ' + M.dayrate.faceFor(rate)[1] : ''}</span></div>
-              ${r.flags.length ? flagOrder(r.flags).map(f => html`<${TeamFlag} key=${f.key || f.k} f=${f}/>`) : html`<div class="small ink62">Moving along.</div>`}
+              ${r.flags.length ? flagOrder(r.flags).map(f => html`<${TeamFlag} key=${f.key || f.k} f=${f} uid=${r.uid}/>`) : html`<div class="small ink62">Moving along.</div>`}
+              ${M.parts.PmTeamExtra ? html`<${M.parts.PmTeamExtra} uid=${r.uid}/>` : null}
             </div>
           </div>`; })}</div>
       <//>
@@ -778,10 +779,14 @@
     const brWk = (M.points && M.points.boardRange) ? M.points.boardRange(ctx, 'week', new Date(ctx.now)) : {from: wk.from, to: wk.to, label: 'this week'};
     const ptsWk = (M.points && M.points.pointsFor) ? M.points.pointsFor(ctx, ctx.uid, brWk.from, brWk.to).total : 0;
     const n = (k, one, many) => k + ' ' + (k === 1 ? one : many);
+    /* the personal manager's card takes the quiet nudge's place while the bot chases this person or an ask is open */
+    const pmMgr = M.pm && M.lines ? M.lines.managerOf(ctx, ctx.uid) : null;
+    const pmCard = !!(M.parts.PmCard && M.pm && M.pm.loaded(ctx) && ((M.pm.botOn(ctx, pmMgr) && M.pm.cfgOf(ctx, pmMgr).kinds.quiet) || M.pm.cardItems(ctx, Number(ctx.now) || Date.now()).length));
+    M.useIntent('eod', () => setTimeout(() => { const el = document.getElementById('fold-eod') || document.getElementById('wrap-shipped'); if (el) el.scrollIntoView({block: 'center', behavior: M.reduced() ? 'auto' : 'smooth'}); const f = document.getElementById('wrap-shipped'); if (f) f.focus({preventScroll: true}); }, 80));
 
     return html`<div class="stack" style=${{gap: '18px'}}>
       <${Hero} onStatus=${() => setStatus(true)}/>
-      <${QuietNudge} onStatus=${() => setStatus(true)}/>
+      ${pmCard ? html`<${M.parts.PmCard} onStatus=${() => setStatus(true)}/>` : html`<${QuietNudge} onStatus=${() => setStatus(true)}/>`}
       ${M.parts.NoticePermit ? html`<${M.parts.NoticePermit}/>` : null}
       ${M.parts.JoinBanner ? html`<${M.parts.JoinBanner}/>` : null}
       ${M.parts.FindYourWay ? html`<${M.parts.FindYourWay}/>` : null}

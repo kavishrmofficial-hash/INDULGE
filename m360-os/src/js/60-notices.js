@@ -19,7 +19,7 @@
   M.notices = {
     previews: () => M.prefs.get('noticePreview', '1') !== '0',
     setPreviews: v => M.prefs.set('noticePreview', v ? '1' : '0'),
-    /* {key, who (uid), title, body, href, icon} */
+    /* {key, who (uid), title, body, href, icon, bot (the personal manager's pill face)} */
     push(n) {
       if (!n || !n.title) return;
       if (n.key && list.some(x => x.key === n.key)) return;
@@ -34,8 +34,16 @@
           const desk = window.m360desktop;
           if (desk && typeof desk.notify === 'function') desk.notify({key: n.key || ('m360-' + item.id), title: String(n.title).slice(0, 80), body, href: n.href || '', life: n.life || LIFE});
           else if (window.Notification && Notification.permission === 'granted') {
-            const nn = new Notification(n.title, {body, tag: n.key || ('m360-' + item.id), icon: 'icons/notify-256.png', badge: 'icons/notify-badge-96.png'});
-            nn.onclick = () => { try { window.focus(); if (n.href) M.nav(n.href); nn.close(); } catch (e) { /* closed */ } };
+            /* the same key is one notification: a second device or a second pass replaces it, never stacks */
+            const opts = {body, tag: n.key || ('m360-' + item.id), icon: 'icons/notify-256.png', badge: 'icons/notify-badge-96.png', data: {href: n.href || ''}};
+            const sw = window.M360_STANDALONE && navigator.serviceWorker && navigator.serviceWorker.controller;
+            /* on the team site the service worker shows it (Android Chrome refuses a page's own); a tap
+               comes back through the worker's notificationclick with the href */
+            if (sw) navigator.serviceWorker.ready.then(r => r.showNotification(String(n.title).slice(0, 80), opts)).catch(() => {});
+            else {
+              const nn = new Notification(n.title, opts);
+              nn.onclick = () => { try { window.focus(); if (n.href) M.nav(n.href); nn.close(); } catch (e) { /* closed */ } };
+            }
           }
         }
       } catch (e) { /* no notices here */ }
@@ -57,9 +65,10 @@
        it), the title and the line; a thin flame line runs down the notice's life. As compact as a phone's
        banner, so it covers as little of the page under it as it can */
     return html`<div class="notices" id="notices" aria-live="polite">
-      ${items.map(n => html`<div key=${n.id} class="notice" role="status" style=${{'--life': (n.life || LIFE) + 'ms'}}>
+      ${items.map(n => html`<div key=${n.id} class=${'notice' + (n.bot ? ' is-bot' : '')} data-key=${n.key || ''} role="status" style=${{'--life': (n.life || LIFE) + 'ms'}}>
         <button type="button" class="notice-body" onClick=${() => { M.notices.dismiss(n.id); if (n.href) M.nav(n.href); }}>
-          <span class="notice-logo" aria-hidden="true"><${M.Mark} width="23px"/>${n.who ? html`<span class="notice-who"><${UI.Avatar} id=${n.who} size=${16}/></span>` : null}</span>
+          ${n.bot && M.fx && M.fx.Bot ? html`<span class="notice-logo notice-bot" aria-hidden="true"><${M.fx.Bot} type="pill" size=${30} label="bot"/></span>`
+            : html`<span class="notice-logo" aria-hidden="true"><${M.Mark} width="23px"/>${n.who ? html`<span class="notice-who"><${UI.Avatar} id=${n.who} size=${16}/></span>` : null}</span>`}
           <span class="grow" style=${{minWidth: 0}}>
             <span class="notice-title">${n.title}</span>
             <span class="notice-text">${previews ? (n.body || '') : (n.hidden || 'New message')}</span>

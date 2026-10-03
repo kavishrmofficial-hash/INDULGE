@@ -26,7 +26,8 @@
   function build(ctx) {
     const out = [];
     const me = ctx.uid, since = ctx.now - KEEP_DAYS * 86400000;
-    const push = (id, kind, at, line, ref, actor, hot) => { if (at >= since) out.push({id, kind, at, text: line.el, plain: line.plain, ref, actor, hot: !!hot}); };
+    /* silent: listed in the drawer, never a bubble (the bot rings for it, or it is past a daily cap) */
+    const push = (id, kind, at, line, ref, actor, hot, silent, bot) => { if (at >= since) out.push({id, kind, at, text: line.el, plain: line.plain, ref, actor, hot: !!hot, silent: !!silent, bot: !!bot}); };
 
     /* tasks */
     const tmap = ctx.coll.tasks.map;
@@ -72,8 +73,13 @@
     /* the manager's watch: each report's day, as flags; the founder gets whoever reports to them */
     if (M.lines) {
       const td = U.ymd(new Date(ctx.now || Date.now()));
-      for (const r of M.lines.board(ctx, me)) for (const f of r.flags) push('team:' + r.uid + ':' + (f.key || f.k) + ':' + td, 'flag', f.at || (ctx.now || Date.now()), T`${nm(r.uid)} ${f.text}`, f.ref, r.uid, f.hot);
+      /* while the viewer's bot chases a kind, it makes first contact: the flag still lists here, silently */
+      const pmCfg = M.pm && M.pm.botOn(ctx, me) ? M.pm.cfgOf(ctx, me, td) : null;
+      const chased = k => !!pmCfg && !!pmCfg.kinds[k];
+      for (const r of M.lines.board(ctx, me)) for (const f of r.flags) push('team:' + r.uid + ':' + (f.key || f.k) + ':' + td, 'flag', f.at || (ctx.now || Date.now()), T`${nm(r.uid)} ${f.text}`, f.ref, r.uid, f.hot, chased(f.k));
     }
+    /* the personal manager: steps due to the viewer, answers to their asks, the note up the line */
+    if (M.pm && M.pm.loaded(ctx)) for (const it of M.pm.inboxItems(ctx)) push(it.id, 'pm', it.at, T`${it.line}`, it.ref, it.actor, it.hot, true, true);
     /* kudos to me */
     const kmap = ctx.coll.kudos.map;
     for (const giver of Object.keys(kmap)) for (const k of (kmap[giver].given || [])) {
@@ -129,7 +135,7 @@
   const seenAt = ctx => Number(((ctx.coll.me.map[ctx.uid] || {}).inboxSeen) || 0);
   const unread = ctx => items(ctx).filter(i => i.at > seenAt(ctx)).length;
 
-  const KIND_ICON = {tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift', fix: 'fix', chat: 'send', books: 'log', flag: 'shield'};
+  const KIND_ICON = {pm: 'bell', tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift', fix: 'fix', chat: 'send', books: 'log', flag: 'shield'};
 
   function Inbox({onClose}) {
     const ctx = M.useCtx();
@@ -149,7 +155,8 @@
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Inbox" head=${head}>
       ${loading && !list.length ? html`<${UI.Empty} text="Loading your inbox"/>` : list.length ? html`<div class="stack" style=${{gap: 0}}>
         ${list.map(i => html`<button type="button" key=${i.id} class=${'inbox-item' + (i.at > was ? ' unread' : '')} onClick=${() => { onClose(); M.nav(i.ref); }}>
-          ${i.actor ? html`<${UI.Avatar} id=${i.actor} size=${34}/>` : html`<span class=${'inbox-kind' + (i.hot ? ' hot' : '')}><${icons[KIND_ICON[i.kind]] || icons.feed}/></span>`}
+          ${i.bot && M.fx && M.fx.Bot ? html`<span class="inbox-kind inbox-bot"><${M.fx.Bot} type="pill" size=${34} state=${i.hot ? 'default' : 'sleeping'} paused=${true} label="the bot"/></span>`
+            : i.actor ? html`<${UI.Avatar} id=${i.actor} size=${34}/>` : html`<span class=${'inbox-kind' + (i.hot ? ' hot' : '')}><${icons[KIND_ICON[i.kind]] || icons.feed}/></span>`}
           <span class="grow">
             <div class="t">${i.text}</div>
             <div class="tiny ink62">${U.timeAgo(i.at)}</div>
@@ -164,7 +171,7 @@
      notification when m360 sits in another window. Chat lines have their own watcher. The mark of
      the newest item seen lives in this browser, per person; the first load on a device sets it, so
      a backlog never rains down. ---------- */
-  const TITLE = {tasks: 'Work', review: 'Review', feed: 'Feed', scores: 'Kudos', leave: 'Leave', people: 'Team', gift: 'Today', fix: 'Correction', books: 'Books', flag: 'Flag'};
+  const TITLE = {pm: 'Your bot', tasks: 'Work', review: 'Review', feed: 'Feed', scores: 'Kudos', leave: 'Leave', people: 'Team', gift: 'Today', fix: 'Correction', books: 'Books', flag: 'Flag'};
   function InboxWatch() {
     const ctx = M.useCtx();
     const uid = ctx.uid;
@@ -175,7 +182,8 @@
       if (!uid || !ctx.ready || !M.notices) return;
       const key = 'inboxNotice.' + uid;
       const now = Date.now();
-      const list = items(ctx).filter(i => i.kind !== 'chat' && i.at <= now + 120000);
+      /* chat lines and the bot's steps have watchers of their own; silent items never bubble */
+      const list = items(ctx).filter(i => i.kind !== 'chat' && i.kind !== 'pm' && !i.silent && i.at <= now + 120000);
       const newest = list.reduce((m, i) => Math.max(m, Number(i.at) || 0), 0);
       const mark = Number(M.prefs.get(key, '0')) || 0;
       if (!mark) { M.prefs.set(key, String(newest || now)); return; }
@@ -204,7 +212,8 @@
       }
       M.sound.play('soft');
     }, [ctx, profs]);
-    return null;
+    /* the personal manager's watcher rides along wherever the inbox watcher is mounted (it runs once however often it is mounted) */
+    return M.parts.PmWatch ? html`<${M.parts.PmWatch}/>` : null;
   }
   M.parts.InboxWatch = InboxWatch;
 

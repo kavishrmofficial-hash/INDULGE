@@ -190,25 +190,18 @@
   async function toggleSave(ctx, it) {
     const uid = ctx.uid;
     const saved = {...savedOf(ctx)};
+    /* every change is a merge of the saved map alone: a null removes an entry, so the rest of the
+       profile (the bot's answers and marks, the status, the stamps) is never rewritten from a snapshot */
     if (saved[it.id]) {
-      const doc = U.clone(ctx.coll.me.map[uid] || {});
-      delete saved[it.id];
-      doc.saved = saved;
-      await ctx.W.set('me/' + uid, doc);
+      await ctx.W.merge('me/' + uid, {saved: {[it.id]: null}});
       M.toast('Removed from saved');
       return;
     }
     const entry = {title: String(it.title).slice(0, 200), link: it.link, at: Date.now()};
     const ids = Object.keys(saved).sort((a, b) => (saved[b].at || 0) - (saved[a].at || 0));
-    if (ids.length >= KEEP_SAVED) {
-      const doc = U.clone(ctx.coll.me.map[uid] || {});
-      const keep = {[it.id]: entry};
-      ids.slice(0, KEEP_SAVED - 1).forEach(k => { keep[k] = saved[k]; });
-      doc.saved = keep;
-      await ctx.W.set('me/' + uid, doc);
-    } else {
-      await ctx.W.merge('me/' + uid, {saved: {[it.id]: entry}});
-    }
+    const patch = {[it.id]: entry};
+    if (ids.length >= KEEP_SAVED) ids.slice(KEEP_SAVED - 1).forEach(k => { patch[k] = null; });
+    await ctx.W.merge('me/' + uid, {saved: patch});
     M.sound.play('tick');
     M.toast('Saved');
   }

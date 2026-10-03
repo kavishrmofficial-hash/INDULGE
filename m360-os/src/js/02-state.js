@@ -11,7 +11,19 @@
     wfhCap: 2, revCap: 2, ackHours: 48, blockerDays: 2, holidays: [],
     rules: {}, points: {}, leaderboardIncludesFounder: false,
     locked: false, lockNote: '', joinPolicy: 'open', alert: null, signoff: true,
-    quietMins: 120, lunchFrom: '13:30', lunchTo: '14:30'
+    quietMins: 120, lunchFrom: '13:30', lunchTo: '14:30',
+    /* personal managers (M.pm): every manager's bot chases their reports, the person first, then the
+       manager, then one note a day up the line. Off until the founder switches it on in Admin; a manager
+       cannot switch their own bot off (require), only the founder can (off: {<uid>: true}). A nested
+       object: readers deep-merge it through M.pm.P */
+    pm: {
+      on: false, require: true, off: {},
+      kinds: {noin: true, noeod: true, overdue: true, sentback: true, chase: true, quiet: true, waiton: true, noout: true, idle: false, short: false},
+      wait: 60, waitMin: 30, waitMax: 180, carry: 120, digestAt: '17:30',
+      perDay: 4, mgrPerDay: 6, quietMax: 2, askPerDay: 3, minHours: 0, coachDays: 10, blockerMins: 120, mail: true
+    },
+    /* voice and chat commands: how far one ask reaches and what needs a tap */
+    agent: {on: true, bulkMax: 12, perSenderDay: 40, spokenYes: true, pressConfirmed: true}
   };
 
   /* view as: the founder previews the app as one member. Held in memory only, never persisted. */

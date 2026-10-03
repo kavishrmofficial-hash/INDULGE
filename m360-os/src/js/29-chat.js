@@ -61,7 +61,8 @@
     const out = [];
     for (const d of dmRoomsOf(ctx)) {
       const mark = readMark(ctx, d);
-      for (const m of messagesOf(ctx, d)) if (m.by !== ctx.uid && (m.at || 0) > mark) out.push({id: 'chat:' + d + ':' + m.id, room: d, m, dm: true});
+      /* an ask's line is the personal manager's inbox item already */
+      for (const m of messagesOf(ctx, d)) if (m.by !== ctx.uid && (m.at || 0) > mark && !m.ask) out.push({id: 'chat:' + d + ':' + m.id, room: d, m, dm: true});
     }
     for (const r of roomsOf(ctx)) {
       const mark = readMark(ctx, r.id);
@@ -70,17 +71,30 @@
     return out;
   }
 
-  async function send(ctx, room, text, mentions, files) {
+  /* extra rides on the line: {id} makes a send idempotent (a line with that id already there is the
+     answer, so a retry never doubles), {ask, k, via} marks a personal manager's ask, {pm, pmHow} a
+     typed answer to a bot. Only short codes and ids */
+  const EXTRA = ['ask', 'k', 'via', 'pm', 'pmHow'];
+  const sentIds = new Set();
+  async function send(ctx, room, text, mentions, files, extra) {
     const t = String(text || '').trim().slice(0, 4000);
     const fs = (files || []).filter(f => f && f.url).slice(0, 10).map(f => ({id: String(f.id || ''), name: String(f.name || 'file').slice(0, 160), type: String(f.type || ''), size: Number(f.size) || 0, url: String(f.url)}));
     if (!t && !fs.length) return;
     const key = docId(room, ctx.uid);
     const cur = ((ctx.coll.chat.map[key] || {}).msgs || []).slice();
-    const m = {id: U.uid(), at: Date.now(), text: t, mentions: mentions || []};
+    const xid = extra && extra.id ? String(extra.id).slice(0, 80) : '';
+    if (xid) {
+      const had = cur.find(x => x && x.id === xid);
+      if (had) return had;
+      if (sentIds.has(key + '|' + xid)) return null;
+    }
+    const m = {id: xid || U.uid(), at: Date.now(), text: t, mentions: mentions || []};
+    for (const k of EXTRA) if (extra && extra[k] != null && extra[k] !== '') m[k] = String(extra[k]).slice(0, 120);
     if (fs.length) m.files = fs;
+    if (xid) sentIds.add(key + '|' + xid);
     let msgs = cur.concat([m]);
     if (msgs.length > CAP) msgs = msgs.slice(msgs.length - KEEP);
-    await ctx.W.merge('chat/' + key, {msgs, room, by: ctx.uid, updated: Date.now()});
+    try { await ctx.W.merge('chat/' + key, {msgs, room, by: ctx.uid, updated: Date.now()}); } catch (e) { if (xid) sentIds.delete(key + '|' + xid); throw e; }
     return m;
   }
   const edit = (ctx, room, id, text) => {
@@ -256,7 +270,7 @@
         ${cont ? html`<span class="chat-gap"/>` : html`<${UI.Avatar} id=${m.by} size=${30}/>`}
         <div class="grow" style=${{minWidth: 0}}>
           ${cont ? null : html`<div class="row nowrap" style=${{gap: '8px', alignItems: 'baseline'}}><span style=${{fontWeight: 500}}>${nameOf(m.by)}</span><span class="tiny ink62 num">${U.hhmm ? U.hhmm(new Date(m.at)) : new Date(m.at).toLocaleTimeString()}</span></div>`}
-          ${m.text ? html`<div class="chat-text"><${Rich} text=${m.text} names=${names}/>${m.edited ? html` <span class="tiny ink62">(edited)</span>` : null}</div>` : null}
+          ${m.text ? html`<div class="chat-text"><${Rich} text=${m.text} names=${names}/>${m.edited ? html` <span class="tiny ink62">(edited)</span>` : null}${m.ask ? html` <span class="tiny ink62 chat-ask">${m.via === 'voice' ? 'asked by voice' : 'asked through m360'}</span>` : null}</div>` : null}
           ${(m.files || []).length ? html`<div class="chat-files">${m.files.map((f, k) => html`<${FileLine} key=${k} f=${f}/>`)}</div>` : null}
         </div>
         ${m.by === uid ? html`<span class="chat-tools row nowrap">
@@ -294,6 +308,7 @@
         </div>
       </div>
       <div class="chat-scroll" id="chat-scroll">
+        ${isDm(room) && M.parts.PmDmRows ? html`<${M.parts.PmDmRows} room=${room}/>` : null}
         ${rows.length ? rows : html`<div class="chat-empty"><${UI.Empty} text=${isDm(room) ? 'Say hi. Only ' + nameOf(dmOther(room, uid)) + ' and you see this.' : 'Nothing here yet. Start the room.'}/></div>`}
         <div ref=${endRef}/>
       </div>
@@ -344,6 +359,8 @@
              slack for clocks that disagree); so does anything older than ninety seconds */
           if ((m.at || 0) < openedAt.current - 2000) continue;
           if (m.by === uid || Date.now() - (m.at || 0) > 90000) continue;
+          /* an ask rings through the personal manager's watcher, once, with its own caps and hours */
+          if (m.ask) continue;
           const dm = isDm(room);
           const forMe = dm || mentionsMe(m, ctx, nameOf(uid));
           if (!forMe && !noticeAll()) continue;
@@ -363,7 +380,7 @@
     return null;
   }
 
-  M.rooms = {roomsOf, messagesOf, unreadIn, unreadRooms, inboxItems, dmId, isDm, dmOther, send, makeRoom, markRead, readMark, noticeAll};
+  M.rooms = {roomsOf, messagesOf, unreadIn, unreadRooms, inboxItems, dmId, isDm, dmOther, send, edit, remove, makeRoom, markRead, readMark, noticeAll};
   M.pages.Chat = Chat;
   M.parts.ChatWatch = ChatWatch;
 })();
