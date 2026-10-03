@@ -60,6 +60,18 @@ def phone_ctx(h, geo=None):
     return ctx
 
 
+def working_day(ctx):
+    # the day rating needs a working day (Home has no Check out on a Sunday): on an IST Sunday, the
+    # rest of the test runs on Monday at 17:00 IST; the voice parts above keep the real clock
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+    ist = ZoneInfo('Asia/Kolkata')
+    now = datetime.now(ist)
+    if now.weekday() == 6:
+        mon = (now + timedelta(days=1)).date()
+        ctx.clock.set_fixed_time(datetime(mon.year, mon.month, mon.day, 17, 0, tzinfo=ist))
+
+
 def open_page(h, ctx, ident, hash, **params):
     page = ctx.new_page()
     page.set_default_timeout(8000)
@@ -166,6 +178,7 @@ def test(h):
     p.wait_for_selector('#orb-screen', state='detached')
 
     # ---------- the day rating, on the phone ----------
+    working_day(p.context)
     seed_in(h, p, 'u_founder')
     p.goto(h.url('founder', '#home', seed=True))
     h.ready(p)
@@ -268,6 +281,9 @@ def test(h):
 
     # ---------- the laptop: the same rating after a check-out from Home ----------
     big = h.session('founder', width=1280, height=900, geo=OFFICE, reset=True, seed=True, hash='#home')
+    working_day(big.context)
+    big.reload()
+    h.ready(big)
     seed(h, big)
     seed_in(h, big, 'u_m1')
     h.go(big, 'm1', hash='#home')
