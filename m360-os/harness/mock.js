@@ -102,8 +102,12 @@
   /* ---------------- store ---------------- */
   const KEY = 'm360db';
   let store = {};
-  try { if (q.get('reset') === '1') localStorage.removeItem(KEY); store = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { store = {}; }
-  function persist() { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} }
+  let lastRaw = null;
+  try { if (q.get('reset') === '1') localStorage.removeItem(KEY); lastRaw = localStorage.getItem(KEY); store = JSON.parse(lastRaw || '{}'); } catch (e) { store = {}; }
+  function persist() { try { lastRaw = JSON.stringify(store); localStorage.setItem(KEY, lastRaw); } catch (e) {} }
+  /* every page in a test shares one stored blob; a write starts from the latest blob, so a page never puts
+     back a stale copy over what another page just wrote (the server merges per document) */
+  function refresh() { try { const raw = localStorage.getItem(KEY); if (raw !== lastRaw && raw != null) { store = JSON.parse(raw); lastRaw = raw; return true; } } catch (e) {} return false; }
   function deepFreeze(o) { if (o && typeof o === 'object' && !Object.isFrozen(o)) { Object.freeze(o); Object.keys(o).forEach(k => deepFreeze(o[k])); } return o; }
   const clone = x => JSON.parse(JSON.stringify(x));
   function merge(a, b) {
@@ -136,12 +140,16 @@
   }
   window.addEventListener('storage', ev => {
     if (ev.key !== KEY) return;
-    try { store = JSON.parse(ev.newValue || '{}'); } catch (e) { return; }
+    /* the event can trail a later write; read the blob as it is now */
+    if (refresh()) notifyAll();
+  });
+  function notifyAll() {
     for (const p of docListeners.keys()) notify(p);
     for (const c of collListeners.keys()) { const cl = collListeners.get(c); cl.forEach(fn => setTimeout(() => fn(), 0)); }
-  });
+  }
   function write(path, data, mode) {
     return new Promise((res, rej) => setTimeout(() => {
+      if (refresh()) notifyAll();
       const a = access(path);
       if (!a.write) return rej(err('invalid_argument', 'write not allowed at ' + path));
       if (mode !== 'delete' && (data === null || typeof data !== 'object' || Array.isArray(data))) return rej(err('invalid_argument', 'body must be an object'));
@@ -221,7 +229,8 @@
     };
   }
   const db = Object.freeze({doc: docRef, collection: collRef});
-  window.__db = {store: () => store, set: (p, d) => { store[p] = clone(d); persist(); notify(p); }, get: p => store[p], del: p => { delete store[p]; persist(); notify(p); }};
+  const fresh = () => { if (refresh()) notifyAll(); };
+  window.__db = {store: () => (fresh(), store), set: (p, d) => { fresh(); store[p] = clone(d); persist(); notify(p); }, get: p => (fresh(), store[p]), del: p => { fresh(); delete store[p]; persist(); notify(p); }};
 
   /* ---------------- user ---------------- */
   const profOf = id => {
@@ -493,6 +502,7 @@
     xhr.send();
     if (xhr.status === 200) {
       const seed = JSON.parse(xhr.responseText);
+      if (refresh()) notifyAll();
       for (const p of Object.keys(seed)) store[p] = seed[p];
       persist();
     }
