@@ -27,3 +27,11 @@ More info, Run anyway.
 (`WebContentsView`), one per tab, placed over the section's stage; `preload.js` is the bridge the page
 sees as `window.m360desktop`. The page's own Web section (src/js/79-web.js) drives the views: tabs,
 spaces, back and forward, full screen, all the same as on the web.
+
+## Notices
+
+With m360 in the background, the page hands each notice to the app (`window.m360desktop.notify`), and
+`main.js` shows it as its own small window drawn by `notice.html`: black, the flame logo, Space Grotesk
+(`sg-latin.woff2` ships with the app), top right of the screen the pointer is on, above other windows
+without taking focus. A tap brings m360 forward on the thing it was about (`onNotice`), the cross or its
+time sends it away, a hovering pointer holds it, at most four stack.

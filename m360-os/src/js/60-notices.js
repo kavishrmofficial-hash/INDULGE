@@ -1,7 +1,9 @@
 /* module: notices. Small cards in the top right corner, the way a phone shows a message: who, and a line
    of what, unless previews are off (Me, Prefs), in which case only who. A tap opens the thing. They stack,
-   they slide away after a few seconds, and when the tab is hidden the same notice goes through the
-   browser's own notification, honouring the same preview setting. */
+   they slide away after a few seconds, and when the tab is hidden the same notice goes out of the page:
+   in the m360 desktop app as its own card over every other window (black, the flame logo, our type; see
+   desktop/notice.html), in a browser through the system's notification with the flame logo as its icon
+   (the system draws that one, so its look is the system's). Both honour the same preview setting. */
 'use strict';
 (function () {
   const {html, React, UI} = M;
@@ -25,11 +27,16 @@
       list = list.filter(x => x.key !== n.key).concat([item]).slice(-MAX);
       emit();
       setTimeout(() => { list = list.filter(x => x.id !== item.id); emit(); }, n.life || LIFE);
-      /* the tab is away: the browser shows it too */
+      /* the tab is away: the notice goes out of the page too */
       try {
-        if ((document.hidden || !document.hasFocus()) && window.Notification && Notification.permission === 'granted') {
-          const nn = new Notification(n.title, {body: M.notices.previews() ? String(n.body || '').slice(0, 140) : 'New message', tag: n.key || ('m360-' + item.id), icon: 'icons/icon-192.png'});
-          nn.onclick = () => { try { window.focus(); if (n.href) M.nav(n.href); nn.close(); } catch (e) { /* closed */ } };
+        if (document.hidden || !document.hasFocus()) {
+          const body = M.notices.previews() ? String(n.body || '').slice(0, 140) : (n.hidden || 'New message');
+          const desk = window.m360desktop;
+          if (desk && typeof desk.notify === 'function') desk.notify({key: n.key || ('m360-' + item.id), title: String(n.title).slice(0, 80), body, href: n.href || '', life: n.life || LIFE});
+          else if (window.Notification && Notification.permission === 'granted') {
+            const nn = new Notification(n.title, {body, tag: n.key || ('m360-' + item.id), icon: 'icons/notify-256.png', badge: 'icons/notify-badge-96.png'});
+            nn.onclick = () => { try { window.focus(); if (n.href) M.nav(n.href); nn.close(); } catch (e) { /* closed */ } };
+          }
         }
       } catch (e) { /* no notices here */ }
     },
@@ -46,21 +53,31 @@
     useEffect(() => { const un = M.notices.on(setItems); setItems(list); return un; }, []);
     if (!items.length) return null;
     const previews = M.notices.previews();
+    /* black in both themes, the flame logo in a circle (the person's face tucked on it when a person sent
+       it), the title and the line; a thin flame line runs down the notice's life. As compact as a phone's
+       banner, so it covers as little of the page under it as it can */
     return html`<div class="notices" id="notices" aria-live="polite">
-      ${items.map(n => html`<div key=${n.id} class="notice" role="status">
+      ${items.map(n => html`<div key=${n.id} class="notice" role="status" style=${{'--life': (n.life || LIFE) + 'ms'}}>
         <button type="button" class="notice-body" onClick=${() => { M.notices.dismiss(n.id); if (n.href) M.nav(n.href); }}>
-          ${n.who ? html`<${UI.Avatar} id=${n.who} size=${34}/>` : html`<span class="notice-mark"><${M.Mark} width="34px"/></span>`}
+          <span class="notice-logo" aria-hidden="true"><${M.Mark} width="23px"/>${n.who ? html`<span class="notice-who"><${UI.Avatar} id=${n.who} size=${16}/></span>` : null}</span>
           <span class="grow" style=${{minWidth: 0}}>
             <span class="notice-title">${n.title}</span>
             <span class="notice-text">${previews ? (n.body || '') : (n.hidden || 'New message')}</span>
           </span>
         </button>
         <button type="button" class="notice-x" aria-label="Dismiss" onClick=${() => M.notices.dismiss(n.id)}><${M.icons.x}/></button>
+        <span class="notice-life" aria-hidden="true"/>
       </div>`)}
     </div>`;
   }
 
   M.parts.Notices = Notices;
+
+  /* the desktop app's own card was tapped: bring the page to what it was about */
+  try {
+    const desk = window.m360desktop;
+    if (desk && typeof desk.onNotice === 'function') desk.onNotice(p => { if (p && p.href && M.nav) M.nav(String(p.href)); });
+  } catch (e) { /* an older desktop app */ }
 
   /* the one-time card on Home: browsers only grant notifications from a tap, so this asks for it */
   function NoticePermit() {

@@ -433,6 +433,13 @@ Kaavish read it off the tape: people checked in at 10:30, put their tasks in by 
 - **Fixed on the way.** In dark mode the labels on light metal (Check in, Brief me) were white on white; they keep the fixed ink. The orbs drew at their preset size and twice the pixel density, so the phone's orb screen and 3x phones were soft; they draw at the size shown, up to 3x (`fx/patches.py`, which also holds the metal-fx fix). On the orb screen what you said and the answer overlapped; they keep their height, and the voice beam frames the whole screen. The buddy's Ctrl + Alt hold got stuck listening when anything synced mid-hold. The anonymous pulse could be tied to its sender through the log; it no longer can. A focus timer that ran out while the page was closed is banked at the moment it ended. The Rule box lists the pressing flags first.
 - Built by four agents in parallel (core, HQ, team, rules), each branch reviewed by a fifth that tried to break it. Tests: `test_quiet.py`, `test_quiet_server.py`, `test_quiet_hq.py`, `test_quiet_team.py`, `test_quiet_rules.py`.
 
+## What is in v30.1 and v30.2: badges that fit, a buddy on screen, notices in the house look
+
+- **v30.1.** Every metal badge fits its word (the package ships it 45px wide, so "new hire", "issued" and "everyone paid" spilled over the next column), the founder never wears "new hire", and the buddy's bubble never runs past the bottom of the window: it scrolls inside.
+- **Notices, in the page.** Black in both themes, the flame logo in a circle (the person's face tucked on it when a person sent it), the title and the line in Space Grotesk, and a thin flame line running down its life (it holds while a pointer rests on it). As compact as a phone's banner.
+- **Notices, in the desktop app.** With m360 in the background, the desktop app shows the same card itself, over every other window: top right of the screen the pointer is on, never taking focus, stacked up to four, the same notice twice is one card, a tap brings m360 forward on the thing it was about (`desktop/notice.html`, `desktop/notice-preload.js`, the notice windows in `desktop/main.js`). Download the new build from the "desktop" release.
+- **Notices, in a browser.** The system draws those, so the look (the font, the colours, Safari's icon and the site address under the title) is the system's. m360 hands it the flame logo as the icon (Chrome, Edge and Firefox show it) and the plain title and line. In Safari, File > Add to Dock makes m360 its own app, so its notices come from m360 and not from Safari.
+
 ## Launch day
 
 1. Admin > Team: invite each person by email. They get a link, type their email and pick a password. Without an email key the invite shows a link to copy instead.

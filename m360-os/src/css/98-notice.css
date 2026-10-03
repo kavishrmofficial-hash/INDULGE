@@ -1,0 +1,21 @@
+/* notices, the m360 card: black in both themes, the flame logo in a circle with the person's face tucked on
+   it when a person sent it, the title and the line, and a thin flame line that runs down the card's life.
+   The desktop app shows the same card over other windows (desktop/notice.html), with a small app line on top. */
+.notice{position:relative; overflow:hidden; gap:2px; align-items:center; background:#0E0E0E; color:#fff; border:1px solid rgba(255,255,255,.09);
+  border-radius:18px; padding:10px 8px 12px 10px; box-shadow:0 18px 44px rgba(10,10,10,.34), 0 2px 6px rgba(10,10,10,.18);
+  animation:notice-in .52s cubic-bezier(.16,1.18,.3,1) both}
+@keyframes notice-in{0%{opacity:0; transform:translateX(26px) scale(.96)} 60%{opacity:1} 100%{opacity:1; transform:none}}
+.notice-body{gap:11px; align-items:center; color:#fff}
+.notice-logo{position:relative; flex:none; width:36px; height:36px; border-radius:999px; background:#F53901; display:inline-flex; align-items:center; justify-content:center;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.14), 0 6px 16px rgba(245,57,1,.32)}
+.notice-logo .mark{width:23px; color:#0E0E0E}
+.notice-who{position:absolute; right:-5px; bottom:-5px; border-radius:999px; box-shadow:0 0 0 2px #0E0E0E; display:inline-flex}
+.notice-title{font-size:14px; font-weight:600; color:#fff; letter-spacing:-.01em}
+.notice-text{font-size:13px; color:rgba(255,255,255,.72); line-height:1.38; margin-top:1px}
+.notice-x{color:rgba(255,255,255,.5); align-self:flex-start}
+.notice-x:hover{color:#fff; background:rgba(255,255,255,.1)}
+.notice-life{position:absolute; left:14px; right:14px; bottom:5px; height:2px; border-radius:2px; background:rgba(255,255,255,.08); overflow:hidden; pointer-events:none}
+.notice-life::after{content:''; position:absolute; inset:0; background:#F53901; transform-origin:left center; animation:notice-life var(--life, 6500ms) linear both}
+@keyframes notice-life{from{transform:scaleX(1)} to{transform:scaleX(0)}}
+.notice:hover .notice-life::after{animation-play-state:paused}
+@media (prefers-reduced-motion:reduce){ .notice{animation:none} .notice-life::after{animation:none; transform:scaleX(0)} }

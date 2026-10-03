@@ -17,7 +17,7 @@
   "build": {
     "appId": "agency.mask360.m360",
     "productName": "m360",
-    "files": ["main.js", "preload.js", "package.json"],
+    "files": ["main.js", "preload.js", "notice.html", "notice-preload.js", "sg-latin.woff2", "package.json"],
     "mac": {"target": ["dmg"], "category": "public.app-category.productivity", "identity": null},
     "win": {"target": ["nsis"]},
     "nsis": {"oneClick": true, "perMachine": false}

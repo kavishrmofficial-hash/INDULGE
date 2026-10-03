@@ -75,6 +75,76 @@ ipcMain.handle('web:reload', (e, id) => { const v = views.get(Number(id)); if (v
 ipcMain.handle('web:bounds', (e, b) => { bounds = {x: Math.max(0, Number(b.x) || 0), y: Math.max(0, Number(b.y) || 0), width: Math.max(0, Number(b.width) || 0), height: Math.max(0, Number(b.height) || 0)}; if (active != null) place(active); });
 ipcMain.handle('web:outside', (e, url) => { if (/^https?:/i.test(String(url))) shell.openExternal(String(url)); });
 
+/* ---------- notices: m360's own card over every other window ----------
+   While the m360 window is in the background, the page hands its notices here (window.m360desktop.notify)
+   and each becomes a small borderless window in the top right of the screen the pointer is on, drawn by
+   notice.html in the house look. It never takes focus; a tap brings m360 forward on the thing it was about,
+   the cross or its time sends it away, a hovering pointer holds it. At most four stack; the same key twice
+   is one card. */
+const NOTE_W = 384, NOTE_H = 112, NOTE_GAP = 2, NOTE_MAX = 4;
+const notes = [];   /* {key, win, href, timer, left, until} */
+function noteBounds(i) {
+  const {screen} = require('electron');
+  const wa = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
+  return {x: Math.round(wa.x + wa.width - NOTE_W - 6), y: Math.round(wa.y + 6 + i * (NOTE_H + NOTE_GAP)), width: NOTE_W, height: NOTE_H};
+}
+function restack() { notes.forEach((n, i) => { if (!n.win.isDestroyed()) n.win.setBounds(noteBounds(i), process.platform === 'darwin'); }); }
+function dropNote(n) {
+  const i = notes.indexOf(n);
+  if (i >= 0) notes.splice(i, 1);
+  clearTimeout(n.timer);
+  if (!n.win.isDestroyed()) n.win.destroy();
+  restack();
+}
+function leaveNote(n) {
+  /* the card slides itself out, then asks to go; a card that never answers goes anyway */
+  clearTimeout(n.timer);
+  if (n.win.isDestroyed()) return dropNote(n);
+  n.win.webContents.send('note:out');
+  n.timer = setTimeout(() => dropNote(n), 450);
+}
+function arm(n, ms) { clearTimeout(n.timer); n.until = Date.now() + ms; n.timer = setTimeout(() => leaveNote(n), ms); }
+function showNote(p) {
+  const key = String((p && p.key) || '');
+  const title = String((p && p.title) || 'm360').slice(0, 80);
+  const body = String((p && p.body) || '').slice(0, 200);
+  const life = Math.max(3000, Math.min(60000, Number(p && p.life) || 6500));
+  const href = String((p && p.href) || '');
+  if (key && notes.some(n => n.key === key)) return;
+  while (notes.length >= NOTE_MAX) dropNote(notes[0]);
+  const w = new BrowserWindow({...noteBounds(notes.length), frame: false, transparent: true, resizable: false, movable: false, minimizable: false,
+    maximizable: false, fullscreenable: false, focusable: false, skipTaskbar: true, alwaysOnTop: true, hasShadow: false, show: false, acceptFirstMouse: true,
+    backgroundColor: '#00000000', webPreferences: {preload: path.join(__dirname, 'notice-preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false}});
+  w.setAlwaysOnTop(true, 'screen-saver');
+  try { w.setVisibleOnAllWorkspaces(true, {visibleOnFullScreen: true}); } catch (x) { /* not on this platform */ }
+  const n = {key, win: w, href, timer: null, until: 0};
+  notes.push(n);
+  w.loadFile(path.join(__dirname, 'notice.html'), {query: {title, body, life: String(life)}}).catch(() => dropNote(n));
+  w.once('ready-to-show', () => { if (!w.isDestroyed()) w.showInactive(); });
+  w.on('closed', () => { const i = notes.indexOf(n); if (i >= 0) { notes.splice(i, 1); clearTimeout(n.timer); restack(); } });
+  arm(n, life);
+}
+const noteOf = e => notes.find(n => !n.win.isDestroyed() && n.win.webContents.id === e.sender.id);
+ipcMain.handle('notice:show', (e, p) => { if (win && !win.isDestroyed() && e.sender.id === win.webContents.id) showNote(p); });
+ipcMain.on('note:click', e => {
+  const n = noteOf(e);
+  if (!n) return;
+  if (win && !win.isDestroyed()) {
+    if (win.isMinimized()) win.restore();
+    win.show(); win.focus();
+    if (process.platform === 'darwin') app.focus({steal: true});
+    if (n.href) send('notice:open', {href: n.href});
+  }
+  dropNote(n);
+});
+ipcMain.on('note:close', e => { const n = noteOf(e); if (n) leaveNote(n); });
+ipcMain.on('note:done', e => { const n = noteOf(e); if (n) dropNote(n); });
+ipcMain.on('note:hover', (e, on) => {
+  const n = noteOf(e);
+  if (!n) return;
+  if (on) { clearTimeout(n.timer); n.left = Math.max(1500, n.until - Date.now()); } else arm(n, Math.max(2500, n.left || 2500));
+});
+
 app.whenReady().then(() => {
   /* a plain, browser-like user agent for the framed sites, so nobody serves an embedded-view page */
   const ses = session.fromPartition(PARTITION);

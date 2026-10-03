@@ -2,7 +2,7 @@
 const {contextBridge, ipcRenderer} = require('electron');
 const on = (channel, cb) => { const f = (e, p) => cb(p); ipcRenderer.on(channel, f); return () => ipcRenderer.removeListener(channel, f); };
 contextBridge.exposeInMainWorld('m360desktop', {
-  version: 1,
+  version: 2,
   open: url => ipcRenderer.invoke('web:open', String(url || '')),
   activate: id => ipcRenderer.invoke('web:activate', id),
   hide: () => ipcRenderer.invoke('web:hide'),
@@ -14,5 +14,8 @@ contextBridge.exposeInMainWorld('m360desktop', {
   setBounds: b => ipcRenderer.invoke('web:bounds', b || {}),
   outside: url => ipcRenderer.invoke('web:outside', String(url || '')),
   onUpdate: cb => on('web:update', cb),
-  onNew: cb => on('web:new', cb)
+  onNew: cb => on('web:new', cb),
+  /* m360's own notice card over every other window, and the tap that brings the page to it */
+  notify: n => ipcRenderer.invoke('notice:show', n || {}),
+  onNotice: cb => on('notice:open', cb)
 });
