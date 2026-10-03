@@ -105,8 +105,11 @@ def main():
             check(KEY not in store_raw(), 'the environment key never lands in the store')
 
             # ---- the Ask chat: Talk, the words land, the reply is read aloud ----
+            # the spark opens the pop-up at the dock; expand takes the same thread wide, into the drawer
             f.locator('.iconbtn[aria-label="Ask m360"]').click()
-            f.wait_for_selector('#ask-input')
+            f.wait_for_selector('#buddy-expand')
+            f.click('#buddy-expand')
+            f.wait_for_selector('.drawer #ask-input')
             f.click('#ask-aloud')
             check(f.get_attribute('#ask-aloud', 'aria-pressed') == 'true', 'the aloud toggle is on')
             f.locator('.drawer button:has-text("Talk")').click()

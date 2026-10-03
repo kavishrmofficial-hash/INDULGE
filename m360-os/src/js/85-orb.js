@@ -1,113 +1,75 @@
-/* module: orb. The buddy on a phone. The button in the corner is a small live sphere; a tap opens a
-   white screen that listens at once and writes what you say as you say it, word by word, with the
-   sphere swelling to your voice. Let go of the talking (tap the sphere, or just stop) and the answer
-   streams in under your words and is read aloud. Typing is one tap away at the bottom. The screen is
-   the buddy's bubble on a small screen; the buddy keeps its memory, tools and tour. */
+/* module: orb. The buddy on a phone. A tap on the character in the corner raises a sheet, up to 88% of
+   the screen, that listens at once when the microphone is allowed and writes what you say as you say
+   it, word by word, over a sphere that swells with your voice. Stop talking (tap the sphere, or just
+   stop) and the answer streams in under your words. The sheet is the same panel as the pop-up on a
+   laptop (57-panel.js): the whole thread, the cards that wait on a tap, the receipts. Drag the handle
+   down to put it away. A long press on the character is push to talk: let go and it sends. */
 'use strict';
 (function () {
   const {html, React} = M;
-  const {useEffect, useRef, useState} = React;
-
-  const MicIcon = () => html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>`;
-
-  /* the sphere follows the mic: an analyser on its own stream, released when listening ends */
-  const LEVEL = {v: 0};   /* the latest mic level, for anything that wants a getter */
-  function useLevel(active, ref) {
-    useEffect(() => {
-      LEVEL.v = 0;
-      if (!active || !ref.current || !navigator.mediaDevices || !window.AudioContext && !window.webkitAudioContext) return undefined;
-      let gone = false, raf = 0, stream = null, ac = null;
-      const AC = window.AudioContext || window.webkitAudioContext;
-      navigator.mediaDevices.getUserMedia({audio: true}).then(s => {
-        if (gone) { s.getTracks().forEach(t => t.stop()); return; }
-        stream = s; ac = new AC();
-        const src = ac.createMediaStreamSource(s), an = ac.createAnalyser();
-        an.fftSize = 512; src.connect(an);
-        const buf = new Uint8Array(an.frequencyBinCount);
-        let smooth = 0;
-        const tick = () => {
-          an.getByteTimeDomainData(buf);
-          let sum = 0;
-          for (let i = 0; i < buf.length; i++) { const d = (buf[i] - 128) / 128; sum += d * d; }
-          const rms = Math.sqrt(sum / buf.length);
-          smooth = smooth * 0.75 + Math.min(1, rms * 4) * 0.25;
-          LEVEL.v = smooth;
-          if (ref.current) ref.current.style.setProperty('--lvl', smooth.toFixed(3));
-          raf = requestAnimationFrame(tick);
-        };
-        raf = requestAnimationFrame(tick);
-      }).catch(() => { /* no mic for the meter: the sphere rings without it */ });
-      return () => {
-        gone = true; cancelAnimationFrame(raf);
-        if (stream) stream.getTracks().forEach(t => t.stop());
-        if (ac) { try { ac.close(); } catch (e) { /* closed */ } }
-        if (ref.current) ref.current.style.removeProperty('--lvl');
-      };
-    }, [active]);
-  }
+  const {useEffect, useRef} = React;
 
   /* the sound-reactive glow along the bottom edge of a wrapper (.vwrap): live while the mic is on,
      gathered into a travelling beam while the answer is on its way */
   function VoiceGlow({on, processing, mobile}) {
     const ref = useRef(null);
-    useLevel(!!on && !processing, ref);
+    useEffect(() => {
+      if (!on || processing || !ref.current) return undefined;
+      let raf = 0;
+      const tick = () => { if (ref.current) ref.current.style.setProperty('--lvl', (M.mic ? M.mic.level() : 0).toFixed(3)); raf = requestAnimationFrame(tick); };
+      raf = requestAnimationFrame(tick);
+      return () => { cancelAnimationFrame(raf); if (ref.current) ref.current.style.removeProperty('--lvl'); };
+    }, [on, processing]);
     return html`<span ref=${ref} class=${'vglow' + (on ? ' on' : '') + (processing ? ' beam' : '') + (mobile ? ' mobile' : '')} aria-hidden="true" data-on=${on ? '1' : '0'} data-beam=${processing ? '1' : '0'}><i/><b/></span>`;
   }
   M.parts.VoiceGlow = VoiceGlow;
-  M.fx = {...(M.fx || {}), useLevel, level: () => LEVEL.v};
+  M.fx = {...(M.fx || {}), level: () => (M.mic ? M.mic.level() : 0)};
 
-  function Words({text, quiet}) {
-    const words = String(text || '').split(/\s+/).filter(Boolean);
-    return html`<div class=${'orb-heard' + (quiet ? ' quiet' : '')} id="orb-heard">${words.map((w, i) => html`<${React.Fragment} key=${i}><span class="orb-w">${w}</span>${i < words.length - 1 ? ' ' : ''}<//>`)}</div>`;
-  }
+  const SWIPE = 90;
+  const modeOf = st => st.phase === 'listening' || st.phase === 'hearing' ? 'listening' : st.phase === 'thinking' ? 'thinking' : st.phase === 'answer' ? 'answer' : 'asking';
 
-  function OrbScreen({mode, heard, answer, err, acts, followUp, q, setQ, onAsk, onTalk, onStop, onClose, onTour, pending}) {
-    const orb = useRef(null);
-    const [typing, setTyping] = useState(false);
-    const listening = mode === 'listening' || followUp;
-    useLevel(listening, orb);
+  /* props as for the panel, plus onClose; the dock owns the talking */
+  function AgentSheet(props) {
+    const {onClose} = props;
+    const ref = useRef(null);
+    const drag = useRef(null);
+    const [, setN] = React.useState(0);
+    useEffect(() => { const f = () => setN(n => n + 1); M.assistant.subs.add(f); return () => { M.assistant.subs.delete(f); }; }, []);
+    const mode = modeOf(M.assistant.st);
     useEffect(() => { if (mode === 'listening') M.haptic.buzz('tick'); if (mode === 'answer') M.haptic.buzz('done'); }, [mode]);
-    useEffect(() => { if (mode === 'asking') setTyping(true); }, [mode]);
-    const micro = mode === 'listening' ? 'listening' : mode === 'thinking' ? 'thinking' : followUp ? 'listening for a follow up' : mode === 'answer' ? 'm360' : 'ask m360';
-    const hint = mode === 'listening' ? 'Talk. Tap the sphere when you are done.' : mode === 'thinking' ? 'One moment.' : followUp ? 'Say more, or say nothing.' : mode === 'answer' ? 'Tap the sphere to ask again.' : 'Tap the sphere and talk.';
-    const tap = () => {
-      M.haptic.buzz('tap');
-      if (mode === 'listening' || followUp) { onStop(); return; }
-      if (mode === 'thinking') return;
-      onTalk();
+
+    /* the head is the handle: drag it down past the line and the sheet goes */
+    const down = e => {
+      if (!e.target.closest || !e.target.closest('.panel-head') || e.target.closest('button')) return;
+      drag.current = {y: e.clientY, dy: 0};
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* old browser */ }
+      if (ref.current) ref.current.style.transition = 'none';
     };
-    const PendingActs = M.parts.PendingActs;
-    return html`<div class="orb-screen" role="dialog" aria-label="Ask m360" id="orb-screen" data-mode=${mode}>
-      <div class="orb-top">
-        <span class="row nowrap" style=${{gap: '8px'}}><${M.fx.Bot} feature="buddy" state=${mode === 'thinking' ? 'working' : 'default'} size=${28} label="m360" className="ai-bot"/><span class="micro">${micro}</span></span>
-        <button type="button" class="iconbtn" aria-label="Close" onClick=${onClose}><${M.icons.x}/></button>
-      </div>
-      <div class="orb-stage">
-        <button type="button" class="orb-tap" id="orb-tap" aria-label=${listening ? 'Done talking' : 'Talk'} aria-pressed=${listening} onClick=${tap}>
-          <span ref=${orb} class=${'orb-big' + (listening ? ' is-live' : mode === 'thinking' ? ' think' : '')}>${M.fx && M.fx.has() ? html`<${M.fx.Orb} state=${listening ? 'listening' : mode === 'thinking' ? 'working' : 'breathing'} size=${64} dark=${false} label=${listening ? 'listening' : 'm360'}/>` : html`<span class=${'vorb' + (listening ? ' live' : mode === 'thinking' ? ' think' : '')}/>`}</span>
-        </button>
-        <div class="orb-hint">${hint}</div>
-      </div>
-      <div class="orb-body">
-        ${heard || mode === 'listening' ? html`<${Words} text=${heard || 'Go ahead.'} quiet=${!heard}/>` : null}
-        ${mode === 'thinking' && !answer ? html`<${M.Thinking} label="Looking at your screen"/>` : null}
-        ${answer && mode !== 'listening' ? html`<div class="orb-answer" id="orb-answer"><${M.AIText} text=${answer}/></div>` : null}
-        ${PendingActs && (mode === 'answer' || mode === 'thinking') ? html`<${PendingActs}/>` : null}
-        ${(acts || []).map((a, i) => html`<div key=${i} class="tiny ink62">${a}</div>`)}
-        ${err ? html`<div class="small flame-t">${err}</div>` : null}
-        ${mode === 'asking' && !heard ? html`<div class="orb-acts">
-          ${['What can you do?', 'What is on my calendar this week?', 'Open a new task for me', 'What is overdue on me?'].map(t => html`<button key=${t} type="button" class="orb-pill" onClick=${() => onAsk(t)}>${t}</button>`)}
-          <button type="button" class="linky tiny" onClick=${onTour}>Show me around</button>
-        </div>` : null}
-      </div>
-      ${M.fx && M.fx.has() ? html`<${M.fx.Voice} type="mobile" variant="colorful" on=${listening || mode === 'thinking'} processing=${mode === 'thinking'} level=${() => LEVEL.v} className="orb-voice"><div class="orb-voice-in"/><//>` : (M.parts.VoiceGlow ? html`<${M.parts.VoiceGlow} on=${listening || mode === 'thinking'} processing=${mode === 'thinking'} mobile=${true}/>` : null)}
-      <div class="orb-foot">
-        ${typing || mode === 'asking' || mode === 'answer' ? html`<input id="orb-input" class="input" value=${q} placeholder="Or type it" aria-label="Ask m360" autoFocus=${mode === 'asking'}
-          onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter' && q.trim()) onAsk(q); }}/>
-        <${M.fx.Metal} kind="ink"><button type="button" class="btn" disabled=${!q.trim()} onClick=${() => onAsk(q)}>Ask</button><//>` : html`<button type="button" class="btn sec" style=${{flex: '1 1 auto'}} onClick=${() => setTyping(true)}><${MicIcon}/> Type it</button>`}
+    const move = e => {
+      const d = drag.current;
+      if (!d || !ref.current) return;
+      d.dy = Math.max(0, e.clientY - d.y);
+      ref.current.style.transform = 'translateY(' + d.dy + 'px)';
+    };
+    const up = () => {
+      const d = drag.current;
+      drag.current = null;
+      if (!ref.current) return;
+      if (d && d.dy > SWIPE) { onClose(); return; }
+      ref.current.style.transition = M.reduced() ? '' : 'transform .18s ease';
+      ref.current.style.transform = '';
+    };
+    const Panel = M.parts.AgentPanel;
+    return html`<div class="agent-sheet-wrap">
+      <div class="scrim agent-sheet-scrim" onClick=${onClose}/>
+      <div ref=${ref} class="orb-screen agent-sheet" id="orb-screen" role="dialog" aria-modal="true" aria-label="Ask m360" data-mode=${mode}
+        onPointerDown=${down} onPointerMove=${move} onPointerUp=${up} onPointerCancel=${up}>
+        ${Panel ? html`<${Panel} ...${props} size="sheet"/>` : null}
       </div>
     </div>`;
   }
-  M.parts.OrbScreen = OrbScreen;
-  M.parts.OrbMark = () => M.fx && M.fx.has() ? html`<span class="orb-mark"><${M.fx.Orb} state="breathing" size=${32} dark=${true}/></span>` : html`<span class="vorb" aria-hidden="true"/>`;
+  M.parts.AgentSheet = AgentSheet;
+
+  /* the character's mark on a phone, kept for anything that still asks for it */
+  M.parts.OrbMark = () => M.fx && M.fx.Bot ? html`<span class="orb-mark"><${M.fx.Bot} type="droid" size=${32} label="m360"/></span>` : html`<span class="vorb" aria-hidden="true"/>`;
 })();
