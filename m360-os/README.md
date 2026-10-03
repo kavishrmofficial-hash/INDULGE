@@ -440,6 +440,15 @@ Kaavish read it off the tape: people checked in at 10:30, put their tasks in by 
 - **Notices, in the desktop app.** With m360 in the background, the desktop app shows the same card itself, over every other window: top right of the screen the pointer is on, never taking focus, stacked up to four, the same notice twice is one card, a tap brings m360 forward on the thing it was about (`desktop/notice.html`, `desktop/notice-preload.js`, the notice windows in `desktop/main.js`). Download the new build from the "desktop" release.
 - **Notices, in a browser.** The system draws those, so the look (the font, the colours, Safari's icon and the site address under the title) is the system's. m360 hands it the flame logo as the icon (Chrome, Edge and Firefox show it) and the plain title and line. In Safari, File > Add to Dock makes m360 its own app, so its notices come from m360 and not from Safari.
 
+## What is in v31: the design pass
+
+Five critics audited every screen (layout, type, colour and contrast, the effects, the phone) at 1280 and 390, light and dark; a design lead verified 83 findings against the code and dropped 19; four agents applied them in parallel, each reviewed before merge.
+
+- **The effects behave.** They follow a live switch to dark mode; a disabled button is the plain faded one (no shimmer); every metal control shows the keyboard focus ring; one moving primary per view (the sidebar New rests until hovered); metal numbers only from 22px, one headline per figure rail; empty-state bots sit still; page effects hush while a drawer or the palette is open; no blue fringe on the metal rims; voice glow sharp at 3x.
+- **Contrast and Home.** Flame text and white-on-flame labels pass 4.5:1 (a deeper flame token for chrome text); dark panels keep readable hover states; the decorative thought moved below the actions; fields read against their cards; the calendar, Week strip and trophies read without hovering.
+- **Phone, shell and drawers.** Tabs and segments scroll sideways; section heroes fit; HQ opens at the top; the phone buddy steps away while you scroll; 16px inputs everywhere so iOS never zooms.
+- **Pages.** Work, Pitches, HQ, Books, CRM, Week, Reviews and Chat lose duplicate primaries and stray metal, keep aligned figures and readable line lengths.
+
 ## Launch day
 
 1. Admin > Team: invite each person by email. They get a link, type their email and pick a password. Without an email key the invite shows a link to copy instead.

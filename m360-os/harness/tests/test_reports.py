@@ -79,6 +79,8 @@ def test(h):
     p.locator('.drawer').get_by_role('button', name='Save', exact=True).click()
     p.wait_for_function('() => (window.__db.get("roster/team").members.u_m3 || {}).reportsTo === "u_m2"')
     check(True, 'reports to is on the roster line')
+    # the page catches up with the saved roster a moment after the store does
+    p.wait_for_function('() => M.lastCtx && M.lines.managerOf(M.lastCtx, "u_m3") === "u_m2"', timeout=15000)
     check(h.ctx(p, 'M.lines.managerOf(ctx, "u_m1")') == M2, 'm1 reports to the pod lead')
     check(h.ctx(p, 'M.lines.managerOf(ctx, "u_m3")') == M2, 'm3 reports to m2 by name')
     check(h.ctx(p, 'M.lines.managerOf(ctx, "u_m2")') == F, 'm2 reports to Kaavish')
