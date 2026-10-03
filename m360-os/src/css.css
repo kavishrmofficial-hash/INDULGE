@@ -188,9 +188,13 @@ button.card.rowbtn:hover{border-color:var(--line2)}
 .btn.on-dark{background:#fff; color:#0E0E0E}
 .btn.on-dark:hover{background:#EFEDE7; color:#0E0E0E}
 .btn.on-dark.sec{background:transparent; color:#fff; border:1px solid rgba(255,255,255,.35)}
-.btn.on-dark.sec:hover{background:rgba(255,255,255,.08)}
+.btn.on-dark.sec:hover{background:rgba(255,255,255,.08); color:#fff}
 .btn:disabled,.btn.disabled{opacity:.4; cursor:default; pointer-events:none}
 a.btn{text-decoration:none}
+/* flame text takes the step its ground can carry: flame itself on ink, the deep step on a light face */
+.hero.ink,.card.ink,.hero-panel,.btn:not(.sec):not(.ghost),.btn.on-dark.sec{--flame-text:var(--flame)}
+:root[data-theme="dark"] .btn:not(.sec):not(.ghost),.btn.on-dark:not(.sec),.metal-paper .btn:not(.sec):not(.ghost){--flame-text:var(--flame-deep)}
+:root .metal-ink .btn:not(.sec):not(.ghost){--flame-text:var(--flame)}
 .btn svg{width:18px; height:18px}
 .iconbtn{width:34px; height:34px; padding:0; border-radius:var(--r-sm); border:0; background:transparent; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; color:var(--ink)}
 .iconbtn:hover{background:var(--line)}
@@ -333,7 +337,7 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .home-hero.day .micro{color:var(--ink); opacity:.88}
 .home-hero .hero-in{position:relative; display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:24px; align-items:end}
 .home-hero .hero-greet{display:flex; flex-direction:column; justify-content:space-between; align-self:stretch; min-width:0; padding-top:6px}
-.home-hero .hero-greet .hi{margin-top:14px; padding-top:28px}
+.home-hero .hero-greet .hi{margin-top:14px; margin-bottom:auto; padding-top:28px}
 .home-hero .hero-chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:20px}
 .home-hero .hero-tomorrow{display:flex; align-items:center; gap:8px; margin-top:14px; font-size:14px; font-weight:500}
 .home-hero.night .hero-tomorrow{color:rgba(255,255,255,.86)}
@@ -653,6 +657,8 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .cal-day .d{font-size:12px; font-weight:500; display:flex; justify-content:space-between; align-items:center; flex:none; line-height:18px}
 .cal-day .d .pill{height:18px; font-size:10px; padding:0 6px}
 .cal-day .cal-ev{display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; flex:none; font-size:12px; line-height:15px; padding:1px 6px; border-radius:6px; background:var(--warm); overflow:hidden; text-overflow:ellipsis; white-space:normal; border-left:3px solid var(--ink); max-width:100%}
+/* two lines for the first chip; a second chip, or a day with more, keeps one line each so the fixed cell holds them all */
+.cal-day .cal-ev ~ .cal-ev,.cal-day:has(> .cal-more) .cal-ev{-webkit-line-clamp:1}
 .cal-day.off .cal-ev{background:var(--paper)}
 .cal-day .cal-ev.hot{border-left-color:var(--flame)}
 .cal-day .cal-ev.leave{border-left-color:var(--line2); color:var(--ink62)}
