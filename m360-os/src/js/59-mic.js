@@ -38,13 +38,13 @@
     return () => { gone = true; cancelAnimationFrame(raf); LEVEL.v = 0; if (ac) { try { ac.close(); } catch (e) { /* closed */ } } };
   }
 
-  let endedAt = 0;
+  let endedAt = 0, startedAt = 0;
   let current = null;
   const ended = () => {
     endedAt = Date.now();
     try { window.dispatchEvent(new CustomEvent('m360:mic', {detail: {on: false, at: endedAt}})); } catch (e) { /* none */ }
   };
-  const started = () => { try { window.dispatchEvent(new CustomEvent('m360:mic', {detail: {on: true, at: Date.now()}})); } catch (e) { /* none */ } };
+  const started = () => { startedAt = Date.now(); try { window.dispatchEvent(new CustomEvent('m360:mic', {detail: {on: true, at: Date.now()}})); } catch (e) { /* none */ } };
 
   /* o: {onWords(text), onHearing(), onEnd(text, language), onFail(why), cap, silence, meter}
      cap: the longest it listens (30 s); silence: in a follow up, how long a quiet start may last before
@@ -107,7 +107,9 @@
     if (!navigator.mediaDevices || !window.MediaRecorder) return null;
     let mr = null, stream = null, live = true, unmeter = () => {}, capT = 0, vad = 0;
     const h = {kind: 'box', started: Date.now(),
-      stop() { if (mr && mr.state !== 'inactive') { try { mr.stop(); } catch (e) { /* stopped */ } } else { live = false; done(); } },
+      /* let go before the recorder started (the permission prompt, a slow device): nothing was heard, and
+         the listener still hears that it ended */
+      stop() { if (mr && mr.state !== 'inactive') { try { mr.stop(); } catch (e) { /* stopped */ } } else if (!mr && live) { live = false; done(); if (o.onEnd) o.onEnd('', 'en'); } },
       abort() { live = false; if (mr) mr.onstop = null; try { if (mr && mr.state !== 'inactive') mr.stop(); } catch (e) { /* stopped */ } done(); }};
     const done = () => {
       clearTimeout(capT); clearInterval(vad); unmeter();
@@ -154,6 +156,8 @@
     level: () => (Date.now() - LEVEL.at < 400 ? LEVEL.v : 0),
     /* when listening last ended, for anything that waits on the person to finish */
     endedAt: () => endedAt,
+    /* when the microphone last opened, so a spoken yes can tell it opened after m360 stopped talking */
+    startedAt: () => startedAt,
     live: () => !!current,
     stop: () => { if (current) current.stop(); },
     abort: () => { if (current) current.abort(); },

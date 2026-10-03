@@ -11,7 +11,8 @@
 /* ---------- the dock ---------- */
 .buddy-dock{position:fixed; right:24px; bottom:calc(24px + var(--dock-lift)); z-index:58; display:flex; flex-direction:row; align-items:center; gap:10px; pointer-events:none}
 .buddy-dock > *{pointer-events:auto}
-.dock-beside-drawer .buddy-dock{right:calc(min(480px, 100%) + 16px)}
+/* beside a drawer (wider than 860 only, 58-buddy.js) it stands over the drawer's scrim, so it still takes a tap */
+.dock-beside-drawer .buddy-dock{right:calc(min(480px, 100%) + 16px); z-index:62}
 .buddy-dock.is-hidden .buddy-home{display:none}
 /* the css.css pill is gone: the button is the character itself */
 .buddy-dock .buddy-home{position:relative; right:auto; bottom:auto; z-index:auto; width:auto; height:auto; min-width:44px; min-height:44px; padding:0; border:0; border-radius:999px;
@@ -59,11 +60,15 @@ body:has(.breathe, .dayrate, .pal-scrim) .buddy-dock{display:none}
 @keyframes dockdot{0%,100%{opacity:1} 50%{opacity:.35}}
 
 /* ---------- the pop-up: the panel at the dock ---------- */
-.buddy-bubble.agent-pop{position:fixed; left:auto !important; top:auto !important; right:24px; bottom:calc(24px + 66px + var(--dock-lift)); width:min(400px, calc(100vw - 48px));
-  max-height:min(680px, calc(100dvh - 114px - var(--dock-lift))); min-height:200px; z-index:58; display:flex; flex-direction:column; padding:0;
+/* it rides up with the dock, but never so far that less than 200px is left for it */
+.buddy-bubble.agent-pop{--pop-lift:min(var(--dock-lift), max(0px, 100dvh - 314px));
+  position:fixed; left:auto !important; top:auto !important; right:24px; bottom:calc(24px + 66px + var(--pop-lift)); width:min(400px, calc(100vw - 48px));
+  max-height:min(680px, calc(100dvh - 114px - var(--pop-lift))); min-height:200px; z-index:58; display:flex; flex-direction:column; padding:0;
   background:var(--paper); color:var(--ink); border:1px solid var(--line); border-radius:20px; box-shadow:0 26px 60px -26px var(--shadow), 0 2px 10px var(--shadow);
   overflow:hidden; font-size:14px; line-height:1.45; transform-origin:bottom right; pointer-events:auto}
-.dock-beside-drawer .buddy-bubble.agent-pop{right:calc(min(480px, 100%) + 16px)}
+.dock-beside-drawer .buddy-bubble.agent-pop{right:calc(min(480px, 100%) + 16px); width:min(400px, calc(100vw - min(480px, 100vw) - 32px))}
+/* asked for while a drawer is open, the pop-up comes over it and its scrim */
+body:has(.drawer) .buddy-bubble.agent-pop{z-index:62}
 .buddy-bubble.agent-pop.folded{min-height:0; max-height:none}
 .buddy-bubble.agent-pop.folded .agent-panel > :not(.panel-head):not(.panel-unfold){display:none}
 /* a short window: the panel takes the height, and the character moves into its head */
@@ -146,7 +151,7 @@ body:has(.breathe, .dayrate, .pal-scrim) .buddy-dock{display:none}
 /* (a percentage of a box with no fixed height would not hold, so the cap is two fifths of the most the panel can be) */
 .panel-tray{flex:none; max-height:40dvh; overflow-y:auto; overscroll-behavior:contain; padding:0 14px; border-top:1px solid var(--line)}
 .panel-tray:empty{display:none}
-.agent-pop .panel-tray{max-height:calc(min(680px, 100dvh - 114px - var(--dock-lift)) * .4)}
+.agent-pop .panel-tray{max-height:calc(min(680px, 100dvh - 114px - var(--pop-lift)) * .4)}
 .size-sheet .panel-tray{max-height:calc(88dvh * .4)}
 .panel-tray .pending-acts{margin:10px 0}
 .agent-panel .pending-act:not(.ask-preview){background:var(--paper); border-color:var(--line2); color:var(--ink)}

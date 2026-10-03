@@ -390,6 +390,98 @@ def test(h):
     p.wait_for_function('() => !document.querySelector(".buddy-bubble")')
     p.close()
 
+    # ---------- a drawer, a narrow window, the keys and what is never pressed ----------
+    ctx = new_ctx(h, 1280, 800)
+    p = open_page(h, ctx, 'founder', '#home')
+    p.wait_for_selector('#buddy-dock .buddy-home')
+    # beside a drawer the dock and the pop-up stand over the scrim: a tap reaches them
+    p.keyboard.press('?')
+    p.wait_for_selector('.drawer')
+    p.wait_for_timeout(400)
+    on_top = '''s => { const e = document.querySelector(s); if (!e) return false; const r = e.getBoundingClientRect(); const x = document.elementFromPoint(r.left + r.width / 2, r.top + Math.min(30, r.height / 2)); return !!(x && x.closest(s)); }'''
+    check(p.evaluate(on_top, '#buddy-dock .buddy-home'), 'beside a drawer the character still takes a tap')
+    p.locator('#buddy-dock .buddy-home').click()
+    p.wait_for_selector('.buddy-bubble.agent-pop')
+    p.wait_for_timeout(500)
+    check(p.locator('.drawer').count() == 1 and p.evaluate(on_top, '.buddy-bubble.agent-pop'), 'the pop-up opens over the scrim, the drawer stays')
+    p.wait_for_function('() => document.activeElement && document.activeElement.id === "buddy-input"')
+    p.keyboard.press('Escape')
+    p.wait_for_function('() => !document.querySelector(".buddy-bubble")')
+    check(p.locator('.drawer').count() == 1, 'Escape in the pop-up closes the pop-up and leaves the drawer open')
+    p.keyboard.press('Escape'); p.wait_for_function('() => !document.querySelector(".drawer")')
+    # the placement settles: with the chat composer in its corner it does not run every frame
+    h.go(p, 'founder', hash='#chat')
+    p.wait_for_timeout(1200)
+    p.evaluate('''() => { window.__lifts = 0; const st = document.documentElement.style; const f = st.setProperty.bind(st);
+      st.setProperty = (k, v, q) => { if (k === '--dock-lift') window.__lifts++; return f(k, v, q); }; }''')
+    p.wait_for_timeout(2000)
+    n = p.evaluate('() => window.__lifts')
+    check(n <= 6, 'the placement is quiet on a still page: %d runs in 2 s' % n)
+    h.go(p, 'founder', hash='#home')
+    p.wait_for_selector('#buddy-dock .buddy-home')
+    # Ctrl + Option + L by its key code: on a Mac, Option + L types a symbol
+    p.evaluate('''() => window.dispatchEvent(new KeyboardEvent('keydown', {key: '\\u00ac', code: 'KeyL', ctrlKey: true, altKey: true}))''')
+    p.wait_for_function('() => M.buddy.state().conv')
+    check(True, 'Ctrl + Option + L works on a Mac keyboard')
+    p.keyboard.press('Escape'); p.wait_for_function('() => !M.buddy.state().conv')
+    p.keyboard.press('Escape'); p.wait_for_function('() => !document.querySelector(".buddy-bubble")')
+    # a shortcut of its own (VoiceOver's Ctrl + Option + arrows): the ear closes and the panel goes again
+    p.evaluate('() => { window.__sayQ = []; }')
+    p.keyboard.down('Control'); p.keyboard.down('Alt')
+    p.wait_for_function('() => M.buddy.state().live')
+    p.keyboard.press('ArrowRight')
+    p.wait_for_function('() => !M.buddy.state().live && !document.querySelector(".buddy-bubble")')
+    p.keyboard.up('Alt'); p.keyboard.up('Control')
+    p.wait_for_timeout(300)
+    check(p.locator('.buddy-bubble').count() == 0, 'Ctrl + Option + another key is left to that shortcut')
+    # held, then the window loses the keys: nothing half heard is sent
+    n0 = p.evaluate('() => M.chat.turns.length')
+    p.evaluate('() => { window.__sayQ = ["send this anyway"]; }')
+    p.keyboard.down('Control'); p.keyboard.down('Alt')
+    p.wait_for_function('() => /send this anyway/.test((document.querySelector("#buddy-heard") || {}).textContent || "")')
+    p.evaluate('() => window.dispatchEvent(new Event("blur"))')
+    p.wait_for_function('() => !M.buddy.state().live')
+    p.keyboard.up('Alt'); p.keyboard.up('Control')
+    p.wait_for_timeout(600)
+    check(p.evaluate('() => M.chat.turns.length') == n0, 'a hold that loses the window sends nothing')
+    for _ in range(2):
+        if p.locator('.buddy-bubble').count():
+            p.keyboard.press('Escape'); p.wait_for_timeout(300)
+    # a quick tap of the keys puts the caret in the box
+    p.keyboard.down('Control'); p.keyboard.down('Alt'); p.keyboard.up('Alt'); p.keyboard.up('Control')
+    p.wait_for_function('() => document.activeElement && document.activeElement.id === "buddy-input"')
+    check(True, 'a quick tap of the keys is ready for typing')
+    p.keyboard.press('Escape'); p.wait_for_function('() => !document.querySelector(".buddy-bubble")')
+    # never pressed for them: marking pay as paid, an export, the pulse
+    p.evaluate('''() => { const box = document.createElement('div'); box.id = 'pulse-card';
+      const a = document.createElement('button'); a.textContent = 'Mark paid'; a.onclick = () => { window.__pressed = (window.__pressed || 0) + 1; };
+      const b = document.createElement('button'); b.textContent = 'Export CSV'; b.onclick = a.onclick;
+      const c = document.createElement('button'); c.textContent = 'Great week'; c.onclick = a.onclick; box.appendChild(c);
+      document.querySelector('.main').prepend(a, b, box); }''')
+    said = p.evaluate('''async () => { const t = M.assistant.screenTools(M.lastCtx, {log: () => {}}); const click = t.tools.find(x => x.name === 'click');
+      const out = []; for (const label of ['Mark paid', 'Export CSV', 'Great week']) { t.scan();
+        const el = [...document.querySelectorAll('[data-ai]')].find(e => e.textContent.trim() === label);
+        out.push(await click.execute({id: el.getAttribute('data-ai')})); }
+      return out; }''')
+    check(not p.evaluate('() => window.__pressed') and all(s.startswith('not pressed') for s in said), 'paid, export and the pulse are pointed at, never pressed: %r' % said)
+    p.close()
+
+    # ---------- a narrow window with a mouse: above the tab bar, and the pop-up fits over a drawer ----------
+    ctx = new_ctx(h, 800, 700)
+    p = open_page(h, ctx, 'founder', '#home')
+    p.wait_for_selector('#buddy-dock .buddy-home')
+    p.wait_for_timeout(500)
+    tb = rect(p, '.tabbar'); dk = rect(p, '#buddy-dock .buddy-home')
+    check(tb and tb['h'] > 0 and dk['b'] <= tb['t'], 'the dock sits above the tab bar: %r %r' % (dk, tb))
+    p.keyboard.press('?')
+    p.wait_for_selector('.drawer')
+    p.evaluate('() => M.assistant.open("")')
+    p.wait_for_selector('.buddy-bubble.agent-pop')
+    p.wait_for_timeout(600)
+    pop = rect(p, '.buddy-bubble.agent-pop')
+    check(pop['l'] >= 0 and pop['r'] <= 800 and pop['t'] >= 0 and pop['b'] <= 700 and p.evaluate(on_top, '.buddy-bubble.agent-pop'), 'the pop-up fits a narrow window over a drawer: %r' % pop)
+    p.close()
+
     # ---------- the phone: the sheet at 390, 3x, light and dark ----------
     for dark in (False, True):
         ctx = new_ctx(h, 390, 844, dsf=3, touch=True, dark=dark)

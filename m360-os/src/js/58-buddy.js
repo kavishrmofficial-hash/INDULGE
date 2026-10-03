@@ -27,9 +27,11 @@
   const FOUNDER_ONLY = ['hq', 'command', 'admin', 'hiring'];
   const OWNER_ONLY = ['books', 'invoices', 'expenses', 'payroll', 'letters', 'billing'];
   /* controls the buddy will point at but never press */
-  const RISKY = /delete|remove|erase|wipe|trash|offboard|lock|unlock|restore|overwrite|revoke|sign out|log out|approve|reject|decline|pay|revert|clear|withdraw|cancel|send back|reset/i;
-  /* of those, the ones that can be undone by a person are pressed after one tap on a card */
-  const DESTROY = /delete|remove|erase|wipe|trash|offboard|lock|unlock|restore|overwrite|revoke|sign out|log out|pay|revert/i;
+  const RISKY = /delete|remove|erase|wipe|trash|offboard|lock|unlock|restore|overwrite|revoke|sign out|log out|approve|reject|decline|pay|revert|clear|withdraw|cancel|send back|reset|\bpaid\b|\bexport|\bdownload|\bprune|\bissue\b/i;
+  /* of those, the ones a person cannot take back stay theirs to press; the rest wait on one tap on a card */
+  const DESTROY = /delete|remove|erase|wipe|trash|offboard|lock|unlock|restore|overwrite|revoke|sign out|log out|pay|revert|\bpaid\b|\bexport|\bdownload|\bprune|\bissue\b/i;
+  /* the pulse is answered by the person alone, never on their behalf */
+  const THEIRS = '#pulse-card';
   const STOP_WORDS = /^(stop listening|that s all|thats all|that is all|thanks bye|thank you bye|bye|stop)$/;
   const KEEP_WORDS = /^(keep listening|stay with me|conversation mode|keep going)$/;
   const plainWords = t => String(t || '').toLowerCase().replace(/['’]/g, ' ').replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -75,9 +77,9 @@
   const labelOf = el => (el.getAttribute('aria-label') || el.innerText || el.value || '').replace(/\s+/g, ' ').trim();
   const risky = el => {
     if (!el) return true;
-    return RISKY.test(labelOf(el)) || /danger|armed/.test(el.className || '') || (el.closest('form') && el.type === 'submit');
+    return RISKY.test(labelOf(el)) || /danger|armed/.test(el.className || '') || (el.closest('form') && el.type === 'submit') || !!el.closest(THEIRS);
   };
-  const destructive = el => DESTROY.test(labelOf(el)) || /danger|armed/.test(el.className || '');
+  const destructive = el => DESTROY.test(labelOf(el)) || /danger|armed/.test(el.className || '') || !!el.closest(THEIRS);
   /* React controlled inputs listen to the native setter, so type through it */
   function setNative(el, value) {
     const proto = el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
@@ -98,23 +100,26 @@
 
   /* the dock's corner keeps clear of the chat composer, the music player, a drawer's footer and
      anything marked data-dock-avoid; a drawer moves it beside the drawer */
-  const AVOID = '.chat-composer, #music-dock, .drawer-foot, [data-dock-avoid]';
+  /* the tab bar shows on a narrow window with a mouse too; a phone's dock already sits above it */
+  const AVOID = '.chat-composer, #music-dock, .drawer-foot, [data-dock-avoid], .tabbar';
   function useDockPlace(on) {
     useEffect(() => {
       if (!on) return undefined;
-      let raf = 0, ro = null;
+      let raf = 0, ro = null, watched = [];
       const root = document.documentElement;
       const check = () => {
         raf = 0;
         const W = window.innerWidth, H = window.innerHeight;
         const drawer = document.querySelector('.drawer');
-        const beside = !!drawer && W >= 640;
-        const right = beside ? Math.min(480, W) + 16 : (W <= 860 && coarse() ? 16 : 24);
+        /* beside a drawer only where the drawer is a side panel (wider than 860) and the pop-up still fits */
+        const beside = !!drawer && W > 860;
+        const onPhone = !!document.querySelector('#buddy-dock.on-phone');
+        const right = beside ? Math.min(480, W) + 16 : (onPhone ? 16 : 24);
         const x1 = W - right, x0 = x1 - 64;
         let lift = 0;
         const seen = [];
         document.querySelectorAll(AVOID).forEach(el => {
-          if (el.closest('#buddy-dock, .agent-panel')) return;
+          if (el.closest('#buddy-dock, .agent-panel') || (onPhone && el.classList.contains('tabbar'))) return;
           seen.push(el);
           const r = el.getBoundingClientRect();
           if (!r.width || !r.height || r.right < x0 || r.left > x1 || r.top < H * 0.35 || r.top > H) return;
@@ -122,7 +127,10 @@
         });
         root.style.setProperty('--dock-lift', Math.max(0, Math.round(lift)) + 'px');
         root.classList.toggle('dock-beside-drawer', beside);
-        if (ro) { ro.disconnect(); seen.forEach(el => ro.observe(el)); }
+        /* observe a new set only when it changed: observing reports each size once, which would run this again */
+        if (ro && (seen.length !== watched.length || seen.some((el, i) => el !== watched[i]))) {
+          ro.disconnect(); seen.forEach(el => ro.observe(el)); watched = seen;
+        }
       };
       const soon = () => { if (!raf) raf = requestAnimationFrame(check); };
       if (typeof ResizeObserver !== 'undefined') ro = new ResizeObserver(soon);
@@ -221,10 +229,11 @@
     const tourRun = useRef(0);
     const lang = useRef('en');
     const convRef = useRef(false);
-    const convT = useRef({cap: 0, title: ''});
+    const convT = useRef({cap: 0});
     const openRef = useRef(false);
     const closingRef = useRef(false);
     const closeT = useRef(0);
+    const opener = useRef(null);
     const stepRef = useRef(-1);
     const stopsRef = useRef(stops);
     const autoRef = useRef(auto);
@@ -282,11 +291,17 @@
       return () => { clearTimeout(tt); clearInterval(tick); window.removeEventListener('keydown', key, true); window.removeEventListener('pointerdown', poke, true); document.removeEventListener('visibilitychange', vis); };
     }, []);
     const focusOn = !!(M.focus && M.focus.get && M.focus.get());
+    /* asleep outside their day: an hour and a half before their start to two and a half after the EOD cut,
+       and on leave, a holiday or a Sunday */
     const offHours = (() => {
-      const h = new Date(ctx.now || Date.now()).getHours();
+      const d = new Date(ctx.now || Date.now());
+      const mins = d.getHours() * 60 + d.getMinutes();
+      const s = ctx.settings || {};
+      const start = U.minutes(String((typeof ctx.startFor === 'function' && ctx.startFor(ctx.uid)) || s.start || '10:30'));
+      const cut = U.minutes(String(s.eodCut || '19:30'));
       let day = '';
       try { day = M.att && M.att.dayStatus ? (M.att.dayStatus(ctx, ctx.uid, U.todayStr()) || {}).status : ''; } catch (e) { day = ''; }
-      return h < 8 || h >= 22 || day === 'leave' || day === 'holiday';
+      return mins < start - 90 || mins >= cut + 150 || day === 'leave' || day === 'holiday' || day === 'sunday';
     })();
 
     /* ---------- the pointer: rests in the dock, flies out to point; "ride next to my cursor" follows the mouse ---------- */
@@ -315,6 +330,8 @@
         const f = flight.current;
         const steps = last ? Math.max(1, Math.min(6, Math.round((now - last) / 16.667))) : 1;
         last = now;
+        /* resting in the dock, out of sight: nothing to move or measure this frame */
+        if (!f && !pinned.current && !rideRef.current && !outRef.current && !target.current && stepRef.current < 0) { raf = requestAnimationFrame(tick); return; }
         if (f) {
           const k = Math.min(1, (performance.now() - f.t0) / f.T), e = ease(k);
           const lift = Math.sin(Math.PI * k) * f.arc;
@@ -396,6 +413,8 @@
     const flyTo = useCallback(async el => {
       const g = tourRun.current;
       clearTimeout(homeT.current);
+      /* it leaves from wherever the dock is now */
+      if (!outRef.current && !rideRef.current && !flight.current) { const h = home(); pos.current = {x: h.x, y: h.y}; }
       goOut(true);
       el.scrollIntoView({block: 'center', behavior: reduced() ? 'auto' : 'smooth'});
       await wait(reduced() ? 30 : 300);
@@ -444,6 +463,7 @@
       if (stepRef.current >= 0) { tourRun.current++; setStep(-1); setTourText(''); target.current = null; setRing(null); }
       clearTimeout(closeT.current);
       setClosing(false); closingRef.current = false;
+      if (!openRef.current) { const a = document.activeElement; opener.current = a && a !== document.body && !a.closest('.agent-panel') ? a : null; }
       setOpen(phone ? 'sheet' : 'pop');
       if (!o.keepIntro) setIntro(null);
       if (M.assistant.st.phase !== 'thinking' && M.assistant.st.phase !== 'listening' && M.assistant.st.phase !== 'hearing') M.assistant.set({phase: 'idle', err: '', chips: null});
@@ -453,11 +473,18 @@
       if (!openRef.current || closingRef.current) return;
       stopTalk();
       if (M.speech) M.speech.stop();
-      M.assistant.stop();
+      /* open wide, an answer on its way carries on in the drawer; closed, it stops */
+      if (!wide) M.assistant.stop();
       clearTimeout(homeT.current);
       target.current = null; setRing(null); setFolded(false);
       if (outRef.current && !rideRef.current) flyHome();
-      const end = () => { setOpen(false); setClosing(false); setInitial(''); setIntro(null); if (!wide && homeRef.current) homeRef.current.focus({preventScroll: true}); };
+      /* the caret goes back to the character, or to whatever opened the panel while the dock is hidden */
+      const back = () => {
+        const el = homeRef.current && homeRef.current.offsetParent ? homeRef.current : opener.current;
+        opener.current = null;
+        if (el && el.isConnected && el.focus) el.focus({preventScroll: true});
+      };
+      const end = () => { setOpen(false); setClosing(false); setInitial(''); setIntro(null); if (!wide) back(); };
       if (wide) { end(); return; }
       setClosing(true); closingRef.current = true;
       clearTimeout(closeT.current);
@@ -549,8 +576,10 @@
     /* ---------- listening ---------- */
     /* kind: 'push' (held), 'tap' (Talk, tap again to send), 'follow' (after a spoken answer), 'conv' */
     const listen = useCallback(kind => {
-      if (!M.mic) return false;
+      if (!M.mic || !M.mic.can()) return false;
       if (M.speech) M.speech.stop();
+      /* talking over an answer on its way stops it: one turn at a time */
+      if (M.assistant.ctl) M.assistant.stop();
       const micAt = Date.now();
       const h = M.mic.listen({
         cap: 30000,
@@ -590,19 +619,20 @@
     heardRef.current = heard;
 
     /* ---------- conversation mode: visible, capped, and gone when you leave ---------- */
+    /* the tab title loses "Listening · " whatever it says now */
+    const untitle = () => { if (document.title.indexOf('Listening · ') === 0) document.title = document.title.slice('Listening · '.length); };
     const endConv = useCallback(() => {
       if (!convRef.current) return;
       convRef.current = false; setConv(false); M.assistant.set({conv: false});
       clearTimeout(convT.current.cap);
-      if (convT.current.title && document.title.indexOf('Listening · ') === 0) document.title = convT.current.title;
+      untitle();
       if (mic.current) stopTalk();
     }, []);
     const startConv = useCallback(() => {
       if (convRef.current) return;
       if (!M.mic || !M.mic.can()) { M.toast('No microphone here. Type your question.', true); return; }
       convRef.current = true; setConv(true); M.assistant.set({conv: true});
-      convT.current.title = document.title.replace(/^Listening · /, '');
-      document.title = 'Listening · ' + convT.current.title;
+      document.title = 'Listening · ' + document.title.replace(/^Listening · /, '');
       const mins = Number(pref('convMax', '10')) || 10;
       clearTimeout(convT.current.cap);
       convT.current.cap = setTimeout(() => endConv('cap'), Math.min(10, mins) * 60000);
@@ -617,7 +647,7 @@
       window.addEventListener('blur', blur);
       return () => { document.removeEventListener('visibilitychange', hidden); window.removeEventListener('blur', blur); };
     }, [endConv]);
-    useEffect(() => () => { if (convT.current.title && document.title.indexOf('Listening · ') === 0) document.title = convT.current.title; }, []);
+    useEffect(() => () => { clearTimeout(convT.current.cap); untitle(); }, []);
 
     /* ---------- an answer: a walk, a short line out loud, and the ear again ---------- */
     useEffect(() => {
@@ -680,7 +710,7 @@
           }
         }, {
           name: 'click',
-          description: 'Fly to a button, tab or link and press it for the person, when they asked you to do something (open, create, start, switch). Destructive controls (delete, remove, offboard, restore, sign out) are only pointed at; approve, decline, send back, withdraw, cancel and clear wait on the person\'s tap. Returns the SCREEN list after the click, so you can keep going.',
+          description: 'Fly to a button, tab or link and press it for the person, when they asked you to do something (open, create, start, switch). Destructive controls (delete, remove, offboard, restore, sign out, mark paid, export, issue) and the pulse are only pointed at; approve, decline, send back, withdraw, cancel and clear wait on the person\'s tap. Returns the SCREEN list after the click, so you can keep going.',
           inputSchema: {type: 'object', properties: {id: {type: 'string', description: 'An element id from the SCREEN list'}, say: {type: 'string', description: 'What you are doing, under 10 words'}}, required: ['id']},
           execute: async input => {
             const el = await point(input.id, input.say);
@@ -767,14 +797,26 @@
 
     /* ---------- the talk key: hold to talk, a quick tap opens the panel, Ctrl + Option + L for conversation ---------- */
     const holdRef = useRef(false);
+    const keyOpened = useRef(false);
     useEffect(() => {
       if (talkKey === 'off') return undefined;
       const isKey = e => talkKey === 'ropt' ? e.code === 'AltRight' && !e.ctrlKey : e.ctrlKey && e.altKey && (e.key === 'Control' || e.key === 'Alt');
+      const MODS = ['Control', 'Alt', 'Shift', 'Meta', 'AltGraph'];
+      /* the caret in the box, for typing (the panel opened while it listened, so it did not take it) */
+      const toType = () => setTimeout(() => { const el = document.getElementById('buddy-input') || document.getElementById('orb-input'); if (el) el.focus({preventScroll: true}); }, 60);
       const down = e => {
         if (e.repeat) return;
-        if (e.ctrlKey && e.altKey && String(e.key).toLowerCase() === 'l' && talkKey === 'ctrlopt') {
+        /* by its code: Option + L types a symbol on a Mac keyboard */
+        if (e.ctrlKey && e.altKey && (e.code === 'KeyL' || String(e.key).toLowerCase() === 'l') && talkKey === 'ctrlopt') {
           if (holdRef.current) { holdRef.current = false; stopTalk(); }
           if (convRef.current) endConv('key'); else startConv();
+          return;
+        }
+        /* another key while the talk key is held is a shortcut of its own (VoiceOver uses Ctrl + Option):
+           the ear closes, and a panel the hold opened goes away again */
+        if (holdRef.current && MODS.indexOf(e.key) < 0) {
+          holdRef.current = false; setPush(false); stopTalk();
+          if (keyOpened.current) { keyOpened.current = false; closePanel(true); }
           return;
         }
         if (!isKey(e) || holdRef.current) return;
@@ -783,40 +825,49 @@
         if (convRef.current) { endConv('key'); return; }
         holdRef.current = true; pushAt.current = Date.now();
         if (stepRef.current >= 0) { tourRun.current++; setStep(-1); setTourText(''); target.current = null; setRing(null); }
-        if (!listen('push')) { holdRef.current = false; openPanel(''); return; }
+        keyOpened.current = !openRef.current || closingRef.current;
+        if (!listen('push')) { holdRef.current = false; keyOpened.current = false; openPanel(''); toType(); return; }
         setPush(true);
-        if (!openRef.current || closingRef.current) openPanel('');
+        if (keyOpened.current) openPanel('');
       };
       const up = e => {
         if (!holdRef.current) return;
         if (talkKey === 'ropt' ? e.code !== 'AltRight' : (e.key !== 'Control' && e.key !== 'Alt')) return;
-        holdRef.current = false;
+        holdRef.current = false; keyOpened.current = false;
         setPush(false);
         /* a tap of the key with nothing said: the panel stays open for typing */
-        if (Date.now() - pushAt.current < 300 && !M.assistant.st.heard) { stopTalk(); M.assistant.set({phase: 'idle', heard: ''}); return; }
+        if (Date.now() - pushAt.current < 300 && !M.assistant.st.heard) { stopTalk(); M.assistant.set({phase: 'idle', heard: ''}); toType(); return; }
         if (mic.current) mic.current.stop();
       };
-      window.addEventListener('keydown', down); window.addEventListener('keyup', up);
-      return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
-    }, [talkKey, listen, openPanel, startConv, endConv]);
+      /* the window loses the keys (a switch to another app): the hold ends, and nothing half heard is sent */
+      const blur = () => { if (holdRef.current) { holdRef.current = false; keyOpened.current = false; setPush(false); stopTalk(); } };
+      window.addEventListener('keydown', down); window.addEventListener('keyup', up); window.addEventListener('blur', blur);
+      return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', blur); };
+    }, [talkKey, listen, openPanel, closePanel, startConv, endConv]);
 
     /* Escape: stop listening first, then conversation, then the tour or the panel. The buddy's own
        press_key never closes the buddy. */
+    /* it listens first (capture), so what it handles goes no further: a drawer under the panel stays open */
     useEffect(() => {
       const esc = e => {
         if (e.key !== 'Escape' || !e.isTrusted) return;
-        if (mic.current) { stopTalk(); M.assistant.set({phase: M.chat.turns.length ? 'answer' : 'idle', heard: ''}); if (convRef.current) endConv('esc'); return; }
+        const mine = () => { e.stopPropagation(); };
+        if (mic.current) { mine(); stopTalk(); M.assistant.set({phase: M.chat.turns.length ? 'answer' : 'idle', heard: ''}); if (convRef.current) endConv('esc'); return; }
         if (M.speech && M.speech.speaking()) M.speech.stop();
-        if (convRef.current) { endConv('esc'); return; }
-        if (stepRef.current >= 0) { finishTour('skipped'); return; }
+        if (convRef.current) { mine(); endConv('esc'); return; }
+        if (stepRef.current >= 0) { mine(); finishTour('skipped'); return; }
         if (openRef.current && !closingRef.current) {
+          const a = document.activeElement;
+          const inPanel = !!(a && a.closest && a.closest('.buddy-bubble, .agent-sheet'));
+          if (document.querySelector('.drawer') && !inPanel) return;
+          if (document.querySelector('.buddy-bubble .panel-menu, .agent-sheet .panel-menu')) return;    /* the panel's own menu closes first */
           if (intro && intro.kind === 'welcome') M.tour.mark(ctx, 'asked');
-          if (document.querySelector('.drawer') && !document.activeElement.closest('.agent-panel')) return;
+          if (inPanel) mine();
           closePanel();
         }
       };
-      window.addEventListener('keydown', esc);
-      return () => window.removeEventListener('keydown', esc);
+      window.addEventListener('keydown', esc, true);
+      return () => window.removeEventListener('keydown', esc, true);
     }, [finishTour, closePanel, endConv, intro, ctx]);
 
     /* phones: the dock steps down out of the way while the page scrolls down, and while the keyboard is up */

@@ -50,7 +50,8 @@
       if (S.closer) S.closer(true);
       try { window.dispatchEvent(new CustomEvent('m360:askwide', {detail: {initial: ''}})); } catch (e) { /* none */ }
     },
-    stop() { if (S.ctl) S.ctl.abort(); },
+    /* the turn in flight stops, and no longer counts as in flight: a new one may start at once */
+    stop() { const c = S.ctl; S.ctl = null; if (c) c.abort(); },
     /* a spoken line stays short: twelve words, or the first sentence and a pointer to the screen */
     spoken(text) {
       const t = String(text || '').replace(/[*_`#>|]/g, '').replace(/\s+/g, ' ').trim();
@@ -150,18 +151,21 @@
     o = o || {};
     const msg = String(text || '').trim();
     const pics = o.images || [];
-    if ((!msg && !pics.length) || S.st.phase === 'thinking') return null;
+    if ((!msg && !pics.length) || S.st.phase === 'thinking' || S.ctl) return null;
     const voice = o.via === 'voice';
     const before = M.chat.turns.slice();
     /* a spoken yes or no answers the one card this turn left waiting, and nothing else */
     if (voice && M.agent && M.brain && M.brain.pending) {
-      const yes = M.agent.yesFor ? M.agent.yesFor(ctx, msg, {turn: S.turn, at: Date.now(), promptAt: S.promptAt, micAt: o.micAt, spokeEnd: M.speech && M.speech.endedAt ? M.speech.endedAt() : 0}) : null;
+      /* the Talk button of the wide drawer does not say when it opened: the microphone does */
+      const micAt = o.micAt != null ? o.micAt : M.mic && M.mic.startedAt ? M.mic.startedAt() : 0;
+      const yes = M.agent.yesFor ? M.agent.yesFor(ctx, msg, {turn: S.turn, at: Date.now(), promptAt: S.promptAt, micAt, spokeEnd: M.speech && M.speech.endedAt ? M.speech.endedAt() : 0}) : null;
       const mine = S.turn ? M.brain.pending.list.filter(p => !p.busy && p.turn === S.turn.id) : [];
       const no = !yes && M.agent.isNo && M.agent.isNo(msg) && mine.length === 1 && Date.now() - Math.max(mine[0].at || 0, S.promptAt) < 15000;
       if (yes || no) {
         M.chat.save(ctx, before.concat([{role: 'user', content: msg, via: 'voice'}]));
         let line = 'Cancelled. Nothing went out.';
-        if (yes) { const r = await M.brain.approve(yes, 'voice'); line = (r && typeof r === 'object' && r.say) || 'Sent. I will tell you when they answer.'; }
+        /* the card's own words when it has them; a plain Done otherwise (a pressed control sent nothing) */
+        if (yes) { const r = await M.brain.approve(yes, 'voice'); line = (r && typeof r === 'object' && r.say) || 'Done.'; }
         else M.brain.drop(mine[0].id);
         await M.chat.append(ctx, [{role: 'assistant', content: line}]);
         S.set({phase: 'answer', heard: '', announce: line});
@@ -188,7 +192,8 @@
     S.set({phase: 'thinking', live: '', acts: [], err: '', chips: null, announce: ''});
     try {
       const r = await ask(ctx, msg, {via: o.via, size: o.size, images: pics, signal: c.signal, onAct, onText: t => { if (S.ctl === c) S.set({live: t}); }});
-      if (S.ctl !== c) return null;
+      /* stopped while the answer came back: what it already did stays on record */
+      if (S.ctl !== c) { if (acts.length) await M.chat.append(ctx, [{role: 'assistant', content: 'Stopped.', acts}]); return null; }
       S.ctl = null;
       if (r.err && !r.text) {
         S.set({phase: 'answer', live: '', acts: [], err: r.err, chips: r.chips || null, announce: r.err});
@@ -203,9 +208,11 @@
       return r;
     } catch (e) {
       const code = (e && e.code) || 'upstream_error';
-      if (S.ctl === c) S.ctl = null;
-      if (acts.length) await M.chat.append(ctx, [{role: 'assistant', content: code === 'cancelled' ? 'Stopped.' : '', acts}]);
-      if (code === 'cancelled') { S.set({phase: 'answer', live: '', acts: []}); return null; }
+      const mine = S.ctl === c;
+      if (mine) S.ctl = null;
+      if (acts.length) await M.chat.append(ctx, [{role: 'assistant', content: code === 'cancelled' || !mine ? 'Stopped.' : '', acts}]);
+      /* stopped: the state is only put back when nothing new (listening, another turn) has taken over */
+      if (code === 'cancelled' || !mine) { if (S.st.phase === 'thinking' && !S.ctl) S.set({phase: 'answer', live: '', acts: []}); return null; }
       const off = M.ai.isOff(code) || code === 'rate_limited' || /limit|quota|cap/.test(code);
       const line = (e && e.text ? e.text + '\n\n' : '') + M.ai.errCopy(code) + (off ? ' ' + OFFLINE_LINE : '');
       S.set({phase: 'answer', live: '', acts: [], err: line, chips: off ? offline() : null, announce: line});
@@ -291,6 +298,9 @@
     </div>`;
   }
 
+  /* one wrapper for the whole page's life, so the composer is never remounted (and the caret never lost) */
+  const Plain = ({children}) => children;
+
   /* the Talk button the dock drives (push to talk, conversation), in the same pill as the plain one */
   function TalkButton({id, talk}) {
     const can = talk.can;
@@ -338,13 +348,21 @@
     useEffect(() => { let on = true; if (wide && ctx.sample && ctx.sample.limits) ctx.sample.limits().then(l => { if (on) setCanImg(!!(l && l.images)); }).catch(() => {}); return () => { on = false; }; }, [ctx.sample]);
     useEffect(() => { if (onBusy) onBusy(busy); }, [busy]);
     useEffect(() => { if (initial) go(initial); }, [initial]);
-    /* opening puts the caret in the box, unless the dock opened it to listen */
+    /* opening puts the caret in the box, unless the dock opened it to listen, or it opened on its own
+       with the hello (whatever they were typing keeps the caret) */
     useEffect(() => {
-      if (sz === 'inline' || listening) return;
+      if (sz === 'inline' || listening || intro) return undefined;
       const t = setTimeout(() => { if (input.current && !(phone && sz === 'sheet')) input.current.focus({preventScroll: true}); }, sz === 'drawer' ? 60 : 30);
       return () => clearTimeout(t);
     }, []);
-    useEffect(() => { if (!menu) return undefined; const f = e => { if (!e.target.closest || !e.target.closest('.panel-menu, .panel-menu-btn')) setMenu(false); }; window.addEventListener('pointerdown', f); return () => window.removeEventListener('pointerdown', f); }, [menu]);
+    useEffect(() => {
+      if (!menu) return undefined;
+      const f = e => { if (!e.target.closest || !e.target.closest('.panel-menu, .panel-menu-btn')) setMenu(false); };
+      /* Escape closes the menu first, and the panel on the next press */
+      const k = e => { if (e.key === 'Escape') { e.stopPropagation(); setMenu(false); } };
+      window.addEventListener('pointerdown', f); window.addEventListener('keydown', k, true);
+      return () => { window.removeEventListener('pointerdown', f); window.removeEventListener('keydown', k, true); };
+    }, [menu]);
 
     /* the newest line stays in view while the reader is at the end; scrolled up, it leaves them be */
     const onScroll = () => {
@@ -434,7 +452,7 @@
     </div>` : null;
 
     const History = M.parts.AgentHistory;
-    const VoiceWrap = M.fx && M.fx.has() ? M.fx.Voice : ({children}) => children;
+    const VoiceWrap = M.fx && M.fx.has() ? M.fx.Voice : Plain;
     const sendBtn = busy ? html`<button type="button" class="btn sec sm panel-stop" onClick=${() => S.stop()}>Stop</button>`
       : html`<${M.fx.Metal} kind=${sz === 'drawer' || sz === 'inline' ? 'ink' : undefined}><button type="button" class="btn sm panel-send" id=${sz === 'drawer' ? 'ask-go' : sz === 'inline' ? 'ask-go-inline' : id('send')} disabled=${!q.trim() && !imgs.length} onClick=${() => go()}>Send</button><//>`;
     const aloudBtn = html`<button type="button" class=${'iconbtn panel-aloud' + (aloud ? ' on' : '')} id=${id('aloud')} aria-pressed=${aloud} aria-label="Read replies aloud" title=${aloud ? 'Replies are read aloud' : 'Read replies aloud'} onClick=${flipAloud}><${Speaker}/></button>`;
