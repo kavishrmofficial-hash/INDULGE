@@ -797,7 +797,7 @@ For members whose joined date is within the last 45 days.
 | R14 | Projects on track | projects | a project the person owns is Off track, or due within 3 days with progress under 70% | medium |
 | R15 | Client brain kept current | clients | a live client the person owns has an empty memory, approvals or lines-never-to-cross field, or was last updated more than 60 days ago | low |
 | R16 | Hiring panel on time | hiring-panel | an evaluator hasn't submitted by the candidate deadline | medium |
-| R17 | Keep work moving | the-week | a quiet stretch in today's working day: nothing recorded on m360 for quietMins, the lunch hour left out ("Nothing recorded on m360 since 10:50, 2h 50m, lunch aside" while it runs, "Quiet from 10:45 to 14:30, 3h 45m" once closed); computed only where the viewer may see the person's day | high while it runs, medium once closed |
+| R17 | Keep work moving | the-week | a quiet stretch in today's working day: nothing recorded on m360 for quietMins, the lunch hour left out ("Nothing recorded on m360 since 10:50, 2h 50m so far, lunch aside" while it runs, "Quiet from 10:45 to 14:30, 2h 45m, lunch aside" once closed); computed only where the viewer may see the person's day | high while it runs, medium once closed |
 
 Section links:
 - the-week: R01 to R06, and R17
@@ -814,6 +814,7 @@ R17, the quiet watch (M.quiet):
 - **settings.quietMins:** how long with nothing recorded counts as quiet. Admin offers 60, 90, 120, 150, 180 or 240 minutes; 120 by default.
 - **settings.lunchFrom and settings.lunchTo:** the lunch hour left out of every stretch, "13:30" to "14:30" by default. Both empty means no lunch hour; lunch to must be after lunch from.
 - **Who sees it:** the person in their Rule box, their manager on Your team and in the inbox (one flag per stretch, keyed by when it began), Kaavish everywhere.
+- **A page still loading** (any of me, checkin, eod, tasks, feed, kudos, leave or leavedec not yet arrived) computes no R17, so half a page never reads as a quiet morning.
 - **Switching R17 off** switches the whole watch off, the manager's flags included.
 
 Flags show in four places:
@@ -1146,12 +1147,12 @@ Your evaluation goes to Kaavish only. Write what you would say to his face.
 # What's recorded
 - **Check-in and check-out.** The time and your location at that moment. Your location is never tracked in between.
 - **Your work.** Tasks, outcomes, EOD lines, comments, posts and kudos.
-- **When you save.** The time of each save you make on m360, never what you read or what you saved. A long quiet stretch in your working day shows up for you, your manager and Kaavish.
+- **When you save.** The time of each save you make on m360, and when a focus timer runs. Never what you read or what you saved. A long quiet stretch in your working day shows up for you, your manager and Kaavish.
 - **Leave.** Dates and type. Details go to Kaavish directly.
 
 # Who sees what
 - Teammates see your status, check-in time, outcomes, EOD lines, tasks, posts and your points total.
-- The screens show your check-in location, scorecard, quality scores, ladder status and leave requests only to you and Kaavish.
+- The screens show your check-in location, scorecard, quality scores, ladder status and leave requests only to you, your manager and Kaavish.
 - Only Kaavish sees hiring evaluations and his own private notes.
 - The pulse in Voice is anonymous. Your name is never stored with it.
 

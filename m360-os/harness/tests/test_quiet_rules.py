@@ -3,11 +3,15 @@
 
 m1 (Pod 1) reports to m2, the Pod 1 lead; m3 (Pod 2) is a peer who reports to Kaavish. On a Tuesday
 next week m1 checks in at 10:30, saves at 10:40 and 10:45, and then nothing. At 12:00 with the default
-two hours there is no R17. Kaavish sets quiet stretch after to 60 in Admin: the flag appears at once, high,
+two hours there is no R17. Admin's example reads the quiet from the end of the save's five-minute block.
+Kaavish sets quiet stretch after to 60 in Admin: the flag appears at once, high,
 in m1's own Rule box and on m2's Your team. The lunch fields refuse lunch ending before it starts and a
 lunch with one time, then save 13:30 to 14:30 with the threshold back at 120. At 14:40 m1 reads "Nothing
-recorded on m360 since 10:50, 2h 50m, lunch aside"; Kaavish sees it in the Command flags (filtered to
-R17) and on the handbook's live rules; m3 computes nothing about m1. No lunch hour makes it 3h 50m. A save
+recorded on m360 since 10:50, 2h 50m so far, lunch aside"; m2 computes it too; Kaavish sees it, high, in
+the Command flags (filtered to R17) and on the handbook's live rules; m3 computes nothing about m1. From
+copies of m1's context: nothing before the check-in, on a holiday, on leave, on a Sunday check-in or while
+a collection is still loading; a Saturday at home counts; a check-out closes the day. No lunch hour makes
+it 3h 50m. A save
 at 15:00 closes the stretch (medium, with the day's status). R17 switched off in Admin clears the Rule
 box, the manager's Your team and the Command flags. Screenshots of the Admin card and the Rule box, 1280
 and 390, light and dark, land in harness/shots (or QUIET_SHOTS).
@@ -78,6 +82,20 @@ def test(h):
     def r17(page, uid=M1):
         return h.ctx(page, 'ctx.flags.filter(f => f.rule === "R17" && f.uid === "%s").map(f => ({severity: f.severity, text: f.text, key: f.key, ref: f.ref, section: f.section}))' % uid)
 
+    def r17_with(page, patch, when='new Date()'):
+        """m1's R17 from a copy of the live context, changed by patch (x, tools) => void, evaluated at when"""
+        return page.evaluate('''() => {
+          const U = M.U, c = M.lastCtx, x = Object.assign({}, c, {coll: Object.assign({}, c.coll)});
+          const today = U.todayStr(), ago = n => U.ymd(U.addDays(new Date(), -n));
+          const day = (n, hh, mm) => U.parseYmd(U.ymd(U.addDays(new Date(), n))).getTime() + (hh * 60 + mm) * 60000;
+          const checkin = (ymd, d) => {
+            const doc = {days: Object.assign({}, (x.coll.checkin.map.u_m1 || {}).days, {[ymd]: d})};
+            x.coll.checkin = Object.assign({}, x.coll.checkin, {map: Object.assign({}, x.coll.checkin.map, {u_m1: doc})});
+          };
+          (%s)(x, {U, today, ago, day, checkin});
+          return M.rules.evaluate(x, %s).filter(f => f.rule === "R17" && f.uid === "u_m1").map(f => [f.severity, f.text]);
+        }''' % (patch, when))
+
     def rulebox(page):
         page.wait_for_selector(RULEBOX)
         more = page.locator(RULEBOX + ' button:has-text("Show all")')
@@ -142,7 +160,8 @@ def test(h):
     card = p.inner_text('#quiet-card')
     check('R17 on' in card and 'quiet stretch after' in card.lower(), 'the quiet card shows the switch: %r' % card[:120])
     check(p.input_value('#quiet-mins') == '120' and p.input_value('#lunch-from') == '13:30' and p.input_value('#lunch-to') == '14:30', 'defaults: 2 hours, lunch 13:30 to 14:30')
-    check('flagged at 12:45' in p.inner_text('#quiet-example'), 'the strip example reads: %r' % p.inner_text('#quiet-example'))
+    # a save marks its five-minute block, so the example's quiet starts at 10:50, as the flags do
+    check('a save at 10:45, then nothing: quiet from 10:50, flagged at 12:50.' in p.inner_text('#quiet-example'), 'the strip example reads: %r' % p.inner_text('#quiet-example'))
     opts = p.evaluate('() => [...document.querySelectorAll("#quiet-mins option")].map(o => o.value)')
     check(opts == ['60', '90', '120', '150', '180', '240'], 'the six choices: %r' % opts)
     for wide in (1280, 390):
@@ -158,17 +177,17 @@ def test(h):
     shot(p, '#quiet-card', 'admin-quiet-1280-dark')
     p.evaluate('M.theme.set("light")')
     p.select_option('#quiet-mins', '60')
-    check('flagged at 11:45' in p.inner_text('#quiet-example'), 'the example follows the choice: %r' % p.inner_text('#quiet-example'))
+    check('flagged at 11:50' in p.inner_text('#quiet-example'), 'the example follows the choice: %r' % p.inner_text('#quiet-example'))
     save_settings(p, 's.quietMins === 60')
     until(p, '() => M.quiet.cfg(M.lastCtx).mins === 60', 'the quiet watch to read 60')
 
     # the flag appears earlier: high, in m1's own Rule box and on the manager's Your team
     go(m1, 'm1', '#home')
     f = r17(m1)
-    check(len(f) == 1 and f[0]['severity'] == 'high' and f[0]['text'] == 'Nothing recorded on m360 since 10:50, 1h 10m', 'R17 high at 60 minutes: %r' % f)
+    check(len(f) == 1 and f[0]['severity'] == 'high' and f[0]['text'] == 'Nothing recorded on m360 since 10:50, 1h 10m so far', 'R17 high at 60 minutes: %r' % f)
     check(f[0]['key'] == 'R17:u_m1:1050' and f[0]['ref'] == '#today' and f[0]['section'] == 'the-week', 'key, ref and section: %r' % f)
     box = rulebox(m1)
-    check('Keep work moving' in box and 'since 10:50, 1h 10m' in box, 'the Rule box shows it: %r' % box)
+    check('Keep work moving' in box and 'since 10:50, 1h 10m so far' in box, 'the Rule box shows it: %r' % box)
     m2 = open_page(h, ctx, 'm2', '#home', seed=True)
     go(m2, 'm2', '#home')
     m2.wait_for_selector('#team-u_m1')
@@ -198,9 +217,26 @@ def test(h):
     ctx.clock.set_fixed_time(at(14, 40))
     go(m1, 'm1', '#home')
     f = r17(m1)
-    check(len(f) == 1 and f[0]['severity'] == 'high' and f[0]['text'] == 'Nothing recorded on m360 since 10:50, 2h 50m, lunch aside', 'the 14:40 flag: %r' % f)
+    check(len(f) == 1 and f[0]['severity'] == 'high' and f[0]['text'] == 'Nothing recorded on m360 since 10:50, 2h 50m so far, lunch aside', 'the 14:40 flag: %r' % f)
     box = rulebox(m1)
-    check('Nothing recorded on m360 since 10:50, 2h 50m, lunch aside' in box, 'the Rule box reads it: %r' % box)
+    check('Nothing recorded on m360 since 10:50, 2h 50m so far, lunch aside' in box, 'the Rule box reads it: %r' % box)
+
+    # the edges, from copies of m1's live context at 14:40
+    base = r17_with(m1, '(x) => {}')
+    check(base == [['high', 'Nothing recorded on m360 since 10:50, 2h 50m so far, lunch aside']], 'the copy reads the same: %r' % base)
+    check(r17_with(m1, '(x) => {}', 'new Date(%d)' % ms(10, 0)) == [], 'nothing before the check-in')
+    check(r17_with(m1, '(x, t) => { x.holidays = new Set([t.today]); }') == [], 'nothing on a holiday')
+    check(r17_with(m1, '(x) => { x.onLeave = u => u === "u_m1"; }') == [], 'nothing on approved leave')
+    sat = r17_with(m1, '(x, t) => t.checkin(t.ago(3), {in: t.day(-3, 10, 30), mode: "wfh"})', 'new Date(day(-3, 15, 30))')
+    check(sat == [['high', 'Nothing recorded on m360 since 10:30, 4h 00m so far, lunch aside']], 'a Saturday at home counts: %r' % sat)
+    sun = r17_with(m1, '(x, t) => t.checkin(t.ago(2), {in: t.day(-2, 10, 30), mode: "wfh"})', 'new Date(day(-2, 15, 30))')
+    check(sun == [], 'a Sunday check-in carries none: %r' % sun)
+    out = r17_with(m1, '(x, t) => t.checkin(t.today, Object.assign({}, x.coll.checkin.map.u_m1.days[t.today], {out: t.day(0, 13, 0)}))')
+    check(out == [['medium', 'Quiet from 10:50 to 13:00, 2h 10m']], 'a check-out closes the day: %r' % out)
+    early = r17_with(m1, '(x, t) => t.checkin(t.today, Object.assign({}, x.coll.checkin.map.u_m1.days[t.today], {out: t.day(0, 12, 30)}))')
+    check(early == [], 'out at 12:30, under two hours: %r' % early)
+    for k in ('me', 'checkin', 'tasks'):
+        check(r17_with(m1, '(x) => { x.coll.%s = Object.assign({}, x.coll.%s, {ready: false}); }' % (k, k)) == [], 'nothing while %s is still loading' % k)
     check(h.overflow(m1) == 0, 'no overflow on m1 Home at 1280')
     shot(m1, RULEBOX, 'rulebox-1280-light')
     m1.set_viewport_size({'width': 390, 'height': 844})
@@ -217,14 +253,15 @@ def test(h):
     m2.wait_for_selector('#team-u_m1')
     q = quiet_flags(m2)
     check(len(q) == 1 and q[0][0] == '1' and '2h 50m so far, lunch aside' in q[0][1], 'the manager reads the same stretch: %r' % q)
+    check([x['severity'] for x in r17(m2)] == ['high'], 'the manager computes R17 for a report: %r' % r17(m2))
 
     # the founder's rule views: the Command flags, filtered to R17, and the week's live rules
     go(p, 'founder', '#command')
     p.select_option('select[aria-label="Rule filter"]', 'R17')
     p.wait_for_timeout(200)
     flags_card = p.locator('.card:has(select[aria-label="Rule filter"])').inner_text()
-    check('Keep work moving' in flags_card and 'Nothing recorded on m360 since 10:50, 2h 50m, lunch aside' in flags_card, 'Command flags show R17 for m1: %r' % flags_card[:300])
-    check('high' in flags_card.lower(), 'filed under high')
+    check('Keep work moving' in flags_card and 'Nothing recorded on m360 since 10:50, 2h 50m so far, lunch aside' in flags_card, 'Command flags show R17 for m1: %r' % flags_card[:300])
+    check([x['severity'] for x in r17(p)] == ['high'], 'filed under high: %r' % r17(p))
     go(p, 'founder', '#handbook/the-week')
     row = p.locator('.listrow:has-text("Keep work moving")')
     check(row.count() == 1 and '1 flag' in row.inner_text(), 'the live rules on the week list it: %r' % (row.inner_text() if row.count() else None))
@@ -241,7 +278,7 @@ def test(h):
     save_settings(p, 's.lunchFrom === "" && s.lunchTo === ""')
     go(m1, 'm1', '#home')
     f = r17(m1)
-    check(len(f) == 1 and f[0]['text'] == 'Nothing recorded on m360 since 10:50, 3h 50m', 'with no lunch hour: %r' % f)
+    check(len(f) == 1 and f[0]['text'] == 'Nothing recorded on m360 since 10:50, 3h 50m so far', 'with no lunch hour: %r' % f)
 
     # ---- a save at 15:00 closes the stretch: medium, keyed the same, with the day's status ----
     h.seed_doc(m1, 'me/' + M1, {'act': {today: {'1040': 1, '1045': 1, '1500': 1}}, 'status': {'text': 'At the Swisse shoot', 'at': ms(15, 1)}})

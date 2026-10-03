@@ -143,8 +143,10 @@
       .sort((a, b) => (Number(a.doc.order) || 0) - (Number(b.doc.order) || 0));
     const candidateIds = Object.keys(candidates);
 
-    /* a person's quiet stretches show to them, their manager and Kaavish only */
+    /* a person's quiet stretches show to them, their manager and Kaavish only, and only once every
+       collection the quiet watch reads has arrived: half a page would read as a quiet morning */
     const sees = u => (typeof ctx.canSee === 'function' ? !!ctx.canSee(u) : !!(ctx.isFounder || u === ctx.uid));
+    const quietReady = ['me', 'checkin', 'eod', 'tasks', 'feed', 'kudos', 'leave', 'leavedec'].every(k => !!(ctx.coll[k] && ctx.coll[k].ready));
 
     const push = (rule, u, severity, text, section, ref, key) => out.push({
       rule, uid: u, severity, text,
@@ -383,13 +385,13 @@
          quietMins is high, each closed one is medium. Keyed by when the stretch began, so it stays one flag
          from the moment it crosses the line to the moment it closes. Computed only where the viewer may see it. */
       run('R17', () => {
-        if (!M.quiet || !ctx.members || !sees(u)) return;
+        if (!M.quiet || !ctx.members || !quietReady || !sees(u)) return;
         const q = M.quiet.day(ctx, u, today, {now: nowMs});
         const status = q.status ? ', status: ' + trunc(q.status, 40) : '';
         for (const st of q.stretches) {
           const lunch = st.lunch ? ', lunch aside' : '';
           const text = st.live
-            ? 'Nothing recorded on m360 since ' + U.hhmm(st.from) + ', ' + M.quiet.dur(st.quietMs) + lunch
+            ? 'Nothing recorded on m360 since ' + U.hhmm(st.from) + ', ' + M.quiet.dur(st.quietMs) + ' so far' + lunch
             : 'Quiet from ' + U.hhmm(st.from) + ' to ' + U.hhmm(st.to) + ', ' + M.quiet.dur(st.quietMs) + lunch;
           push('R17', u, st.live ? 'high' : 'medium', text + status, null, null, U.hhmm(st.from).replace(':', ''));
         }

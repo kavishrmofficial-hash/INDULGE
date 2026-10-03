@@ -162,12 +162,13 @@
     return t + left;
   }
 
-  /* the working day as a strip: someone checks in at start, saves a quarter hour later, then nothing */
+  /* the working day as a strip: someone checks in at start, saves a quarter hour later, then nothing.
+     A save marks its whole five-minute block (M.stamp), so the quiet starts where that block ends */
   function QuietDay({start, cut, mins, lunchFrom, lunchTo}) {
     const s = U.minutes(HHMM.test(start) ? start : '10:30');
     const e = Math.max(U.minutes(HHMM.test(cut) ? cut : '19:30'), s + 60);
     const lunch = HHMM.test(lunchFrom) && HHMM.test(lunchTo) && U.minutes(lunchTo) > U.minutes(lunchFrom) ? [U.minutes(lunchFrom), U.minutes(lunchTo)] : null;
-    const last = s + 15, at = flagAt(last, mins, lunch);
+    const saved = s + 15, last = saved + 5, at = flagAt(last, mins, lunch);
     const hm = m => U.pad(Math.floor(m / 60) % 24) + ':' + U.pad(m % 60);
     const pos = m => Math.max(0, Math.min(100, (m - s) / (e - s) * 100));
     const span = (a, b) => ({left: pos(a) + '%', width: Math.max(0, pos(b) - pos(a)) + '%'});
@@ -176,13 +177,13 @@
       <div class="qr-strip" aria-hidden="true">
         ${lunch ? html`<span class="qr-lunch" style=${span(lunch[0], lunch[1])}/>` : null}
         <span class="qr-quiet" style=${span(last, Math.min(at, e))}/>
-        <span class="qr-save" style=${{left: pos(last) + '%'}}/>
+        <span class="qr-save" style=${{left: pos(saved) + '%'}}/>
         ${at < e ? html`<span class="qr-flag" style=${{left: pos(at) + '%'}}/>` : null}
       </div>
       <div class="qr-ends tiny ink62 num"><span>${hm(s)}</span>${lunch ? html`<span>lunch ${hm(lunch[0])} to ${hm(lunch[1])}</span>` : null}<span>${hm(e)}</span></div>
-      <p class="small" id="quiet-example" style=${{margin: '10px 0 0'}}>In at ${hm(s)}, a save at ${hm(last)}, then nothing: ${at < e
+      <p class="small" id="quiet-example" style=${{margin: '10px 0 0'}}>In at ${hm(s)}, a save at ${hm(saved)}, then nothing: quiet from ${hm(last)}, ${at < e
         ? html`flagged at <b class="num">${hm(at)}</b>${aside ? ', lunch aside' : ''}.`
-        : 'nothing is flagged before the ' + hm(e) + ' cut.'}</p>
+        : 'no flag before the ' + hm(e) + ' cut.'}</p>
     </div>`;
   }
 
@@ -213,7 +214,7 @@
     async function save() {
       /* lunch is both times or neither; empty means no lunch hour */
       const lunchFrom = String(f.lunchFrom || '').trim(), lunchTo = String(f.lunchTo || '').trim();
-      if (!!lunchFrom !== !!lunchTo) return M.toast('Set both lunch times, or clear both for no lunch hour', true);
+      if (!!lunchFrom !== !!lunchTo || (lunchFrom && !(HHMM.test(lunchFrom) && HHMM.test(lunchTo)))) return M.toast('Set both lunch times, or clear both for no lunch hour', true);
       if (lunchFrom && U.minutes(lunchTo) <= U.minutes(lunchFrom)) return M.toast('Lunch has to end after it starts', true);
       const office = (f.lat !== '' && f.lng !== '')
         ? {lat: Number(f.lat), lng: Number(f.lng), radius: Number(f.radius) || 200, label: f.label || 'Office'}
