@@ -16,10 +16,6 @@
 .proj-progress > .row{min-width:0; flex:1 1 auto}
 .proj-pct{flex:none; display:inline-flex; align-items:center}
 
-/* reviews: the review waiting longest is boxed so its beam has an edge to run on */
-.rev-row.oldest{padding:12px; border:1px solid var(--line); border-radius:14px}
-.beam-host + .rev-row{margin-top:4px}
-
 /* chat: the bell and the notices link share the header's right side; the message box keeps its width inside the beam */
 .chat-head-tools{gap:10px; flex:none}
 .chat-input-wrap{flex:1 1 auto; min-width:0}
@@ -38,3 +34,40 @@
 /* a won pitch card: the brand and its badge share the first line */
 .tcard .row.between > .t{min-width:0; overflow:hidden; text-overflow:ellipsis}
 
+/* pitches: an empty stage folds to its heading and count, so the stages with pitches come into view */
+.colm.empty{width:132px}
+.colm.empty .col-head{gap:8px; align-items:flex-start}
+/* pitches: the count by stage is plain text, nothing to tap */
+.stage-counts{gap:6px 18px}
+.stage-count{font-size:14px; white-space:nowrap}
+.stage-count .num{font-weight:600; margin-left:4px}
+
+/* HQ: a plain figure takes the same line as the metal one beside it (MetalText sets 1.15), so the labels line up */
+.stat.glass .v{line-height:1.15; display:flex; align-items:center}
+
+/* a figure with nothing behind it yet reads as a quiet label in the number's place */
+.kpi .v.nil, .stat .v.nil{font-size:12px; font-weight:400; letter-spacing:.14em; text-transform:lowercase; color:var(--micro); display:flex; align-items:center}
+.kpi .v.nil{min-height:29px}
+.stat .v.nil{min-height:34px}
+.stat.glass .v.nil{color:rgba(255,255,255,.6); min-height:39px}
+@media (max-width:860px){ .stat .v.nil{min-height:28px} .stat.glass .v.nil{min-height:25px} }
+
+/* tables: money, times and counts line up on the right */
+.tbl th.num, .tbl td.num{text-align:right}
+
+/* chat: the attach button is a plain ring beside the message box */
+.chat-composer .iconbtn.line{border:1px solid var(--line2); border-radius:999px; background:var(--paper)}
+.chat-composer .iconbtn.line:hover:not(:disabled){background:var(--warm)}
+.chat-composer .iconbtn.line:disabled{opacity:.4; cursor:default}
+
+/* handbook: the one count of unread sections sits beside the list's title, its glow inside the card */
+.hb-sections{gap:10px}
+
+/* handbook: the document's own headings sit under the section title */
+.hb h3{font-weight:600; font-size:18px; letter-spacing:-.01em; line-height:1.25; margin:8px 0 0}
+.hb h3:first-child{margin-top:0}
+.hb h4{font-weight:500; font-size:16px; margin:8px 0 0}
+
+/* the buddy card: each setting keeps its label and its control on one line */
+#buddy-prefs .row.between{flex-wrap:nowrap}
+#buddy-prefs .row.between > span:first-child{flex:1; min-width:0}

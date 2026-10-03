@@ -39,4 +39,8 @@
   .rd-channels{grid-template-columns:1fr}
   .rd-item{padding:16px}
   .rd-item.hot{padding-left:14px}
+  /* the filters run as one sideways row, edge to edge, so the first story starts sooner */
+  .rd-chips{flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; margin:0 -16px; padding:0 16px}
+  .rd-chips::-webkit-scrollbar{display:none}
+  .rd-chips > *{flex:none}
 }

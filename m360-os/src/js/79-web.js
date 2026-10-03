@@ -305,7 +305,7 @@
     </div>`;
 
     const stage = !tab || !tab.url ? html`<div class="web-stage-empty" id="web-empty">
-        <div class="web-hello"><${M.Mark} width="120px"/><div class="ink62" style=${{marginTop: '10px'}}>Search or type an address on the left. Your spaces are the team's shared apps.</div></div>
+        <div class="web-hello"><${M.Mark} width="120px"/><div class="ink62" style=${{marginTop: '10px'}}>Search or type an address ${phone ? 'above' : 'on the left'}. Your spaces are the team's shared apps.</div></div>
       </div>`
       : nat ? html`<div ref=${slotRef} class="web-slot" id="web-slot"/>`
       : proxied ? html`<div class="web-frame-wrap" id="web-proxy-wrap">

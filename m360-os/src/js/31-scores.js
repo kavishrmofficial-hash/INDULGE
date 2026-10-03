@@ -68,7 +68,7 @@
     const podium = three.length === 3 ? [three[1], three[0], three[2]] : three;
 
     return html`<div class="stack" style=${{gap: '18px'}}>
-      <${UI.PageHead} micro="points from the work itself" title="Scores">
+      <${UI.PageHead} micro="points from the work itself" title="Leaderboard">
         <${UI.Seg} options=${PERIODS} value=${period} onChange=${setPeriod} ariaLabel="Period"/>
       <//>
 

@@ -132,16 +132,12 @@
     const days = U.weekDays(monday);
     const range = U.fmtDate(days[0]) + ' to ' + U.fmtDate(days[5]);
 
-    /* the arrows are metal while they lead somewhere; next stays plain on the current week */
-    const next = html`<button type="button" class="iconbtn" aria-label="Next week" disabled=${offset >= 0}
-            style=${offset >= 0 ? {opacity: .35, pointerEvents: 'none'} : null}
-            onClick=${() => setOffset(o => Math.min(0, o + 1))}><${icons.chevR}/></button>`;
     return html`<div class="stack" style=${{gap: '18px'}}>
       <${UI.PageHead} micro=${weekId.toLowerCase() + ', ' + range.toLowerCase()} title="The week">
         <div class="row nowrap">
-          <${M.fx.Metal} kind="ink" circle=${true}><button type="button" class="iconbtn" aria-label="Previous week" onClick=${() => setOffset(o => o - 1)}><${icons.chevL}/></button><//>
+          <${UI.Btn} kind="sec" sm=${true} ariaLabel="Previous week" onClick=${() => setOffset(o => o - 1)}><${icons.chevL}/><//>
           <${UI.Btn} kind="sec" sm=${true} onClick=${() => setOffset(0)}>This week<//>
-          ${offset < 0 ? html`<${M.fx.Metal} kind="ink" circle=${true}>${next}<//>` : next}
+          <${UI.Btn} kind="sec" sm=${true} ariaLabel="Next week" disabled=${offset >= 0} onClick=${() => setOffset(o => Math.min(0, o + 1))}><${icons.chevR}/><//>
         </div>
       <//>
 

@@ -99,7 +99,7 @@
           ${busy && rows !== null ? html`<${M.fx.Orb} state="connecting" size=${20} label="refreshing"/>` : null}
           <button type="button" class="iconbtn" aria-label="Refresh" title="Refresh" onClick=${() => load(false)}><${icons.clock}/></button>
         </div>
-        <div class="row between small ink62" style=${{marginTop: '8px'}}><span>${st.who}</span><span class="row nowrap ws-unread" style=${{gap: '6px'}}>${unread ? html`<${M.fx.MetalText} size=${18} weight=${700} color=${M.fx.FLAME}>${String(unread)}<//> unread here` : ''}</span></div>
+        <div class="row between small ink62" style=${{marginTop: '8px'}}><span>${st.who}</span><span class="row nowrap ws-unread" style=${{gap: '6px'}}>${unread ? html`<${M.fx.MetalText} size=${18} weight=${600}>${String(unread)}<//> unread here` : ''}</span></div>
         ${err ? html`<div class="small flame-t" style=${{marginTop: '8px'}}>${err}</div>` : null}
         ${rows === null ? html`<div style=${{marginTop: '10px'}}><${M.Thinking} label="Fetching mail" state="connecting"/></div>`
           : rows.length ? html`<div class="list" id="mail-list" style=${{marginTop: '10px'}}>
@@ -196,7 +196,7 @@
                 ${!e.mine && e.myStatus === 'needsAction' ? html`<div class="row" style=${{gap: '6px', marginTop: '6px'}}>
                   <button type="button" class="chip" onClick=${() => rsvp(e, 'accepted')}>Yes</button><button type="button" class="chip" onClick=${() => rsvp(e, 'tentative')}>Maybe</button><button type="button" class="chip" onClick=${() => rsvp(e, 'declined')}>No</button></div>` : null}
               </div>
-              ${e.meet ? html`<${M.fx.Metal} kind="ink"><a class="btn sm" href=${e.meet} target="_blank" rel="noopener">Join Meet</a><//>` : e.link ? html`<a class="btn sec sm" href=${e.link} target="_blank" rel="noopener">Open</a>` : null}
+              ${e.meet ? html`<a class="btn sm" href=${e.meet} target="_blank" rel="noopener">Join Meet</a>` : e.link ? html`<a class="btn sec sm" href=${e.link} target="_blank" rel="noopener">Open</a>` : null}
             </div>`;
               /* the meeting about to start rides the beam */
               return soon(e) ? html`<${M.fx.Beam} key=${e.id} radius=${14} size="sm">${ev}<//>` : ev; })}

@@ -116,8 +116,8 @@
     const review = all.filter(t => t.status === 'review').length;
     const t = tab || 'tasks';
     return html`<div class="stack" style=${{gap: '20px'}}>
-      <${M.SectionHero} micro="work" title="Work"
-        right=${M.ai.on(ctx) ? html`<${Metal} kind="ink"><button type="button" class="btn" onClick=${() => setB2t(true)}><span class="spark">${SPARK}</span> Brief to tasks</button><//>` : null}>
+      <${M.SectionHero} title="Work"
+        right=${M.ai.on(ctx) ? html`<button type="button" class="btn sec" onClick=${() => setB2t(true)}><span class="spark">${SPARK}</span> Brief to tasks</button>` : null}>
         <div class="row" style=${{gap: '8px'}}>
           <${Mini} v=${mineOpen.length} l="open on you" metal=${true}/>
           <${Mini} v=${over} l="overdue" hot=${over > 0}/>
@@ -144,10 +144,10 @@
     const mrr = sh.reduce((n, r) => n + (r.monthly || 0), 0);
     const t = tab || 'clients';
     return html`<div class="stack" style=${{gap: '20px'}}>
-      <${M.SectionHero} micro="accounts" title="Accounts">
+      <${M.SectionHero} title="Accounts">
         <div class="row" style=${{gap: '8px'}}>
-          <${Mini} v=${live} l="live clients"/>
-          <${Mini} v=${inPlay} l="pitches in play"/>
+          <${Mini} v=${live} l=${live === 1 ? 'live client' : 'live clients'}/>
+          <${Mini} v=${inPlay} l=${inPlay === 1 ? 'pitch in play' : 'pitches in play'}/>
           ${pm ? html`<${Mini} v=${U.inr(pm.weighted)} l="weighted pipeline" metal=${true}/>` : null}
           ${ctx.isFounder ? html`<${Mini} v=${U.inr(mrr)} l="monthly revenue" metal=${true}/>` : null}
         </div>
@@ -210,9 +210,9 @@
     const online = Object.keys(ctx.online || {}).length;
     const t = tab || 'feed';
     return html`<div class="stack" style=${{gap: '20px'}}>
-      <${M.SectionHero} micro="vibe" title="Vibe">
+      <${M.SectionHero} title="Vibe">
         <div class="row" style=${{gap: '8px'}}>
-          <${Mini} v=${posts} l="posts this week"/>
+          <${Mini} v=${posts} l=${posts === 1 ? 'post this week' : 'posts this week'}/>
           <${Mini} v=${kudos} l="kudos this week" metal=${true}/>
           <${Mini} v=${online} l="online now"/>
         </div>

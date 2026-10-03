@@ -23,3 +23,7 @@
   .conn-row{min-height:44px}
   .conn-row .sub{max-width:40%}
 }
+/* a finger has no arrow keys: the palette's key hints step aside on touch screens */
+@media (hover:none){
+  .pal-foot{display:none}
+}

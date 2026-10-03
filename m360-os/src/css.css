@@ -11,6 +11,12 @@
   --line:rgba(14,14,14,.10);
   --line2:rgba(14,14,14,.18);
   --flame:#F53901;
+  /* flame as a fill under white text, and as text on paper: a step deeper so both pass 4.5:1.
+     Dots, borders, rings and every effect stay --flame. */
+  --flame-deep:#C93000;
+  --flame-text:var(--flame-deep);
+  /* the edge of a field, dark enough to find an empty one (3:1 on paper and warm) */
+  --field-line:rgba(14,14,14,.46);
   --on-ink:#FFFFFF;
   --ink-hover:#000000;
   --mark:#000000;
@@ -29,6 +35,9 @@
   --micro:rgba(242,241,236,.6);
   --line:rgba(255,255,255,.1);
   --line2:rgba(255,255,255,.2);
+  --flame-deep:#C93000;
+  --flame-text:#F53901;
+  --field-line:rgba(255,255,255,.38);
   --on-ink:#0E0E0E;
   --ink-hover:#FFFFFF;
   --mark:#F2F1EC;
@@ -61,10 +70,11 @@ img{max-width:100%}
 .sub{color:var(--ink62)}
 .small{font-size:13px}
 .tiny{font-size:12px}
+:where(.small,.tiny,.hint){font-weight:400}
 .num{font-variant-numeric:tabular-nums}
-.flame-t{color:var(--flame)}
+.flame-t{color:var(--flame-text)}
 .ink62{color:var(--ink62)}
-.spark{color:var(--flame); font-weight:500}
+.spark{color:var(--flame-text); font-weight:500}
 
 /* ---------- gate ---------- */
 .gate{min-height:100vh; min-height:100dvh; background:var(--paper); display:flex; align-items:center; justify-content:center; padding:24px 16px; text-align:center}
@@ -75,11 +85,11 @@ img{max-width:100%}
 
 /* ---------- shell ---------- */
 .app{display:flex; min-height:100vh; min-height:100dvh}
-.sidebar{width:236px; flex:none; background:var(--paper); border-right:1px solid var(--line); display:flex; flex-direction:column; position:sticky; top:0; height:100vh; height:100dvh; overflow-y:auto}
+.sidebar{width:236px; flex:none; background:var(--paper); border-right:1px solid var(--line); display:flex; flex-direction:column; position:sticky; top:0; height:100vh; height:100dvh; overflow:hidden}
 .side-head{padding:26px 22px 16px; display:flex; align-items:baseline; gap:8px}
 .side-head .mark{width:84px; color:var(--mark); flex:none}
 .side-head .os{font-size:12px; letter-spacing:.14em; color:var(--micro)}
-.side-scroll{flex:1; padding:4px 12px 12px; display:flex; flex-direction:column; gap:2px}
+.side-scroll{flex:1; min-height:0; overflow-y:auto; scrollbar-width:thin; padding:4px 12px 12px; display:flex; flex-direction:column; gap:2px}
 .side-group{margin:16px 10px 6px}
 .side-item{display:flex; align-items:center; gap:11px; width:100%; padding:10px 12px; border:0; background:transparent; border-radius:12px; cursor:pointer; text-align:left; font-size:15px; font-weight:400; color:var(--ink)}
 .side-item svg{width:22px; height:22px; flex:none; opacity:.85}
@@ -87,7 +97,7 @@ img{max-width:100%}
 .side-item.active{background:var(--ink); color:var(--on-ink); font-weight:500}
 .side-item.active svg{opacity:1}
 .side-item .grow{flex:1}
-.badge{min-width:18px; height:18px; padding:0 5px; border-radius:999px; background:var(--flame); color:#fff; font-size:11px; font-weight:500; display:inline-flex; align-items:center; justify-content:center; line-height:1}
+.badge{min-width:18px; height:18px; padding:0 5px; border-radius:999px; background:var(--flame-deep); color:#fff; font-size:11px; font-weight:500; display:inline-flex; align-items:center; justify-content:center; line-height:1}
 .side-actions{padding:0 12px 10px; display:grid; gap:8px}
 .new-wrap{position:relative}
 .btn.new-trigger{width:100%; justify-content:center}
@@ -115,9 +125,10 @@ img{max-width:100%}
 .main{flex:1; min-width:0; padding:36px 40px 140px}
 .content{max-width:1080px; margin:0 auto; display:flex; flex-direction:column; gap:18px}
 .content.wide{max-width:1200px}
-.page-head{display:flex; flex-direction:column; gap:2px; margin-bottom:4px}
+.page-head{display:flex; flex-direction:column; gap:2px; margin-bottom:0}
 .head-row{display:flex; align-items:flex-end; justify-content:space-between; gap:14px; flex-wrap:wrap}
 .head-row>.row{min-width:0; max-width:100%}
+.embedded{display:flex; flex-direction:column; gap:18px; min-width:0}
 .embedded .pgt{font-size:22px; margin:0}
 
 /* phone chrome */
@@ -126,13 +137,14 @@ img{max-width:100%}
 
 /* ---------- cards ---------- */
 .card{background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card); padding:var(--pad-card); min-width:0}
+.card > p, .card > .tiny:not(.row), .hint{max-width:72ch}
 .card.flame{border-color:var(--flame)}
 .card.warm{background:var(--warm)}
 .card.ink{background:var(--dark); color:#fff; border-color:var(--dark)}
 .card.ink .ink62,.card.ink .sub,.card.ink .micro,.card.ink .hint{color:rgba(255,255,255,.64)}
 .card-title{font-weight:500; font-size:17px; margin:0; line-height:1.25}
 .card-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap}
-.card-head .card-title{flex:1; min-width:0}
+.card-head .card-title{flex:1 1 auto; min-width:min(14ch,100%)}
 .grid2{display:grid; grid-template-columns:1fr 1fr; gap:18px}
 .grid2>*{min-width:0}
 .grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
@@ -171,14 +183,18 @@ button.card.rowbtn:hover{border-color:var(--line2)}
 .btn.ghost:hover{background:var(--line)}
 .btn.sm{height:34px; padding:0 13px; border-radius:var(--r-sm); font-size:14px}
 .btn.xl{height:56px; padding:0 28px; font-size:17px; border-radius:14px}
-.btn.arm,.btn.flame{background:var(--flame); color:#fff; border:0}
-.btn.arm:hover,.btn.flame:hover{background:#d93100}
+.btn.arm,.btn.flame{background:var(--flame-deep); color:#fff; border:0}
+.btn.arm:hover,.btn.flame:hover{background:#A82800}
 .btn.on-dark{background:#fff; color:#0E0E0E}
-.btn.on-dark:hover{background:var(--col)}
+.btn.on-dark:hover{background:#EFEDE7; color:#0E0E0E}
 .btn.on-dark.sec{background:transparent; color:#fff; border:1px solid rgba(255,255,255,.35)}
-.btn.on-dark.sec:hover{background:rgba(255,255,255,.08)}
+.btn.on-dark.sec:hover{background:rgba(255,255,255,.08); color:#fff}
 .btn:disabled,.btn.disabled{opacity:.4; cursor:default; pointer-events:none}
 a.btn{text-decoration:none}
+/* flame text takes the step its ground can carry: flame itself on ink, the deep step on a light face */
+.hero.ink,.card.ink,.hero-panel,.btn:not(.sec):not(.ghost),.btn.on-dark.sec{--flame-text:var(--flame)}
+:root[data-theme="dark"] .btn:not(.sec):not(.ghost),.btn.on-dark:not(.sec),.metal-paper .btn:not(.sec):not(.ghost){--flame-text:var(--flame-deep)}
+:root .metal-ink .btn:not(.sec):not(.ghost){--flame-text:var(--flame)}
 .btn svg{width:18px; height:18px}
 .iconbtn{width:34px; height:34px; padding:0; border-radius:var(--r-sm); border:0; background:transparent; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; color:var(--ink)}
 .iconbtn:hover{background:var(--line)}
@@ -188,8 +204,8 @@ a.btn{text-decoration:none}
 /* ---------- pills ---------- */
 .pill{height:24px; padding:0 10px; border-radius:999px; display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:400; color:var(--micro); border:1px solid var(--line2); background:transparent; white-space:nowrap; flex:none}
 .pill.ink{background:var(--ink); border-color:var(--ink); color:var(--on-ink)}
-.pill.flame{background:var(--flame); border-color:var(--flame); color:#fff}
-.pill.flame-o{background:transparent; border-color:var(--flame); color:var(--flame)}
+.pill.flame{background:var(--flame-deep); border-color:var(--flame-deep); color:#fff}
+.pill.flame-o{background:transparent; border-color:var(--flame); color:var(--flame-text)}
 .pill.warm{background:var(--warm); border-color:var(--warm); color:var(--ink)}
 .pill.on-dark{border-color:rgba(255,255,255,.3); color:#fff}
 .pill svg{width:13px; height:13px}
@@ -199,15 +215,16 @@ span.live:not(.vorb){width:10px; height:10px; border-radius:999px; background:va
 /* ---------- forms ---------- */
 .field{display:flex; flex-direction:column; gap:6px; min-width:0}
 .field>label{font-size:12px; letter-spacing:.14em; text-transform:lowercase; color:var(--micro)}
-.input,select.input,textarea.input{min-height:44px; padding:9px 13px; border-radius:var(--r-btn); border:1px solid var(--line2); background:var(--paper); width:100%; font-weight:300}
+.input,select.input,textarea.input{min-height:44px; padding:9px 13px; border-radius:var(--r-btn); border:1px solid var(--field-line); background:var(--paper); width:100%; font-weight:300}
 textarea.input{resize:vertical; min-height:76px; line-height:1.45}
+.card.ink .input,.hero.ink .input{border-color:rgba(255,255,255,.38)}
 select.input{appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%230E0E0E' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:34px}
 .hint{font-size:12px; color:var(--ink62)}
 .checkline{display:flex; align-items:center; gap:9px; cursor:pointer; font-size:14px}
 .checkline input{width:17px; height:17px; accent-color:var(--ink); flex:none}
 
 /* segmented control */
-.seg{display:inline-flex; background:var(--warm); border-radius:12px; padding:3px; gap:2px; max-width:100%; min-width:0; overflow-x:auto; scrollbar-width:none}
+.seg{display:inline-flex; background:var(--col); border-radius:12px; padding:3px; gap:2px; max-width:100%; min-width:0; overflow-x:auto; scrollbar-width:none}
 .seg::-webkit-scrollbar{display:none}
 .seg-btn{height:32px; padding:0 13px; border-radius:9px; border:1px solid transparent; background:transparent; cursor:pointer; font-size:13px; font-weight:400; color:var(--ink62); white-space:nowrap; flex:none}
 .seg-btn.active{background:var(--paper); border-color:var(--line2); color:var(--ink); font-weight:500}
@@ -240,7 +257,7 @@ select.input{appearance:none; background-image:url("data:image/svg+xml,%3Csvg xm
 .tcard .t{font-weight:500; font-size:14px; line-height:1.3}
 
 /* ---------- tables ---------- */
-.tbl-wrap{overflow-x:auto}
+.tbl-wrap{overflow-x:auto; padding-right:32px; -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent); mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent)}
 table.tbl{width:100%; border-collapse:collapse; font-size:14px}
 .tbl th{font-size:12px; font-weight:400; letter-spacing:.14em; text-transform:lowercase; color:var(--micro); text-align:left; padding:7px 10px; border-bottom:1px solid var(--line); white-space:nowrap}
 .tbl td{padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:middle; white-space:nowrap}
@@ -265,8 +282,9 @@ table.tbl{width:100%; border-collapse:collapse; font-size:14px}
 .kpi{display:flex; flex-direction:column; gap:3px}
 .kpi .v{font-weight:600; font-size:26px; letter-spacing:-.02em; line-height:1.1}
 .kpi .l{font-size:12px; letter-spacing:.14em; text-transform:lowercase; color:var(--micro)}
-.kpi-rail{display:grid; grid-template-columns:repeat(5,1fr); gap:12px}
+.kpi-rail{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px}
 .kpi-rail>*{min-width:0}
+.kpi-rail > .beam-host, .kpi-rail > .beam-host > div, .kpi-rail > .beam-host .card{height:100%}
 .vbars{display:flex; align-items:flex-end; gap:7px; height:76px}
 .vbars .vb{flex:1; background:var(--ink); border-radius:4px 4px 0 0; min-width:8px}
 .vbars .vb.low{background:var(--flame)}
@@ -303,6 +321,8 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .hero.ink{--tex:rgba(255,255,255,.07); background:var(--dark); border-color:var(--dark); color:#fff}
 .hero.ink .micro{color:rgba(255,255,255,.64)}
 .hero.ink .sub{color:rgba(255,255,255,.7)}
+.hero.ink .linky,.card.ink .linky{color:#fff}
+.hero.ink .linky:hover,.card.ink .linky:hover{color:rgba(255,255,255,.8)}
 /* every ink hero carries a faint paper dot grid; the content sits above it */
 .hero.ink::before{content:""; position:absolute; inset:0; background-image:radial-gradient(var(--tex) 1px, transparent 1.5px); background-size:24px 24px; pointer-events:none}
 .hero.ink > div:not(.sky){position:relative}
@@ -317,7 +337,7 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .home-hero.day .micro{color:var(--ink); opacity:.88}
 .home-hero .hero-in{position:relative; display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:24px; align-items:end}
 .home-hero .hero-greet{display:flex; flex-direction:column; justify-content:space-between; align-self:stretch; min-width:0; padding-top:6px}
-.home-hero .hero-greet .hi{margin-top:auto; padding-top:28px}
+.home-hero .hero-greet .hi{margin-top:14px; margin-bottom:auto; padding-top:28px}
 .home-hero .hero-chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:20px}
 .home-hero .hero-tomorrow{display:flex; align-items:center; gap:8px; margin-top:14px; font-size:14px; font-weight:500}
 .home-hero.night .hero-tomorrow{color:rgba(255,255,255,.86)}
@@ -366,6 +386,7 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 @keyframes blink{0%,80%,100%{opacity:.25} 40%{opacity:1}}
 .chip{height:32px; padding:0 12px; border-radius:999px; border:1px solid var(--line2); background:var(--paper); font-size:13px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap}
 .chip:hover{background:var(--warm)}
+.chip svg{width:14px; height:14px; flex:none}
 .ask-in{display:flex; gap:10px; align-items:stretch}
 .bubble{border-radius:16px; padding:11px 14px; max-width:92%; line-height:1.5; font-size:14px}
 .bubble.me{align-self:flex-end; background:var(--ink); color:var(--on-ink); border-radius:16px 16px 4px 16px}
@@ -421,7 +442,7 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 /* toasts */
 .toasts{position:fixed; left:0; right:0; bottom:26px; display:flex; flex-direction:column; align-items:center; gap:8px; z-index:100; pointer-events:none; padding:0 16px}
 .toast{background:var(--ink); color:var(--on-ink); border-radius:999px; padding:10px 18px; font-size:14px; font-weight:400; max-width:min(92vw,480px); box-shadow:0 6px 24px rgba(10,10,10,.18)}
-.toast.err{background:var(--flame)}
+.toast.err{background:var(--flame-deep); color:#fff}
 
 /* handbook body */
 .hb{display:flex; flex-direction:column; gap:10px}
@@ -488,7 +509,7 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .wk-day.office .wk-dot{background:var(--ink); box-shadow:none}
 .wk-day.wfh .wk-dot{background:var(--paper); box-shadow:inset 0 0 0 2px var(--ink)}
 .wk-day.late .wk-dot{background:var(--flame); box-shadow:none}
-.wk-day.off .wk-dot{background:var(--col); box-shadow:none}
+.wk-day.off .wk-dot,.wk-key .k.off{background:repeating-linear-gradient(45deg,var(--ink62) 0 2px,transparent 2px 4px); box-shadow:inset 0 0 0 1.5px var(--ink62)}
 .wk-day.miss .wk-dot{box-shadow:inset 0 0 0 1.5px var(--flame)}
 .wk-day.future{opacity:.5}
 .wk-eod{font-size:11px; color:var(--ink); min-height:14px; white-space:nowrap}
@@ -496,14 +517,14 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .wk-key span{display:inline-flex; align-items:center; gap:6px}
 .wk-key .k{width:9px; height:9px; border-radius:999px; display:inline-block}
 .wk-key .k.office{background:var(--ink)} .wk-key .k.wfh{box-shadow:inset 0 0 0 2px var(--ink)}
-.wk-key .k.late{background:var(--flame)} .wk-key .k.off{background:var(--col)}
+.wk-key .k.late{background:var(--flame)} .wk-key .k.miss{box-shadow:inset 0 0 0 1.5px var(--flame)}
 .rowbtn.proj-row{display:flex; text-align:left}
 .proj-row .grow{display:grid; gap:5px; min-width:0}
 .clamp1{display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .topthree{margin-top:14px; padding-top:12px; border-top:1px solid var(--line)}
 .rowbtn.top-row{display:flex; align-items:center; gap:10px; width:100%; padding:6px 0; text-align:left}
 .rank{width:22px; height:22px; border-radius:999px; background:var(--warm); display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:500; flex:none}
-.rank.first{background:var(--flame); color:#fff}
+.rank.first{background:var(--flame-deep); color:#fff}
 .hero.ink{border:1px solid rgba(255,255,255,.08)}
 :root[data-theme="dark"] select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23F2F1EC' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
 :root[data-theme="dark"] .checkline input{accent-color:var(--flame)}
@@ -588,6 +609,7 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .inbox-item{display:flex; gap:12px; align-items:flex-start; padding:12px 0; border-bottom:1px solid var(--line); width:100%; text-align:left; background:transparent; border-left:0; border-right:0; border-top:0; cursor:pointer; color:inherit; font:inherit}
 .inbox-item:last-child{border-bottom:0}
 .inbox-item.unread .t{font-weight:500}
+.inbox-item .t [data-uid]{font-weight:500}
 .inbox-item .dotflame{margin-top:8px}
 .inbox-item .t{line-height:1.4}
 .inbox-kind{width:34px; height:34px; border-radius:11px; background:var(--warm); display:inline-flex; align-items:center; justify-content:center; flex:none}
@@ -628,11 +650,15 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .cal-day{height:96px; border:1px solid var(--line); border-radius:12px; padding:6px; background:var(--paper); display:flex; flex-direction:column; gap:3px; min-width:0; overflow:hidden; text-align:left; cursor:pointer; font:inherit; color:inherit}
 .cal-day:hover{border-color:var(--line2); background:var(--warm)}
 .cal-day.off{background:var(--warm); color:var(--ink62)}
-.cal-day.pad{opacity:.35}
+.cal-day.pad{opacity:1; background:transparent}
+.cal-day.pad:hover{background:var(--warm)}
+.cal-day.pad .d{color:var(--ink62)}
 .cal-day.today{box-shadow:inset 0 0 0 1.5px var(--ink)}
 .cal-day .d{font-size:12px; font-weight:500; display:flex; justify-content:space-between; align-items:center; flex:none; line-height:18px}
 .cal-day .d .pill{height:18px; font-size:10px; padding:0 6px}
-.cal-day .cal-ev{display:block; flex:none; font-size:11px; line-height:16px; padding:1px 6px; border-radius:6px; background:var(--warm); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-left:3px solid var(--ink); max-width:100%}
+.cal-day .cal-ev{display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; flex:none; font-size:12px; line-height:15px; padding:1px 6px; border-radius:6px; background:var(--warm); overflow:hidden; text-overflow:ellipsis; white-space:normal; border-left:3px solid var(--ink); max-width:100%}
+/* two lines for the first chip; a second chip, or a day with more, keeps one line each so the fixed cell holds them all */
+.cal-day .cal-ev ~ .cal-ev,.cal-day:has(> .cal-more) .cal-ev{-webkit-line-clamp:1}
 .cal-day.off .cal-ev{background:var(--paper)}
 .cal-day .cal-ev.hot{border-left-color:var(--flame)}
 .cal-day .cal-ev.leave{border-left-color:var(--line2); color:var(--ink62)}
@@ -654,7 +680,7 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .trophy{border:1px solid var(--line); border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:8px; min-width:0; background:var(--paper)}
 .trophy .ic{width:40px; height:40px; border-radius:12px; background:var(--ink); color:var(--on-ink); display:inline-flex; align-items:center; justify-content:center}
 .trophy .ic svg{width:22px; height:22px}
-.trophy.locked{opacity:.5}
+.trophy.locked{opacity:1; border-style:dashed}
 .trophy.locked .ic{background:var(--col); color:var(--ink62)}
 .trophy.new .ic{background:var(--flame); color:#fff}
 .trophy b{font-weight:500; font-size:14px}
@@ -689,7 +715,7 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .tape-row:last-child .nd::before{display:none}
 .tape-row .tx{font-size:14px; line-height:1.4}
 .heat{display:grid; gap:4px; overflow-x:auto}
-.heat-row{display:grid; grid-template-columns:110px repeat(var(--n),18px); gap:4px; align-items:center}
+.heat-row{display:grid; grid-template-columns:140px repeat(var(--n),18px); gap:4px; align-items:center}
 .heat-row .nm{font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .heat-cell{width:18px; height:18px; border-radius:5px; background:var(--col)}
 .heat-cell.m1{background:rgba(245,57,1,.22)} .heat-cell.m2{background:rgba(245,57,1,.42)} .heat-cell.m3{background:var(--line2)} .heat-cell.m4{background:var(--ink); opacity:.55} .heat-cell.m5{background:var(--ink)}
@@ -734,6 +760,7 @@ button.chipline.on-dark:hover{background:rgba(255,255,255,.08)}
 .hero-clock .clock{color:#fff; font-size:13px; letter-spacing:0}
 
 .crm-table td{vertical-align:middle}
+.crm-table td[data-label="next step"]{white-space:normal; min-width:180px; max-width:240px}
 
 /* ---------- chat ---------- */
 .chat{display:grid; grid-template-columns:240px minmax(0,1fr); gap:16px; min-height:calc(100vh - 220px)}

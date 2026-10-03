@@ -180,7 +180,7 @@
       </div>` : null}
       <div class="row between nowrap" style=${{gap: '6px'}}>
         <div class="row grow" style=${{gap: '6px'}}>
-          ${task.due ? html`<${UI.Pill} kind=${overdue ? 'flame' : undefined}>due ${dueLabel(task.due)}<//>` : null}
+          ${task.due ? html`<${UI.Pill} kind=${overdue ? 'flame' : undefined}>${overdue ? 'overdue ' : 'due '}${dueLabel(task.due)}<//>` : null}
           ${task.priority === 'high' ? html`<${UI.Pill} kind="flame">high<//>` : null}
           ${rev > 0 ? html`<${UI.Pill} kind="flame-o">${rev} rev<//>` : null}
           ${task.shown20 ? html`<${UI.Pill}>20% shown<//>` : null}
@@ -438,7 +438,10 @@
       const wrap = document.querySelector('.board-wrap');
       if (!wrap || wrap.scrollWidth <= wrap.clientWidth) return;
       const col = Array.from(wrap.querySelectorAll('.colm')).find(c => c.querySelector('.tcard'));
-      if (col && col.offsetLeft > 8) wrap.scrollTo({left: col.offsetLeft - 6, behavior: 'auto'});
+      if (!col) return;
+      /* where the column sits inside the scroller, measured from the wrap and not the offset parent */
+      const x = col.getBoundingClientRect().left - wrap.getBoundingClientRect().left + wrap.scrollLeft;
+      if (x > wrap.clientWidth * 0.5) wrap.scrollTo({left: x - 6, behavior: 'auto'});
     }, [who, ctx.coll.tasks.ready]);
     const [proj, setProj] = useState('');
     const [client, setClient] = useState('');
@@ -504,15 +507,17 @@
 
     /* the single most overdue task on the board as filtered: the oldest due date among the late ones */
     const hottest = (cols.filter(c => c.v !== 'done').reduce((a, c) => a.concat(c.list), []).filter(t => isOverdue(t, today)).sort(byDue)[0] || {}).id || null;
-    const mine = tasks.filter(t => t.owner === ctx.uid && t.status !== 'done');
-    const myOverdue = mine.filter(t => isOverdue(t, today)).length;
-    const micro = mine.length + ' open' + (myOverdue ? ', ' + myOverdue + ' overdue' : '');
+    /* the heading and its count follow the board as filtered */
+    const boardOpen = filtered.filter(t => t.status !== 'done');
+    const openOverdue = boardOpen.filter(t => isOverdue(t, today)).length;
+    const micro = boardOpen.length + ' open' + (openOverdue ? ', ' + openOverdue + ' overdue' : '');
+    const title = who === 'mine' ? 'My tasks' : 'Everyone\'s tasks';
 
     const closeDrawer = () => { setDrawer(null); setDueDefault(''); if (id) M.nav('#tasks'); };
     const openTask = tid => { if (Date.now() - suppressClick.current < 300) return; setDrawer({id: tid}); };
 
     return html`<${React.Fragment}>
-      <${UI.PageHead} micro=${micro} title="My tasks">
+      <${UI.PageHead} micro=${micro} title=${title}>
         <${UI.Btn} onClick=${() => setDrawer({id: null})}><${icons.plus}/>New task<//>
       <//>
       <div class="row between task-filters">

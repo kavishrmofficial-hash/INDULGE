@@ -106,7 +106,7 @@
         <div class="small" style=${{fontWeight: 600}}>${p.label}</div>
         ${p.detail ? html`<div class="tiny clamp3">${p.detail}</div>` : null}
         <div class="row" style=${{gap: '8px', marginTop: '6px'}}>
-          <${M.fx.Metal} kind="ink"><button type="button" class="btn sm" onClick=${() => approve(p.id)}>${p.label}</button><//>
+          <button type="button" class="btn sm" onClick=${() => approve(p.id)}>${p.label}</button>
           <button type="button" class="linky tiny" onClick=${() => drop(p.id)}>Skip</button>
         </div>
       </div>`;
@@ -970,6 +970,7 @@
     if (!M.ai.on(ctx)) return null;
     const drop = async t => { setBusy(t); try { await forget(ctx, t); } catch (e) { /* gone already */ } setBusy(''); };
     const setHelloOn = on => { M.prefs.set('buddyHello', on ? '1' : '0'); setHello(on); };
+    const setFollowOn = on => { M.prefs.set('buddyFollow', on ? '1' : '0'); setFollow(on); };
     return html`<${UI.Card} id="buddy-prefs" title="The buddy" action=${html`<${M.fx.Bot} feature="buddy" size=${32} label="m360, the buddy" className="ai-bot"/>`}>
       <div class="stack tight">
         <div class="row between">
@@ -980,8 +981,9 @@
         </div>
         <div class="row between">
           <span>Keeps listening after it answers out loud</span>
-          <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${follow ? 'on' : 'off'} ariaLabel="Buddy follow up"
-            onChange=${v => { M.prefs.set('buddyFollow', v === 'on' ? '1' : '0'); setFollow(v === 'on'); }}/>
+          ${M.fx.has() || M.parts.BellToggle ? html`<${M.fx.Bell} id="buddy-follow-bell" size="sm" label="Buddy follow up" offLabel="Stops after" onLabel="Keeps listening" pressed=${follow} onChange=${setFollowOn}/>`
+            : html`<${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${follow ? 'on' : 'off'} ariaLabel="Buddy follow up"
+            onChange=${v => setFollowOn(v === 'on')}/>`}
         </div>
         <div class="stack tight" style=${{marginTop: '4px'}}>
           <div class="row between"><span class="row nowrap" style=${{gap: '8px'}}>${busy ? html`<${M.fx.Orb} state="weaving" size=${20} label="forgetting"/>` : null}What it remembers about you</span><span class="tiny ink62">${items.length} of ${MEMORY_MAX}</span></div>

@@ -173,22 +173,26 @@
   /* ---------- the New menu: every create action in one place ---------- */
   function NewMenu({onClose, onTask, onAsk}) {
     const ctx = M.useCtx();
+    /* phones: a bottom sheet like More, Inbox and Ask, in reach of a thumb; the sheet closes itself */
+    const phone = M.usePhone();
     const ref = React.useRef(null);
     const [pos, setPos] = React.useState(null);
     React.useLayoutEffect(() => {
+      if (phone) return;
       const t = ref.current && ref.current.parentElement.querySelector('.new-trigger');
       if (!t) return;
       const r = t.getBoundingClientRect();
       const w = Math.min(300, window.innerWidth - 32);
       setPos({top: r.bottom + 8, left: Math.max(16, Math.min(r.left, window.innerWidth - w - 16)), width: w});
-    }, []);
+    }, [phone]);
     React.useLayoutEffect(() => {
+      if (phone) return undefined;
       const away = e => { if (ref.current && !ref.current.contains(e.target) && !e.target.closest('.new-trigger')) onClose(); };
       const esc = e => { if (e.key === 'Escape') onClose(); };
       document.addEventListener('pointerdown', away);
       document.addEventListener('keydown', esc);
       return () => { document.removeEventListener('pointerdown', away); document.removeEventListener('keydown', esc); };
-    }, []);
+    }, [phone]);
     const run = fn => () => { onClose(); fn(); };
     const items = [
       {k: 'task', label: 'Task', sub: 'for you or anyone', icon: 'tasks', go: onTask},
@@ -197,13 +201,18 @@
       {k: 'leave', label: 'Leave request', sub: 'days off', icon: 'leave', go: () => M.nav('#leave')},
       {k: 'project', label: 'Project', sub: 'with a template', icon: 'projects', go: () => M.intend('#projects', 'project')},
       ctx.isFounder ? {k: 'pitch', label: 'Pitch', sub: 'into the pipeline', icon: 'pitches', go: () => M.intend('#pitches', 'pitch')} : null,
-      {k: 'ask', label: 'Ask m360', sub: 'anything, or hand out work', icon: 'send', go: onAsk}
+      {k: 'ask', label: 'Ask m360', sub: 'anything, or hand out work', mark: true, go: onAsk}
     ].filter(Boolean);
+    /* the AI keeps its spark; the paper plane is the Chat tab's alone */
+    const list = items.map(it => html`<button key=${it.k} type="button" role="menuitem" class="newmenu-item" onClick=${run(it.go)}>
+        ${it.mark ? html`<span class="spark" aria-hidden="true" style=${{width: '20px', flex: 'none', textAlign: 'center', fontSize: '16px'}}>\u2726</span>` : html`<${M.icons[it.icon]}/>`}<span class="grow"><b>${it.label}</b><span>${it.sub}</span></span>
+      </button>`);
+    if (phone) return html`<${UI.Drawer} open=${true} onClose=${onClose} title="New">
+      <div class="newmenu newmenu-sheet" ref=${ref} role="menu" aria-label="New">${list}</div>
+    <//>`;
     return html`<div class="newmenu" ref=${ref} role="menu" aria-label="New"
       style=${pos || {visibility: 'hidden'}}>
-      ${items.map(it => html`<button key=${it.k} type="button" role="menuitem" class="newmenu-item" onClick=${run(it.go)}>
-        <${M.icons[it.icon]}/><span class="grow"><b>${it.label}</b><span>${it.sub}</span></span>
-      </button>`)}
+      ${list}
     </div>`;
   }
 
@@ -354,7 +363,7 @@
             ${newMenu('side')}
           </div>
           <button type="button" class="side-ask" onClick=${() => setPalOpen(true)}>
-            <${M.icons.search}/><span class="grow">Search anything</span><span class="kbd">${M.isMac ? '\u2318K' : 'Ctrl K'}</span>
+            <${M.icons.search}/><span class="grow">Search</span><span class="kbd">${M.isMac ? '\u2318K' : 'Ctrl K'}</span>
           </button>
         </div>
         <div class="side-tools">
@@ -455,14 +464,17 @@
   }
 
   /* shared hero for section pages */
+  /* phones: a short hero (no sub line, no map link; the More sheet carries the map) and one sideways
+     row of stats, so the page starts above the fold */
   M.SectionHero = function SectionHero({color, micro, title, sub, children, right}) {
-    const mk = M.map && title !== 'What\'s in m360' ? M.map.keyFor(title) : '';
-    return html`<header class=${'hero' + (color === 'ink' ? ' ink' : '')} style=${{padding: '24px 26px 22px'}}>
+    const phone = M.usePhone();
+    const mk = M.map && !phone && title !== 'What\'s in m360' ? M.map.keyFor(title) : '';
+    return html`<header class=${'hero section-hero' + (color === 'ink' ? ' ink' : '')} style=${{padding: phone ? '16px 18px' : '24px 26px 22px'}}>
       <div class="row between" style=${{alignItems: 'flex-start'}}>
         <div class="grow">
           ${micro ? html`<${UI.Micro}>${micro}<//>` : null}
           <h1 class="hi" style=${{fontSize: 'clamp(30px,4vw,46px)'}}>${title}</h1>
-          ${sub ? html`<div class="sub" style=${{marginTop: '10px', maxWidth: '60ch'}}>${sub}</div>` : null}
+          ${sub && !phone ? html`<div class="sub" style=${{marginTop: '10px', maxWidth: '60ch'}}>${sub}</div>` : null}
           ${mk ? html`<button type="button" class="linky tiny hero-map" onClick=${() => M.nav('#map/' + mk)}>What's in ${title}</button>` : null}
         </div>
         ${right || null}

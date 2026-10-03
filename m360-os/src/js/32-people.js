@@ -165,7 +165,7 @@
     const list = ctx.activeMembers || [];
     const names = useNames(ctx, list.map(m => m.uid));
     return html`<${React.Fragment}>
-      <${UI.PageHead} micro="team" title="People"/>
+      <${UI.PageHead} micro="team" title="Crew"/>
       ${list.length ? html`<div class="grid2" id="people-grid">
         ${list.map(m => {
           const st = statusOf(ctx, m.uid, today);
@@ -620,10 +620,13 @@
     const [tab, setTab] = useState('overview');
     const names = useNames(ctx, [uid]);
     const m = ctx.members[uid];
-    const back = html`<${UI.Btn} kind="sec" sm onClick=${() => M.nav('#people')}>All people<//>`;
+    const own = uid === ctx.uid;
+    /* your own record names itself and has no way back to the crew list */
+    const back = own ? null : html`<${UI.Btn} kind="sec" sm onClick=${() => M.nav('#people')}>All people<//>`;
+    const head = html`<${UI.PageHead} micro="team" title=${own ? 'Your record' : 'Crew'}>${back}<//>`;
     if (!m) {
       return html`<${React.Fragment}>
-        <${UI.PageHead} micro="team" title="People">${back}<//>
+        ${head}
         <${UI.Card}><${UI.Empty} text="Nobody with this id on the roster."/><//>
       <//>`;
     }
@@ -647,7 +650,7 @@
     const mgr = M.lines ? M.lines.managerOf(ctx, uid) : null;
     const reps = M.lines ? M.lines.reportsOf(ctx, uid) : [];
     return html`<${React.Fragment}>
-      <${UI.PageHead} micro="team" title="People">${back}<//>
+      ${head}
       <${M.fx.Beam}><${UI.Card} id="person-head">
         <div class="row nowrap" style=${{alignItems: 'flex-start'}}>
           <${UI.Avatar} id=${uid} size=${56}/>

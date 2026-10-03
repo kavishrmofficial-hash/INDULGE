@@ -21,7 +21,7 @@
 .brk-prompt{text-align:center; max-width:46ch}
 
 /* five, the word of the day */
-.five-grid{display:flex; flex-direction:column; gap:5px; width:max-content}
+.five-grid{display:flex; flex-direction:column; gap:5px; width:max-content; margin-inline:auto}
 .five-grid.shake{animation:fiveshake .4s}
 @keyframes fiveshake{0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)}}
 .five-row{display:flex; gap:5px}

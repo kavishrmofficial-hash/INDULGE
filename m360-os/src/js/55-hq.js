@@ -10,9 +10,14 @@
     scores: 'Leaderboard', me: 'Me', leave: 'Leave', handbook: 'Handbook', hiring: 'Hiring', hq: 'HQ', command: 'HQ', admin: 'Admin', desk: 'Admin'};
 
   const SPARK = '\u2726';
-  function Tile({v, l, to, hot}) {
-    return html`<button type="button" class=${'stat glass' + (hot ? ' hot' : '')} onClick=${() => to && M.nav(to)}>
-      <span class="v num" style=${hot ? {color: 'var(--flame)'} : null}><${M.fx.MetalText} size=${30} weight=${600} color=${hot ? M.fx.FLAME : 'rgb(255,255,255)'}>${String(v)}<//></span><span class="l">${l}</span></button>`;
+  /* one headline tile per rail is cast in metal; a tile with nowhere to go is a plain block */
+  function Tile({v, l, to, hot, metal}) {
+    const phone = M.usePhone();
+    const nil = v == null;
+    const body = html`<span class=${'v num' + (nil ? ' nil' : '')} style=${hot ? {color: 'var(--flame)'} : null}>${nil ? 'not yet'
+      : metal ? html`<${M.fx.MetalText} size=${phone ? 22 : 34} weight=${600} color=${hot ? M.fx.FLAME : 'rgb(255,255,255)'}>${String(v)}<//>` : String(v)}</span><span class="l">${l}</span>`;
+    return to ? html`<button type="button" class=${'stat glass' + (hot ? ' hot' : '')} onClick=${() => M.nav(to)}>${body}</button>`
+      : html`<div class=${'stat glass' + (hot ? ' hot' : '')}>${body}</div>`;
   }
 
   function useNumbers(ctx) {
@@ -100,7 +105,7 @@
           <div class="stack tight">${list(data.actions).map((a, i) => html`<div key=${i} class="focus" style=${{background: 'rgba(255,255,255,.06)', color: '#fff'}}>
             <div class="grow"><div style=${{fontWeight: 700}}>${a.title}</div>
               <div class="tiny ink62">${a.owner || 'someone'}${a.due ? ' · by ' + U.fmtDay(a.due) : ''}${a.why ? ' · ' + a.why : ''}</div></div>
-            ${assigned[i] ? html`<span class="pill on-dark">sent</span>` : html`<${M.fx.Metal} kind="paper"><button type="button" class="btn on-dark sm" onClick=${e => assign(a, i, e)}>Assign</button><//>`}
+            ${assigned[i] ? html`<span class="pill on-dark">sent</span>` : html`<button type="button" class="btn on-dark sm" onClick=${e => assign(a, i, e)}>Assign</button>`}
           </div>`)}</div></div>` : null}
       </div>` : null}
     </section>`;
@@ -176,7 +181,7 @@
       ${moves ? html`<div style=${{marginTop: '14px'}}>
         ${moves.length ? moves.map((mv, i) => html`<div class="focus" key=${i}>
           <div class="grow"><div style=${{fontWeight: 700}}>${mv.task} → ${mv.to}</div><div class="tiny ink62">${mv.why}</div></div>
-          ${done[i] ? html`<span class="pill ink">moved</span>` : html`<${UI.Btn} sm=${true} onClick=${e => apply(mv, i, e)}>Move it<//>`}
+          ${done[i] ? html`<span class="pill ink">moved</span>` : html`<button type="button" class="btn sm" onClick=${e => apply(mv, i, e)}>Move it</button>`}
         </div>`) : html`<div class="focus"><span style=${{fontWeight: 500}}>Load looks fair. Nothing to move.</span></div>`}
       </div>` : null}
     </section>`;
@@ -233,14 +238,14 @@
           <div class="sub" style=${{marginTop: '10px'}}>Everything at Mask360, live.</div>
         </div>
         <div class="grid4" style=${{marginTop: '20px', position: 'relative'}}>
-          <${Tile} v=${n.inNow + '/' + n.people.length} l="in today" to="#command"/>
+          <${Tile} v=${n.inNow + ' of ' + n.people.length} l="in today" to="#command" metal=${!n.overdue}/>
           <${Tile} v=${Object.keys(ctx.online).length} l="online now"/>
           <${Tile} v=${n.late} l="late today" to="#command" hot=${n.late > 0}/>
-          <${Tile} v=${n.overdue + ' of ' + n.open} l="tasks overdue" to="#tasks" hot=${n.overdue > 0}/>
+          <${Tile} v=${n.overdue + ' of ' + n.open} l="tasks overdue" to="#tasks" hot=${n.overdue > 0} metal=${n.overdue > 0}/>
           <${Tile} v=${U.inr(n.pm.weighted)} l="weighted pipeline" to="#pitches"/>
           <${Tile} v=${U.inr(n.mrr)} l="monthly revenue" to="#clients"/>
-          <${Tile} v=${n.lastEn ? n.lastEn.avg.toFixed(1) + '/5' : 'n/a'} l="team energy" to="#voice" hot=${!!(n.lastEn && n.lastEn.avg < 3)}/>
-          <${Tile} v=${n.moodAvg ? n.moodAvg.toFixed(1) + '/5' : 'n/a'} l="mood at check-in"/>
+          <${Tile} v=${n.lastEn ? n.lastEn.avg.toFixed(1) + '/5' : null} l="team energy" to="#voice" hot=${!!(n.lastEn && n.lastEn.avg < 3)}/>
+          <${Tile} v=${n.moodAvg ? n.moodAvg.toFixed(1) + '/5' : null} l="mood at check-in"/>
         </div>
       </header>
       ${M.parts.JoinBanner ? html`<${M.parts.JoinBanner}/>` : null}

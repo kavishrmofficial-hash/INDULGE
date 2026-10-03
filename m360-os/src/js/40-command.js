@@ -7,12 +7,13 @@
   const PROJ_PILL = {on: {k: 'ink', t: 'On track'}, risk: {k: 'flame-o', t: 'At risk'},
     off: {k: 'flame', t: 'Off track'}, done: {k: 'warm', t: 'Done'}};
 
-  /* a headline count cast in metal; flame when it needs the founder */
-  const Num = ({v, size, flame}) => html`<${M.fx.MetalText} key=${String(v)} size=${size || 26} weight=${600} color=${flame ? 'var(--flame)' : undefined}>${String(v)}<//>`;
+  /* a headline count; the one headline on the page is cast in metal, flame when it needs the founder */
+  const Num = ({v, size, flame, metal}) => metal ? html`<${M.fx.MetalText} key=${String(v)} size=${size || 26} weight=${600} color=${flame ? 'var(--flame)' : undefined}>${String(v)}<//>` : String(v);
 
-  function Tile({label, value, to, flame}) {
+  function Tile({label, value, to, flame, metal}) {
+    const nil = value == null;
     const inner = html`<span class="kpi">
-      <span class=${'v num' + (flame ? ' flame-t' : '')}><${Num} v=${value} flame=${flame}/></span>
+      <span class=${'v num' + (flame ? ' flame-t' : '') + (nil ? ' nil' : '')}>${nil ? 'not yet' : html`<${Num} v=${value} flame=${flame} metal=${metal}/>`}</span>
       <span class="l">${label}</span>
     </span>`;
     if (!to) return html`<div class="card">${inner}</div>`;
@@ -99,12 +100,12 @@
     const full = {gridColumn: '1 / -1'};
 
     return html`<div class="stack" style=${{gap: '18px'}}>
-      <${UI.PageHead} micro=${U.dateLabel(new Date(ctx.now))} title="Command"/>
+      <${UI.PageHead} micro="the company in numbers" title="Dashboard"/>
 
       <div class="kpi-rail">
-        <${Tile} label="in today" value=${k.inToday.length + ' of ' + members.length} to="#week"/>
+        <${Tile} label="in today" value=${k.inToday.length + ' of ' + members.length} to="#week" metal=${true}/>
         <${Tile} label="late today" value=${k.late.length} flame=${k.late.length > 0} to="#week"/>
-        <${Tile} label="office verified" value=${k.office.length ? U.pct(k.verified.length, k.office.length) + '%' : 'n/a'}/>
+        <${Tile} label="office verified" value=${k.office.length ? U.pct(k.verified.length, k.office.length) + '%' : null}/>
         <${Tile} label="eod yesterday" value=${k.eodY.length + ' of ' + k.eodDue.length} to="#week"/>
         <${Tile} label="outcomes hit this week" value=${k.hit + ' of ' + k.planned} to="#week"/>
       </div>
@@ -113,14 +114,14 @@
         <${Tile} label="high flags" value=${k.high} flame=${k.high > 0}/>
         <${Tile} label="weighted pipeline" value=${U.inr(k.pm.weighted)} to="#pitches"/>
         <${Tile} label="largest client share" value=${k.topShare + '%'} to="#clients"/>
-        <${Tile} label="team energy" value=${k.lastEnergy ? k.lastEnergy.avg.toFixed(1) : 'n/a'}
+        <${Tile} label="team energy" value=${k.lastEnergy ? k.lastEnergy.avg.toFixed(1) + '/5' : null}
           flame=${!!(k.lastEnergy && k.lastEnergy.avg < 3)} to="#voice"/>
       </div>
 
       <div class="grid2">
         <div style=${full}><${UI.Fold} title="Attendance today" summary=${k.inToday.length + " of " + members.length + " in" + (k.late.length ? ", " + k.late.length + " late" : "")} hot=${k.late.length > 0}><${UI.Card} title="Attendance today" id="attendance">
           <div class="tbl-wrap"><table class="tbl">
-            <thead><tr><th>id</th><th>person</th><th>status</th><th>in</th><th>place</th><th>out</th><th>hours</th><th>map</th></tr></thead>
+            <thead><tr><th>id</th><th>person</th><th>status</th><th class="num">in</th><th>place</th><th class="num">out</th><th class="num">hours</th><th>map</th></tr></thead>
             <tbody>
               ${k.rows.map(({m, d}) => html`<tr key=${m.uid}>
                 <td class="num tiny">${m.empId || ''}</td>
@@ -171,7 +172,7 @@
               <${UI.Avatar} id=${r.uid} size=${24}/>
               <span class="grow"><${UI.Name} id=${r.uid}/></span>
               ${i === 0 ? html`<${M.fx.MetalBadge}>top<//>` : null}
-              <span class="num" style=${{fontWeight: 500}}>${i === 0 ? html`<${Num} v=${r.total} size=${16}/>` : r.total}</span>
+              <span class="num" style=${{fontWeight: 500}}>${r.total}</span>
             </div>`)}
           </div>` : html`<${UI.Empty} text="No points yet."/>`}
         <//>

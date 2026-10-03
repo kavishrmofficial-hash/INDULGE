@@ -88,6 +88,7 @@
 
   function Palette({onClose, onAsk}) {
     const ctx = M.useCtx();
+    const phone = M.usePhone();
     const [q, setQ] = useState('');
     const [sel, setSel] = useState(0);
     const [showAll, setShowAll] = useState(null); /* {q, group} while the Search drawer is open */
@@ -129,7 +130,7 @@
           ${q.trim() ? html`<${M.fx.Orb} state="searching" size=${20} label="searching"/>` : html`<${icons.search}/>`}
           <input ref=${inp} id="pal-input" value=${q} placeholder="Search anything, or type what you want to do" aria-label="Search or run"
             onInput=${e => setQ(e.target.value)} onKeyDown=${onKey}/>
-          <span class="kbd">esc</span>
+          ${phone ? html`<button type="button" class="iconbtn" aria-label="Close" onClick=${onClose}><${icons.x}/></button>` : html`<span class="kbd">esc</span>`}
         </div><//>
         <div class="pal-list" id="pal-list">
           ${items.length ? items.map((it, i) => {

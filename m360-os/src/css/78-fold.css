@@ -5,7 +5,7 @@
 .fold-head .grow{display:flex; flex-direction:column; gap:2px; min-width:0}
 .fold-title{font-weight:600; font-size:16px; letter-spacing:-.01em}
 .fold-sum{font-size:13px; color:var(--ink62); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.fold.hot .fold-sum{color:var(--flame)}
+.fold.hot .fold-sum{color:var(--flame-text)}
 .fold-chev{flex:none; width:32px; height:32px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; color:var(--ink62); background:var(--warm)}
 .fold-chev svg{width:18px; height:18px; transition:transform .18s ease}
 .fold.open .fold-chev svg{transform:rotate(180deg)}
@@ -14,6 +14,9 @@
 .fold-body > .card > .card-head .card-title, .fold-body > .ai-card > .card-head .card-title, .fold-body > .ai-card > .card-head .micro{display:none}
 .fold-body > .card > .card-head, .fold-body > .ai-card > .card-head{justify-content:flex-end; margin-top:-4px}
 .fold-body > .card > .card-head:empty{display:none}
+/* the fold summary already carries the count: a head that only repeats it goes, a button such as Board stays */
+.fold-body > .card > .card-head > .pill, .fold-body > .card > .card-head > .badge{display:none}
+.fold-body > .card > .card-head:not(:has(> :not(.card-title):not(.pill):not(.badge))){display:none}
 @media (prefers-reduced-motion:reduce){ .fold-chev svg{transition:none} }
 
 /* ---------- tables become stacked cards on phones ---------- */
