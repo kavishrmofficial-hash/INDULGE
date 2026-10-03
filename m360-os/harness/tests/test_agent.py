@@ -357,7 +357,8 @@ def test(h):
       await new Promise(r => setTimeout(r, 400));
       /* the off switch stays Kaavish's: no long pause, no every-kind-off */
       const pauseLong = await run("pm_settings", {pause: {person: "Ishaan", until: "2031-01-01"}});
-      const allOff = await run("pm_settings", {kinds: {noin: false, noeod: false, overdue: false, quiet: false, noout: false}});
+      /* single kinds may go off; every kind at once is the bot off */
+      const allOff = await run("pm_settings", {kinds: {noin: false, noeod: false, overdue: false, sentback: false, chase: false, quiet: false, waiton: false, noout: false, idle: false, short: false}});
       const off = await run("pm_settings", {on: false});
       const pauseDay = await run("pm_settings", {pause: {person: "Ishaan"}});
       return {pwMatch: pw.match.map(x => x.uid), pwLeft: pw.left, over: po.match.map(x => x.uid), skip, ok: ok.say || ok.err,

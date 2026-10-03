@@ -138,8 +138,11 @@
       try { mo = new MutationObserver(soon); mo.observe(document.body, {childList: true, subtree: true}); } catch (e) { mo = null; }
       window.addEventListener('resize', soon);
       window.addEventListener('scroll', soon, {passive: true});
+      /* a layout shift with no new node and no resize of what it watches (a font, a page's own grid): a slow look again */
+      const slow = setInterval(() => { if (!document.hidden) soon(); }, 1000);
       check();
       return () => {
+        clearInterval(slow);
         if (raf) cancelAnimationFrame(raf);
         if (ro) ro.disconnect();
         if (mo) mo.disconnect();

@@ -104,20 +104,27 @@
   /* how: 'tap' (default) or 'voice', which shows "Confirmed by voice" on the card for a moment */
   async function approve(id, how) {
     const p = pending.list.find(x => x.id === id);
-    if (!p || p.busy) return;
+    if (!p || p.busy) return {ok: false, say: 'That card is gone. Nothing went out.'};
     const opts = {people: p.people ? p.people.filter(x => x.on).map(x => x.uid) : undefined, tellBy: p.tellOn ? p.tellBy : null, note: cut(p.note, 280), ringNow: !!p.ringNow, via: how === 'voice' ? 'voice' : 'tap'};
     if (how === 'voice') {
       edit(id, {busy: true, voice: true});
       await new Promise(r => setTimeout(r, 700));
       /* Cancel pressed while "Confirmed by voice" showed: nothing goes */
-      if (!pending.list.some(x => x.id === id)) return;
+      if (!pending.list.some(x => x.id === id)) return {ok: false, say: 'Cancelled. Nothing went out.'};
     }
     drop(id);
     try {
       const r = await p.run(opts);
-      M.toast((r && typeof r === 'object' && r.say) || p.label + ': done');
+      /* a spoken yes hears the line in the panel; a tap reads it here */
+      if (how !== 'voice') M.toast((r && typeof r === 'object' && r.say) || p.label + ': done');
+      /* the panel puts the receipt of a card its own turn made into the thread */
+      try { window.dispatchEvent(new CustomEvent('m360:approved', {detail: {id, turn: p.turn || null, how: how === 'voice' ? 'voice' : 'tap', result: r}})); } catch (e) { /* no listener */ }
       return r;
-    } catch (e) { M.toast((e && e.message) || 'That did not go through', true); }
+    } catch (e) {
+      const why = (e && e.message) || 'That did not go through';
+      M.toast(why, true);
+      return {ok: false, say: 'That did not go through: ' + why};
+    }
   }
   function AskPreview({p, first}) {
     const n = p.people.filter(x => x.on).length;

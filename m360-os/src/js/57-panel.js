@@ -108,6 +108,7 @@
     const nm = await M.ai.names(ctx).catch(() => ({}));
     const turn = {id: U.uid(), via: o.via === 'voice' ? 'voice' : 'typed', tainted: false, said: question.slice(0, 300)};
     S.turn = turn;
+    S.turnIds = (S.turnIds || []).concat([turn.id]).slice(-40);
     const pics = o.images || [];
     const route = M.agent && M.agent.route ? M.agent.route(question, ctx, nm) : plainRoute(question);
     /* the grammar runs with no model call, with the AI on or off */
@@ -165,9 +166,10 @@
         M.chat.save(ctx, before.concat([{role: 'user', content: msg, via: 'voice'}]));
         let line = 'Cancelled. Nothing went out.';
         /* the card's own words when it has them; a plain Done otherwise (a pressed control sent nothing) */
-        if (yes) { const r = await M.brain.approve(yes, 'voice'); line = (r && typeof r === 'object' && r.say) || 'Done.'; }
+        let acts = [];
+        if (yes) { const r = await M.brain.approve(yes, 'voice'); line = (r && typeof r === 'object' && r.say) || 'Done.'; acts = receiptsOf(r); }
         else M.brain.drop(mine[0].id);
-        await M.chat.append(ctx, [{role: 'assistant', content: line}]);
+        await M.chat.append(ctx, [{role: 'assistant', content: line, ...(acts.length ? {acts} : {})}]);
         S.set({phase: 'answer', heard: '', announce: line});
         done({text: line, via: o.via, dock: o.dock, confirm: true});
         return {text: line};
@@ -256,10 +258,28 @@
     return html`<div class="bubble ai panel-answer streaming msg"><span>${old}</span><span key=${text.length} class="fresh">${text.slice(old.length)}</span></div>`;
   }
 
+  /* what a card sent, as receipts for the thread: an ask is the personal manager's live receipt */
+  function receiptsOf(r) {
+    if (!r || typeof r !== 'object' || r.ok === false) return [];
+    const ids = Array.isArray(r.askIds) ? r.askIds : r.askId ? [r.askId] : [];
+    return ids.map(askId => ({type: 'ask', askId, text: 'Asked'}));
+  }
+  /* a card a panel turn made, approved by a tap: its line and receipt join the thread under that turn */
+  window.addEventListener('m360:approved', e => {
+    const d = (e && e.detail) || {};
+    if (d.how !== 'tap' || !d.turn || !M.chat || !M.lastCtx || (S.turnIds || []).indexOf(d.turn) < 0) return;
+    const acts = receiptsOf(d.result);
+    const say = d.result && typeof d.result === 'object' && d.result.say ? String(d.result.say) : '';
+    if (!acts.length && !say) return;
+    M.chat.append(M.lastCtx, [{role: 'assistant', content: say, ...(acts.length ? {acts} : {})}]);
+  });
+
   /* receipts, folded by group: the agent's own view when it is here, the same shape otherwise */
   function Receipts({acts}) {
     const R = M.parts.AgentReceipts;
-    if (R) return html`<div class="msg panel-receipts"><${R} acts=${acts}/></div>`;
+    /* the agent's view folds groups; past three plain lines the panel's own fold takes over */
+    const plain = (acts || []).filter(x => !(x && typeof x === 'object' && (x.group || x.type === 'ask'))).length;
+    if (R && plain <= 3) return html`<div class="msg panel-receipts"><${R} acts=${acts}/></div>`;
     return html`<div class="msg panel-receipts"><${Folded} acts=${acts}/></div>`;
   }
   function Folded({acts}) {
@@ -413,7 +433,14 @@
     const liveWords = (listening || hearing) && (!!st.heard || hearing || lastUser < 0);
     const rows = [];
     turns.forEach((t, i) => {
-      if (t.act) { rows.push(html`<${Receipts} key=${'r' + i} acts=${[t.content]}/>`); return; }
+      /* an older thread kept one act per turn: a run of them folds as one receipt */
+      if (t.act) {
+        if (i > 0 && turns[i - 1].act) return;
+        let j = i;
+        while (j < turns.length && turns[j].act) j++;
+        rows.push(html`<${Receipts} key=${'r' + i} acts=${turns.slice(i, j).map(x => x.content)}/>`);
+        return;
+      }
       if (t.role === 'user') {
         if (showWords && i === lastUser && !liveWords) rows.push(html`<${Words} key=${'u' + i} text=${t.content} id=${id('heard')}/>`);
         else rows.push(html`<div key=${'u' + i} class="bubble me msg">${t.img ? html`<span class="tiny panel-img">[image] </span>` : null}${t.content}${t.via === 'voice' ? html`<span class="panel-via" title="said out loud"><${Mic}/></span>` : null}</div>`);

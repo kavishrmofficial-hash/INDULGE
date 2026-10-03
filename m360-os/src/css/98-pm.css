@@ -115,7 +115,7 @@
   .team-flag:has(.pm-chip-wrap) > .linky{margin-left:auto}
   .pm-menu{left:16px; right:16px !important; top:auto !important; bottom:calc(16px + env(safe-area-inset-bottom, 0px)) !important; min-width:0}
   .pm-menu button{min-height:44px}
-  .pm-whybtn,.pm-foot .linky{min-height:44px; display:inline-flex; align-items:center}
+  .pm-meta .pm-whybtn,.pm-foot .linky{min-height:44px; display:inline-flex; align-items:center}
   .pm-pick .input,.pm-time,.pm-sel{min-height:44px; height:44px}
   .pm-note{flex-wrap:wrap}
   .pm-note .input{flex:1 1 180px; min-height:44px}

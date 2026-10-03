@@ -135,6 +135,8 @@ body:has(.drawer) .buddy-bubble.agent-pop{z-index:62}
 .panel-intro{padding:2px 2px 6px}
 .panel-thinking{color:var(--ink62); font-size:13px}
 .panel-live-words{opacity:.85}
+/* the prompt line in a dark bubble reads in the bubble's own ink, softened */
+.panel-live-words .ink62{color:var(--on-ink); opacity:.72}
 .panel-history{min-width:0}
 .panel-wide-link,.panel-ios{align-self:flex-start}
 .panel-receipts{min-width:0}

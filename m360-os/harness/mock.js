@@ -15,6 +15,9 @@
     m1: {id: 'u_m1', name: 'Durvesh Patil', email: 'durvesh@mask360.agency', color: '#5A5A5A', isOwner: false, canEdit: false, avatarUrl: AV('DP', '#5A5A5A')},
     m2: {id: 'u_m2', name: 'Aanya Mehta', email: 'aanya@mask360.agency', color: '#8A8A8A', isOwner: false, canEdit: false, avatarUrl: AV('AM', '#8A8A8A')},
     m3: {id: 'u_m3', name: 'Ishaan Rao', email: 'ishaan@mask360.agency', color: '#7A7A7A', isOwner: false, canEdit: false, avatarUrl: AV('IR', '#7A7A7A')},
+    /* a lead and her report, for the founder's story (test_asks.py) */
+    sh: {id: 'u_sh', name: 'Shreya Kapoor', email: 'shreya@mask360.agency', color: '#6A6A6A', isOwner: false, canEdit: false, avatarUrl: AV('SK', '#6A6A6A')},
+    pr: {id: 'u_pr', name: 'Prarthana Iyer', email: 'prarthana@mask360.agency', color: '#4A4A4A', isOwner: false, canEdit: false, avatarUrl: AV('PI', '#4A4A4A')},
     outsider: {id: 'u_out', name: 'Rohan Verma', email: 'rohan@mask360.agency', color: '#9A9A9A', isOwner: false, canEdit: false, avatarUrl: AV('RV', '#9A9A9A')}
   };
   const who = IDENT[q.get('as') || 'founder'] || IDENT.founder;

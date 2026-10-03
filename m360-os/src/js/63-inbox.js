@@ -211,8 +211,7 @@
       }
       M.sound.play('soft');
     }, [ctx, profs]);
-    /* the personal manager's watcher rides along wherever the inbox watcher is mounted (it runs once however often it is mounted) */
-    return M.parts.PmWatch ? html`<${M.parts.PmWatch}/>` : null;
+    return null;
   }
   M.parts.InboxWatch = InboxWatch;
 

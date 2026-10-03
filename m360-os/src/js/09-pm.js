@@ -798,7 +798,10 @@
       const d = U.ymd(U.addDays(new Date(now), -i));
       if (!ctx.isWorkingDay(d, uid) && i) continue;
       const end = i ? U.parseYmd(d).getTime() + DAY - MIN : now;
-      const list = items(ctx, uid, {now: end}).filter(it => it.steps.some(s => s.state === 'told' || s.state === 'due') || it.state === 'sorted');
+      /* a day gone by shows what reached someone or was answered; a step that came due with nobody told
+         (the bots were off then, or nobody opened m360) is not history */
+      const list = items(ctx, uid, {now: end}).filter(it => i ? it.steps.some(s => s.state === 'told') || !!it.ack || !!it.mack
+        : it.steps.some(s => s.state === 'told' || s.state === 'due') || it.state === 'sorted');
       if (list.length || !i) out.push({ymd: d, items: list});
     }
     return out;

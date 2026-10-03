@@ -446,7 +446,7 @@ def test(h):
             cv = p.evaluate('''() => { const c = document.querySelector('#pm-card canvas'); if (!c) return null; const r = c.getBoundingClientRect(); return [c.width, r.width, devicePixelRatio]; }''')
             check(cv and abs(cv[0] - round(cv[1] * cv[2])) <= 2, '%s: the bot canvas is drawn at CSS size times DPR: %r' % (name, cv))
             if '390' in name:
-                small = p.evaluate('''() => [...document.querySelectorAll('#pm-card button')].filter(b => b.offsetParent).map(b => b.getBoundingClientRect().height).filter(x => x < 44)''')
+                small = p.evaluate('''() => [...document.querySelectorAll('#pm-card button')].filter(b => b.offsetParent).map(b => [b.getBoundingClientRect().height, b.className, b.textContent.trim().slice(0, 24)]).filter(x => x[0] < 44)''')
                 check(not small, '%s: phone buttons are at least 44 px tall: %r' % (name, small[:4]))
             if SHOTS:
                 os.makedirs(SHOTS, exist_ok=True)

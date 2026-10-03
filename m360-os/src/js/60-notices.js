@@ -56,6 +56,16 @@
     on: f => { subs.add(f); return () => subs.delete(f); }
   };
 
+  /* a tap on a system notice the service worker showed comes back here with its href (team site) */
+  try {
+    if (window.M360_STANDALONE && navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener('message', e => {
+        const href = e && e.data && typeof e.data.href === 'string' ? e.data.href : '';
+        if (/^#[A-Za-z0-9_\-\/.:=~]*$/.test(href)) { try { window.focus(); } catch (er) { /* focus refused */ } M.nav(href); }
+      });
+    }
+  } catch (e) { /* no service worker here */ }
+
   function Notices() {
     const [items, setItems] = useState(list);
     useEffect(() => { const un = M.notices.on(setItems); setItems(list); return un; }, []);

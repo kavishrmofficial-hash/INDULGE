@@ -1212,7 +1212,8 @@
     /* open a screen */
     if ((m = /^(?:please )?(?:open|go to|goto|show me|take me to|jump to|navigate to|bring up|pull up)\s+(?:the\s+)?(.+?)(?:\s+(?:page|screen|tab))?$/.exec(s))) {
       const route = m[1].replace(/\s+please$/, '');
-      if (route && !/^(how|who|what|when|why)\b/.test(route)) return {action: 'open_screen', input: {route}};
+      /* "open a new task" is making something, and a name nothing matches goes to the model */
+      if (route && !/^(how|who|what|when|why)\b/.test(route) && !/^(a |an )?new\b/.test(route) && findScreen(ctx, nm, route)) return {action: 'open_screen', input: {route}};
     }
     return null;
   }

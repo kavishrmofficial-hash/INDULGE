@@ -65,6 +65,10 @@ def test(h):
     turns.append({'role': 'user', 'content': 'tell the swisse team the call is at four'})
     turns.append({'role': 'assistant', 'content': 'Done.', 'acts': ['Told teammate %d' % (i + 1) for i in range(10)]})
     turns.append({'role': 'assistant', 'content': '\n'.join('Line %d of a long answer about the Swisse shoot and who knows what.' % (i + 1) for i in range(30))})
+    # receipts and long answers fold, so a thread long enough to scroll takes a few more exchanges
+    for i in range(8):
+        turns.append({'role': 'user', 'content': 'and what about the Swisse reel number %d, the cutdown and the captions?' % (i + 1)})
+        turns.append({'role': 'assistant', 'content': 'Reel %d is with the editor. The cutdown is due Thursday and the captions follow on Friday.' % (i + 1)})
 
     def ctx_for(w, hh, dsf, dark, **extra):
         o = {'viewport': {'width': w, 'height': hh}, 'device_scale_factor': dsf, 'locale': 'en-IN', 'timezone_id': 'Asia/Kolkata',

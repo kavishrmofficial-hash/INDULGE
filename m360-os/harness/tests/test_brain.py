@@ -29,15 +29,19 @@ from harness.qa import seed  # noqa: E402
 PNG = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==')
 
 
-def ask_buddy(p, text, wait='Ask another'):
-    if p.locator('.buddy-bubble').count():
+def ask_buddy(p, text):
+    """Ask through the dock's pop-up and wait for the answer: the question and the reply land in the thread."""
+    for _ in range(4):
+        if not p.locator('.buddy-bubble').count():
+            break
         p.keyboard.press('Escape')
-        p.wait_for_timeout(150)
-    p.locator('.buddy-home').click()
+        p.wait_for_timeout(250)
+    p.locator('#buddy-dock .buddy-home').click()
     p.wait_for_selector('#buddy-input')
+    n = p.evaluate('() => M.chat.turns.length')
     p.fill('#buddy-input', text)
     p.keyboard.press('Enter')
-    p.wait_for_selector('.buddy-bubble:has-text("%s")' % wait, timeout=20000)
+    p.wait_for_function('n => M.buddy.state().mode === "answer" && M.chat.turns.length >= n + 2', arg=n, timeout=20000)
     return p.inner_text('.buddy-bubble')
 
 
@@ -101,6 +105,7 @@ def artifact_part(h):
     h.go(p, 'founder', hash='#home', width=1280)
     p.wait_for_selector('.buddy-home')
     p.locator('.side-tools .iconbtn[aria-label="Ask m360"]').click()
+    p.locator('#buddy-expand').click()
     p.wait_for_selector('.drawer:has-text("question 25")')
     p.fill('#ask-input', 'what is overdue')
     p.keyboard.press('Enter')
@@ -110,6 +115,7 @@ def artifact_part(h):
     p.keyboard.press('Escape'); p.wait_for_function('() => !document.querySelector(".drawer")')
     # no image button when the host allows none
     p.locator('.side-tools .iconbtn[aria-label="Ask m360"]').click()
+    p.locator('#buddy-expand').click()
     p.wait_for_selector('.drawer #ask-input')
     check(p.locator('#ask-file').count() == 0, 'no attach control without image support')
     p.keyboard.press('Escape'); p.wait_for_function('() => !document.querySelector(".drawer")')
@@ -117,6 +123,7 @@ def artifact_part(h):
     h.go(p, 'founder', hash='#home', width=1280, img='1')
     p.wait_for_selector('.buddy-home')
     p.locator('.side-tools .iconbtn[aria-label="Ask m360"]').click()
+    p.locator('#buddy-expand').click()
     p.wait_for_selector('.drawer #ask-file', state='attached')
     p.locator('#ask-file').set_input_files({'name': 'shot.png', 'mimeType': 'image/png', 'buffer': PNG})
     p.wait_for_selector('#ask-attached img')
@@ -195,6 +202,7 @@ def standalone_part():
             check('Your calendar' in out, 'a look_up round should answer from the tool: ' + out[:160])
             # an attached image reaches the model as an image block
             k.locator('.side-tools .iconbtn[aria-label="Ask m360"]').click()
+            k.locator('#buddy-expand').click()
             k.wait_for_selector('.drawer #ask-file', state='attached')
             k.locator('#ask-file').set_input_files({'name': 'shot.png', 'mimeType': 'image/png', 'buffer': PNG})
             k.wait_for_selector('#ask-attached img')

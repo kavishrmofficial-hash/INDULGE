@@ -394,11 +394,19 @@
     const now = Number(ctx.now) || Date.now();
     const row = M.pm.board(ctx, ctx.uid, now).find(r => r.uid === uid);
     const list = row ? row.extra.filter(it => it.steps.some(s => s.state !== 'waiting')) : [];
-    if (!list.length) return null;
+    /* someone else asked about a flag already on the row: the manager is told, never bypassed silently */
+    const seen = new Set(list.map(it => it.K));
+    const asked = row ? row.flags.reduce((xs, f) => xs.concat(f.items || []), [])
+      .filter(it => !seen.has(it.K) && it.asks.some(a => a.by && a.by !== ctx.uid)) : [];
+    if (!list.length && !asked.length) return null;
+    const askLine = it => { const a = it.asks.find(x => x.by && x.by !== ctx.uid) || it.asks[0]; return M.pm.first(ctx, a.by) + ' asked ' + M.pm.first(ctx, uid) + ' at ' + U.hhmm(a.at) + (it.ack ? ' · answered' : ''); };
     return html`${list.map(it => html`<div key=${it.K} class="small team-flag pm-flag" data-k=${it.kind}>
       <span class="dotflame" style=${it.state === 'open' ? null : {background: 'var(--ink62)'}}/>
-      <span class="grow">${it.source === 'ask' ? M.pm.first(ctx, it.asks[0].by) + ' asked ' + M.pm.first(ctx, uid) + ' at ' + U.hhmm(it.asks[0].at) + (it.ack ? ' · answered' : '') : it.mgrLine}</span>
+      <span class="grow">${it.source === 'ask' ? askLine(it) : it.mgrLine}</span>
       <${PmChip} it=${it}/>
+    </div>`)}${asked.map(it => html`<div key=${'a' + it.K} class="small team-flag pm-flag pm-asked" data-k=${it.kind}>
+      <span class="dotflame" style=${{background: 'var(--ink62)'}}/>
+      <span class="grow ink62">${askLine(it)}</span>
     </div>`)}`;
   }
   /* the chip for one watch flag: the item the bot holds for it */
