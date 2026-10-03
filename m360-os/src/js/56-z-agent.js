@@ -38,6 +38,8 @@
   const WORDS = ['Nobody', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve'];
   const people = n => n ? (WORDS[n] || String(n)) + (n === 1 ? ' person' : ' people') : 'Nobody';
   const meDoc = (ctx, uid) => (((ctx.coll.me || {}).map || {})[uid]) || {};
+  /* the page as it is now: a card tapped minutes after it was made reads and writes today's data */
+  const fresh = ctx => M.lastCtx && M.lastCtx.uid === ctx.uid && !M.lastCtx.viewAs === !ctx.viewAs ? M.lastCtx : ctx;
 
   /* names: the caller usually has them (M.ai.names); the grammar keeps the last set for a sentence
      that arrives without them */
@@ -51,6 +53,17 @@
     if (ctx && ctx.user) names(ctx);
     return nmCache;
   };
+
+  /* a teammate by name, never a guess: two people with that first name ask "Which Shreya" */
+  function member(ctx, nm, typed) {
+    const q = String(typed || '').trim().toLowerCase().replace(/^@/, '');
+    if (!q) return M.ai.findMember(ctx, nm, typed);
+    const full = (ctx.activeMembers || []).filter(m => String(nm[m.uid] || '').toLowerCase() === q);
+    if (full.length === 1) return full[0].uid;
+    const same = (ctx.activeMembers || []).filter(m => m.uid !== ctx.uid && String(nm[m.uid] || '').toLowerCase().split(/\s+/)[0] === q);
+    if (same.length > 1) throw new Error('which ' + capFirst(q) + ': ' + andList(same.map(m => String(nm[m.uid]))).replace(/ and ([^,]+)$/, ' or $1') + '?');
+    return M.ai.findMember(ctx, nm, typed);
+  }
 
   /* ---------- rights ---------- */
   const managerOf = (ctx, u) => M.lines ? M.lines.managerOf(ctx, u) : (u === ctx.founderUid ? null : ctx.founderUid);
@@ -103,6 +116,12 @@
     return at;
   }
   const workPage = p => !!p && ['break', 'play', 'reset', 'care', 'music', 'reflect'].indexOf(String(p)) < 0;
+  /* a leave request still waiting on a decision that covers the day */
+  const leaveAsked = (ctx, uid, ymd) => {
+    const reqs = (((ctx.coll.leave || {}).map || {})[uid] || {}).reqs || [];
+    const dec = ((((ctx.coll.leavedec || {}).map || {})[uid] || {}).d) || {};
+    return reqs.some(r => r && r.from && r.to && !dec[r.id] && r.from <= ymd && ymd <= r.to);
+  };
   const statusToday = (ctx, uid, ymd) => { const s = meDoc(ctx, uid).status; return s && s.at && s.text && U.ymd(new Date(s.at)) === ymd ? String(s.text) : ''; };
   /* someone else already asked this person about this today: "Kaavish already asked at 20:41" */
   function askedBy(ctx, nm, uid, kind, ymd) {
@@ -148,7 +167,7 @@
       const list = Array.isArray(sc) ? sc : String(o.scope).split(/\s*(?:,|\band\b)\s*/);
       pool = [];
       for (const n of list) {
-        const u = ctx.members[n] ? n : M.ai.findMember(ctx, nm, n);
+        const u = ctx.members[n] ? n : member(ctx, nm, n);
         if (!u || u === ctx.uid) { if (String(n || '').trim()) res.left.push({uid: null, name: String(n).trim(), why: 'no teammate by that name'}); continue; }
         if (pool.indexOf(u) < 0) pool.push(u);
       }
@@ -214,6 +233,7 @@
       }
       const st = statusToday(ctx, uid, ymd);
       if (!off && st) off = 'status: ' + cut(st, 60);
+      if (!off && leaveAsked(ctx, uid, ymd)) off = 'asked for leave today';
       if (!off) off = coveredBy(ctx, uid, condition, now);
       const again = askedBy(ctx, nm, uid, condition, ymd);
       if (again) facts += ', ' + again;
@@ -254,6 +274,9 @@
     const mins = (now - d0) / MIN;
     const working = !ctx.isWorkingDay || ctx.isWorkingDay(ymd, uid);
     const mail = live() ? ', and the email waits too' : '';
+    const S = ctx.settings || {};
+    const lf = hmOk(S.lunchFrom) && hmOk(S.lunchTo) ? [U.minutes(S.lunchFrom), U.minutes(S.lunchTo)] : null;
+    if (working && lf && lf[1] > lf[0] && mins >= lf[0] && mins < lf[1]) return firstOf(nm, uid) + ' is at lunch till ' + S.lunchTo + '. It reaches them then' + mail + '.';
     if (working && mins >= U.minutes(startHm) - 30 && mins <= U.minutes(cutHm) + 90) return '';
     if (working && mins < U.minutes(startHm) - 30) return firstOf(nm, uid) + '\'s day starts at ' + startHm + '. It reaches them then' + mail + '.';
     const nx = nextWorkday(ctx, uid, ymd);
@@ -275,7 +298,7 @@
     const out = [];
     for (const n of xs) {
       if (!String(n || '').trim()) continue;
-      const u = ctx.members[n] ? n : M.ai.findMember(ctx, nm, n);
+      const u = ctx.members[n] ? n : member(ctx, nm, n);
       if (!u || u === ctx.uid) throw new Error('no teammate called ' + n);
       if (out.indexOf(u) < 0) out.push(u);
     }
@@ -289,7 +312,9 @@
     const ask = ASKS.indexOf(input.ask) >= 0 ? input.ask : 'why';
     const note = cut(String(input.note || '').trim(), 280);
     const via = (io.turn && io.turn.via) || 'typed';
-    const condition = CONDS.indexOf(input.condition) >= 0 ? input.condition : null;
+    const named = input.people && !(typeof input.people === 'string' && isGroupWord(input.people));
+    /* a condition by its kind ("ask Ishaan why he has not checked out") reads the same live facts, exclusions and re-check */
+    const condition = CONDS.indexOf(input.condition) >= 0 ? input.condition : named && CONDS.indexOf(input.kind) >= 0 ? input.kind : null;
     let kind, rows = [], left = [], warn = '';
     let showAt = null;
     if (sched) {
@@ -298,11 +323,12 @@
       showAt = dayAt(today(), at);
       if (showAt <= now) throw new Error('that time has passed today');
     }
-    const named = input.people && !(typeof input.people === 'string' && isGroupWord(input.people));
     if (condition) {
       kind = condition;
       const pw = peopleWhere(ctx, {condition, scope: named ? input.people : (input.scope || input.people || 'everyone'), now}, nm);
       rows = pw.match; left = pw.left; warn = sched ? '' : pw.warn;
+      const t = condition === 'overdue' && input.task ? M.brain.findTask(ctx, input.task) : null;
+      if (t) rows = rows.map(r => r.uid === t.owner ? {...r, sub: t.id} : r);
     } else if (named) {
       kind = KINDS.indexOf(input.kind) >= 0 ? input.kind : 'custom';
       if (kind === 'custom' && !note) throw new Error('say what to ask them, as note');
@@ -318,7 +344,7 @@
       }
     } else throw new Error('say who to ask (people) or a condition (' + CONDS.join(', ') + '). Fields: ' + byName('nudge_people').sig);
     const cf = conf(ctx);
-    const skipped = left.filter(x => x.uid).map(x => firstOf(nm, x.uid) + ' (' + x.why + ')');
+    const skipped = left.map(x => (x.uid ? firstOf(nm, x.uid) : x.name || 'someone') + ' (' + x.why + ')');
     if (!rows.length) return {ok: true, asked: 0, left: skipped, say: 'Nobody to ask right now.' + (skipped.length ? ' Left out: ' + andList(skipped) + '.' : '')};
     let trimmed = [];
     if (rows.length > cf.bulkMax) { trimmed = rows.slice(cf.bulkMax).map(x => firstOf(nm, x.uid)); rows = rows.slice(0, cf.bulkMax); }
@@ -533,12 +559,17 @@
     run: (ctx, nm, input, io) => M.brain.legacy(ctx, nm, io.log, name, input)}));
   const byName = n => ACTIONS.find(a => a.name === n) || null;
   const reg = (name, gloss, sig, req, who, mode, run, more) => ACTIONS.push({name, gloss, sig, schema: schemaOf(sig, req), who, mode, run, wave: 1, ...(more || {})});
-  const tapHold = (ctx, io, label, detail, run) => M.brain.hold(label, detail, () => run(), {turn: io.turn, from: io.from || ''});
+  /* a tap card runs on the page as it is when the tap comes, with the rights checked again then */
+  const tapHold = (ctx, io, label, detail, run, who) => M.brain.hold(label, detail, () => {
+    const c = fresh(ctx);
+    if (who === 'founder' && !c.isFounder) throw new Error('only the founder can do that');
+    return run(c);
+  }, {turn: io.turn, from: io.from || ''});
 
   /* announcements are a tap now: everyone sees them pinned */
   const postRun = byName('post_to_feed').run;
   byName('post_to_feed').run = (ctx, nm, input, io) => input.kind === 'announce' && ctx.isFounder && !io.approved
-    ? tapHold(ctx, io, 'Pin the announcement', cut(input.text, 300), () => postRun(ctx, nm, input, io)) : postRun(ctx, nm, input, io);
+    ? tapHold(ctx, io, 'Pin the announcement', cut(input.text, 300), c => postRun(c, nm, input, {...io, approved: true}), 'founder') : postRun(ctx, nm, input, io);
 
   /* wave 1: people and the day */
   reg('people_where', 'who matches a condition right now', '{condition noin|noout|noeod|overdue|quiet|idle|late, scope? everyone|my team|names}', ['condition'], 'self', 'now', (ctx, nm, input) => {
@@ -561,13 +592,13 @@
   }, {needs: 'pm'});
   reg('nudge_again', 'have a report\'s bot nudge again', '{person, about?}', ['person'], 'mgr', 'now', async (ctx, nm, input) => {
     needPm('handle');
-    const u = M.ai.findMember(ctx, nm, input.person);
+    const u = member(ctx, nm, input.person);
     if (!u || u === ctx.uid) throw new Error('no teammate called ' + input.person);
     if (!isMgr(ctx, u)) throw new Error(firstOf(nm, u) + ' is ' + NOT_TEAM + ': their own manager nudges them');
     const open = (M.pm.items(ctx, u, {now: Date.now()}) || []).filter(i => i && i.state === 'open' && i.source !== 'ask');
     const q = norm(input.about);
-    const it = (q ? open.find(i => norm(i.kind) === q || norm(i.line).includes(q) || norm(((ctx.coll.tasks.map[i.sub] || {}).title)).includes(q)) : null) || open[0];
-    if (!it) throw new Error('nothing open for ' + firstOf(nm, u) + ' to nudge about');
+    const it = q ? open.find(i => norm(i.kind) === q || norm(i.line).includes(q) || norm(((ctx.coll.tasks.map[i.sub] || {}).title)).includes(q)) : open.length === 1 ? open[0] : null;
+    if (!it) throw new Error(open.length ? 'say which one: ' + open.slice(0, 4).map(i => cut(i.line, 60)).join('; ') : 'nothing open for ' + firstOf(nm, u) + ' to nudge about');
     await M.pm.handle(ctx, it.K, 'again');
     return {ok: true, person: nameOf(nm, u), about: it.kind, say: 'Done. ' + firstOf(nm, u) + '\'s bot asks again now, once.'};
   }, {needs: 'pm', out: true});
@@ -587,8 +618,8 @@
     const open = (M.pm.items(ctx, ctx.uid, {now}) || []).filter(i => i && (i.state === 'open' || i.state === 'held'));
     const q = norm(input.about);
     const by = q ? M.ai.findMember(ctx, nm, q) : null;
-    const it = (q ? open.find(i => (by && (i.from === by || managerOf(ctx, ctx.uid) === by && i.source === 'bot')) || norm(i.kind) === q || norm(i.line).includes(q)) : null) || open[0];
-    if (!it) throw new Error('nothing is waiting on an answer from you');
+    const it = q ? open.find(i => (by && (i.from === by || managerOf(ctx, ctx.uid) === by && i.source === 'bot')) || norm(i.kind) === q || norm(i.line).includes(q)) : open.length === 1 ? open[0] : null;
+    if (!it) throw new Error(!open.length ? 'nothing is waiting on an answer from you' : q ? 'nothing from ' + input.about + ' is waiting on you' : 'say which one: ' + open.slice(0, 4).map(i => cut(i.line, 60)).join('; '));
     const how = howFrom(input.how);
     let eta = input.eta;
     if (eta && !ymdOk(eta) && typeof eta !== 'number') { const t = timeFrom(String(eta), now); eta = t ? (t.ms || t.ymd) : undefined; }
@@ -661,12 +692,19 @@
     if (input.kinds && typeof input.kinds === 'object') {
       const k = {};
       Object.keys(input.kinds).forEach(x => { if (KINDS.indexOf(x) >= 0 || ['sentback', 'chase', 'waiton', 'short'].indexOf(x) >= 0) k[x] = !!input.kinds[x]; });
+      /* every kind off is the bot off, and only Kaavish switches a bot off */
+      const was = (M.pm.cfgOf ? (M.pm.cfgOf(ctx, ctx.uid) || {}).kinds : null) || P.kinds || {};
+      const after = {...was, ...k};
+      if (!ctx.isFounder && Object.keys(k).length && !Object.keys(after).some(x => after[x])) throw new Error('only Kaavish switches a bot off. Keep at least one kind on, or pause it for one person for a day');
       if (Object.keys(k).length) { patch.kinds = k; bits.push('kinds updated'); }
     }
     if (input.pause && input.pause.person) {
-      const u = M.ai.findMember(ctx, nm, input.pause.person);
+      const u = member(ctx, nm, input.pause.person);
       if (!u || reportsOf(ctx, ctx.uid).indexOf(u) < 0) throw new Error('pause works for your own reports');
+      /* a manager pauses one person for today; a longer pause is the bot off, which is Kaavish's */
       const until = ymdOk(input.pause.until) ? input.pause.until : today();
+      if (until < today()) throw new Error('until is today or later');
+      if (!ctx.isFounder && until !== today()) throw new Error('a pause lasts until the end of today. Only Kaavish switches a bot off for longer');
       patch.pause = {[u]: until}; bits.push('paused for ' + firstOf(nm, u) + ' until the end of ' + U.fmtDay(until) + ' (Kaavish sees every pause)');
     }
     if (!Object.keys(patch).length) throw new Error('say what to change: on, wait, kinds or pause');
@@ -682,10 +720,12 @@
     const old = ctx.settings[key];
     if (showVal(old) === showVal(value)) return {ok: true, say: SETTING_LABEL[key] + ' is ' + showVal(value) + ' already.'};
     const label = 'Change ' + SETTING_LABEL[key] + ': ' + showVal(old) + ' to ' + showVal(value);
-    return tapHold(ctx, io, cut(label, 90), 'The same check as the Admin form. It applies to everyone from the next read.', async () => {
-      await ctx.W.merge('settings/app', {[key]: value, updated: Date.now()});
-      return {ok: true, say: label.replace(/^Change/, 'Changed') + '.', _undo: {k: 'settings', patch: {[key]: old === undefined ? null : old}}};
-    });
+    return tapHold(ctx, io, cut(label, 90), 'The same check as the Admin form. It applies to everyone from the next read.', async c => {
+      const was = c.settings[key];
+      const v = settingValue(c, key, input.value);
+      await c.W.merge('settings/app', {[key]: v, updated: Date.now()});
+      return {ok: true, say: label.replace(/^Change/, 'Changed') + '.', _undo: {k: 'settings', patch: {[key]: was === undefined ? null : was}}};
+    }, 'founder');
   });
   reg('toggle_rule', 'switch a rule R01 to R17 on or off', '{rule R01..R17, on true|false}', ['rule'], 'founder', 'tap', async (ctx, nm, input, io) => {
     const id = String(input.rule || '').toUpperCase().replace(/^R(\d)$/, 'R0$1');
@@ -694,10 +734,12 @@
     const rules = {...(ctx.settings.rules || {})};
     if ((rules[id] !== false) === on) return {ok: true, say: id + ' is ' + (on ? 'on' : 'off') + ' already.'};
     const nmR = ((M.rules && M.rules.NAMES) || {})[id] || '';
-    return tapHold(ctx, io, 'Switch ' + id + (nmR ? ' ' + nmR : '') + (on ? ' on' : ' off'), on ? 'It counts again from now.' : 'Its flags and nudges stop for everyone.', async () => {
-      await ctx.W.merge('settings/app', {rules: {...rules, [id]: on}, updated: Date.now()});
-      return {ok: true, say: id + ' is ' + (on ? 'on' : 'off') + '.', _undo: {k: 'settings', patch: {rules: {...rules}}}};
-    });
+    return tapHold(ctx, io, 'Switch ' + id + (nmR ? ' ' + nmR : '') + (on ? ' on' : ' off'), on ? 'It counts again from now.' : 'Its flags and nudges stop for everyone.', async c => {
+      /* only this rule is written, so a switch made elsewhere in the meantime stands */
+      const was = ((c.settings.rules || {})[id]) !== false;
+      await c.W.merge('settings/app', {rules: {[id]: on}, updated: Date.now()});
+      return {ok: true, say: id + ' is ' + (on ? 'on' : 'off') + '.', _undo: {k: 'settings', patch: {rules: {[id]: was}}}};
+    }, 'founder');
   });
   const holidayRun = add => async (ctx, nm, input, io) => {
     const d = String(input.date || '').trim();
@@ -705,62 +747,72 @@
     const list = (ctx.settings.holidays || []).slice();
     const has = list.indexOf(d) >= 0;
     if (add === has) return {ok: true, say: U.fmtDate(d) + (add ? ' is a holiday already.' : ' is not a holiday.')};
-    return tapHold(ctx, io, (add ? 'Add ' : 'Remove ') + U.fmtDay(d) + (add ? ' as a holiday' : ' from the holidays'), add ? 'Nobody is flagged or nudged that day.' : 'It becomes a working day again.', async () => {
-      const next = add ? list.concat([d]).sort() : list.filter(x => x !== d);
-      await ctx.W.merge('settings/app', {holidays: next, updated: Date.now()});
-      return {ok: true, say: add ? U.fmtDay(d) + ' is a holiday.' : U.fmtDay(d) + ' is a working day.', _undo: {k: 'settings', patch: {holidays: list}}};
-    });
+    return tapHold(ctx, io, (add ? 'Add ' : 'Remove ') + U.fmtDay(d) + (add ? ' as a holiday' : ' from the holidays'), add ? 'Nobody is flagged or nudged that day.' : 'It becomes a working day again.', async c => {
+      const now = (c.settings.holidays || []).slice();
+      const next = add ? (now.indexOf(d) >= 0 ? now : now.concat([d]).sort()) : now.filter(x => x !== d);
+      await c.W.merge('settings/app', {holidays: next, updated: Date.now()});
+      return {ok: true, say: add ? U.fmtDay(d) + ' is a holiday.' : U.fmtDay(d) + ' is a working day.', _undo: {k: 'settings', patch: {holidays: now}}};
+    }, 'founder');
   };
   reg('add_holiday', 'add a holiday', '{date YYYY-MM-DD, name?}', ['date'], 'founder', 'tap', holidayRun(true));
   reg('remove_holiday', 'remove a holiday', '{date YYYY-MM-DD}', ['date'], 'founder', 'tap', holidayRun(false));
   reg('set_reports_to', 'who someone reports to', '{person, manager}', ['person', 'manager'], 'founder', 'tap', async (ctx, nm, input, io) => {
-    const u = M.ai.findMember(ctx, nm, input.person);
-    const mg = M.ai.findMember(ctx, nm, input.manager);
+    const u = member(ctx, nm, input.person);
+    const mg = member(ctx, nm, input.manager);
     if (!u || !ctx.members[u]) throw new Error('no teammate called ' + input.person);
     if (!mg || !ctx.members[mg]) throw new Error('no teammate called ' + input.manager);
     if (u === mg) throw new Error('nobody reports to themselves');
     if (chainOf(ctx, mg).indexOf(u) >= 0) throw new Error(firstOf(nm, mg) + ' reports up to ' + firstOf(nm, u) + ' already, so that would make a loop');
-    const prev = ctx.members[u].reportsTo || '';
+    if (managerOf(ctx, u) === mg) return {ok: true, say: firstOf(nm, u) + ' reports to ' + firstOf(nm, mg) + ' already.'};
     const label = firstOf(nm, u) + ' will report to ' + firstOf(nm, mg);
-    return tapHold(ctx, io, label, label + '. ' + firstOf(nm, mg) + '\'s bot chases them from tomorrow.', async () => {
-      await ctx.W.merge('roster/team', {members: {[u]: {reportsTo: mg === ctx.founderUid && !prev ? '' : mg}}, updated: Date.now()});
+    return tapHold(ctx, io, label, label + '. ' + firstOf(nm, mg) + '\'s bot chases them from tomorrow.', async c => {
+      if (!c.members[u] || !c.members[mg]) throw new Error('that person is not on the roster now');
+      if (chainOf(c, mg).indexOf(u) >= 0) throw new Error(firstOf(nm, mg) + ' reports up to ' + firstOf(nm, u) + ' now, so that would make a loop');
+      const prev = c.members[u].reportsTo || '';
+      /* written out even for Kaavish: an empty line would fall back to a pod lead */
+      await c.W.merge('roster/team', {members: {[u]: {reportsTo: mg}}, updated: Date.now()});
       return {ok: true, say: label.replace('will report', 'reports') + '.', _undo: {k: 'roster', uid: u, prev}};
-    });
+    }, 'founder');
   });
   reg('post_alert', 'an alert line for everyone', '{text, until? YYYY-MM-DD}', ['text'], 'founder', 'tap', async (ctx, nm, input, io) => {
     const text = cut(String(input.text || '').trim(), 140);
     if (!text) throw new Error('say the alert');
     const until = ymdOk(input.until) && input.until >= today() ? input.until : today();
     const prev = ctx.settings.alert || null;
-    return tapHold(ctx, io, 'Show the alert until ' + U.fmtDay(until), text, async () => {
-      await ctx.W.merge('settings/app', {alert: {text, until, at: Date.now()}, updated: Date.now()});
-      return {ok: true, say: 'The alert is up until ' + U.fmtDay(until) + '.', _undo: {k: 'settings', patch: {alert: prev}}};
-    });
+    return tapHold(ctx, io, 'Show the alert until ' + U.fmtDay(until), text, async c => {
+      const was = c.settings.alert || prev;
+      await c.W.merge('settings/app', {alert: {text, until, at: Date.now()}, updated: Date.now()});
+      return {ok: true, say: 'The alert is up until ' + U.fmtDay(until) + '.', _undo: {k: 'settings', patch: {alert: was}}};
+    }, 'founder');
   });
   reg('clear_alert', 'take the alert down', '{}', [], 'founder', 'tap', async (ctx, nm, input, io) => {
     const prev = ctx.settings.alert || null;
     if (!prev) return {ok: true, say: 'No alert is up.'};
-    return tapHold(ctx, io, 'Take the alert down', cut(prev.text, 140), async () => {
-      await ctx.W.merge('settings/app', {alert: null, updated: Date.now()});
-      return {ok: true, say: 'Alert cleared.', _undo: {k: 'settings', patch: {alert: prev}}};
-    });
+    return tapHold(ctx, io, 'Take the alert down', cut(prev.text, 140), async c => {
+      const was = c.settings.alert || null;
+      if (!was) return {ok: true, say: 'No alert is up.'};
+      await c.W.merge('settings/app', {alert: null, updated: Date.now()});
+      return {ok: true, say: 'Alert cleared.', _undo: {k: 'settings', patch: {alert: was}}};
+    }, 'founder');
   });
   reg('decide_fix', 'approve or decline a correction', '{person, request? words or date, decision approve|decline, note?}', ['person', 'decision'], 'founder', 'tap', async (ctx, nm, input, io) => {
     if (!M.fixes) throw new Error('corrections are not on this build');
-    const u = M.ai.findMember(ctx, nm, input.person);
+    const u = member(ctx, nm, input.person);
     if (!u) throw new Error('no teammate called ' + input.person);
     const q = norm(input.request);
     const open = M.fixes.pending(ctx).filter(x => x.uid === u);
-    const x = (q ? open.find(r => norm(r.req.date) === q || norm(r.req.want).includes(q) || norm(r.req.kind) === q || norm(r.req.field) === q) : null) || open[0];
-    if (!x) throw new Error('nothing pending from ' + firstOf(nm, u));
+    const x = q ? open.find(r => norm(r.req.date) === q || norm(r.req.want).includes(q) || norm(r.req.kind) === q || norm(r.req.field) === q) : open.length === 1 ? open[0] : null;
+    if (!x) throw new Error(!open.length ? 'nothing pending from ' + firstOf(nm, u) : 'say which of ' + firstOf(nm, u) + '\'s ' + open.length + ' corrections, by its date or words');
     const status = /^(decline|declined|no|reject)/i.test(String(input.decision)) ? 'declined' : 'approved';
     const auto = status === 'approved' ? M.fixes.plan(ctx, u, x.req) : null;
     const what = (M.fixes.KIND_LABEL[x.req.kind] || 'other') + (x.req.date ? ', ' + U.fmtDay(x.req.date) : '') + ': ' + cut(x.req.want, 80);
     return tapHold(ctx, io, (status === 'approved' ? 'Approve ' : 'Decline ') + firstOf(nm, u) + '\'s correction', what + (auto ? '. Approving ' + auto.text + '.' : status === 'approved' ? '. Apply it by hand.' : ''), async () => {
-      if (auto) await ctx.W.merge(auto.path, auto.patch);
-      await ctx.W.merge('fixes/' + u, {reqs: {[x.id]: {status, decidedAt: Date.now(), decidedNote: cut(String(input.note || '').trim(), 200)}}});
+      /* decided elsewhere in the meantime: the first decision stands */
+      if (!M.fixes.pending(c).some(r => r.uid === u && r.id === x.id)) return {ok: false, say: 'That correction was decided already.'};
+      if (auto) await c.W.merge(auto.path, auto.patch);
+      await c.W.merge('fixes/' + u, {reqs: {[x.id]: {status, decidedAt: Date.now(), decidedNote: cut(String(input.note || '').trim(), 200)}}});
       return {ok: true, say: status === 'declined' ? 'Declined.' : auto ? 'Approved and applied.' : 'Approved. Apply the change by hand.'};
-    });
+    }, 'founder');
   });
   reg('pm_policy', 'the personal manager policy', '{on?, wait? minutes, digestAt? HH:MM, perDay?}', [], 'founder', 'tap', async (ctx, nm, input, io) => {
     const cur = {...((M.SETTINGS_DEFAULTS && M.SETTINGS_DEFAULTS.pm) || {}), ...((ctx.settings && ctx.settings.pm) || {})};
@@ -771,12 +823,13 @@
     if (input.digestAt != null) { if (!hmOk(input.digestAt)) throw new Error('digestAt is HH:MM'); patch.digestAt = String(input.digestAt).trim(); bits.push('the note up the line at ' + patch.digestAt); }
     if (input.perDay != null) { patch.perDay = Math.max(1, Math.min(12, Math.round(Number(input.perDay) || 4))); bits.push('at most ' + patch.perDay + ' bubbles a day'); }
     if (!bits.length) throw new Error('say what to change: on, wait, digestAt or perDay');
-    const prev = {};
-    Object.keys(patch).forEach(k => { prev[k] = ((ctx.settings && ctx.settings.pm) || {})[k] === undefined ? null : ctx.settings.pm[k]; });
-    return tapHold(ctx, io, cut('Set ' + andList(bits), 90), 'Everyone with a manager reads this policy.', async () => {
-      await ctx.W.merge('settings/app', {pm: patch, updated: Date.now()});
-      return {ok: true, say: 'Done: ' + andList(bits) + '.', _undo: {k: 'settings', patch: {pm: prev}}};
-    });
+    return tapHold(ctx, io, cut('Set ' + andList(bits), 90), 'Everyone with a manager reads this policy.', async c => {
+      const pm0 = (c.settings && c.settings.pm) || {};
+      const was = {};
+      Object.keys(patch).forEach(k => { was[k] = pm0[k] === undefined ? null : pm0[k]; });
+      await c.W.merge('settings/app', {pm: patch, updated: Date.now()});
+      return {ok: true, say: 'Done: ' + andList(bits) + '.', _undo: {k: 'settings', patch: {pm: was}}};
+    }, 'founder');
   });
 
   /* wave 3: work and me */
@@ -785,7 +838,7 @@
     const f = input.filter && typeof input.filter === 'object' ? input.filter : {};
     const ch = input.change && typeof input.change === 'object' ? input.change : {};
     const td = today();
-    const owner = f.owner ? M.ai.findMember(ctx, nm, f.owner) : null;
+    const owner = f.owner ? member(ctx, nm, f.owner) : null;
     if (f.owner && !owner) throw new Error('no teammate called ' + f.owner);
     const pj = f.project ? M.brain.findProject(ctx, f.project) : null;
     if (f.project && !pj) throw new Error('no project matches ' + f.project);
@@ -798,28 +851,34 @@
     if (mine.length > 25) throw new Error(mine.length + ' tasks match; the most at once is 25. Narrow the filter');
     const patch = {};
     if (ch.due !== undefined) { if (ch.due && !ymdOk(ch.due)) throw new Error('due is YYYY-MM-DD'); patch.due = ch.due || ''; }
-    if (ch.owner) { const u = M.ai.findMember(ctx, nm, ch.owner); if (!u) throw new Error('no teammate called ' + ch.owner); patch.owner = u; }
+    if (ch.owner) { const u = member(ctx, nm, ch.owner); if (!u) throw new Error('no teammate called ' + ch.owner); patch.owner = u; }
     if (ch.status) { if (['todo', 'doing', 'review', 'done'].indexOf(ch.status) < 0) throw new Error('status is todo, doing, review or done'); patch.status = ch.status; }
     if (ch.priority) { if (['low', 'normal', 'high'].indexOf(ch.priority) < 0) throw new Error('priority is low, normal or high'); patch.priority = ch.priority; }
     if (!Object.keys(patch).length) throw new Error('say what to change: due, owner, status or priority');
     const what = Object.keys(patch).map(k => k + ' ' + (k === 'owner' ? firstOf(nm, patch.owner) : patch[k] || 'none')).join(', ');
     return tapHold(ctx, io, 'Change ' + mine.length + (mine.length === 1 ? ' task' : ' tasks') + ': ' + cut(what, 50), mine.slice(0, 12).map(t => t.title).join('; ') + (mine.length > 12 ? ' and ' + (mine.length - 12) + ' more' : '') + (theirs ? '. ' + theirs + ' others are not yours to change.' : ''), async () => {
       const prev = [];
-      let n = 0, kept = 0;
-      for (const t of mine) {
-        prev.push({id: t.id, due: t.due || '', owner: t.owner || '', status: t.status || 'todo', priority: t.priority || 'normal'});
-        const r = await M.tasks.save(ctx, t.id, patch);
+      let n = 0, kept = 0, gone = 0;
+      for (const t0 of mine) {
+        /* each task as it is now, still the viewer's to change */
+        const t = c.coll.tasks.map[t0.id];
+        if (!t || t.deleted || !handOk(c, t)) { gone++; continue; }
+        prev.push({id: t0.id, due: t.due || '', owner: t.owner || '', status: t.status || 'todo', priority: t.priority || 'normal'});
+        const r = await M.tasks.save(c, t0.id, patch);
         n++; if (r.locked) kept++;
       }
-      return {ok: true, changed: n, say: 'Changed ' + n + (n === 1 ? ' task' : ' tasks') + '.' + (kept ? ' ' + kept + ' shipped ones kept their dates and owner.' : ''), _undo: {k: 'tasks', prev}};
+      return {ok: true, changed: n, say: 'Changed ' + n + (n === 1 ? ' task' : ' tasks') + '.' + (kept ? ' ' + kept + ' shipped ones kept their dates and owner.' : '') + (gone ? ' ' + gone + ' had moved on and were left alone.' : ''), _undo: n ? {k: 'tasks', prev} : null};
     });
   });
   reg('bin_task', 'put a task in the bin', '{task}', ['task'], 'self', 'tap', async (ctx, nm, input, io) => {
     const t = M.brain.findTask(ctx, input.task);
     if (!t) throw new Error('no task matches "' + input.task + '"');
     if (t.by !== ctx.uid && !ctx.isFounder) throw new Error('only the person who made it or the founder bins a task');
-    return tapHold(ctx, io, 'Bin "' + cut(t.title, 40) + '"', 'It sits in the bin on Admin for thirty days and can come back.', async () => {
-      await M.tasks.binTask(ctx, t.id);
+    return tapHold(ctx, io, 'Bin "' + cut(t.title, 40) + '"', 'It sits in the bin on Admin for thirty days and can come back.', async c => {
+      const now = c.coll.tasks.map[t.id];
+      if (!now || now.deleted) return {ok: true, say: 'It is in the bin already.'};
+      if (now.by !== c.uid && !c.isFounder) throw new Error('only the person who made it or the founder bins a task');
+      await M.tasks.binTask(c, t.id);
       return {ok: true, say: 'In the bin.', _undo: {k: 'unbin', id: t.id}};
     });
   });
@@ -827,8 +886,10 @@
     const p = M.brain.findProject(ctx, input.project);
     if (!p) throw new Error('no project matches "' + input.project + '"');
     if (p.owner !== ctx.uid && !ctx.isFounder) throw new Error('only the project\'s owner or the founder archives it');
-    return tapHold(ctx, io, 'Archive ' + cut(p.name, 50), 'Its tasks and numbers stay.', async () => {
-      await ctx.W.update('projects/' + p.id, {archived: true, archivedAt: Date.now(), updated: Date.now()});
+    return tapHold(ctx, io, 'Archive ' + cut(p.name, 50), 'Its tasks and numbers stay.', async c => {
+      const now = c.coll.projects.map[p.id];
+      if (!now || (now.owner !== c.uid && !c.isFounder)) throw new Error('only the project\'s owner or the founder archives it');
+      await c.W.update('projects/' + p.id, {archived: true, archivedAt: Date.now(), updated: Date.now()});
       return {ok: true, say: 'Archived ' + p.name + '.', _undo: {k: 'unarchive', id: p.id}};
     });
   });
@@ -836,7 +897,7 @@
     const p = M.brain.findProject(ctx, input.project);
     if (!p) throw new Error('no project matches "' + input.project + '"');
     if (p.owner !== ctx.uid && !ctx.isFounder) throw new Error('only the project\'s owner or the founder adds people');
-    const u = M.ai.findMember(ctx, nm, input.person);
+    const u = member(ctx, nm, input.person);
     if (!u) throw new Error('no teammate called ' + input.person);
     const was = (p.members || []).slice();
     if (was.indexOf(u) >= 0) return {ok: true, say: firstOf(nm, u) + ' is on ' + p.name + ' already.'};
@@ -900,13 +961,29 @@
     });
     return ledger.loading;
   }
+  /* the ledger is bookkeeping: it is written quietly (no log line, and no activity stamp, so asking
+     m360 for something never counts as saved work or ends a quiet stretch), it stays well inside the
+     size one document may have, and runs another tab of the same person wrote are kept */
+  const LEDGER_BYTES = 160000;
+  const fit = runs => { let out = runs.slice(-LEDGER_KEEP); while (out.length > 1 && JSON.stringify(out).length > LEDGER_BYTES) out = out.slice(Math.max(1, Math.ceil(out.length / 10))); return out; };
+  const quietWrite = (db, p, d) => db.doc(p).update(d).catch(e => {
+    if (e && (e.code === 'not_found' || (e.code === 'invalid_argument' && /missing/i.test(String(e.message || ''))))) return db.doc(p).set(d);
+    throw e;
+  });
   function persist(ctx) {
     if (!ctx || ctx.viewAs || !ctx.db) return;
     const p = ledgerPath(ctx);
-    ledger.writing = ledger.writing.then(() => loadLedger(ctx)).then(runs => ctx.W.merge(p, {runs: runs.slice(-LEDGER_KEEP), at: Date.now()})).catch(() => {});
+    ledger.writing = ledger.writing.then(() => loadLedger(ctx)).then(() => ctx.db.doc(p).get().then(s => (s && s.exists ? ((s.data() || {}).runs || []) : []), () => [])).then(stored => {
+      if (ledger.path !== p || !ledger.runs) return null;
+      const mine = new Set(ledger.runs.map(r => r.id));
+      const theirs = (Array.isArray(stored) ? stored : []).filter(r => r && r.id && !mine.has(r.id));
+      if (theirs.length) ledger.runs = ledger.runs.concat(theirs).sort((x, y) => (x.at || 0) - (y.at || 0));
+      ledger.runs = fit(ledger.runs);
+      return quietWrite(ctx.db, p, {runs: ledger.runs, at: Date.now()});
+    }).catch(() => {});
     tellLedger();
   }
-  const trimInput = x => { try { const s = JSON.stringify(x || {}); return s.length > 600 ? {text: s.slice(0, 600)} : JSON.parse(s); } catch (e) { return {}; } };
+  const trimInput = x => { try { const s = JSON.stringify(x || {}); return s.length > 400 ? {text: s.slice(0, 400)} : JSON.parse(s); } catch (e) { return {}; } };
   /* one turn is one run; each act in it is a row */
   function record(ctx, turn, a, input) {
     if (!ctx || ctx.viewAs) return null;
@@ -968,12 +1045,13 @@
     if (miss.length) throw new Error(a.name + ' needs ' + miss.join(', ') + '. Its fields: ' + a.sig);
     nm = nm && Object.keys(nm).length ? nm : await names(ctx);
     namesNow(ctx, nm);
-    const row = record(ctx, turn, a, input);
-    /* the taint rule: once this turn has read untrusted text, anything outward waits for a tap */
-    if (turn && turn.tainted && a.out && !io.approved) {
+    const row = io.row || record(ctx, turn, a, input);
+    /* the taint rule: once this turn has read untrusted text, anything outward waits for a tap (handing a task on counts) */
+    const outward = a.out || (a.name === 'update_task' && !!input.owner);
+    if (turn && turn.tainted && outward && !io.approved) {
       const from = turn.from || 'a message';
       const held = M.brain.hold(a.gloss.replace(/^./, c => c.toUpperCase()), 'From what I read in ' + from + '. ' + cut(JSON.stringify(input), 240),
-        () => exec(ctx, nm, a.name, input, {...io, approved: true, turn: {...turn, tainted: false}}), {turn, from});
+        () => exec(fresh(ctx), nm, a.name, input, {...io, approved: true, row, turn: {...turn, tainted: false}}), {turn, from});
       settle(ctx, row, 'held', held);
       return held;
     }
@@ -1007,8 +1085,8 @@
         if (!M.rooms || !M.rooms.remove) throw new Error('that message stays; delete it in Chat');
         for (const x of u.items || []) await M.rooms.remove(ctx, x.room, x.id);
         return (u.items || []).length === 1 ? 'Message deleted.' : 'Messages deleted.';
-      case 'task': await ctx.W.update('tasks/' + u.id, {...u.prev, updated: Date.now()}); return 'The task is back as it was.';
-      case 'tasks': for (const p of u.prev || []) await ctx.W.update('tasks/' + p.id, {due: p.due, owner: p.owner, status: p.status, priority: p.priority, updated: Date.now()}); return 'The tasks are back as they were.';
+      case 'task': await M.tasks.save(fresh(ctx), u.id, u.prev || {}); return 'The task is back as it was.';
+      case 'tasks': { const c = fresh(ctx); for (const p of u.prev || []) if (c.coll.tasks.map[p.id]) await M.tasks.save(c, p.id, {due: p.due, owner: p.owner, status: p.status, priority: p.priority}); return 'The tasks are back as they were.'; }
       case 'status': await ctx.W.merge('me/' + ctx.uid, {status: u.prev || null}); return 'Status back as it was.';
       case 'focus': if (M.focus && M.focus.get()) M.focus.stop(); return 'Focus stopped.';
       case 'settings': await ctx.W.merge('settings/app', {...u.patch, updated: Date.now()}); return 'Put back as it was.';

@@ -54,7 +54,9 @@ PM_STANDIN = r'''() => {
       if (!o.showAt) for (const u of o.to) await M.rooms.send(ctx, M.rooms.dmId(ctx.uid, u), 'Kaavish asked m360 to check with you: ' + o.kind, [], null, {id: 'ask.' + askId + '.' + u, ask: askId});
       return {askId, sent: o.to.slice(), skipped: []};
     },
-    async withdraw(ctx, askId) { await ctx.W.merge('me/' + ctx.uid, {pm: {asks: {[askId]: {withdrawn: Date.now()}}}}); }
+    async withdraw(ctx, askId) { await ctx.W.merge('me/' + ctx.uid, {pm: {asks: {[askId]: {withdrawn: Date.now()}}}}); },
+    cfgOf: () => ({on: true, kinds: {noin: true, noeod: true, overdue: true, quiet: true, noout: true}}),
+    async setCfg(ctx, patch) { await ctx.W.merge('me/' + ctx.uid, {pm: {cfg: patch}}); return {now: patch}; }
   };
   return 'stand-in';
 }'''
@@ -239,6 +241,30 @@ def test(h):
     eod = [a for a in pg.evaluate('() => Object.values(window.__db.get("me/u_founder").pm.asks)') if a['kind'] == 'noeod']
     check(eod and M1 in eod[0]['to'] and M4 not in eod[0]['to'], 'the spoken yes sent the EOD ask, leave left out: %r' % eod)
 
+    # ---- a card tapped later writes on today's data; Cancel during "Confirmed by voice" sends nothing ----
+    late = pg.evaluate('''async () => {
+      const c = M.lastCtx;
+      const r = await M.agent.exec(c, null, "toggle_rule", {rule: "R03", on: false}, {turn: {id: "t5", via: "typed"}});
+      const s = window.__db.get("settings/app");
+      window.__db.set("settings/app", {...s, rules: {...(s.rules || {}), R05: false}});
+      await new Promise(x => setTimeout(x, 600));
+      await M.brain.approve(r.id);
+      await new Promise(x => setTimeout(x, 600));
+      const rules = window.__db.get("settings/app").rules;
+      const g0 = window.__db.get("settings/app").grace;
+      const r2 = await M.agent.exec(M.lastCtx, null, "change_setting", {key: "grace", value: 37}, {turn: {id: "t6", via: "voice"}});
+      const go = M.brain.approve(r2.id, "voice");
+      await new Promise(x => setTimeout(x, 100));
+      M.brain.drop(r2.id);
+      await go;
+      await new Promise(x => setTimeout(x, 400));
+      const s2 = window.__db.get("settings/app");
+      window.__db.set("settings/app", {...s2, rules: {...(s2.rules || {}), R03: true, R05: true}});
+      return {r03: rules.R03, r05: rules.R05, grace0: g0, grace: s2.grace}; }''')
+    check(late['r03'] is False and late['r05'] is False, 'a rule card writes only its own rule, so a switch made meanwhile stands: %r' % late)
+    check(late['grace'] == late['grace0'] and late['grace'] != 37, 'Cancel while "Confirmed by voice" shows sends nothing: %r' % late)
+    pg.wait_for_timeout(400)
+
     # ---- the catalogue: every founder action, name (gloss), under 3,600 characters ----
     cat = pg.evaluate('''async () => { const c = M.lastCtx, nm = await M.ai.names(c), t = M.brain.tools(c, nm, null, {id: "t3", via: "typed"});
       const act = t.find(x => x.name === "act"), look = t.find(x => x.name === "look_up");
@@ -293,6 +319,11 @@ def test(h):
 
     # ---- rights: a member, a manager, a skip-level manager ----
     be(pg, 'm1', noai=True)
+    m1stamp = pg.evaluate('''async d => { const before = JSON.stringify((((window.__db.get("me/u_m1") || {}).act) || {})[d] || {});
+      await M.agent.exec(M.lastCtx, null, "open_screen", {route: "pipeline"}, {turn: {id: "t7", via: "voice"}});
+      await new Promise(r => setTimeout(r, 900));
+      return {before, after: JSON.stringify((((window.__db.get("me/u_m1") || {}).act) || {})[d] || {}), runs: (((window.__db.get("data/users/u_m1/agent") || {}).runs) || []).length}; }''', today)
+    check(m1stamp['before'] == m1stamp['after'] and m1stamp['runs'] >= 1, 'the ledger is written without stamping work: %r' % m1stamp)
     m1 = pg.evaluate('''async () => { const c = M.lastCtx, names = M.agent.actionsFor(c).map(a => a.name);
       const run = (a, i) => M.agent.exec(c, null, a, i).then(r => "ran " + (r.say || ""), e => e.message);
       return {nudge: names.includes("nudge_people"), setting: names.includes("change_setting"), people: names.includes("people_where"),
@@ -318,14 +349,30 @@ def test(h):
     m2 = pg.evaluate('''async () => { const c = M.lastCtx, run = (a, i) => M.agent.exec(c, null, a, i).then(r => r, e => ({err: e.message}));
       const pw = M.agent.peopleWhere(c, {condition: "noout"}), po = M.agent.peopleWhere(c, {condition: "overdue"});
       const skip = await run("nudge_people", {people: ["Rohan"], kind: "noout"});
-      const ok = await run("nudge_people", {people: ["Ishaan"], kind: "noout"});
+      /* named with an attendance kind: the same live facts as a condition, so Ishaan (saved 20:35) waits unticked */
+      const held = await run("nudge_people", {people: ["Ishaan"], kind: "noout"});
+      const card = M.brain.pending.list.find(p => p.people && p.people[0].uid === "u_m3");
+      if (card) M.brain.drop(card.id);
+      const ok = await run("nudge_people", {people: ["Ishaan"], kind: "custom", note: "Can you share the call sheet?"});
       await new Promise(r => setTimeout(r, 400));
+      /* the off switch stays Kaavish's: no long pause, no every-kind-off */
+      const pauseLong = await run("pm_settings", {pause: {person: "Ishaan", until: "2031-01-01"}});
+      const allOff = await run("pm_settings", {kinds: {noin: false, noeod: false, overdue: false, quiet: false, noout: false}});
+      const off = await run("pm_settings", {on: false});
+      const pauseDay = await run("pm_settings", {pause: {person: "Ishaan"}});
       return {pwMatch: pw.match.map(x => x.uid), pwLeft: pw.left, over: po.match.map(x => x.uid), skip, ok: ok.say || ok.err,
+        held: !!held.waiting && !!card && card.people[0].on === false, pauseLong: pauseLong.err || "ran", allOff: allOff.err || "ran", off: off.err || "ran", pauseDay: pauseDay.err || "ran",
         asks: Object.values(((window.__db.get("me/u_m2") || {}).pm || {}).asks || {})}; }''')
     check(m2['pwMatch'] == [M3] and {'uid': M5, 'why': 'not in your team'} in m2['pwLeft'], 'a skip-level manager cannot read attendance: %r' % m2)
     check(m2['over'] == [M5], 'but can ask about overdue work down the line: %r' % m2['over'])
     check(m2['skip'].get('asked') == 0 and 'not in your team' in m2['skip'].get('say', ''), 'a skip-level attendance ask goes nowhere: %r' % m2['skip'])
-    check(len(m2['asks']) == 1 and m2['asks'][0]['to'] == [M3], 'a manager asks their own report at once: %r' % m2)
+    check(m2['held'], 'a named check-out ask reads the live facts and holds a working report unticked: %r' % m2)
+    check(len(m2['asks']) == 1 and m2['asks'][0]['to'] == [M3] and m2['asks'][0]['kind'] == 'custom', 'a manager asks their own report at once: %r' % m2)
+    check('end of today' in m2['pauseLong'] and 'only Kaavish' in m2['allOff'] and 'only Kaavish' in m2['off'] and m2['pauseDay'] == 'ran',
+          'a manager cannot switch their bot off by a long pause or every kind off, and can pause one person for today: %r' % m2)
+    amb = pg.evaluate('''() => M.agent.exec(M.lastCtx, {u_founder: "Kaavish R", u_m1: "Durvesh Rao", u_m2: "Aanya K", u_m3: "Durvesh Iyer", u_m4: "Ekta Shah", u_m5: "Rohan Das"},
+      "message_people", {people: ["Durvesh", "Ekta"], text: "hi"}).then(r => "ran", e => e.message)''')
+    check(amb.startswith('which Durvesh: Durvesh Rao or Durvesh Iyer'), 'two people with one first name are asked about, never guessed: %r' % amb)
 
     # ---- the card at 390 by 3, light and dark ----
     for dark in (False, True):

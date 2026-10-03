@@ -106,7 +106,12 @@
     const p = pending.list.find(x => x.id === id);
     if (!p || p.busy) return;
     const opts = {people: p.people ? p.people.filter(x => x.on).map(x => x.uid) : undefined, tellBy: p.tellOn ? p.tellBy : null, note: cut(p.note, 280), ringNow: !!p.ringNow, via: how === 'voice' ? 'voice' : 'tap'};
-    if (how === 'voice') { edit(id, {busy: true, voice: true}); await new Promise(r => setTimeout(r, 700)); }
+    if (how === 'voice') {
+      edit(id, {busy: true, voice: true});
+      await new Promise(r => setTimeout(r, 700));
+      /* Cancel pressed while "Confirmed by voice" showed: nothing goes */
+      if (!pending.list.some(x => x.id === id)) return;
+    }
     drop(id);
     try {
       const r = await p.run(opts);
@@ -206,7 +211,8 @@
     ['help', 'this list']
   ];
   /* text other people wrote: once a turn reads it, every outward act after it in that turn waits on a tap */
-  const UNTRUSTED = ['chat', 'mail', 'gmail', 'email', 'web', 'page', 'url', 'feed', 'vibe', 'task', 'client', 'radar', 'news', 'handshake', 'dm', 'dms', 'base', 'contacts'];
+  const UNTRUSTED = ['chat', 'mail', 'gmail', 'email', 'web', 'page', 'url', 'feed', 'vibe', 'task', 'client', 'radar', 'news', 'handshake', 'dm', 'dms', 'base', 'contacts',
+    'inbox', 'meetings', 'gcal', 'events', 'drive', 'project', 'day', 'timeline'];
   const taintFrom = (ctx, nm, area, q) => area === 'chat' && q ? (M.ai.findMember(ctx, nm || {}, q) ? q.replace(/^./, c => c.toUpperCase()) + '\'s message' : 'the chat in ' + q)
     : area === 'mail' || area === 'gmail' || area === 'email' ? 'the mail' : area === 'web' || area === 'page' || area === 'url' ? 'that web page'
     : area === 'task' ? 'the task' + (q ? ' "' + cut(q, 40) + '"' : '') : area === 'client' ? 'the client page' : 'the ' + area;
@@ -1060,7 +1066,12 @@
       inputSchema: {type: 'object', properties: {action: {type: 'string', description: 'One action name from the list'}, input: {type: 'object', description: 'The fields for that action'}}, required: ['action']},
       execute: async input => act(ctx, nm, log, input.action, input.input, t, rich)
     }];
-    if (M.intel && M.intel.tools) M.intel.tools(ctx, nm).forEach(x => out.push(x));
+    /* the Base and the search read what contacts, posts and clients say: the same taint as look_up base */
+    if (M.intel && M.intel.tools) M.intel.tools(ctx, nm).forEach(x => out.push({...x, execute: async input => {
+      const r = await x.execute(input);
+      if (!t.tainted) { t.tainted = true; t.from = x.name === 'search_everything' ? 'the search results' : 'the Base'; }
+      return r;
+    }}));
     return out;
   }
 
