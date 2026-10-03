@@ -22,20 +22,21 @@
     R13: 'Pitch next steps',
     R14: 'Projects on track',
     R15: 'Client brain kept current',
-    R16: 'Hiring panel on time'
+    R16: 'Hiring panel on time',
+    R17: 'Keep work moving'
   });
 
   /* handbook section per rule; R11 carries the section it is about */
   const SECTION_OF = Object.freeze({
     R01: 'the-week', R02: 'the-week', R03: 'the-week', R04: 'the-week', R05: 'the-week', R06: 'the-week',
     R07: 'house-rules', R08: 'house-rules', R09: 'standards', R10: 'escalation', R11: null, R12: 'ladder',
-    R13: 'pipeline', R14: 'projects', R15: 'clients', R16: 'hiring-panel'
+    R13: 'pipeline', R14: 'projects', R15: 'clients', R16: 'hiring-panel', R17: 'the-week'
   });
 
   const REF_OF = Object.freeze({
     R01: '#today', R02: '#today', R03: '#today', R04: '#today', R05: '#today', R06: '#today',
     R07: '#tasks', R08: '#tasks', R09: '#tasks', R10: '#week', R11: '#handbook', R12: '#people',
-    R13: '#pitches', R14: '#projects', R15: '#clients', R16: '#hiring'
+    R13: '#pitches', R14: '#projects', R15: '#clients', R16: '#hiring', R17: '#today'
   });
 
   /* live tokens in a rule name, filled from settings */
@@ -141,6 +142,9 @@
       .filter(s => Number(s.doc.updated) > 0)
       .sort((a, b) => (Number(a.doc.order) || 0) - (Number(b.doc.order) || 0));
     const candidateIds = Object.keys(candidates);
+
+    /* a person's quiet stretches show to them, their manager and Kaavish only */
+    const sees = u => (typeof ctx.canSee === 'function' ? !!ctx.canSee(u) : !!(ctx.isFounder || u === ctx.uid));
 
     const push = (rule, u, severity, text, section, ref, key) => out.push({
       rule, uid: u, severity, text,
@@ -372,6 +376,22 @@
           if (!c.deadline || c.deadline >= today) continue;
           if (mine[id]) continue;
           push('R16', u, 'medium', trunc(c.name || 'Candidate', 50) + ', evaluation was due ' + U.fmtDay(c.deadline), null, null, id);
+        }
+      });
+
+      /* R17: quiet stretches in today's working day (M.quiet), lunch aside: one still running past
+         quietMins is high, each closed one is medium. Keyed by when the stretch began, so it stays one flag
+         from the moment it crosses the line to the moment it closes. Computed only where the viewer may see it. */
+      run('R17', () => {
+        if (!M.quiet || !ctx.members || !sees(u)) return;
+        const q = M.quiet.day(ctx, u, today, {now: nowMs});
+        const status = q.status ? ', status: ' + trunc(q.status, 40) : '';
+        for (const st of q.stretches) {
+          const lunch = st.lunch ? ', lunch aside' : '';
+          const text = st.live
+            ? 'Nothing recorded on m360 since ' + U.hhmm(st.from) + ', ' + M.quiet.dur(st.quietMs) + lunch
+            : 'Quiet from ' + U.hhmm(st.from) + ' to ' + U.hhmm(st.to) + ', ' + M.quiet.dur(st.quietMs) + lunch;
+          push('R17', u, st.live ? 'high' : 'medium', text + status, null, null, U.hhmm(st.from).replace(':', ''));
         }
       });
     }

@@ -318,7 +318,7 @@ Conventions: timestamps are epoch milliseconds. Dates are local "YYYY-MM-DD". We
 | path | written by | shape |
 |---|---|---|
 | roster/team | founder | {members:{[uid]:{role:"founder" or "lead" or "member", empId, title, pod, joined, start:"HH:MM" or "", probationEnd:"YYYY-MM-DD" or "", active:true}}, nextEmp:number, updated} |
-| settings/app | founder | {office:{lat,lng,radius,label} or null, start:"10:30", grace:15, eodCut:"19:30", mondayCut:"12:00", wfhCap:2, revCap:2, ackHours:48, blockerDays:2, holidays:[date], rules:{R01:true, ... R16:true}, points:{see section 9}, leaderboardIncludesFounder:false, updated} |
+| settings/app | founder | {office:{lat,lng,radius,label} or null, start:"10:30", grace:15, eodCut:"19:30", mondayCut:"12:00", wfhCap:2, revCap:2, ackHours:48, blockerDays:2, holidays:[date], rules:{R01:true, ... R17:true}, points:{see section 9}, leaderboardIncludesFounder:false, quietMins:120, lunchFrom:"13:30", lunchTo:"14:30", updated} |
 | checkin/<uid> | person | {days:{[date]:{in, out, mode:"office" or "wfh", loc:Loc, outLoc:Loc or null}}} |
 | eod/<uid> | person | {days:{[date]:{shipped, next, blocked, at}}} |
 | plan/<uid> | person | {weeks:{[weekId]:{items:[{id,text}], at}}} |
@@ -797,15 +797,24 @@ For members whose joined date is within the last 45 days.
 | R14 | Projects on track | projects | a project the person owns is Off track, or due within 3 days with progress under 70% | medium |
 | R15 | Client brain kept current | clients | a live client the person owns has an empty memory, approvals or lines-never-to-cross field, or was last updated more than 60 days ago | low |
 | R16 | Hiring panel on time | hiring-panel | an evaluator hasn't submitted by the candidate deadline | medium |
+| R17 | Keep work moving | the-week | a quiet stretch in today's working day: nothing recorded on m360 for quietMins, the lunch hour left out ("Nothing recorded on m360 since 10:50, 2h 50m, lunch aside" while it runs, "Quiet from 10:45 to 14:30, 3h 45m" once closed); computed only where the viewer may see the person's day | high while it runs, medium once closed |
 
 Section links:
-- the-week: R01 to R06
+- the-week: R01 to R06, and R17
 - house-rules: R07 and R08
 - standards: R09
 - escalation: R10
 - ladder: R12
 - hiring-panel: R16
 - every section: R11, for that section only
+
+R17, the quiet watch (M.quiet):
+- **The day** runs from the check-in to the check-out, the EOD cut or now. Leave, holidays, Sundays and days without a check-in carry no stretches.
+- **What counts as work:** the time of each save on m360 (me/<uid>.act, five-minute buckets, never what was saved), a running focus timer, the check-in and check-out, the EOD line, tasks created, finished, sent for review, approved or sent back, comments, feed posts and kudos.
+- **settings.quietMins:** how long with nothing recorded counts as quiet. Admin offers 60, 90, 120, 150, 180 or 240 minutes; 120 by default.
+- **settings.lunchFrom and settings.lunchTo:** the lunch hour left out of every stretch, "13:30" to "14:30" by default. Both empty means no lunch hour; lunch to must be after lunch from.
+- **Who sees it:** the person in their Rule box, their manager on Your team and in the inbox (one flag per stretch, keyed by when it began), Kaavish everywhere.
+- **Switching R17 off** switches the whole watch off, the manager's flags included.
 
 Flags show in four places:
 - the person's Rule box on Today
@@ -917,8 +926,9 @@ A wide layout. Every tile and row links to its page.
 - **Settings.**
   - Office location: a "Set office to where I am now" button (geolocation), a label, a radius, and manual latitude and longitude inputs.
   - Thresholds: start time, grace, EOD cutoff, Monday cutoff, WFH cap, revision cap, handbook read window, blocker days.
+  - Quiet stretches: quiet stretch after (60 to 240 minutes), lunch from and lunch to, with a strip of the day that shows when a flag goes up.
   - A holidays list.
-  - Rule switches R01 to R16.
+  - Rule switches R01 to R17.
   - Points weights.
   - Whether the leaderboard includes the founder.
 - **Keeper test** (private).
@@ -1134,8 +1144,9 @@ Your evaluation goes to Kaavish only. Write what you would say to his face.
 
 ```
 # What's recorded
-- **Check-in and check-out.** The time and your location at that moment. Nothing in between.
+- **Check-in and check-out.** The time and your location at that moment. Your location is never tracked in between.
 - **Your work.** Tasks, outcomes, EOD lines, comments, posts and kudos.
+- **When you save.** The time of each save you make on m360, never what you read or what you saved. A long quiet stretch in your working day shows up for you, your manager and Kaavish.
 - **Leave.** Dates and type. Details go to Kaavish directly.
 
 # Who sees what

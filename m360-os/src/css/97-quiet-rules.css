@@ -1,0 +1,21 @@
+/* ==== quiet stretches in Admin (rule R17): the three fields, and the day as a strip that shows
+   when a flag goes up for someone who saves once and then goes quiet ==== */
+.qr-fields{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px}
+@media (max-width:860px){
+  .qr-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .qr-fields>.field:first-child{grid-column:1 / -1}
+}
+
+.qr-strip{position:relative; height:12px; margin-top:18px; border-radius:999px; background:var(--col); overflow:hidden}
+.qr-strip>span{position:absolute; top:0; bottom:0}
+/* the lunch hour, hatched: it never counts */
+.qr-lunch{background:repeating-linear-gradient(135deg, var(--line2) 0 3px, transparent 3px 7px)}
+/* the quiet run up to the flag */
+.qr-quiet{background:color-mix(in srgb, var(--flame) 26%, transparent)}
+.qr-strip>.qr-save{top:2px; bottom:auto; width:8px; height:8px; margin-left:-4px; border-radius:999px; background:var(--ink)}
+.qr-strip>.qr-flag{width:4px; margin-left:-2px; border-radius:999px; background:var(--flame)}
+.qr-ends{display:flex; justify-content:space-between; gap:8px; margin-top:6px}
+.qr-ends>span{white-space:nowrap}
+@media (prefers-reduced-motion:no-preference){
+  .qr-quiet,.qr-flag,.qr-lunch{transition:left .25s ease, width .25s ease}
+}

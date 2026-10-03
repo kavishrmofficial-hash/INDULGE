@@ -34,7 +34,7 @@
     taskOnTime: 6, taskLate: 2, revision: -2, shown20: 2, qualityMult: 4, kudos: 3,
     rockDone: 20, overdueOpen: -2
   };
-  M.RULE_IDS = ['R01','R02','R03','R04','R05','R06','R07','R08','R09','R10','R11','R12','R13','R14','R15','R16'];
+  M.RULE_IDS = ['R01','R02','R03','R04','R05','R06','R07','R08','R09','R10','R11','R12','R13','R14','R15','R16','R17'];
 
   const COLLS = ['checkin','eod','plan','review','rocks','feed','reacts','acks','kudos','leave','leavedec',
     'tasks','projects','pitches','clients','handbook','candidates','evals','pulse','ideas','votes','access','onboard','me','fixes','contacts','orgs','chat','chatrooms','dm','play','approvals'];
