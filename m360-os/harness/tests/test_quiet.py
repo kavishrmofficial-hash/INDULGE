@@ -63,7 +63,8 @@ def flags(page, uid):
 
 
 def quiet(page, uid):
-    return [f for f in flags(page, uid) if f[0] == 'quiet']
+    # the flag's own sentence, without its See the day link
+    return page.evaluate('u => [...document.querySelectorAll("#team-" + u + " .team-flag[data-k=quiet]")].map(f => [f.dataset.k, f.dataset.hot, (f.querySelector(".grow") || f).textContent.trim()])', uid)
 
 
 def inbox_quiet(page, uid):

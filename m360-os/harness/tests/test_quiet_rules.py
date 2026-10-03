@@ -228,7 +228,7 @@ def test(h):
     check(r17_with(m1, '(x, t) => { x.holidays = new Set([t.today]); }') == [], 'nothing on a holiday')
     check(r17_with(m1, '(x) => { x.onLeave = u => u === "u_m1"; }') == [], 'nothing on approved leave')
     sat = r17_with(m1, '(x, t) => t.checkin(t.ago(3), {in: t.day(-3, 10, 30), mode: "wfh"})', 'new Date(day(-3, 15, 30))')
-    check(sat == [['high', 'Nothing recorded on m360 since 10:30, 4h 00m so far, lunch aside']], 'a Saturday at home counts: %r' % sat)
+    check(sat == [['high', 'Nothing recorded on m360 since 10:35, 3h 55m so far, lunch aside']], 'a Saturday at home counts (the check-in fills its five minute block): %r' % sat)
     sun = r17_with(m1, '(x, t) => t.checkin(t.ago(2), {in: t.day(-2, 10, 30), mode: "wfh"})', 'new Date(day(-2, 15, 30))')
     check(sun == [], 'a Sunday check-in carries none: %r' % sun)
     out = r17_with(m1, '(x, t) => t.checkin(t.today, Object.assign({}, x.coll.checkin.map.u_m1.days[t.today], {out: t.day(0, 13, 0)}))')

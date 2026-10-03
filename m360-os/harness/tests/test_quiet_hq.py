@@ -9,7 +9,7 @@ neither with anything after. On #hq the tape carries Durvesh's quiet stretch as 
 The Quiet stretches board puts him first with a live flame band from 10:50 to the now line on a 10:00
 to 20:00 axis, his summary and his status, Aanya reads steady, Kaavish's own day and Ishaan's leave
 have no row, and the head counts one quiet now. Yesterday Durvesh checked in at 10:30 and out at 19:00
-with only the founder's log to go on (no stamps): the Yesterday chip shows the closed 10:45 to 14:30
+with only the founder's log to go on (no stamps): the Yesterday chip shows the closed 10:50 to 14:30 (the save at 10:45 fills its five minute block)
 stretch. A row opens the person. At 390 wide the fold opens on its own and the strip fits with no
 overflow, in light and dark. The AI context (M.ai.teamSlice, the brief and Ask HQ) and look_up("quiet")
 carry the QUIET STRETCHES lines; Aanya's carries Durvesh's (without the founder's log), Ishaan's none,
@@ -158,9 +158,9 @@ def test(h):
     check(p.locator('#qb-u_m1 .qb-q.live').count() == 0 and p.locator('#qb-u_m1 .qb-q').count() == 1, 'one closed stretch yesterday')
     check(p.locator('#qb-u_m2').count() == 0 and p.locator('#qb-u_m1 .qb-now').count() == 0, 'Aanya was not in yesterday, no now line on a past day')
     s1 = p.inner_text('#qb-u_m1 .qb-sum')
-    check(s1.startswith('1 quiet stretch, 2h 45m'), 'yesterday summary: %r' % s1)
+    check(s1.startswith('1 quiet stretch, 2h 40m'), 'yesterday summary: %r' % s1)
     lab = p.get_attribute('#qb-u_m1 .qb-strip', 'aria-label')
-    check('out at 19:00' in lab and 'Nothing recorded on m360 from 10:45 to 14:30 (2h 45m, lunch aside)' in lab, 'yesterday reads 10:45 to 14:30: %r' % lab)
+    check('out at 19:00' in lab and 'Nothing recorded on m360 from 10:50 to 14:30 (2h 40m, lunch aside)' in lab, 'yesterday reads 10:50 to 14:30: %r' % lab)
     check(p.locator('#qb-u_m1 .qb-t.k-log').count() >= 10, 'the log entries tick the strip')
     check(p.get_attribute('#quiet-now', 'data-n') == '1', 'the head still counts today')
     p.mouse.move(5, 5)
@@ -178,7 +178,7 @@ def test(h):
     sl = p.evaluate('() => M.ai.teamSlice(M.lastCtx)')
     check('QUIET STRETCHES' in sl, 'the team slice has a QUIET STRETCHES section')
     check('Durvesh Patil, today: nothing recorded on m360 since 10:50 (2h 50m so far, lunch aside), QUIET NOW, status: At the Swisse shoot' in sl, 'today live line: %r' % sl[sl.find('QUIET'):sl.find('QUIET') + 400])
-    check('nothing recorded on m360 from 10:45 to 14:30 (2h 45m, lunch aside)' in sl, 'yesterday line from the log')
+    check('nothing recorded on m360 from 10:50 to 14:30 (2h 40m, lunch aside)' in sl, 'yesterday line from the log')
     check(sl.find('QUIET STRETCHES') < sl.find('PROJECTS:'), 'the section sits before the projects, so a cut keeps it')
     check('Kaavish Ramchandani, today' not in sl and 'Ishaan Rao, today' not in sl, 'no line for Kaavish himself or for Ishaan on leave')
     lk = p.evaluate('async () => { const c = M.lastCtx; return M.brain.lookUp(c, await M.ai.names(c), "quiet", "durvesh"); }')
@@ -193,13 +193,17 @@ def test(h):
     ma.goto(h.url('m2', '#home', seed=True))
     h.ready(ma)
     ma.wait_for_function('() => M.lastCtx && M.lastCtx.ready && M.lastCtx.uid === "u_m2"')
+    # quiet stretches read nothing until the day's collections have arrived (M.quiet holds them back while loading)
+    ma.wait_for_function('() => !M.quiet.day(M.lastCtx, "u_m1", M.U.todayStr()).pending', timeout=30000)
     sa = ma.evaluate('() => M.ai.teamSlice(M.lastCtx)')
     check('Durvesh Patil, today: nothing recorded on m360 since 10:50' in sa, 'his manager reads his quiet stretch')
-    check('from 10:45 to 14:30' not in sa, 'the founder\'s log stays with the founder: %r' % sa[sa.find('QUIET'):sa.find('QUIET') + 300])
+    check('from 10:50 to 14:30' not in sa, 'the founder\'s log stays with the founder: %r' % sa[sa.find('QUIET'):sa.find('QUIET') + 300])
     ma.goto(h.url('m3', '#hq', seed=True))
     h.ready(ma)
     ma.wait_for_function('() => M.lastCtx && M.lastCtx.ready && M.lastCtx.uid === "u_m3"')
     ma.wait_for_function('() => location.hash === "#home"')
+    # loaded first, so the peer's empty answer is the rule speaking and not a page still loading
+    ma.wait_for_function('() => !M.quiet.day(M.lastCtx, "u_m1", M.U.todayStr()).pending', timeout=30000)
     check(ma.locator('#quiet-board').count() == 0 and ma.locator('#tape').count() == 0, 'HQ, the board and the tape stay with the founder')
     s3 = ma.evaluate('() => M.ai.teamSlice(M.lastCtx)')
     check('QUIET STRETCHES' not in s3 and 'since 10:50' not in s3, 'a peer reads no quiet lines: %r' % s3[:200])

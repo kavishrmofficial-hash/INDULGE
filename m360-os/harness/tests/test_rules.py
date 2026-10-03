@@ -179,9 +179,10 @@ def check_m1(flags):
     assert 'approvals is empty' in r15['text'] and r15['ref'] == '#clients' and r15['section'] == 'clients', r15
     r16 = one(m1, 'R16')
     assert 'Priya S' in r16['text'] and r16['ref'] == '#hiring' and r16['section'] == 'hiring-panel', r16
-    # in at 13:40 and nothing recorded since: the afternoon to the 19:30 cut is one closed quiet stretch
+    # in at 13:40 and nothing recorded since: the afternoon to the 19:30 cut is one closed quiet stretch,
+    # from 13:45 (the check-in fills its five minute block)
     r17 = one(m1, 'R17')
-    assert r17['text'] == 'Quiet from 13:40 to 19:30, 5h 00m, lunch aside' and r17['ref'] == '#today' and r17['section'] == 'the-week', r17
+    assert r17['text'] == 'Quiet from 13:45 to 19:30, 5h 00m, lunch aside' and r17['ref'] == '#today' and r17['section'] == 'the-week', r17
 
 
 def test(h):
