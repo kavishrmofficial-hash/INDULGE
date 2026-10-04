@@ -99,6 +99,9 @@
       (M.brain ? M.brain.catalog(ctx) : '');
   }
 
+  /* the COO's answers this session, by their words (the saved thread keeps the words alone) */
+  const cooSaid = new Set();
+
   /* ---------- the loop: one ask, any size ---------- */
   /* o: {via: 'typed'|'voice', size, onText(text), onAct(line), signal, images}. Resolves {text, turn,
      grammar?, waiting?, chips?, err?}; a cancelled turn rejects with code 'cancelled' */
@@ -115,7 +118,9 @@
     if (route.grammar && M.agent.runGrammar && !pics.length) {
       const g = await M.agent.runGrammar(ctx, nm, route.grammar, turn, o.onAct);
       if (o.onText) o.onText(g.text);
-      return {text: g.text, turn, grammar: true, waiting: !!g.waiting, err: !!g.error};
+      /* an answer the m360 COO gave carries its face in the thread */
+      if (/^coo_/.test(route.grammar.action) && !g.error) cooSaid.add(g.text);
+      return {text: g.text, turn, grammar: true, waiting: !!g.waiting, err: !!g.error, coo: cooSaid.has(g.text)};
     }
     if (!M.ai.on(ctx)) return {text: '', turn, err: M.ai.errCopy('not_declared') + ' ' + OFFLINE_LINE, chips: offline()};
     const gone = () => { if (o.signal && o.signal.aborted) throw Object.assign(new Error('cancelled'), {code: 'cancelled'}); };
@@ -234,7 +239,7 @@
   }
 
   /* an answer longer than twelve lines shows eight, and Show all */
-  function Answer({text, id}) {
+  function Answer({text, id, coo}) {
     const ref = useRef(null);
     const [long, setLong] = useState(false);
     const [open, setOpen] = useState(false);
@@ -244,7 +249,9 @@
       const lh = parseFloat(getComputedStyle(el).lineHeight) || 21;
       setLong(el.scrollHeight > lh * 12.5);
     }, [text]);
-    return html`<div class=${'bubble ai panel-answer msg' + (long && !open ? ' folded' : '')} id=${id}>
+    const Face = coo && M.parts.CooFace;
+    return html`<div class=${'bubble ai panel-answer msg' + (long && !open ? ' folded' : '')} id=${id} data-coo=${coo ? '1' : undefined}>
+      ${Face ? html`<div class="row nowrap tiny ink62 panel-coo"><${Face} size=${22}/><span>${M.coo.title(M.lastCtx)}</span></div>` : null}
       <div ref=${ref} class="panel-answer-in"><${M.AIText} text=${text}/></div>
       ${long ? html`<button type="button" class="linky tiny panel-more" aria-expanded=${open} onClick=${() => setOpen(!open)}>${open ? 'Show less' : 'Show all'}</button>` : null}
     </div>`;
@@ -446,7 +453,7 @@
         else rows.push(html`<div key=${'u' + i} class="bubble me msg">${t.img ? html`<span class="tiny panel-img">[image] </span>` : null}${t.content}${t.via === 'voice' ? html`<span class="panel-via" title="said out loud"><${Mic}/></span>` : null}</div>`);
         return;
       }
-      if (t.content) rows.push(html`<${Answer} key=${'a' + i} text=${t.content} id=${i === lastAi && !busy ? id('answer') : undefined}/>`);
+      if (t.content) rows.push(html`<${Answer} key=${'a' + i} text=${t.content} coo=${cooSaid.has(t.content)} id=${i === lastAi && !busy ? id('answer') : undefined}/>`);
       if (t.acts && t.acts.length) rows.push(html`<${Receipts} key=${'k' + i} acts=${t.acts}/>`);
     });
     const empty = !turns.length && !busy && !st.err;

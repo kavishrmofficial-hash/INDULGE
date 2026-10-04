@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """Leave module test: probation line, request, approve, withdraw with tap-again, at 1280 and 390.
+v33: the founder's decision carries by (whose it was, so the page tells his from the m360 COO's); the type
+list has the WFH day booked ahead; a request overlaps only what still stands, read from the decisions, so a
+declined request frees its dates.
 
 Run: M360_MODULES=36-leave.js M360_TAG=leave python3 harness/tests/test_leave.py
 Playwright contexts keep separate localStorage, so every page after the first opens inside the first
@@ -99,6 +102,7 @@ def test(h):
     pf.wait_for_timeout(250)
     dec = pf.evaluate('window.__db.get("leavedec/u_m1")')
     assert dec and dec['d'][rid]['status'] == 'approved' and dec['d'][rid]['at'], dec
+    assert dec['d'][rid].get('by') == h.ctx(pf, 'ctx.uid'), 'the decision says it was the founder\'s: %r' % dec
     pf.wait_for_selector('#leave-approvals:has-text("No leave requests waiting.")')
     assert h.ctx(pf, 'M.leave.pending(ctx).length') == 0
     assert h.ctx(pf, 'ctx.onLeave("u_m1", "%s") && ctx.onLeave("u_m1", "%s")' % (frm, to)), 'approved leave must reach ctx.leaveMap'
@@ -130,6 +134,41 @@ def test(h):
     assert len(doc['reqs']) == 1 and doc['reqs'][0]['id'] == rid, doc
     assert p1.locator('#leave-mine .pill.flame-o').count() == 0
     h.shot(p1, 'leave-m1-1280')
+
+    # the WFH day booked ahead is a type of its own
+    opts = p1.evaluate('() => [...document.querySelectorAll("#leave-type option")].map(o => [o.value, o.textContent.trim()])')
+    assert ['wfh', 'WFH day, booked ahead'] in opts, opts
+    # a request on approved dates overlaps; a declined one frees its dates
+    p1.fill('#leave-from', frm)
+    p1.wait_for_function('() => document.querySelector("#leave-to").value === "%s"' % frm)
+    p1.wait_for_timeout(150)
+    assert p1.get_by_role('button', name='Request leave').is_disabled(), 'an approved day still stands'
+    d3 = (next_mon + timedelta(days=4)).isoformat()
+    p1.fill('#leave-from', d3)
+    p1.wait_for_function('() => document.querySelector("#leave-to").value === "%s"' % d3)
+    p1.select_option('#leave-type', 'casual')
+    p1.get_by_role('button', name='Request leave').click()
+    p1.wait_for_selector('#leave-mine .pill.flame-o:has-text("pending")')
+    p1.wait_for_timeout(200)
+    rid3 = p1.evaluate('window.__db.get("leave/u_m1")')['reqs'][0]['id']
+    p1.fill('#leave-from', d3)
+    p1.wait_for_function('() => document.querySelector("#leave-to").value === "%s"' % d3)
+    p1.wait_for_timeout(150)
+    assert p1.get_by_role('button', name='Request leave').is_disabled(), 'a pending day still stands'
+    pf.wait_for_selector('#leave-approvals button:has-text("Decline")')
+    pf.locator('#leave-approvals button:has-text("Decline")').click()
+    pf.wait_for_selector('.toast:has-text("Declined")')
+    pf.wait_for_timeout(250)
+    dec = pf.evaluate('window.__db.get("leavedec/u_m1")')
+    assert dec['d'][rid3]['status'] == 'declined' and dec['d'][rid3].get('by') == h.ctx(pf, 'ctx.uid'), dec
+    p1.wait_for_selector('#leave-mine .pill:has-text("declined")')
+    p1.fill('#leave-from', '')
+    p1.fill('#leave-from', d3)
+    p1.wait_for_function('() => document.querySelector("#leave-to").value === "%s"' % d3)
+    p1.wait_for_timeout(150)
+    assert p1.get_by_role('button', name='Request leave').is_enabled(), 'a declined request frees its dates'
+    p1.fill('#leave-from', '')
+    p1.fill('#leave-to', '')
 
     # founder: nothing waiting, on the live page and on a fresh one
     pf.wait_for_selector('#leave-approvals:has-text("No leave requests waiting.")')

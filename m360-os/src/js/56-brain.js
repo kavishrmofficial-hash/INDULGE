@@ -214,16 +214,17 @@
     ['memory', 'what you have been asked to remember'],
     ['day', 'one person\'s day as a timeline: check-in, saves, quiet stretches, tasks moved, EOD, status; q a name and an optional YYYY-MM-DD'],
     ['bot', 'the personal managers: what is waiting on you, the asks you sent and their answers'],
+    ['coo', 'the m360 COO: its cards waiting on you and what it did today, with the reasons and checks (founder)'],
     ['action', 'the fields of one act action, q its name'],
     ['help', 'this list']
   ];
   /* text other people wrote: once a turn reads it, every outward act after it in that turn waits on a tap */
   const UNTRUSTED = ['chat', 'mail', 'gmail', 'email', 'web', 'page', 'url', 'feed', 'vibe', 'task', 'client', 'radar', 'news', 'handshake', 'dm', 'dms', 'base', 'contacts',
-    'inbox', 'meetings', 'gcal', 'events', 'drive', 'project', 'day', 'timeline'];
+    'inbox', 'meetings', 'gcal', 'events', 'drive', 'project', 'day', 'timeline', 'coo'];
   const taintFrom = (ctx, nm, area, q) => area === 'chat' && q ? (M.ai.findMember(ctx, nm || {}, q) ? q.replace(/^./, c => c.toUpperCase()) + '\'s message' : 'the chat in ' + q)
     : area === 'mail' || area === 'gmail' || area === 'email' ? 'the mail' : area === 'web' || area === 'page' || area === 'url' ? 'that web page'
     : area === 'task' ? 'the task' + (q ? ' "' + cut(q, 40) + '"' : '') : area === 'client' ? 'the client page' : 'the ' + area;
-  const AREA_WHO = {hiring: 'founder', books: 'owner', radar: 'site', web: 'site'};
+  const AREA_WHO = {hiring: 'founder', books: 'owner', radar: 'site', web: 'site', coo: 'founder'};
   function areasFor(ctx) {
     return AREAS.filter(([k]) => {
       const w = AREA_WHO[k];
@@ -286,6 +287,33 @@
         L.push('- ' + (a.kind || 'ask') + ' at ' + U.hhmm(a.at || 0) + (a.withdrawn ? ', withdrawn' : '') + ': ' + rows.map(r => nameOf(nm, r.uid) + (r.how ? ' ' + r.how : r.sorted ? ' sorted' : r.seen ? ' seen' : ' no answer yet')).join(', '));
       });
     }
+    return L.join('\n');
+  }
+
+  /* the m360 COO as data, the founder's only: the cards waiting on him and today's rows, in the COO's own
+     words, with their reasons and checks. Acting on any of it still goes through the card */
+  function cooLine(ctx) {
+    if (!ctx.isFounder) return 'The COO\'s cards and log are Kaavish\'s.';
+    if (!M.coo || !M.coo.feed) return 'The m360 COO is not on this page yet.';
+    const C = M.coo;
+    const L = [];
+    const h = C.health ? C.health(ctx) || {} : {};
+    L.push('COO: ' + (h.status || (C.on(ctx) ? 'on' : 'off')) + (h.last ? ', last round ' + U.hhmm(h.last) : '') + (h.practice ? ', practice week until ' + h.practice : ''));
+    const cards = C.decisions(ctx) || [];
+    L.push('WAITING ON YOU: ' + cards.length);
+    list(cards, 20).forEach(k => {
+      const d = ((k.payload || {}).draft) || null;
+      L.push('- [' + k.kind + (k.urgent ? ', urgent' : '') + '] ' + cut(k.title, 160) + (k.why ? ' Why: ' + cut(k.why, 120) : '') + (d ? ' Draft to ' + (d.to || 'nobody yet') + ', subject "' + cut(d.subject, 80) + '"' : '') + ' (card ' + k.id + ')');
+    });
+    const ist = ms => new Date((ms || 0) + 330 * 60000).toISOString().slice(0, 10);
+    const td = ist(Date.now());
+    const until = ms => (ist(ms) === td ? '' : U.fmtDay(ist(ms)) + ' ') + U.hhmm(ms);
+    const rows = (C.feed(ctx, 0) || []).filter(r => ist(r.at) === td).sort((a, b) => (a.at || 0) - (b.at || 0));
+    L.push('TODAY: ' + rows.length);
+    list(rows.slice(-30), 30).forEach(r => {
+      const c = C.copy(r.code, {...(r.args || {}), ...(r.status === 'would' ? {would: true} : {}), why: r.why && typeof r.why === 'object' ? r.why.code : r.why}, 'founder', ctx) || {};
+      L.push('- ' + U.hhmm(r.at) + ' ' + r.status + ': ' + cut(c.line || r.code, 200) + (c.why ? ' ' + c.why : '') + (r.status === 'done' && r.undoUntil > Date.now() ? ' (undo until ' + until(r.undoUntil) + ')' : '') + ' (act ' + r.id + ')');
+    });
     return L.join('\n');
   }
 
@@ -628,10 +656,11 @@
       case 'memory': { const items = memoryOf(await readAi(ctx)); return items.length ? 'REMEMBERED:\n' + items.map(x => '- ' + x.t + ' (since ' + U.ymd(new Date(x.at)) + ')').join('\n') : 'Nothing remembered yet.'; }
       case 'day': case 'timeline': return dayLine(ctx, nm, q);
       case 'bot': case 'asks': case 'pm': return botLine(ctx, nm);
+      case 'coo': return cooLine(ctx);
       case 'action': case 'actions': {
         const a = M.agent ? M.agent.byName(norm(q).replace(/[^a-z_]/g, '')) : null;
         if (!a || !M.agent.allowed(ctx, a)) return 'No action called "' + q + '" here. The actions: ' + actionsFor(ctx).map(x => x[0]).join(', ');
-        return 'ACTION ' + a.name + ': ' + a.gloss + '\nFIELDS: ' + a.sig + '\nRUNS: ' + (a.mode === 'tap' ? 'waits on the person\'s tap or spoken yes' : 'at once, with Undo for a moment') + '\nSCHEMA: ' + JSON.stringify(a.schema);
+        return 'ACTION ' + a.name + ': ' + a.gloss + '\nFIELDS: ' + a.sig + '\nRUNS: ' + (a.read ? 'at once, it only reads' : a.mode === 'tap' ? 'waits on the person\'s tap or spoken yes' : 'at once, with Undo for a moment') + '\nSCHEMA: ' + JSON.stringify(a.schema);
       }
       case 'help': case '': return catalog(ctx);
       default: return 'Unknown area "' + what + '". ' + catalog(ctx);
@@ -905,7 +934,8 @@
         const open = reqs.filter(r => !dec[r.id]);
         const r = (ymdOk(input.from) ? open.find(x => x.from === input.from) : null) || open[0];
         if (!r) throw new Error('nothing pending for ' + nameOf(nm, u));
-        return hold((status === 'approved' ? 'Approve' : 'Decline') + ' ' + nameOf(nm, u) + '\'s leave', r.from + ' to ' + r.to + ', ' + r.type, () => ctx.W.merge('leavedec/' + u, {d: {[r.id]: {status, at: Date.now()}}}));
+        /* by: whose decision it was, so the Leave page tells Kaavish's from the COO's */
+        return hold((status === 'approved' ? 'Approve' : 'Decline') + ' ' + nameOf(nm, u) + '\'s leave', r.from + ' to ' + r.to + ', ' + r.type, () => ctx.W.merge('leavedec/' + u, {d: {[r.id]: {status, at: Date.now(), by: ctx.uid}}}));
       }
       case 'check_in': {
         const days = U.clone((ctx.coll.checkin.map[uid] || {}).days || {});
