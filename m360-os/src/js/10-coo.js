@@ -682,7 +682,7 @@
     open_rest: {f: () => 'A day off for the team. I only checked my health.'},
     brief: {f: x => 'Morning. ' + x.leave + ' on leave, ' + x.wfh + ' WFH. Roll call at ' + x.roll + ' and rebalance at 3. ' + waits(x.wait)},
     caught: {f: x => 'I caught up at ' + x.atTxt + '. ' + plural(x.n, 'round', 'rounds') + ' ran late because m360 was closed.'},
-    roll: {f: x => 'Roll call. ' + x.n + ' in, ' + x.wfh + ' WFH, ' + x.leave + ' on leave' + (x.notIn ? ', ' + x.notIn + ' not in yet' : '') + '.'},
+    roll: {f: x => 'Roll call. ' + x.n + ' in, ' + x.wfh + ' WFH, ' + x.leave + ' on leave' + (x.notIn === 1 ? ', ' + x.name + ' not in yet' : x.notIn ? ', ' + x.notIn + ' not in yet' : '') + '.'},
     eod: {f: x => x.n + ' of ' + x.of + ' EOD lines in.'},
     close: {f: x => 'Day closed. ' + x.eod + ' of ' + x.of + ' EOD lines in. ' + (x.moves ? 'I made ' + plural(x.moves, 'move', 'moves') + ', still undoable till ' + x.untilT + '. ' : '') + waits(x.wait)},
     memo: {f: x => 'The memo for ' + String(x.week || 'the week').replace('-W', ' week ') + ' is ready.'},
@@ -741,6 +741,7 @@
     audit: {f: x => x.n ? 'Self audit found ' + plural(x.n, 'thing', 'things') + '. It needs you.' : 'Self audit clean.'},
     cap_hit: {f: x => "I reached today's limit on " + (x.what || 'that') + ', so the rest waits for tomorrow.'},
     breaker: {f: x => 'You undid 2 of my ' + (x.what || 'moves') + ' this week, so I will only suggest ' + (x.what || 'moves') + ' until you say so.'},
+    breaker_wrong: {f: x => 'You marked 2 of my ' + (x.what || 'moves') + ' wrong this week, so I will only suggest ' + (x.what || 'moves') + ' until you say so.'},
     fails: {f: x => plural(x.n, 'act', 'acts') + ' failed in one round, so I will only suggest ' + (x.what || 'them') + ' until you say so.'},
     refused: {f: () => 'A write was refused, so I stopped. It needs you.'},
     undone: {f: x => 'Kaavish put ' + x.title + ' back with ' + x.name + '.', dm: x => 'Kaavish put ' + x.title + ' back with ' + x.name + '.'},
@@ -917,9 +918,18 @@
     add(((mapOf(ctx, 'books').cooq) || {}).items, true);
     return out;
   };
-  /* one card per thing: a card already open (or raised in this run) with the same dedupe key wins */
+  /* every card that still speaks for its thing: open, or settled by Kaavish (a declined card is never raised
+     again). Voided and expired ones may come back */
+  const liveDedupe = ctx => {
+    const out = new Set();
+    const add = items => { for (const id of Object.keys(items || {})) { const c = items[id]; if (c && c.dedupe && c.status !== 'void' && c.status !== 'expired') out.add(c.dedupe); } };
+    add(((ctx.coo || {}).dec || {}).items);
+    add(((mapOf(ctx, 'books').cooq) || {}).items);
+    return out;
+  };
+  /* one card per thing: a card already raised (or raised in this run) with the same dedupe key wins */
   function addCard(R, card) {
-    if (openCards(R.ctx).some(c => c.dedupe === card.dedupe) || R.cards.some(c => c.dedupe === card.dedupe)) return false;
+    if (liveDedupe(R.ctx).has(card.dedupe) || R.cards.some(c => c.dedupe === card.dedupe)) return false;
     R.cards.push(card);
     return true;
   }
@@ -1027,11 +1037,12 @@
       infoCard(R, why === 'fails' ? 'fails' : 'breaker', {what, n: 3}, 'info:breaker:' + cap + ':' + R.ymd, true);
       return;
     }
-    const t = copy('breaker', {what}, 'founder', ctx);
+    const code = why === 'wrong' ? 'breaker_wrong' : 'breaker';
+    const t = copy(code, {what}, 'founder', ctx);
     const id = U.uid();
     await ctx.W.merge('coo/state', {breakers: {[cap]: b}});
     await ctx.W.merge('coo/dec', {items: {[id]: {id, kind: 'info', rung: 'tell', title: t.line, why: '', recommend: '', checks: [], options: [{label: 'Got it', action: 'coo.ack', input: {}}],
-      payload: {action: 'coo.ack', input: {}, draft: null}, sources: [], refs: {}, code: 'breaker', args: {what}, urgent: true, dedupe: 'info:breaker:' + cap + ':' + ymdOf(Date.now()),
+      payload: {action: 'coo.ack', input: {}, draft: null}, sources: [], refs: {}, code, args: {what}, urgent: true, dedupe: 'info:breaker:' + cap + ':' + ymdOf(Date.now()),
       by: UID, at: Date.now(), expires: Date.now() + 2 * DAY, status: 'open', money: false}}});
   }
 
@@ -1231,6 +1242,16 @@
       for (const mon of Object.keys(arch)) { try { await botW(c, {note: 'coo archive ' + mon}).merge('coo/dec-' + mon, {items: arch[mon]}); } catch (e) { for (const id of Object.keys(arch[mon])) delete patch[id]; } }
       if (Object.keys(patch).length) { try { await botW(c, {note: 'coo cards'}).merge('coo/dec', {items: patch}); } catch (e) { /* the next close */ } }
     }
+    /* its own bookkeeping stays small: holds past their time, cover marks and seen requests past 30 days */
+    const cs = cooState(c);
+    const cut = now - 30 * DAY;
+    const drop = (map, old) => { const o = {}; for (const k of Object.keys(map || {})) if (old(k, map[k])) o[k] = null; return o; };
+    const holds = drop(cs.holds, (k, v) => Number(v) < now);
+    const cover = drop(cs.cover, (k, v) => Number(v) < cut);
+    const seenLeave = drop((cs.seen || {}).leave, k => { const [u, id] = k.split(':'); return !((R.state.leave[u] || []).some(r => r && r.id === id)) || decided(R.state, u, id); });
+    if (Object.keys(holds).length) R.patch.holds = {...holds, ...(R.patch.holds || {})};
+    if (Object.keys(cover).length) R.patch.cover = {...cover, ...(R.patch.cover || {})};
+    if (Object.keys(seenLeave).length) R.patch.seen = {leave: {...seenLeave, ...(((R.patch.seen || {}).leave) || {})}};
     const eod = R.day.eod || (((await read(c, 'coo/day-' + R.ymd)) || {}).eod) || {in: 0, of: 0};
     const wait = openCards(c).filter(k => !patch[k.id]).length + R.cards.length;
     R.day.close = {at: now, eod: eod.in, of: eod.of, moves, until, wait, skipped: R.late.map(x => x.id)};
@@ -2243,6 +2264,21 @@
     return {ok: true, conflict: false, say: msg};
   }
 
+  /* "that was wrong" on a row: noted on the row; two on one capability in 7 days lower it a rung */
+  async function wrong(ctx, actId) {
+    const c = fresh(ctx);
+    if (!c || !c.isFounder) return {ok: false, say: 'Only Kaavish can mark that.'};
+    const row = await findRow(c, actId);
+    if (!row) return {ok: false, say: 'I cannot find that one.'};
+    const now = Date.now();
+    await c.W.merge('coo/L-' + (row.ymd || ymdOf(row.at || now)), {acts: {[row.id]: {wrong: now}}});
+    const st = cooState(c);
+    const list = ((st.wrong || {})[row.cap] || []).filter(x => Number(x) > now - 7 * DAY).concat([now]);
+    if (row.cap) await c.W.merge('coo/state', {wrong: {[row.cap]: list}});
+    if (row.cap && list.length >= 2 && !((st.breakers || {})[row.cap])) await breaker(c, row.cap, 'wrong');
+    return {ok: true, say: 'Noted. ' + (row.undo && row.status === 'done' && Number(row.undo.until) > now ? 'Say undo to put it back.' : 'I will take more care with that one.')};
+  }
+
   /* ---------- the controls: all Kaavish's own writes ---------- */
   const setCoo = (ctx, patch) => fresh(ctx).W.merge('settings/app', {coo: patch, updated: Date.now()});
   async function stop(ctx) {
@@ -2458,7 +2494,7 @@
     ist: {ymd: ymdOf, hm: hmOf, isoWeek: isoWeekOf, now: () => Date.now(), dayStart, addDays},
     plan: {stateOf, slotsDue, slotList, leaveCheck, balance, clientDated, load, shortlist, planCover, planRebalance, actKey, lint, movable, used, managerFrom, forget, median, overLine},
     copy, station: stationOf, guard, actionAllowed, charter,
-    useLive, feed, decisions, decide, undo, undoable, stop, pause, resume, endPractice, setOn, stopAndUndo, why, health, moveTask, rebalanceNow,
+    useLive, feed, decisions, decide, undo, undoable, wrong, stop, pause, resume, endPractice, setOn, stopAndUndo, why, health, moveTask, rebalanceNow,
     say, writeAsk, tick, runSlot, Runner
   };
 })();
