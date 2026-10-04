@@ -74,20 +74,21 @@
   }
 
   /* the COO's Friday suggestion for one person: a ghost beside each mark not set yet, and one tap that
-     writes them as Kaavish's own (M.cooUi.confirmReview). A mark he set always stays his. */
+     writes them as Kaavish's own (M.cooUi.confirmReview). A mark he set, saved or not yet, always stays his. */
   function Ghost({ghost, uid, items, marks}) {
     const ctx = M.useCtx();
     const [busy, setBusy] = useState(false);
     const open = items.filter(it => !marks[it.id] && ghost.marks[it.id]).length;
+    const ev = ghost.evidence.map(e => M.cooUi.evidenceLine(ctx, e)).filter(Boolean);
     const confirm = async () => {
       setBusy(true);
-      try { await M.cooUi.confirmReview(ctx, ghost.card); M.toast('Marks saved as yours'); } catch (e) { M.toast((e && e.message) || 'Those marks did not save.', true); }
+      try { await M.cooUi.confirmReview(ctx, ghost.card, marks); M.toast('Marks saved as yours'); } catch (e) { M.toast((e && e.message) || 'Those marks did not save.', true); }
       setBusy(false);
     };
     return html`<div class="coo-ghost-head" data-uid=${uid}>
       <div class="row nowrap" style=${{gap: '8px'}}>${M.parts.CooFace ? html`<${M.parts.CooFace} size=${22}/>` : null}
         <span class="small grow">${M.cooUi.titleOf(ctx)} suggests ${open ? 'marks from the work shipped this week' : 'marks, and yours are all in'}.</span></div>
-      ${ghost.evidence.length ? html`<ul class="tiny ink62 coo-ghost-ev">${ghost.evidence.slice(0, 4).map((e, i) => html`<li key=${i}>${typeof e === 'string' ? e : e.text || e.label || ''}</li>`)}</ul>` : null}
+      ${ev.length ? html`<ul class="tiny ink62 coo-ghost-ev">${ev.slice(0, 4).map((e, i) => html`<li key=${i}>${e}</li>`)}</ul>` : null}
       <div class="row"><button type="button" class="btn sec sm coo-ghost-confirm" data-act="confirm" disabled=${busy} onClick=${confirm}>Confirm <${UI.Name} id=${uid}/>'s marks</button></div>
     </div>`;
   }

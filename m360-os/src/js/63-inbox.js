@@ -209,7 +209,7 @@
       const LATE = 10 * 60000;
       const fresh = list.filter(i => i.at > mark - LATE && i.at > seen && !doneSet.has(i.id) && (i.at > mark || done.length)).sort((a, b) => a.at - b.at);
       /* a name not yet known: wait for the profile, the bubble comes on the next pass */
-      if (fresh.some(i => i.actor && !(profs[i.actor] && profs[i.actor].name) && !(ctx.members[i.actor] && ctx.members[i.actor].name))) return;
+      if (fresh.some(i => i.actor && !(M.cooUi && M.cooUi.isCoo(i.actor)) && !(profs[i.actor] && profs[i.actor].name) && !(ctx.members[i.actor] && ctx.members[i.actor].name))) return;
       if (newest > mark) M.prefs.set(key, String(newest));
       /* remember what is announced now, and what was already past the mark, so neither comes back */
       const keep = done.concat(fresh.map(i => i.id), list.filter(i => i.at <= mark && i.at > mark - LATE).map(i => i.id));

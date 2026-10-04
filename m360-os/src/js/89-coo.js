@@ -30,6 +30,8 @@
   /* practiceUntil and pausedUntil as a time, whether stored as a time or as an IST day */
   const until = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? atIST(v, '23:59') : Number(v) || 0;
   const stateOf = (c, now) => !c.on ? 'off' : until(c.pausedUntil) > now ? 'paused' : until(c.practiceUntil) > now ? 'practice' : 'on';
+  /* M.coo's own word when it is there: it also knows stuck, a refused write that stopped it */
+  const stateNow = (ctx, now) => { try { if (M.coo && M.coo.status) return M.coo.status(ctx, now); } catch (e) { /* the settings alone */ } return stateOf(cfgOf(ctx), now); };
 
   /* the live feed: M.coo's hook, or nothing on a build without it (picked at render, the same one every time) */
   const EMPTY = {pub: null, now: null, ledger: [], dec: [], health: null};
@@ -54,13 +56,18 @@
     return {line: (out && out.line) || r.line || r.title || '', why: (out && out.why) || (typeof r.why === 'string' ? r.why : '') || ''};
   }
   const OPEN = {open: true, sending: true};
-  const openCards = live => list(live && live.dec).filter(c => !c.status || OPEN[c.status])
+  /* open, or snoozed with its morning come round: Later brings a card back, it never drops it */
+  const isOpen = c => !c.status || OPEN[c.status] || (c.status === 'snoozed' && Number(c.snoozeUntil) <= Date.now());
+  const openCards = live => list(live && live.dec).filter(isOpen)
     .sort((a, b) => (b.urgent ? 1 : 0) - (a.urgent ? 1 : 0) || (a.at || 0) - (b.at || 0));
   const rowsOf = live => list(live && live.ledger).sort((a, b) => (a.at || 0) - (b.at || 0));
   const undoBy = r => Number((r && r.undo && r.undo.until) || (r && r.undoUntil)) || 0;
   const canUndo = (r, now) => !!r && r.status === 'done' && undoBy(r) > now;
   const BRIEF = /^(J02|brief)$/;
   const briefOf = (ctx, rows) => rows.filter(r => BRIEF.test(String(r.job || '')) || BRIEF.test(String(r.code || ''))).filter(r => ymdIST(r.at || 0) === ymdIST(nowOf(ctx))).pop() || null;
+
+  /* the last round: coo/now's pass, else health's last (the page) or beat (the server's coostatus) */
+  const lastRound = (N, h) => Number((N && N.pass && N.pass.at) || (h && (h.last || (h.beat && h.beat.at) || (typeof h.beat === 'number' ? h.beat : 0)))) || 0;
 
   /* the stations as glyphs from the icon set */
   const GLYPH = {attendance: 'check', calendar: 'calendar', board: 'tasks', review: 'review', desk: 'edit', meeting: 'week',
@@ -90,6 +97,7 @@
   }
   const tomorrowAt9 = now => atIST(ymdIST(now + 86400000), '09:00');
   async function switchOn(ctx) {
+    if (M.coo && M.coo.setOn) { await act(() => M.coo.setOn(ctx, true)); return; }
     const c = cfgOf(ctx);
     const patch = {on: true, pausedUntil: null, signedAt: Date.now(), signedBy: ctx.realUid || ctx.uid};
     if (!c.signedAt && !c.practiceUntil) patch.practiceUntil = practiceEnd(ctx, Date.now());
@@ -130,8 +138,10 @@
     const sc = scope || (ctx.isFounder ? 'founder' : 'team');
     if (W) return html`<${W} mode=${mode} scope=${sc}/>`;
     const pub = live.pub || {};
-    const off = !has() || pub.state === 'off' || pub.state === 'closed';
-    const line = off ? 'Off for the night. Back at 09:00.' : pub.job ? say(ctx, pub, 'team').line : 'At its desk.';
+    /* switched off says so; the night says when it is back; nothing is mimed */
+    const off = !has() || !cfgOf(ctx).on || pub.state === 'off';
+    const line = off ? 'Switched off for now.' : pub.state === 'closed' ? 'Off for the night. Back at 09:00.' : pub.state === 'paused' ? 'Paused.'
+      : pub.job ? say(ctx, pub, 'team').line : 'At its desk.';
     return html`<div class="office-window coo-office-still" data-mode=${mode}>
       <${CooFace} size=${44} label=${titleOf(ctx)}/>
       <div class="small">${line || 'At its desk.'}</div>
@@ -145,7 +155,18 @@
   const BATCH = {move: ['move', 'moves'], proposal: ['proposal', 'proposals'], setting: ['setting change', 'setting changes']};
   const CHECK = {policy: 'policy set', type: 'leave type', days: 'working days', balance: 'days left', probation: 'probation', notice: 'notice',
     out: 'people out', pod: 'pod out', blackout: 'blackout', client: 'client dates', manager: 'manager in', changed: 'unchanged'};
-  const docOf = card => card.kind === 'invoice_reminder' ? 'books/cooq' : 'coo/dec';
+  const docOf = card => card.money || card.kind === 'invoice_reminder' ? 'books/cooq' : 'coo/dec';
+  /* the invoice behind a reminder, read again at the tap: paid or voided since means the draft is stale */
+  function staleMoney(ctx, card) {
+    if (card.kind !== 'invoice_reminder' || !M.books || !M.books.invoices) return '';
+    const id = ((card.payload || {}).draft || {}).invoice || (card.refs || {}).invoice;
+    if (!id) return '';
+    let inv = null;
+    try { inv = M.books.invoices(ctx).find(x => x.id === id); } catch (e) { return ''; }
+    if (!inv) return 'The invoice is gone, so I dropped the reminder.';
+    const st = M.books.status(inv);
+    return st === 'paid' ? 'The invoice was paid, so I dropped the reminder.' : st === 'void' ? 'The invoice was voided, so I dropped the reminder.' : '';
+  }
   const mailto = d => 'mailto:' + encodeURIComponent(d.to || '').replace(/%40/g, '@').replace(/%2C/g, ',') + '?' +
     [d.cc ? 'cc=' + encodeURIComponent(d.cc) : '', 'subject=' + encodeURIComponent(d.subject || ''), 'body=' + encodeURIComponent(d.text || '')].filter(Boolean).join('&');
   async function copyText(t) {
@@ -157,25 +178,36 @@
     } catch (e) { M.toast('Could not copy here. Select the text and copy it.', true); }
   }
 
-  /* Friday review marks: Kaavish confirms them as his own, and the card settles */
-  async function confirmReview(ctx, card) {
-    const input = (card.payload && card.payload.input) || {};
-    const uid = (card.refs && card.refs.uid) || input.uid;
-    const weekId = input.weekId || input.week || card.week;
-    const marks = input.marks || card.marks || {};
-    if (!uid || !weekId) throw new Error('That suggestion has no week on it.');
-    const weeks = U.clone(((ctx.coll.review.map[uid] || {}).weeks) || {});
-    const prev = weeks[weekId] || {quality: null, note: ''};
-    /* a mark Kaavish already set stays his */
-    weeks[weekId] = {...prev, marks: {...marks, ...(prev.marks || {})}, at: Date.now()};
-    await ctx.W.merge('review/' + uid, {weeks: U.prunePatch(weeks, 26, true)});
+  /* a Friday review card, whichever way it carries its facts: the confirm option's input, the payload's input,
+     the draft (marks and evidence) or the args (the week) */
+  function reviewOf(card) {
+    const opt = list(card.options).find(o => o && o.input && o.input.marks) || {};
+    const pay = card.payload || {};
+    const src = [opt.input, pay.input, pay.draft, card.args, card].map(x => x || {});
+    const pick = k => (src.find(x => x[k] != null) || {})[k];
+    return {uid: (card.refs && card.refs.uid) || pick('uid') || '', week: pick('weekId') || pick('week') || '', marks: pick('marks') || {}, evidence: list(pick('evidence'))};
+  }
+  /* Friday review marks: Kaavish confirms them as his own, and the card settles. A mark he set, saved or
+     still on his screen (mine), always stays his */
+  async function confirmReview(ctx, card, mine) {
+    const r = reviewOf(card);
+    if (!r.uid || !r.week) throw new Error('That suggestion has no week on it.');
+    const weeks = U.clone(((ctx.coll.review.map[r.uid] || {}).weeks) || {});
+    const prev = weeks[r.week] || {quality: null, note: ''};
+    const own = {};
+    for (const [k, v] of Object.entries({...(prev.marks || {}), ...(mine || {})})) if (v) own[k] = v;
+    weeks[r.week] = {...prev, marks: {...r.marks, ...own}, at: Date.now()};
+    await ctx.W.merge('review/' + r.uid, {weeks: U.prunePatch(weeks, 26, true)});
     await ctx.W.merge(docOf(card), {items: {[card.id]: {status: 'done', decidedAt: Date.now(), decidedVia: 'week', result: 'confirmed'}}});
   }
   const ghostOf = (cards, uid, weekId) => {
-    const c = cards.find(x => x.kind === 'review' && ((x.refs && x.refs.uid) || (x.payload && x.payload.input && x.payload.input.uid)) === uid &&
-      ((x.payload && x.payload.input && (x.payload.input.weekId || x.payload.input.week)) || x.week) === weekId);
-    return c ? {card: c, marks: (c.payload && c.payload.input && c.payload.input.marks) || c.marks || {}, evidence: list(c.evidence || (c.payload && c.payload.input && c.payload.input.evidence))} : null;
+    const c = cards.find(x => x.kind === 'review' && reviewOf(x).uid === uid && reviewOf(x).week === weekId);
+    if (!c) return null;
+    const r = reviewOf(c);
+    return {card: c, marks: r.marks, evidence: r.evidence};
   };
+  /* one line of evidence: words as they are, or the task it points at */
+  const evidenceLine = (ctx, e) => typeof e === 'string' ? e : !e ? '' : e.text || e.label || (e.task && ((ctx.coll.tasks.map[e.task] || {}).title)) || '';
 
   function Draft({d, onChange}) {
     return html`<div class="coo-edit stack tight">
@@ -200,8 +232,10 @@
     const mail = !!(MAIL[c.kind] && draft);
     const opts = list(c.options);
     const checks = list(c.checks);
-    const acts = list(c.refs && c.refs.actIds).map(id => (typeof id === 'string' ? id : id.id));
     const rows = rowsOf(live);
+    /* the acts a told card folds in; a card's own planning row says nothing its title does not */
+    const acts = list(c.refs && c.refs.actIds).map(id => (typeof id === 'string' ? id : id.id))
+      .filter(id => { const r = rows.find(x => x.id === id); return !r || !!r.undo || r.status === 'undone'; });
     const late = c.expires && Number(c.expires) < now;
     const run = async (how, edits) => {
       setBusy(how);
@@ -216,18 +250,40 @@
         setBusy('');
         return;
       }
-      /* the claude.ai page sends nothing itself: the mail app opens with the draft, and Kaavish marks it sent */
+      /* the claude.ai page sends nothing itself: the mail app opens with the draft, and Kaavish marks it sent.
+         A reminder for an invoice paid or voided since is dropped first, with the reason */
+      const gone = staleMoney(ctx, c);
+      if (gone) { await settle('void', gone, 'tap'); M.toast(gone, true); return; }
       const a = document.createElement('a');
       a.href = mailto(draft); a.target = '_blank'; a.rel = 'noopener';
       document.body.appendChild(a); a.click(); a.remove();
       setOpened(true);
     };
+    /* the card settles as Kaavish's own write: Mark sent after the mail app, or a review confirmed */
+    const settle = (status, result, via) => ctx.W.merge(docOf(c), {items: {[c.id]: {status, decidedAt: Date.now(), decidedVia: via, result: String(result || '').slice(0, 300)}}});
+    const markSent = async () => {
+      setBusy('sent');
+      try { await settle('done', 'marked sent', 'mailto'); M.toast('Marked sent'); } catch (e) { /* toasted */ }
+      setBusy('');
+    };
     const saveEdit = async () => {
       setBusy('edit');
+      const r = await act(() => M.coo.decide(ctx, c.id, 'edit', {to: edit.to.trim(), cc: edit.cc.trim(), subject: edit.subject.trim(), text: edit.text}));
+      if (r && r.ok !== false) setEdit(null);
+      setBusy('');
+    };
+    /* Decline on a leave or WFH card declines the request, as Kaavish: the COO itself never declines */
+    const away = c.kind === 'leave' || c.kind === 'wfh';
+    const decline = async n => {
+      const i = (c.payload && c.payload.input) || {};
+      const uid = i.uid || (c.refs && c.refs.uid), req = i.req || (c.refs && c.refs.req);
+      if (!away || !uid || !req) { await run('decline', n ? {note: n} : undefined); return; }
+      setBusy('decline');
       try {
-        await ctx.W.merge(docOf(c), {items: {[c.id]: {payload: {draft: {to: edit.to.trim(), cc: edit.cc.trim(), subject: edit.subject.trim(), text: edit.text}}, editedAt: Date.now()}}});
-        setEdit(null); M.toast('Draft saved');
-      } catch (e) { /* toasted */ }
+        await ctx.W.merge('leavedec/' + uid, {d: {[req]: {status: 'declined', at: Date.now(), by: ctx.uid, ...(n ? {note: n.slice(0, 300)} : {})}}});
+        await settle('declined', n || 'declined the request', 'tap');
+        M.toast('Declined. They hear it in their inbox.');
+      } catch (e) { M.toast((e && e.message) || 'That did not go through.', true); }
       setBusy('');
     };
     const confirm = async () => {
@@ -274,14 +330,14 @@
       })}</div>` : null}
       ${note != null ? html`<div class="row nowrap coo-note">
         <input class="input grow" placeholder="A note, if you like" aria-label="A note, if you like" value=${note} onInput=${e => setNote(e.target.value)}/>
-        <${UI.Btn} kind="sec" sm=${true} disabled=${!!busy} onClick=${() => run('decline', note.trim() ? {note: note.trim()} : undefined)}>${c.kind === 'memo' ? 'Keep private' : 'Decline'}<//>
+        <${UI.Btn} kind="sec" sm=${true} disabled=${!!busy} onClick=${() => decline(note.trim())}>${away ? 'Decline the request' : 'Decline'}<//>
         <button type="button" class="linky tiny" onClick=${() => setNote(null)}>Back</button>
       </div>` : edit ? html`<div class="row coo-acts">
         <button type="button" class="btn sm" disabled=${!!busy} onClick=${saveEdit}>Save the draft</button>
         <button type="button" class="linky small" onClick=${() => setEdit(null)}>Cancel</button>
       </div>` : html`<div class="row coo-acts">
         <button type="button" class="btn sm" data-act=${primary.act} disabled=${!!busy || noTo} onClick=${primary.go}>${busy === primary.act ? 'One moment' : primary.label}</button>
-        ${opened && !site() ? html`<button type="button" class="btn sec sm" data-act="sent" disabled=${!!busy} onClick=${() => run('send', draft)}>Mark sent</button>` : null}
+        ${opened && !site() ? html`<button type="button" class="btn sec sm" data-act="sent" disabled=${!!busy} onClick=${markSent}>Mark sent</button>` : null}
         ${mail && !site() ? html`<button type="button" class="btn sec sm" data-act="copy" onClick=${() => copyText((draft.to ? 'To: ' + draft.to + '\n' : '') + 'Subject: ' + draft.subject + '\n\n' + draft.text)}>Copy</button>` : null}
         ${draft ? html`<button type="button" class="btn sec sm" data-act="edit" disabled=${!!busy} onClick=${() => setEdit(draft)}>Edit</button>` : null}
         ${quiet ? null : html`<button type="button" class="btn sec sm" data-act="decline" disabled=${!!busy} onClick=${() => c.kind === 'memo' ? run('decline') : setNote('')}>${c.kind === 'memo' ? 'Keep private' : 'Decline'}</button>`}
@@ -425,24 +481,25 @@
     const [busy, setBusy] = useState(false);
     const c = cfgOf(ctx);
     const now = nowOf(ctx);
-    const st = stateOf(c, now);
+    const st = stateNow(ctx, now);
     const N = live.now || {};
     const cur = N.code || N.job ? say(ctx, N) : null;
-    const last = Number((N.pass && N.pass.at) || (live.health && live.health.beat && (live.health.beat.at || live.health.beat))) || 0;
+    const last = lastRound(N, live.health);
     const next = Number(N.next && N.next.at) || 0;
     const h = Number(hm(now).slice(0, 2));
-    const stale = st !== 'off' && st !== 'paused' && site() && h >= 9 && h < 21 && (!last || now - last > 30 * 60000);
+    const stale = st !== 'off' && st !== 'paused' && st !== 'stuck' && site() && h >= 9 && h < 21 && (!last || now - last > 30 * 60000);
     const clock = st === 'off' ? 'Off. Switch me on here or in Admin.'
+      : st === 'stuck' ? 'Stopped: a write I tried was refused. Look at today, then tap On.'
       : st === 'paused' ? 'Paused by you until ' + dayName(until(c.pausedUntil)) + ' ' + hm(until(c.pausedUntil)) + '.'
       : !site() ? 'I work while m360 is open on your device.' + (last ? ' Last round ' + hm(last) + '.' : '')
       : (last ? 'Last round ' + hm(last) + '.' : 'No round yet today.') + (next ? ' Next ' + hm(next) + '.' : '');
-    const value = st === 'off' ? 'off' : st === 'paused' ? 'pause' : 'on';
+    const value = st === 'off' ? 'off' : st === 'paused' || st === 'stuck' ? 'pause' : 'on';
     const set = async v => {
       if (v === value) return;
       setBusy(true);
       if (v === 'off') await act(() => M.coo.stop(ctx), 'Off. Open undo windows stay open.');
       else if (v === 'pause') await act(() => M.coo.pause(ctx, tomorrowAt9(now)), 'Paused until tomorrow 09:00');
-      else if (st === 'paused') await act(() => M.coo.resume(ctx), 'Back on');
+      else if (st === 'paused' || st === 'stuck') await act(() => M.coo.resume(ctx), 'Back on');
       else await switchOn(ctx).catch(() => {});
       setBusy(false);
     };
@@ -452,7 +509,7 @@
         <div class="coo-hero-office"><${OfficeSlot} mode="coo"/></div>
         <div class="coo-hero-side stack">
           <div class="row nowrap coo-hero-name"><${CooFace} size=${40} label=${titleOf(ctx)}/>
-            <div><${UI.Micro}>${'the ' + titleOf(ctx).toLowerCase() + ', ' + {off: 'off', paused: 'paused', practice: 'practice', on: 'working'}[st]}<//>
+            <div><${UI.Micro}>${'the ' + titleOf(ctx).toLowerCase() + ', ' + ({off: 'off', paused: 'paused', stuck: 'stopped', practice: 'practice', on: 'working'}[st] || 'working')}<//>
               <h1 class="hi coo-hero-title">${titleOf(ctx)}</h1></div></div>
           ${cur && cur.line ? html`<div class="coo-bubble" role="status"><b>${cur.line}</b>${cur.why ? html`<span>${cur.why}</span>` : null}</div>` : null}
           <div class=${'small coo-clock' + (stale ? ' late' : '')} id="coo-clock">${stale && last ? 'No heartbeat since ' + hm(last) + '. I will catch up on the next round.' : clock}</div>
@@ -552,7 +609,7 @@
     </div>`;
   }
 
-  const ZERO = {hours: 'acts outside hours', caps: 'over a cap', leave: 'on someone on leave', client: 'on client-dated work', double: 'done twice',
+  const ZERO = {hours: 'acts outside hours', caps: 'over a cap', leave: 'on someone on leave', onLeave: 'on someone on leave', client: 'on client-dated work', double: 'done twice',
     refused: 'refused writes', focus: 'asks during focus', mail: 'client mail without your tap'};
   function Health({live}) {
     const ctx = M.useCtx();
@@ -567,11 +624,12 @@
     try { h = (M.coo.health ? M.coo.health(ctx) : null) || live.health || null; } catch (e) { h = live.health || null; }
     h = {...(h || {}), ...(st || {})};
     const now = nowOf(ctx);
-    const beat = Number((h.beat && h.beat.at) || h.beat) || 0;
+    const beat = lastRound(null, h);
     const ai = h.ai || (h.aiUsed != null ? {used: h.aiUsed, cap: (cfgOf(ctx).limits || {}).aiPerDay} : null);
     const runner = h.runner || (site() ? 'server' : 'page');
     const okWord = v => v === true || v === 'ok' || v === 'on' || v === 'set';
-    const zero = h.zero && typeof h.zero === 'object' ? h.zero : null;
+    const z = h.zero || (h.audit && h.audit.checks);
+    const zero = z && typeof z === 'object' ? z : null;
     const rows = [
       ['beat', runner === 'server' ? 'Heartbeat' : 'Runner', beat ? 'last round ' + hm(beat) + ', ' + U.timeAgo(beat) : 'no round yet today', !beat || now - beat > 30 * 60000],
       ['runner', 'Runs on', runner === 'server' ? 'the server, every 15 minutes, 09:00 to 21:00' : 'this page, while it is open on your device', false],
@@ -594,6 +652,14 @@
     const [busy, setBusy] = useState(false);
     const go = async () => {
       setBusy(true);
+      const ids = rows.filter(x => ticked.has(x.id)).map(x => x.id);
+      /* M.coo's own pass when it has one: a leave taken back brings its cover moves with it, never counted twice */
+      if (M.coo.stopAndUndo) {
+        await act(() => ids.length ? M.coo.stopAndUndo(ctx, ids) : M.coo.stop(ctx));
+        setBusy(false);
+        onClose();
+        return;
+      }
       await act(() => M.coo.stop(ctx));
       let ok = 0, held = 0;
       for (const r of rows.filter(x => ticked.has(x.id))) {
@@ -737,7 +803,7 @@
             onChange=${v => v === 'on' ? save({practiceUntil: practiceEnd(ctx, now)}) : act(() => M.coo.endPractice(ctx), 'Practice is over')}/></div>
         <div class="row between"><span>Runs on</span><span class="small ink62" id="coo-runner">${site() ? 'the server heartbeat' : 'this page, while it is open'}</span></div>
         <div class="row between coo-title-row"><span>Its name</span>
-          <input class="input coo-title-in" aria-label="Its name" value=${c.title || ''} placeholder="m360 COO"
+          <input class="input coo-title-in" aria-label="Its name" key=${'t' + (c.title || '')} defaultValue=${c.title || ''} placeholder="m360 COO"
             onBlur=${e => { const t = e.target.value.trim().slice(0, 40); if (t && t !== c.title) save({title: t}); }}/></div>
       </div>
 
@@ -746,18 +812,19 @@
         <${Rungs} c=${c} save=${save} breakers=${st.data && st.data.breakers}/></div>
 
       <div class="coo-sec" id="coo-leave"><div class="micro">leave policy</div>
+        <div class="tiny ink62">Leave days left empty send every request to you. Any other field left empty goes back to its default.</div>
         <div class="coo-grid">
           ${['casual', 'sick', 'other'].map(k => html`<label class="coo-field" key=${k}><span class="small">${U.cap(k)} days a year</span><${Num} id=${'coo-days-' + k} label=${U.cap(k) + ' days a year'} value=${P[k]} onSave=${n => save({leave: {perType: {[k]: n}}})}/></label>`)}
-          ${['casual', 'sick', 'other'].map(k => html`<label class="coo-field" key=${'n' + k}><span class="small">${U.cap(k)} notice, days</span><${Num} label=${U.cap(k) + ' notice in days'} value=${N[k]} onSave=${n => save({leave: {noticeDays: {[k]: n == null ? 0 : n}}})}/></label>`)}
-          <label class="coo-field"><span class="small">Most working days it approves</span><${Num} label="Most working days it approves" value=${L.maxAutoDays} onSave=${n => save({leave: {maxAutoDays: n == null ? 0 : n}})}/></label>
-          <label class="coo-field"><span class="small">Most people out a day</span><${Num} label="Most people out a day" value=${L.maxOutPerDay} onSave=${n => save({leave: {maxOutPerDay: n == null ? 0 : n}})}/></label>
-          <label class="coo-field"><span class="small">Most out per pod</span><${Num} label="Most out per pod" value=${L.maxOutPerPod} onSave=${n => save({leave: {maxOutPerPod: n == null ? 0 : n}})}/></label>
-          <label class="coo-field"><span class="small">The leave year starts</span><input class="input coo-num" aria-label="The leave year starts" placeholder="04-01" value=${L.yearStart || ''}
+          ${['casual', 'sick', 'other'].map(k => html`<label class="coo-field" key=${'n' + k}><span class="small">${U.cap(k)} notice, days</span><${Num} label=${U.cap(k) + ' notice in days'} value=${N[k]} onSave=${n => save({leave: {noticeDays: {[k]: n}}})}/></label>`)}
+          <label class="coo-field"><span class="small">Most working days it approves</span><${Num} label="Most working days it approves" value=${L.maxAutoDays} onSave=${n => save({leave: {maxAutoDays: n}})}/></label>
+          <label class="coo-field"><span class="small">Most people out a day</span><${Num} label="Most people out a day" value=${L.maxOutPerDay} onSave=${n => save({leave: {maxOutPerDay: n}})}/></label>
+          <label class="coo-field"><span class="small">Most out per pod</span><${Num} label="Most out per pod" value=${L.maxOutPerPod} onSave=${n => save({leave: {maxOutPerPod: n}})}/></label>
+          <label class="coo-field"><span class="small">The leave year starts</span><input class="input coo-num" aria-label="The leave year starts" placeholder="04-01" key=${'y' + (L.yearStart || '')} defaultValue=${L.yearStart || ''}
             onBlur=${e => /^\d{2}-\d{2}$/.test(e.target.value.trim()) && e.target.value.trim() !== L.yearStart && save({leave: {yearStart: e.target.value.trim()}})}/></label>
         </div>
         <div class="row between"><span class="small">Sick leave in probation, unpaid</span>
           <${UI.Seg} sm=${true} ariaLabel="Sick leave in probation" options=${[{v: 'no', label: 'To you'}, {v: 'yes', label: 'Allowed'}]} value=${L.probationLop ? 'yes' : 'no'} onChange=${v => save({leave: {probationLop: v === 'yes'}})}/></div>
-        <label class="coo-field wide"><span class="small">Blackout dates, comma separated</span><input class="input" aria-label="Blackout dates" placeholder="2026-12-24, 2026-12-31" value=${list(L.blackout).join(', ')}
+        <label class="coo-field wide"><span class="small">Blackout dates, comma separated</span><input class="input" aria-label="Blackout dates" placeholder="2026-12-24, 2026-12-31" key=${'b' + list(L.blackout).join()} defaultValue=${list(L.blackout).join(', ')}
           onBlur=${e => { const ds = e.target.value.split(',').map(x => x.trim()).filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x)); if (ds.join(',') !== list(L.blackout).join(',')) save({leave: {blackout: ds}}); }}/></label>
         <label class="coo-field"><span class="small">WFH: fewest people in the office (0 is off)</span><${Num} label="Fewest people in the office" value=${(c.wfh || {}).minOffice} onSave=${n => save({wfh: {minOffice: n == null ? 0 : n}})}/></label>
       </div>
@@ -824,7 +891,7 @@
     let cards = [], rows = [];
     if (last) { cards = openCards(last); rows = rowsOf(last); }
     else {
-      try { cards = list(M.coo.decisions ? M.coo.decisions(ctx) : []).filter(c => !c.status || OPEN[c.status]); } catch (e) { cards = []; }
+      try { cards = list(M.coo.decisions ? M.coo.decisions(ctx) : []).filter(isOpen); } catch (e) { cards = []; }
       try { rows = list(M.coo.feed ? M.coo.feed(ctx, atIST(ymdIST(now), '00:00')) : []); } catch (e) { rows = []; }
     }
     for (const c of cards) if (c.urgent) out.push({id: 'coo:' + c.id, at: Number(c.at) || now, line: c.title || say(ctx, c).line, ref: '#coo', hot: true});
@@ -838,7 +905,7 @@
     return out;
   }
 
-  M.cooUi = {version: () => ver, useLive, openCards, rowsOf, briefOf, say, confirmReview, ghostOf, founderItems, isCoo, titleOf, ymdIST, hm};
+  M.cooUi = {version: () => ver, useLive, openCards, rowsOf, briefOf, say, confirmReview, ghostOf, evidenceLine, founderItems, isCoo, titleOf, ymdIST, hm};
   M.parts.CooFace = CooFace;
   M.parts.CooCards = CooCards;
   M.parts.CooDigest = CooDigest;
