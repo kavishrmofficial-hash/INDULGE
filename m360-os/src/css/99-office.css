@@ -87,9 +87,9 @@
 .os-count .pill{min-width:22px; justify-content:center}
 
 /* ---------- desks ---------- */
-.office-desk{position:absolute; width:44px; height:44px; margin:0; padding:0; border:0; border-radius:999px; background:transparent; cursor:pointer; color:var(--ink);
+:is(.office-desk,.office-founder){position:absolute; width:44px; height:44px; margin:0; padding:0; border:0; border-radius:999px; background:transparent; cursor:pointer; color:var(--ink);
   display:flex; align-items:center; justify-content:center; transform:translate(-50%,-50%) scale(var(--inv,1)); -webkit-tap-highlight-color:transparent}
-.office-desk:focus-visible{outline:2px solid var(--flame); outline-offset:0}
+:is(.office-desk,.office-founder):focus-visible{outline:2px solid var(--flame); outline-offset:0}
 .od-face{position:relative; display:inline-flex; border-radius:999px; box-shadow:0 0 0 2px var(--paper)}
 .od-face .av{display:block}
 /* WFH: the person on the monitor, a call tile with a house on it */
@@ -106,10 +106,13 @@
 .od-new{position:absolute; right:-14px; top:-4px; font-size:11px; line-height:1; padding:3px 6px; border-radius:999px; background:var(--flame-deep); color:#fff; font-weight:500; pointer-events:none}
 .od-tag{position:absolute; top:calc(100% - 4px); left:50%; transform:translateX(-50%); display:inline-flex; align-items:center; gap:4px; white-space:nowrap; pointer-events:none;
   font-size:11px; font-weight:400; line-height:1; padding:3px 7px; border-radius:999px; background:var(--paper); color:var(--ink); border:1px solid var(--line)}
+/* a tag keeps to its own desk's room, up to the next person on that side of the bench */
+.od-tag{max-width:var(--room,110px); min-width:0}
+.od-tag > span:last-child{min-width:0; overflow:hidden; text-overflow:ellipsis}
 .od-hot{width:6px; height:6px; border-radius:999px; background:var(--flame); flex:none}
 .od-late{border:1px solid var(--flame); color:var(--flame-text); border-radius:999px; padding:1px 5px; font-size:11px}
 .office-desk[data-state="leave"] .od-tag,.office-desk[data-state="out"] .od-tag{color:var(--ink62)}
-.office-desk.cabin .od-face{box-shadow:0 0 0 2px var(--paper), 0 0 0 3.5px var(--ink)}
+.office-founder .od-face{box-shadow:0 0 0 2px var(--paper), 0 0 0 3.5px var(--ink)}
 
 /* ---------- the COO ---------- */
 .office-track{position:absolute; inset:0; pointer-events:none; will-change:transform}
@@ -172,6 +175,7 @@
 .office-wait li{display:flex; align-items:center; gap:8px; font-size:14px}
 .office-list li{display:flex; gap:6px 8px; flex-wrap:wrap; font-size:14px; line-height:1.4}
 .office-drawer{gap:14px}
+.office-prefs{gap:8px; padding:0 4px; font-size:13px; color:var(--ink62)}
 
 /* ---------- the live window (HQ, Home, the COO tab) ---------- */
 .office-window{display:flex; flex-direction:column; gap:10px; min-width:0}

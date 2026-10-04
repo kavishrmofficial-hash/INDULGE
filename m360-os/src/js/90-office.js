@@ -91,7 +91,9 @@
   const STATIONS = () => (C() && C().STATIONS) || Object.keys(STATION_LABEL);
 
   /* who sits where: active members by pod (no pod is the Studio), pods by name, the lead first, then by
-     joining date and id, six to a bench, two benches a row. The founder has the cabin; the COO has no desk */
+     joining date and id, six to a bench, two benches a row. A bench fills across its two sides in turn, so
+     a small pod has room for its tags. The founder has the cabin; the COO has no desk */
+  const SEAT_ORDER = [[0, true], [1, false], [2, true], [0, false], [1, true], [2, false]];
   const layoutMemo = new WeakMap();
   const NONE = {};
   function layout(ctx) {
@@ -113,12 +115,21 @@
     benches.forEach((b, i) => {
       b.i = i; b.x = COLS[i % 2]; b.y = ROW0 + Math.floor(i / 2) * GROW;
       b.ids.forEach((u, j) => {
-        const top = j < 3;
-        seats[u] = {uid: u, x: b.x + (j % 3) * DESK_W + DESK_W / 2, y: top ? b.y - 8 : b.y + BENCH_H + 8, top, bench: i, pod: b.pod, j};
+        const [col, top] = SEAT_ORDER[j];
+        seats[u] = {uid: u, x: b.x + col * DESK_W + DESK_W / 2, y: top ? b.y - 8 : b.y + BENCH_H + 8, top, bench: i, pod: b.pod, j};
+      });
+      /* the room a tag has: up to the next person on the same side of the bench */
+      b.ids.forEach(u => {
+        const me = seats[u];
+        const near = b.ids.filter(v => v !== u && seats[v].top === me.top).map(v => Math.abs(seats[v].x - me.x));
+        me.room = near.length ? Math.min(...near) : BENCH_W - DESK_W / 2;
       });
     });
-    const out = {W: PLAN_W, H: PLAN_H + grow, grow, rows, benches, seats, founder: fu};
-    if (fu) out.seats[fu] = {uid: fu, x: 1450, y: 712 + grow, top: true, bench: -1, pod: '', cabin: true};
+    /* the bench places nobody sits at yet are drawn as spare desks, so the floor reads as a real one */
+    const spare = [];
+    for (let i = benches.length; i < rows * 2; i++) spare.push({x: COLS[i % 2], y: ROW0 + Math.floor(i / 2) * GROW, ids: []});
+    const out = {W: PLAN_W, H: PLAN_H + grow, grow, rows, benches, spare, seats, founder: fu};
+    if (fu) out.seats[fu] = {uid: fu, x: 1450, y: 712 + grow, top: true, bench: -1, pod: '', cabin: true, room: 200};
     layoutMemo.set(key, out);
     return out;
   }
@@ -234,6 +245,8 @@
       else if (a.status === 'wfh' && a.in) { state = 'wfh'; tag = 'WFH'; }
       else if (a.in) { state = 'office'; tag = see ? 'In, ' + istHm(a.in) : 'In'; }
       else if (see && now > startAt && !seat.cabin && (v.founder || u !== v.uid)) { tag = 'Not in yet'; hot = true; }
+      /* Kaavish does not check in: with m360 open, he is in the cabin */
+      if (seat.cabin && state === 'notin' && ctx.online && ctx.online[u]) state = 'office';
       const live = state === 'office' || state === 'wfh' || state === 'elsewhere';
       /* focus protects the person, so everyone sees it: a running focus session, else the newest activity
          bucket of the last ten minutes marked as focus */
@@ -257,7 +270,7 @@
       const pileOn = v.founder || (M.lines && M.lines.managerOf && M.lines.managerOf(ctx, u) === v.uid);
       const mine = pileOn ? tasks.filter(t => t.owner === u) : [];
       const joined = m.joined && /^\d{4}-\d{2}-\d{2}$/.test(m.joined) ? Math.round((Date.parse(day.ymd) - Date.parse(m.joined)) / 86400000) : 99;
-      out.push({uid: u, pod: seat.pod, x, y, seatX: seat.x, seatY: seat.y, top: seat.top, cabin: !!seat.cabin, place, state, tag, hot,
+      out.push({uid: u, pod: seat.pod, x, y, seatX: seat.x, seatY: seat.y, top: seat.top, cabin: !!seat.cabin, room: place === 'desk' ? seat.room : 120, place, state, tag, hot,
         focus, quiet, late: see && !!a.late && (state === 'office' || state === 'wfh'), online, page: v.founder && online ? String(ctx.online[u].page || '') : '',
         arrival: !!a.in && !a.out && now - a.in < 2 * MIN, newHire: joined >= 0 && joined <= 1,
         pile: Math.min(12, mine.length), overdue: mine.some(t => t.due && t.due < day.ymd), inAt: see ? a.in || 0 : 0});
@@ -267,7 +280,8 @@
   }
   /* the public words for a desk's state, for its label and the list view */
   const STATE_WORD = {closed: 'office closed', leave: 'away today', out: 'out', wfh: 'WFH', office: 'in', notin: 'not in yet'};
-  const stateWord = d => d.state === 'elsewhere' ? String(d.tag || '').toLowerCase() : d.state === 'notin' && !d.hot ? 'desk empty' : STATE_WORD[d.state] || '';
+  const stateWord = d => d.state === 'elsewhere' ? String(d.tag || '').toLowerCase() : d.state === 'notin' && !d.hot ? (d.cabin ? 'not in the cabin' : 'desk empty')
+    : d.cabin && d.state === 'office' ? 'in the cabin' : STATE_WORD[d.state] || '';
 
   /* ---------- the COO's words (M.coo.copy only) ---------- */
   function say(ctx, code, args, scope) {
@@ -310,6 +324,17 @@
     if (code === 'review_ask') return {kind: 'pin', station: 'review'};
     if (ASK[code]) return {kind: 'plane', station: 'mail'};
     return {kind: NEEDS.test(line || '') ? 'tray' : 'plain', station: r.station && STATION_POS[r.station] ? r.station : 'desk'};
+  }
+
+  /* where an approved card's action is done: its station when the event names one, else by the kind of
+     action, else the tray */
+  const ACTION_AT = [[/leave|wfh/, 'calendar'], [/review/, 'review'], [/task|owner|assign|due|rebalance|move/, 'board'], [/invoice|books/, 'books'],
+    [/pitch|client/, 'clients'], [/mail|draft|send/, 'desk'], [/ask|nudge|chase/, 'mail'], [/holiday|setting|reports|roster|pm_policy/, 'reception']];
+  function approvedAt(d) {
+    if (d.station && STATION_POS[d.station]) return d.station;
+    const nm = String(d.name || d.action || d.kind || '').toLowerCase();
+    const hit = nm ? ACTION_AT.find(([re]) => re.test(nm)) : null;
+    return hit ? hit[1] : 'tray';
   }
 
   /* ---------- small shared hooks ---------- */
@@ -380,7 +405,9 @@
     const nowDoc = founder ? live.now || null : null;
     const health = founder ? live.health || null : null;
     const rest = restOf(ctx, {founder, pub, nowDoc, health, dec, day});
-    return {ctx, scope, founder, live, L, D, rows, dec, pub, nowDoc, health, day, rest, profs, names};
+    /* the ledger has arrived: what is in it then was already there when the person looked */
+    const ready = !!(ctx.coo && ctx.coo.ready);
+    return {ctx, scope, founder, live, L, D, rows, dec, pub, nowDoc, health, day, rest, profs, names, ready};
   }
 
   /* where the COO is between rounds, and how it looks there */
@@ -399,7 +426,8 @@
     const line = (code, args) => { const t = say(ctx, code, args, 'founder'); return t.line ? {line: t.line, why: t.why, needs: NEEDS.test(t.line), rest: true} : null; };
     if (st === 'off' || st === 'paused' || day.night || idleLong) {
       Object.assign(out, {state: 'sleeping', asleep: true, card: st === 'paused' ? 'Paused' : ''});
-      if (founder) out.bubble = st === 'off' ? line('off') : st === 'paused' ? line('paused', {until: Number(((c.cfg && c.cfg(ctx)) || {}).pausedUntil) || 0}) : idleLong && !day.night ? line('page_runner', {at: lastAt}) : null;
+      if (founder) out.bubble = st === 'off' ? line('off') : st === 'paused' ? line('paused', {until: Number(((c.cfg && c.cfg(ctx)) || {}).pausedUntil) || 0}) : idleLong && !day.night ? line('page_runner', {at: lastAt})
+        : {line: teamLine(ctx, 'desk', true), why: '', rest: true};
       else out.bubble = day.night || st === 'off' ? {line: teamLine(ctx, 'desk', true), why: '', rest: true} : null;
       return out;
     }
@@ -419,7 +447,7 @@
     const cur = data.nowDoc || data.pub || {};
     const last = Number((cur.pass && cur.pass.at) || 0);
     const next = cur.next && cur.next.at ? Number(cur.next.at) : 0;
-    if (!last) return data.rest.asleep ? 'Asleep. No round yet today.' : 'No round yet today.';
+    if (!last) return 'No round yet today.';
     return 'Last round ' + istHm(last) + (next ? ', next ' + istHm(next) : '');
   };
 
@@ -587,7 +615,7 @@
     const rows = data.rows;
     useEffect(() => {
       const e = E.current;
-      if (!e.data.founder) return;
+      if (!e.data.founder || !e.data.ready) return;
       const ids = new Set(rows.map(r => r.id));
       if (seen.current === null) {
         seen.current = ids;
@@ -612,7 +640,7 @@
       if (b.more) q.current.push({kind: 'summary', bubble: {line: 'And ' + b.more + ' more since ' + istHm(b.since) + '. See today\'s run.', why: '', summary: true}});
       if (E.current.onWake) E.current.onWake();
       pump();
-    }, [rows]);
+    }, [rows, data.ready]);
 
     /* the rest place moved (cards waiting, a working round, the night): it goes there when free */
     const restKey = data.rest.station + '|' + data.rest.state;
@@ -624,7 +652,7 @@
 
     /* the founder approved a card the agent made: it goes to the station of that action */
     useEffect(() => {
-      const f = ev => { if (!E.current.data.founder) return; const st = ev && ev.detail && ev.detail.station; q.current.push({kind: 'go', station: STATION_POS[st] ? st : 'tray'}); pump(); };
+      const f = ev => { if (!E.current.data.founder) return; q.current.push({kind: 'go', station: approvedAt((ev && ev.detail) || {})}); pump(); };
       window.addEventListener('m360:approved', f);
       return () => window.removeEventListener('m360:approved', f);
     }, []);
@@ -669,7 +697,7 @@
   const Plant = ({x, y, s}) => html`<use href="#of-plant" x=${x} y=${y} width=${s || 34} height=${s || 34}/>`;
   function Plan({L, owner}) {
     const g = L.grow, H = L.H, y = v => sy(L, v);
-    const benches = L.benches.length ? L.benches : [{x: COLS[0], y: ROW0, ids: []}];
+    const benches = L.benches.concat(L.spare || []);
     return html`<svg class="office-plan" viewBox=${'0 0 ' + PLAN_W + ' ' + H} preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
       <defs>
         <symbol id="of-mon" viewBox="0 0 28 18"><rect class="of-screen" x="1" y="1" width="26" height="12" rx="2"/><path class="of-fine" d="M10 17h8M14 13v4"/></symbol>
@@ -714,6 +742,7 @@
         ${[0, 1, 2].map(j => html`<g key=${j}>
           <${Mon} x=${b.x + j * 120 + 46} y=${b.y + 40}/><${Mon} x=${b.x + j * 120 + 46} y=${b.y + 104}/>
           <use href="#of-lamp" x=${b.x + j * 120 + 96} y=${b.y + 12} width="14" height="14"/><use href="#of-lamp" x=${b.x + j * 120 + 96} y=${b.y + 134} width="14" height="14"/>
+          ${b.ids.length ? null : html`<rect class="of-chair" x=${b.x + j * 120 + 47} y=${b.y - 19} width="26" height="18" rx="8"/><rect class="of-chair" x=${b.x + j * 120 + 47} y=${b.y + BENCH_H + 1} width="26" height="18" rx="8"/>`}
         </g>`)}
       </g>`)}
       <rect class="of-top" x="1164" y="300" width="28" height="220" rx="4"/>
@@ -857,7 +886,7 @@
   /* one desk: the photo, the tag, focus, the live dot, late and quiet for those who may see them */
   const House = html`<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1.5 6L6 2l4.5 4M3 5.2V10h6V5.2"/></svg>`;
   const Phones = html`<svg viewBox="0 0 16 10" aria-hidden="true"><path d="M2 9V7a6 6 0 0 1 12 0v2"/><rect x="1" y="6" width="3" height="4" rx="1"/><rect x="12" y="6" width="3" height="4" rx="1"/></svg>`;
-  function Desk({d, L, name, label, avatar, tags, tab, lit, litDelay, onOpen, onKey, asked}) {
+  function Desk({d, L, ppu, name, label, avatar, tags, tab, lit, litDelay, onOpen, onKey, asked}) {
     const ref = useRef(null);
     /* a check-in under two minutes old walks in from the door, past the attendance desk */
     useLayoutEffect(() => {
@@ -875,9 +904,10 @@
     }, [d.arrival]);
     /* the person is drawn where they are: at the desk, on a call tile from home, in the meeting room */
     const show = d.state === 'office' || d.state === 'wfh' || (d.state === 'elsewhere' && d.place === 'meeting');
-    return html`<button ref=${ref} type="button" class=${'office-desk' + (d.top ? ' top' : '') + (lit ? ' lit' : '') + (d.cabin ? ' cabin' : '')} data-uid=${d.uid} data-state=${d.state} data-place=${d.place}
+    /* Kaavish's own seat in the cabin is not a desk on the floor */
+    return html`<button ref=${ref} type="button" class=${(d.cabin ? 'office-founder cabin' : 'office-desk') + (d.top ? ' top' : '') + (lit ? ' lit' : '')} data-uid=${d.uid} data-state=${d.state} data-place=${d.place}
       tabIndex=${tab} aria-label=${label} title=${name} onClick=${onOpen} onKeyDown=${onKey}
-      style=${{left: pc(d.x, L.W), top: pc(d.y, L.H), zIndex: 10 + Math.round(d.y), '--d': (litDelay || 0) + 'ms'}}>
+      style=${{left: pc(d.x, L.W), top: pc(d.y, L.H), zIndex: 10 + Math.round(d.y), '--d': (litDelay || 0) + 'ms', '--room': Math.max(44, Math.round((d.room || 120) * ppu) - 8) + 'px'}}>
       ${show ? html`<span class=${'od-face' + (d.state === 'wfh' ? ' call' : '')}>${avatar}${d.state === 'wfh' ? html`<i class="od-house">${House}</i>` : null}</span>` : html`<span class="od-empty" aria-hidden="true"/>`}
       ${d.focus ? html`<i class="od-focus" aria-hidden="true">${Phones}</i>` : null}
       ${d.online && show ? html`<i class="od-live" aria-hidden="true" title=${d.page ? 'On ' + d.page : ''}/>` : null}
@@ -927,7 +957,7 @@
     useEffect(() => {
       const S = M.assistant;
       if (!S || !S.subs) return undefined;
-      const f = () => setListening(['listening', 'hearing', 'thinking'].indexOf((S.st || {}).phase) >= 0);
+      const f = () => { const st = S.st || {}; setListening(['listening', 'hearing', 'thinking'].indexOf(st.phase) >= 0 || !!st.speaking); };
       f();
       S.subs.add(f);
       return () => { S.subs.delete(f); };
@@ -991,7 +1021,7 @@
       ev.preventDefault();
       const next = list[(n + list.length) % list.length];
       setRove(x => ({...x, [k]: next}));
-      const el = host.current && host.current.querySelector('.office-desk[data-uid="' + next + '"]');
+      const el = host.current && host.current.querySelector('[data-uid="' + next + '"]:is(.office-desk, .office-founder)');
       if (el) el.focus();
     };
     const tabFor = d => { const k = d.cabin ? 'cabin' : d.pod; return (rove[k] || (pods[k] || [])[0]) === d.uid ? 0 : -1; };
@@ -1022,9 +1052,9 @@
                 ${k === 'tray' && data.dec.length ? html`<span class="os-count">${M.fx && M.fx.MetalBadge ? html`<${M.fx.MetalBadge}>${String(data.dec.length)}<//>` : html`<span class="pill flame">${data.dec.length}</span>`}</span>` : null}
               </button>`;
             })}
-            ${D.map((d, i) => html`<${Desk} key=${d.uid} d=${d} L=${L} name=${nm(d.uid)} tags=${showTags} tab=${tabFor(d)}
+            ${D.map((d, i) => html`<${Desk} key=${d.uid} d=${d} L=${L} ppu=${ppu} name=${nm(d.uid)} tags=${showTags} tab=${tabFor(d)}
               lit=${roll && d.state !== 'closed' ? roll.k : 0} litDelay=${Math.min(i, 12) * 80} asked=${asked && asked.uid === d.uid ? asked.at : 0}
-              label=${nm(d.uid) + ', ' + stateWord(d) + (d.focus ? ', in focus' : '') + (d.cabin ? ', in the cabin' : '') + '.'}
+              label=${nm(d.uid) + ', ' + stateWord(d) + (d.focus ? ', in focus' : '') + '.'}
               avatar=${html`<${UI.Avatar} id=${d.uid} size=${phone && whole ? 22 : 28}/>`}
               onOpen=${() => onOpenDesk && onOpenDesk(d.uid)} onKey=${ev => keyDesk(d, ev)}/>`)}
             ${view.flights.map(f => html`<${Flight} key=${f.id} f=${f} L=${L} ppu=${ppu} onDone=${dir.land}/>`)}
@@ -1093,12 +1123,23 @@
   function Rail({data, now, id, list}) {
     return html`<div class=${'office-rail' + (list ? ' as-list' : '')} id=${id}>
       <section class="card or-card"><div class="card-head"><h2 class="card-title">Now</h2></div>
-        ${now && now.line ? html`<${Bubble} b=${{...now, fold: false}} founder=${data.founder} big=${true} onUndo=${x => undoRow(data.ctx, x)}/>` : html`<p class="sub small">${clockLine(data.ctx, data)}</p>`}
+        ${now && now.line ? html`<${Bubble} b=${{...now, fold: false}} founder=${data.founder} big=${true} onUndo=${x => undoRow(data.ctx, x)}/>`
+          : html`<p class="small">${data.rest.asleep ? 'Asleep at its desk.' : 'Between rounds, at its ' + (data.rest.station === 'tray' ? 'tray' : 'desk') + '.'}</p>`}
         <p class="tiny sub" style=${{marginTop: '8px'}}>${clockLine(data.ctx, data)}</p></section>
       ${data.founder ? html`<section class="card or-card"><div class="card-head"><h2 class="card-title">Waiting on you</h2></div><${Waiting} data=${data}/></section>` : null}
       ${data.founder ? html`<section class="card or-card"><div class="card-head"><h2 class="card-title">Today's run</h2></div><${RunList} data=${data} limit=${list ? 200 : 20}/></section>` : null}
       <section class="card or-card"><div class="card-head"><h2 class="card-title">Desks</h2></div><${DeskList} data=${data}/></section>
       ${!data.founder ? html`<p class="sub small">The COO is a bot that helps Kaavish run the day. <a href="#coo">What it does</a>.</p>` : null}
+      <${Prefs} founder=${data.founder}/>
+    </div>`;
+  }
+  /* this device's own choices: the walks between rounds, and (Kaavish) the spoken line for screen readers */
+  function Prefs({founder}) {
+    const [, bump] = useState(0);
+    const flip = (k, on) => { M.prefs.set(k, on ? '1' : '0'); bump(n => n + 1); };
+    return html`<div class="office-prefs stack">
+      <${UI.Check} label="Let the COO wander between rounds" checked=${prefOn('office.wander', true)} onChange=${v => flip('office.wander', v)}/>
+      ${founder ? html`<${UI.Check} label="Read its acts out to a screen reader" checked=${M.prefs.get('office.mute', '0') !== '1'} onChange=${v => flip('office.mute', !v)}/>` : null}
     </div>`;
   }
 
@@ -1114,7 +1155,7 @@
     const nav2 = founder || ['attendance', 'calendar', 'board', 'review', 'meeting'].indexOf(k) >= 0 ? nav : (k === 'desk' || k === 'mail' || k === 'clock' ? ['#coo', 'What the COO does'] : nav);
     let body = null;
     if (k === 'attendance') {
-      const grp = (st, label) => { const l = D.filter(d => d.state === st); return l.length ? html`<li key=${st}><b>${label}</b> <span class="sub">${l.map(d => nm(d.uid)).join(', ')}</span></li>` : null; };
+      const grp = (st, label) => { const l = D.filter(d => d.state === st && !d.cabin); return l.length ? html`<li key=${st}><b>${label}</b> <span class="sub">${l.map(d => nm(d.uid)).join(', ')}</span></li>` : null; };
       const hotOnes = D.filter(d => d.hot);
       const lateOnes = D.filter(d => d.late);
       body = html`<ul class="office-list">${grp('office', 'In')}${grp('wfh', 'WFH')}${grp('elsewhere', 'Out and about')}${grp('leave', 'Away')}${grp('out', 'Gone for the day')}
@@ -1167,6 +1208,11 @@
     let open = 0, over = 0;
     if (see) Object.keys(ctx.coll.tasks.map).forEach(id => { const t = ctx.coll.tasks.map[id]; if (t && !t.deleted && t.status !== 'done' && t.owner === uid) { open++; if (t.due && t.due < data.day.ymd) over++; } });
     const first = String(name).split(' ')[0];
+    /* the last thing a personal manager's bot asked today, and the answer (the manager's own line) */
+    let pm = '';
+    if (see && (founder || uid !== ctx.uid) && M.pm && M.pm.log) {
+      try { const it = (((M.pm.log(ctx, uid, 1) || [])[0] || {}).items || []).slice(-1)[0]; pm = it ? String(it.mgrLine || it.line || '') : ''; } catch (e) { pm = ''; }
+    }
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${name}
       footer=${html`<div class="row"><${UI.Btn} kind="sec" onClick=${() => { onClose(); M.nav('#people/' + uid); }}>Open profile<//>
         ${uid !== ctx.uid && M.assistant && M.assistant.open ? html`<${UI.Btn} kind="sec" onClick=${() => { onClose(); M.assistant.open('Ask ' + first + ' '); }}>Ask<//>` : null}</div>`}>
@@ -1175,7 +1221,8 @@
         ${see && (founder || uid !== ctx.uid) ? html`<ul class="office-list">
           ${d.inAt ? html`<li><b>Checked in</b> <span class="sub">${istHm(d.inAt)}${d.late ? ', late' : ''}</span></li>` : null}
           ${d.quiet ? html`<li><b>Quiet</b> <span class="sub">${d.quiet.replace(/^Quiet /, '')}</span></li>` : null}
-          <li><b>Open work</b> <span class="sub">${open} open${over ? ', ' + over + ' overdue' : ''}</span></li></ul>` : null}
+          <li><b>Open work</b> <span class="sub">${open} open${over ? ', ' + over + ' overdue' : ''}</span></li>
+          ${pm ? html`<li><b>Last ask</b> <span class="sub">${pm}</span></li>` : null}</ul>` : null}
       </div>
     <//>`;
   }
