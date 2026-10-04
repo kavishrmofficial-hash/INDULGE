@@ -64,10 +64,12 @@
     if (m.wfhCap != null && String(m.wfhCap) !== '' && Number(m.wfhCap) >= 0) return Math.floor(Number(m.wfhCap));
     return Number(ctx && ctx.settings && ctx.settings.wfhCap) || 0;
   }
+  /* WFH days used in the week: WFH check-ins, and WFH days approved ahead (ctx.wfhMap), each day once */
+  const plannedWfh = (ctx, uid, ymd) => !!(ctx && ctx.wfhMap && ctx.wfhMap[uid] && ctx.wfhMap[uid].has(ymd));
   function wfhUsed(ctx, uid, mondayDate) {
     const days = daysOf(ctx, uid);
     const mon = U.mondayOf(mondayDate || new Date());
-    return U.weekDays(mon).filter(d => days[d] && days[d].mode === 'wfh').length;
+    return U.weekDays(mon).filter(d => (days[d] && days[d].mode === 'wfh') || plannedWfh(ctx, uid, d)).length;
   }
 
   /* metres to a short distance: '640 m away' or '3.4 km away' */
@@ -115,7 +117,9 @@
     const ds = dayStatus(ctx, uid, today);
     const cap = wfhCapFor(ctx, uid);
     const used = wfhUsed(ctx, uid, new Date());
-    const atCap = used >= cap;
+    /* a WFH day approved ahead is already counted, and today it is the check-in to make */
+    const planned = plannedWfh(ctx, uid, today);
+    const atCap = used >= cap && !planned;
 
     const done = () => { if (live.current) setBusy(false); };
     const writeDay = (entry, msg) => {
@@ -180,6 +184,12 @@
             <${UI.Btn} kind="ghost" sm disabled=${busy} onClick=${() => setPick(null)}>Cancel<//>
           </div>
           <div class="sub small">Location could not be captured. The place you pick is saved as self reported.</div>
+        </div>` : planned ? html`<div class="stack tight">
+          <div class="sub small" id="checkin-planned">Your WFH day is approved.</div>
+          <div class="row">
+            <${UI.Btn} disabled=${busy} onClick=${() => checkIn('wfh')}>Check in, WFH<//>
+            <${UI.Btn} kind="sec" disabled=${busy} onClick=${() => checkIn('office')}>Check in, office<//>
+          </div>
         </div>` : html`<div class="row">
           <${UI.Btn} disabled=${busy} onClick=${() => checkIn('office')}>Check in, office<//>
           <${UI.Btn} kind="sec" disabled=${busy || atCap} onClick=${() => checkIn('wfh')}>Check in, WFH<//>
@@ -220,5 +230,5 @@
   }
 
   M.parts.CheckinCard = CheckinCard;
-  M.att = {dayStatus, isLate, wfhUsed, wfhCapFor, locFrom, placeText, distText, modeLabel, PLACES};
+  M.att = {dayStatus, isLate, wfhUsed, wfhCapFor, plannedWfh, locFrom, placeText, distText, modeLabel, PLACES};
 })();

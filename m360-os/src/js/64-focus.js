@@ -13,6 +13,13 @@
   const persist = () => { try { localStorage.setItem('m360.focus', JSON.stringify(state)); } catch (e) { /* private window */ } };
   const emit = () => subs.forEach(fn => fn(state));
   let openFn = null;
+  /* the running timer on the person's own profile (me/<uid>.focusNow), so the office shows headphones on
+     their desk and nobody walks a question over: a quiet write, with no log line and no activity stamp */
+  const markNow = v => {
+    const ctx = M.lastCtx;
+    if (!ctx || !ctx.uid || ctx.viewAs || !M.pm || !M.pm.qmerge) return;
+    M.pm.qmerge(ctx, 'me/' + ctx.uid, {focusNow: v}).catch(() => { /* the timer runs either way */ });
+  };
 
   const focus = M.focus = {
     get: () => state,
@@ -22,8 +29,9 @@
     start(task, title, mins) {
       state = {task: task || '', title: String(title || 'Deep work').slice(0, 80), mins: LENS.includes(mins) ? mins : 25, start: Date.now()};
       persist(); emit(); M.sound.play('start');
+      markNow({start: state.start, mins: state.mins, task: state.task});
     },
-    stop() { state = null; persist(); emit(); },
+    stop() { state = null; persist(); emit(); markNow(null); },
     left() { if (!state) return 0; return Math.max(0, state.mins * 60000 - (Date.now() - state.start)); },
     /* a finished session: written once, then the timer clears */
     async finish(ctx) {
@@ -33,7 +41,7 @@
       /* banked at the moment the timer ended, even when the page reopens later (the quiet watch reads the span) */
       const sessions = [{task: s.task, mins: s.mins, at: Math.min(Date.now(), s.start + s.mins * 60000)}].concat(((doc.focus || {}).sessions) || []).slice(0, KEEP);
       try { await ctx.W.merge('me/' + ctx.uid, {focus: {sessions}}); } catch (e) { M.toast('That session did not save. It stays on the clock; try again in a moment.', true); return; }
-      state = null; persist(); emit();
+      state = null; persist(); emit(); markNow(null);
       M.burst(document.querySelector('.focus-pill') || document.body);
       M.toast('Session done. ' + s.mins + ' minutes of deep work banked.');
     },

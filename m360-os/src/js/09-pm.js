@@ -120,7 +120,11 @@
     }
   }
   const fullName = (ctx, u) => known[u] || meOf(ctx, u).name || ((ctx.members || {})[u] || {}).name || '';
-  const first = (ctx, u) => U.firstName(fullName(ctx, u)) || 'Someone';
+  /* the m360 COO keeps its whole title: "m360 COO", never "m360" */
+  const isCoo = u => !!(M.coo && M.coo.isCoo(u));
+  const first = (ctx, u) => isCoo(u) ? M.coo.title(ctx) : U.firstName(fullName(ctx, u)) || 'Someone';
+  /* the COO's asks count as the founder's while Kaavish has it on and its asks are not switched off */
+  const cooAsks = ctx => !!M.coo && M.coo.on(ctx) && M.coo.rung(ctx, 'nudge') !== 'off';
   const botName = (ctx, mgr) => first(ctx, mgr) + "'s bot";
 
   /* ---------- small reads ---------- */
@@ -446,7 +450,7 @@
     const upLine = chainOf(ctx, rep);
     for (const x of Object.keys(ctx.coll.me.map || {})) {
       if (x === rep) continue;
-      const fx = isFounderUid(ctx, x);
+      const fx = isFounderUid(ctx, x) || (isCoo(x) && cooAsks(ctx));
       if (!fx && upLine.indexOf(x) < 0) continue;
       const asks = pmOf(ctx, x).asks || {};
       for (const id of Object.keys(asks)) {
@@ -483,7 +487,8 @@
           if (kind === 'noout') facts = {in: hm(a.in), last: lastSave(ctx, rep, ymd)};
           if (kind === 'noin') facts = {start: ctx.startFor(rep)};
         }
-        add({kind, sub, source: 'ask', from: x, s1: at, holds, facts, ask: {id, by: x, at: Number(ak.at) || at, via: ak.via || 'typed', ask: ak.ask || 'why', tellBy: ak.tellBy || null, ringNow: !!ak.ringNow && fx, note: !!ak.note}});
+        add({kind, sub, source: 'ask', from: x, s1: at, holds, facts, ask: {id, by: x, at: Number(ak.at) || at, via: ak.via || 'typed', ask: ak.ask || 'why', tellBy: ak.tellBy || null, ringNow: !!ak.ringNow && fx && !isCoo(x), note: !!ak.note,
+          code: isCoo(x) && ak.code ? String(ak.code) : '', args: isCoo(x) && ak.args ? ak.args : null}});
       }
     }
 
@@ -586,10 +591,10 @@
       const ak = it.asks[0];
       const A = COPY.ask;
       const g = {...f, by: first(ctx, ak.by), at: hm(ak.at)};
-      it.head = A.head(g);
-      it.line = (A[kind] || A.custom)(g);
+      it.head = isCoo(ak.by) ? first(ctx, ak.by) + ', ' + g.at : A.head(g);
+      it.line = (isCoo(ak.by) && ak.code ? M.coo.copy(ak.code, ak.args || {}, 'dm', ctx).line : '') || (A[kind] || A.custom)(g);
       it.botName = first(ctx, ak.by);
-      it.why = first(ctx, ak.by) + ' asked ' + (ak.via === 'voice' ? 'by voice' : ak.via === 'button' ? 'with a button' : 'in m360') + ' at ' + hm(ak.at) + '.';
+      it.why = first(ctx, ak.by) + ' asked ' + (ak.via === 'voice' ? 'by voice' : ak.via === 'button' ? 'with a button' : ak.via === 'coo' ? 'on its round' : 'in m360') + ' at ' + hm(ak.at) + '.';
     } else {
       it.botName = botName(ctx, bot);
       if (it.sweep) it.line = 'No EOD line for ' + f.day + '. Post it when you can.';
@@ -1130,8 +1135,12 @@
   const devList = u => { try { return JSON.parse(M.prefs.get(DEV(u), '[]')) || []; } catch (e) { return []; } };
   function devMark(u, ids) { const l = devList(u).concat(ids); M.prefs.set(DEV(u), JSON.stringify(Array.from(new Set(l)).slice(-400))); }
 
-  /* a manual ask (voice, chat, a button): one record on the sender's profile, one DM line each */
-  async function ask(ctx, o) {
+  /* a manual ask (voice, chat, a button): one record on the sender's profile, one DM line each. opts.as
+     M.coo.UID sends it as the m360 COO: founder-level rights, its own caps (M.coo counts them), the record
+     on its own profile and the line from its own DM room */
+  async function ask(ctx, o, opts) {
+    const bot = !!(opts && opts.as && isCoo(opts.as));
+    const me = bot ? opts.as : ctx.uid;
     const p = P(ctx);
     const ag = {...(((M.SETTINGS_DEFAULTS || {}).agent) || {}), ...((ctx.settings && ctx.settings.agent) || {})};
     const kind = KINDS[o.kind] ? o.kind : 'custom';
@@ -1140,40 +1149,43 @@
     const askId = U.uid();
     const showAt = o.showAt && Number(o.showAt) > now ? Number(o.showAt) : null;
     const sentList = [], skipped = [], already = [];
-    const mineAsks = pmOf(ctx, ctx.uid).asks || {};
+    const mineAsks = pmOf(ctx, me).asks || {};
     let todayN = 0;
     for (const id of Object.keys(mineAsks)) { const x = mineAsks[id]; if (x && !x.withdrawn && U.ymd(new Date(Number(x.at) || 0)) === ymd) todayN += (x.to || []).length; }
     const att = KINDS[kind].att;
-    if (ag.on === false) return {askId: null, sent: [], skipped: Array.from(new Set(o.to || [])).map(u => ({uid: u, why: 'asks are switched off'})), already: []};
+    if (bot ? !cooAsks(ctx) : ag.on === false) return {askId: null, sent: [], skipped: Array.from(new Set(o.to || [])).map(u => ({uid: u, why: 'asks are switched off'})), already: []};
     const reach = Math.max(1, Number(ag.bulkMax) || 12);
     for (const u of Array.from(new Set(o.to || []))) {
       const m = ctx.members[u];
       if (!m || m.active === false) { skipped.push({uid: u, why: 'not on the team'}); continue; }
-      if (u === ctx.uid) { skipped.push({uid: u, why: 'that is you'}); continue; }
-      const line = ctx.isFounder || chainOf(ctx, u).indexOf(ctx.uid) >= 0;
-      const mgr = ctx.isFounder || managerOf(ctx, u) === ctx.uid;
+      if (u === me) { skipped.push({uid: u, why: 'that is you'}); continue; }
+      const line = bot || ctx.isFounder || chainOf(ctx, u).indexOf(ctx.uid) >= 0;
+      const mgr = bot || ctx.isFounder || managerOf(ctx, u) === ctx.uid;
       if (att ? !mgr : !line) { skipped.push({uid: u, why: 'not in your team'}); continue; }
       if (!ctx.isWorkingDay(U.ymd(new Date(showAt || now)), u)) { skipped.push({uid: u, why: 'not working today'}); continue; }
       if (Object.keys(mineAsks).some(id => { const x = mineAsks[id]; return x && !x.withdrawn && x.kind === kind && (x.to || []).indexOf(u) >= 0 && U.ymd(new Date(Number(x.at) || 0)) === ymd && (kind !== 'custom'); })) { skipped.push({uid: u, why: 'already asked today'}); continue; }
-      if (todayN + sentList.length >= ag.perSenderDay) { skipped.push({uid: u, why: 'your asks for today are used up'}); continue; }
+      if (!bot && todayN + sentList.length >= ag.perSenderDay) { skipped.push({uid: u, why: 'your asks for today are used up'}); continue; }
       if (sentList.length >= reach) { skipped.push({uid: u, why: 'more than ' + reach + ' people in one ask'}); continue; }
       if ((kind === 'overdue' || kind === 'task') && !(tasksOf(ctx)[o.sub] && tasksOf(ctx)[o.sub].owner === u)) { skipped.push({uid: u, why: 'not their task'}); continue; }
       if (!showAt && ['noin', 'noout', 'noeod', 'quiet', 'idle'].indexOf(kind) >= 0 && !M.lines.watch(ctx, u, now).some(f => f.k === kind && (kind !== 'quiet' || f.live))) { skipped.push({uid: u, why: 'already sorted'}); continue; }
       for (const x of Object.keys(ctx.coll.me.map || {})) {
-        if (x === ctx.uid) continue;
+        if (x === me) continue;
         const ax = pmOf(ctx, x).asks || {};
         for (const id of Object.keys(ax)) { const y = ax[id]; if (y && !y.withdrawn && y.kind === kind && (y.to || []).indexOf(u) >= 0 && U.ymd(new Date(Number(y.at) || 0)) === ymd) already.push({uid: u, by: x, at: Number(y.at)}); }
       }
       sentList.push(u);
     }
     if (!sentList.length) return {askId: null, sent: [], skipped, already};
-    const rec = {kind, to: sentList, ask: ['why', 'eta', 'confirm'].indexOf(o.ask) >= 0 ? o.ask : 'why', at: now, via: ['voice', 'typed', 'grammar', 'button'].indexOf(o.via) >= 0 ? o.via : 'typed'};
+    const rec = {kind, to: sentList, ask: ['why', 'eta', 'confirm'].indexOf(o.ask) >= 0 ? o.ask : 'why', at: now, via: ['voice', 'typed', 'grammar', 'button', 'coo'].indexOf(o.via) >= 0 ? o.via : 'typed'};
     if (o.sub && (kind === 'overdue' || kind === 'task')) rec.sub = String(o.sub);
     if (showAt) rec.showAt = showAt;
     if (o.tellBy) rec.tellBy = Number(o.tellBy);
-    if (o.ringNow && ctx.isFounder) rec.ringNow = true;
+    if (o.ringNow && ctx.isFounder && !bot) rec.ringNow = true;
     if (o.note) rec.note = true;
-    await write(ctx, {asks: {[askId]: rec}});
+    /* the COO's ask carries its copy code and ids, so the card reads its own line; never the words */
+    if (bot && o.code) { rec.code = String(o.code).slice(0, 40); rec.args = o.args || {}; }
+    if (bot) await M.coo.writeAsk(ctx, askId, rec);
+    else await write(ctx, {asks: {[askId]: rec}});
     /* one real DM line per person, from this page, now (a scheduled ask has none): the sender's own
        words when there are any, else the template. A retry finds the line by its id and adds nothing */
     if (!showAt && M.rooms) {
@@ -1182,7 +1194,10 @@
         const K = key(u, kind, sub, ymd);
         const f = {...factsFor(ctx, u, kind, rec.sub, now), note: o.note ? String(o.note).slice(0, 280) : ''};
         const text = o.note ? String(o.note).trim().slice(0, 280) : (COPY.ask[kind] || COPY.ask.custom)(f);
-        try { await M.rooms.send(ctx, M.rooms.dmId(ctx.uid, u), text, [], null, {id: 'ask.' + askId + '.' + u, ask: askId, k: K, via: rec.via}); } catch (e) { /* the record stands; the card carries it */ }
+        try {
+          if (bot) await M.coo.say(ctx, u, text, 'ask.' + askId + '.' + u, {ask: askId, k: K});
+          else await M.rooms.send(ctx, M.rooms.dmId(ctx.uid, u), text, [], null, {id: 'ask.' + askId + '.' + u, ask: askId, k: K, via: rec.via});
+        } catch (e) { /* the record stands; the card carries it */ }
       }
     }
     return {askId, sent: sentList, skipped, already};

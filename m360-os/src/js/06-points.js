@@ -69,8 +69,21 @@
   }
   const isDone = t => t.status === 'done';
   const doneYmd = t => isNum(t.doneAt) ? ymdOf(t.doneAt) : null;
+  /* the due date a finished task is judged against. A date moved for a reason the owner did not choose
+     (leave, wfh, a blocker, a pile-up, an overload, an orphan: the why codes on dueLog) counts as moved; a
+     date set from the owner's own ETA does not, so the date before that shift stands */
+  const dueFor = t => {
+    let due = t.due;
+    const log = Array.isArray(t.dueLog) ? t.dueLog : [];
+    for (let i = log.length - 1; i >= 0; i--) {
+      const e = log[i];
+      if (!e || e.why !== 'eta' || e.to !== due) break;
+      due = e.from || due;
+    }
+    return due;
+  };
   /* a done task is on time when it has no due date, or its done day is on or before the due day */
-  const doneOnTime = t => !t.due || !doneYmd(t) || doneYmd(t) <= t.due;
+  const doneOnTime = t => { const due = dueFor(t); return !due || !doneYmd(t) || doneYmd(t) <= due; };
 
   /* quarters fully covered by [from, to], as quarter ids */
   function wholeQuartersIn(from, to) {

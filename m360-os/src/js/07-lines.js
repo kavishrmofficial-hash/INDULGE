@@ -28,7 +28,8 @@
 
   /* the tasks, read once per version of the map for every watch that follows: each person's own tasks,
      and the last moment they moved anything (their task updated, a task they created or approved, a
-     comment of theirs) */
+     comment of theirs). A task the m360 COO handed over or re-dated last (updatedBy) is not the owner's
+     own movement */
   const taskIdx = new WeakMap();
   function tasksBy(tmap) {
     let ix = taskIdx.get(tmap);
@@ -38,7 +39,7 @@
     for (const id of Object.keys(tmap)) {
       const t = tmap[id];
       if (!t || t.deleted) continue;
-      if (t.owner) { (ix.owned[t.owner] = ix.owned[t.owner] || []).push(t); touch(t.owner, t.updated); }
+      if (t.owner) { (ix.owned[t.owner] = ix.owned[t.owner] || []).push(t); if (!(M.coo && M.coo.isCoo(t.updatedBy))) touch(t.owner, t.updated); }
       touch(t.by, t.created);
       touch(t.approvedBy, t.approvedAt);
       const cs = t.comments || {};

@@ -7,10 +7,14 @@
   const TYPES = [
     {v: 'casual', label: 'Casual'},
     {v: 'sick', label: 'Sick'},
+    {v: 'wfh', label: 'WFH day, booked ahead'},
     {v: 'swap', label: 'WFH swap'},
     {v: 'other', label: 'Other'}
   ];
   const TYPE_LABEL = Object.fromEntries(TYPES.map(t => [t.v, t.label]));
+  const TYPE_PILL = {wfh: 'wfh'};
+  /* a decision the m360 COO made inside the policy Kaavish set */
+  const byCoo = d => !!(d && M.coo && M.coo.isCoo(d.by));
   const STATUS_KIND = {pending: 'flame-o', approved: 'ink', declined: 'flame'};
   /* each person keeps their newest 60 requests; older ones fall off on the next write */
   const KEEP = 60;
@@ -59,7 +63,7 @@
   }
 
   /* ---------- small parts ---------- */
-  const TypePill = ({t}) => html`<${UI.Pill}>${(TYPE_LABEL[t] || 'Other').toLowerCase()}<//>`;
+  const TypePill = ({t}) => html`<${UI.Pill}>${TYPE_PILL[t] || (TYPE_LABEL[t] || 'Other').toLowerCase()}<//>`;
   /* approved is cast in metal; the pill class stays on its holder so the status reads the same everywhere */
   const StatusPill = ({s}) => s === 'approved'
     ? html`<span class="pill ink metal-pill"><${M.fx.MetalBadge} className="fit">${s}<//></span>`
@@ -79,7 +83,7 @@
     const nameOf = uid => (names[uid] && names[uid].name) || 'Someone';
     const decide = (uid, id, status) => {
       setBusy(id);
-      ctx.W.merge('leavedec/' + uid, {d: {[id]: {status, at: Date.now()}}})
+      ctx.W.merge('leavedec/' + uid, {d: {[id]: {status, at: Date.now(), by: ctx.uid}}})
         .then(() => M.toast(status === 'approved' ? 'Approved' : 'Declined'))
         .catch(() => {})
         .then(() => setBusy(null));
@@ -117,7 +121,8 @@
     const member = ctx.member;
     const probation = member && okDate(member.probationEnd) && member.probationEnd > today ? member.probationEnd : null;
     const mine = reqsOf(ctx, uid).slice().sort((a, b) => (b.at || 0) - (a.at || 0));
-    const overlaps = okDate(from) && okDate(to) && mine.some(r => r && r.status !== 'declined' && r.status !== 'withdrawn' && !(to < r.from || from > r.to));
+    /* a request overlaps one still standing (pending or approved, read from the decisions); a declined one frees its dates */
+    const overlaps = okDate(from) && okDate(to) && mine.some(r => r && statusOf(ctx, uid, r.id) !== 'declined' && !(to < r.from || from > r.to));
     const canSend = okDate(from) && okDate(to) && to >= from && !busy && !overlaps;
 
     /* the to date follows the from date until the person picks a later one */
@@ -168,11 +173,13 @@
             const d = decOf(ctx, uid)[r.id];
             const tail = s === 'pending' ? (r.at ? 'asked ' + U.timeAgo(r.at) : '')
               : (d && d.at ? 'decided ' + U.fmtDate(U.ymd(new Date(d.at))) : '');
+            const who = s === 'pending' ? 'With Kaavish' : s === 'approved' && byCoo(d) ? 'Approved by ' + M.coo.title(ctx) + ', inside policy' : '';
             return html`<div class="listrow" key=${r.id}>
               <div class="row between grow">
                 <div>
                   <div class="row"><span class="num">${rangeText(r)}</span><${TypePill} t=${r.type}/><${StatusPill} s=${s}/></div>
                   <div class="sub small">${dayText(dayCount(r))}${tail ? ' · ' + tail : ''}</div>
+                  ${who ? html`<div class="sub small leave-by" data-by=${byCoo(d) ? 'coo' : 'founder'}>${who}</div>` : null}
                 </div>
                 ${s === 'pending' ? html`<${UI.ConfirmBtn} onConfirm=${() => withdraw(r.id)}>Withdraw<//>` : null}
               </div>
@@ -185,5 +192,5 @@
 
   M.pages.Leave = Leave;
   M.parts.LeaveApprovals = LeaveApprovals;
-  M.leave = {pending, TYPES, okDate, dayCount, rangeText};
+  M.leave = {pending, TYPES, okDate, dayCount, rangeText, byCoo};
 })();
