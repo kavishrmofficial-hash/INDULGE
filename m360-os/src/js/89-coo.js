@@ -282,6 +282,9 @@
       if (!away || !uid || !req) { await run('decline', n ? {note: n} : undefined); return; }
       setBusy('decline');
       try {
+        /* decided since, here or on the Leave page: the card is stale and the decision stands */
+        const d0 = ((((ctx.coll.leavedec || {}).map || {})[uid] || {}).d || {})[req];
+        if (d0 && d0.status) { const why = 'It was already ' + d0.status + ', so I dropped the card.'; await settle('void', why, 'tap'); M.toast(why, true); setBusy(''); return; }
         await ctx.W.merge('leavedec/' + uid, {d: {[req]: {status: 'declined', at: Date.now(), by: ctx.uid, ...(n ? {note: n.slice(0, 300)} : {})}}});
         await settle('declined', n || 'declined the request', 'tap');
         M.toast('Declined. They hear it in their inbox.');
@@ -300,7 +303,7 @@
       : c.kind === 'review' ? {act: 'apply', label: 'Confirm marks', go: confirm}
       : c.kind === 'memo' ? {act: 'apply', label: 'Post to Feed', go: () => run('apply')}
       : quiet ? {act: 'apply', label: 'Got it', go: () => run('apply')}
-      : {act: 'apply', label: c.kind === 'leave' || c.kind === 'wfh' ? 'Approve' : 'Apply', go: () => run('apply', opts.length ? {option: pick} : undefined)};
+      : {act: 'apply', label: c.kind === 'leave' || c.kind === 'wfh' ? 'Approve' : 'Apply', go: () => run('apply', opts.length > 1 ? {option: pick} : undefined)};
     const noTo = mail && !draft.to.trim();
     return html`<article class=${'coo-card' + (c.urgent ? ' urgent' : '')} data-kind=${c.kind || 'info'} data-id=${c.id}>
       <div class="coo-card-head row between nowrap">
@@ -313,7 +316,7 @@
       ${checks.length ? html`<div class="coo-checks row">${checks.map((k, i) => html`<span key=${i} class=${'coo-check' + (k.ok === false ? ' no' : '')}>
         <b>${k.ok === false ? '×' : '✓'}</b> ${CHECK[k.k] || k.k}${k.val != null ? ' ' + k.val : ''}${k.limit != null ? ' of ' + k.limit : ''}</span>`)}</div>` : null}
       ${c.recommend ? html`<div class="small coo-rec">I suggest: ${c.recommend}</div>` : null}
-      ${opts.length ? html`<div class="coo-opts" role="radiogroup" aria-label="Options">${opts.map((o, i) => html`<label key=${i} class="checkline">
+      ${opts.length > 1 ? html`<div class="coo-opts" role="radiogroup" aria-label="Options">${opts.map((o, i) => html`<label key=${i} class="checkline">
         <input type="radio" name=${'opt-' + c.id} checked=${pick === i} onChange=${() => setPick(i)}/><span>${o.label}</span></label>`)}</div>` : null}
       ${mail && !edit ? html`<div class="coo-draft">
         <div class="tiny ink62">To <b class=${noTo ? 'flame-t' : ''}>${draft.to || 'nobody yet, fill it in'}</b>${draft.cc ? ', cc ' + draft.cc : ''}</div>
