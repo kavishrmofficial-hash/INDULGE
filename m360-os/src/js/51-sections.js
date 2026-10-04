@@ -219,7 +219,8 @@
       <//>
       <${M.SectionTabs} section="vibe" active=${t}/>
       ${t === 'feed' ? html`<${Wrapped}/>` : null}
-      ${t === 'crew' ? html`<${Embed} page="People" id=${id}/>` : t === 'pulse' ? html`<${Embed} page="Voice"/>` : t === 'scores' ? html`<${Embed} page="Scores"/>` : t === 'music' ? html`<${Embed} page="Music"/>` : html`<${Embed} page="Feed"/>`}
+      ${t === 'crew' ? html`<${Embed} page="People" id=${id}/>` : t === 'pulse' ? html`<${Embed} page="Voice"/>` : t === 'scores' ? html`<${Embed} page="Scores"/>` : t === 'music' ? html`<${Embed} page="Music"/>`
+        : t === 'office' ? (M.pages.Office ? html`<${M.pages.Office} scope="team"/>` : null) : html`<${Embed} page="Feed"/>`}
     </div>`;
   }
 
@@ -249,7 +250,8 @@
       <${M.SectionTabs} section="me" active=${t}/>
       ${t === 'profile' && M.parts.ProfileCard ? html`<${UI.Fold} title="Your profile" summary="photo, pronouns, city, bio, links, birthday" id="fold-profile"><${M.parts.ProfileCard}/><//>` : null}
       ${t === 'leave' ? html`<${Embed} page="Leave"/>` : t === 'handbook' ? html`<${Embed} page="Handbook" id=${id}/>` : t === 'notes' ? html`<${Embed} page="Notes" id=${id}/>`
-        : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>` : t === 'trophies' ? (M.parts.Trophies ? html`<${M.parts.Trophies}/>` : null) : html`<${Embed} page="People" id=${ctx.uid}/>`}
+        : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>` : t === 'trophies' ? (M.parts.Trophies ? html`<${M.parts.Trophies}/>` : null)
+        : t === 'coo' ? (M.pages.CooCharter ? html`<${M.pages.CooCharter}/>` : null) : html`<${Embed} page="People" id=${ctx.uid}/>`}
       ${t === 'profile' ? html`<${UI.Fold} title="Your m360" summary="look, sounds, notices, shortcuts" id="fold-prefs"><${Prefs}/><//>` : null}
       ${t === 'profile' && M.parts.BuddyPrefs ? html`<${M.parts.BuddyPrefs}/>` : null}
       ${t === 'profile' && M.parts.EmailCard ? html`<${UI.Fold} title="Your email" summary="for sign-in links" id="fold-email"><${M.parts.EmailCard}/><//>` : null}

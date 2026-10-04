@@ -33,7 +33,9 @@
       {k: 'crew', label: 'Crew', route: 'people', blurb: 'Everyone on the team, their profiles, pods and who is in today.', signal: ctx => ctx.activeMembers.length + ' people'},
       {k: 'pulse', label: 'Pulse and ideas', route: 'voice', blurb: 'The anonymous weekly pulse (what is broken, what to change) and the ideas board with votes.'},
       {k: 'scores', label: 'Leaderboard', route: 'scores', blurb: 'Points by week, month, quarter and since joining, with what earned them.'},
-      {k: 'music', label: 'Music', route: 'music', blurb: 'Spotify inside m360: search, play, playlists, the dock at the bottom.'}]},
+      {k: 'music', label: 'Music', route: 'music', blurb: 'Spotify inside m360: search, play, playlists, the dock at the bottom.'},
+      {k: 'office', label: 'Office', route: 'office', member: true, blurb: 'The studio as it is right now: who is in, and the m360 COO at work.'}]},
+    {k: 'office', label: 'The office', icon: 'desk', route: 'office', blurb: 'A live drawing of the studio: every desk as it is right now, and the m360 COO walking its rounds. Tap anything to see more.', tabs: []},
     {k: 'break', label: 'Break', icon: 'breath', route: 'break', blurb: 'The reset room, built on the trials that replicated: Five, the shared word of the day, an easy five minute game, a reaction check, breathing that is actually five minutes, a walk with a problem in your pocket, your care reminders, and a read of your last months. Sparks by the week, squads, a streak that forgives.', tabs: [
       {k: 'play', label: 'Daily', route: 'play', blurb: 'Five, the word of the day, the same for everyone, with the team\'s tries as a spread. Doubles, five minutes of an easy game. The reaction check, against your own baseline. Your squad\'s week.', signal: ctx => { const d = M.play ? M.play.docOf(ctx) : {}; return ((d.days || {})[td()] || {}).five ? 'Five done' : 'Five open'; }},
       {k: 'reset', label: 'Reset', route: 'reset', blurb: 'Slow breathing for five minutes, one if-then for the day, a walk for energy or with a problem, park it, the two-gear sprint, eyes off, a ten minute nap. The evidence grade on every card.'},
@@ -60,10 +62,13 @@
       {k: 'trophies', label: 'Trophies', route: 'trophies', blurb: 'Badges you have earned and the ones coming up; birthdays and anniversaries.'},
       {k: 'leave', label: 'Leave', route: 'leave', blurb: 'Ask for leave, see the decision, withdraw while it is pending.', signal: ctx => { const n = ctx.isFounder && M.leave ? M.leave.pending(ctx).length : 0; return n ? n + ' waiting on you' : ''; }},
       {k: 'handbook', label: 'Handbook', route: 'handbook', blurb: 'How we work, section by section; the founder edits, everyone reads.', signal: ctx => { const n = M.handbook ? M.handbook.unread(ctx, ctx.uid).length : 0; return n ? n + ' unread' : ''; }},
-      {k: 'hiring', label: 'Hiring', route: 'hiring', member: true, blurb: 'Candidates you were asked to evaluate, with the scorecard.'}]},
+      {k: 'hiring', label: 'Hiring', route: 'hiring', member: true, blurb: 'Candidates you were asked to evaluate, with the scorecard.'},
+      {k: 'coo', label: 'COO', route: 'coo', member: true, blurb: 'What the m360 COO does on its own, what it only drafts, what it never does, and how to ask Kaavish to undo.'}]},
     {k: 'hq', label: 'HQ', icon: 'command', route: 'hq', founder: true, blurb: 'The founder\'s desk: the brief, the numbers and hiring.', tabs: [
       {k: 'brief', label: 'Intelligence', route: 'hq', blurb: 'The daily brief: risks, wins, people, money, the actions to take, and Ask HQ.'},
       {k: 'dashboard', label: 'Dashboard', route: 'command', blurb: 'The company in numbers: attendance, output, pipeline, revenue, the ladder.'},
+      {k: 'coo', label: 'COO', route: 'coo', blurb: 'The m360 COO: what needs you, what it did today with Undo, what it watches next, and its on, pause and off.'},
+      {k: 'office', label: 'Office', route: 'office', blurb: 'The office, live: every desk, the COO at work, and today\'s run with Undo.'},
       {k: 'hiring', label: 'Hiring', route: 'hiring', blurb: 'Candidates by stage, the panel, the scorecards and the decision.', signal: ctx => { const n = M.hiring ? M.hiring.candidatesOf(ctx).filter(c => !c.decision).length : 0; return n ? n + ' open' : ''; }}]},
     {k: 'admin', label: 'Admin', icon: 'desk', route: 'admin', founder: true, blurb: 'The team, invites, the keys (AI, mail, voice, Google), holidays, security, backups, the tour.', tabs: []},
     {k: 'books', label: 'Books', icon: 'log', route: 'books', owner: true, blurb: 'The owner\'s accounting and HR desk.', tabs: [
@@ -108,7 +113,7 @@
 
   /* each section is introduced by its own bot (bot-avatars), one body per place */
   const BOT_OF = {home: 'brief', work: 'sections', accounts: 'clients', vibe: 'buddy', break: 'care', base: 'base', chat: 'handshake',
-    workspace: 'writer', web: 'search', radar: 'radar', me: 'notes', hq: 'hq', admin: 'hiring', books: 'books'};
+    workspace: 'writer', web: 'search', radar: 'radar', me: 'notes', hq: 'hq', admin: 'hiring', books: 'books', office: 'buddy'};
   const Mark = ({s}) => M.fx ? html`<${M.fx.Bot} feature=${BOT_OF[s.k] || 'ask'} size=${30} seed=${(s.label.length % 7) / 7} label=${'m360, ' + s.label}/>` : html`<${icons[s.icon] || icons.today}/>`;
   function Section({s, ctx, open}) {
     return html`<${UI.Card} id=${'map-' + s.k} className=${'map-card' + (open ? ' open' : '')} title=${html`<span class="row nowrap" style=${{gap: '8px'}}><${Mark} s=${s}/>${s.label}${s.founder || s.owner ? html`<${UI.Pill}>${s.owner ? 'owner' : 'founder'}<//>` : null}</span>`}

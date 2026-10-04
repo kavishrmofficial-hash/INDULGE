@@ -1,0 +1,225 @@
+/* ---------- v33: the virtual office and the m360 COO (90-office.js) ----------
+   One floor plan in plan units (1600 wide), drawn in the tokens: paper tops, warm floor, the col tone for
+   the faces that show, ink lines at 1.5px however far the camera zooms, flame for the accents only. The
+   overlay sits on the plan in percentages; anything that must keep its screen size (avatars, tags, the
+   droid, the bubble) is scaled back by --inv, so the camera's zoom never blurs it. Motion only where the
+   person has not asked for less. */
+
+/* ---------- the page ---------- */
+.office-page{gap:16px; min-width:0}
+.office-head{display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap; min-width:0}
+.office-title{font-weight:600; font-size:22px; letter-spacing:-.02em; line-height:1.15; margin:0}
+.office-ctl{gap:8px; min-width:0}
+.office-grid{display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:18px; align-items:start}
+@media (max-width:1100px){ .office-grid{grid-template-columns:minmax(0,1fr)} }
+.office-rail{display:flex; flex-direction:column; gap:14px; min-width:0}
+.office-rail.as-list{display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 300px), 1fr)); align-items:start}
+.or-card{padding:18px}
+.or-card .card-head{margin-bottom:10px}
+
+/* ---------- the scene ---------- */
+.office{position:relative; min-width:0}
+.office-view{position:relative; width:100%; overflow:hidden; border-radius:var(--r-card); border:1px solid var(--line); background:var(--warm); isolation:isolate; contain:paint}
+.office-cam{position:absolute; left:0; top:0; width:100%; transform-origin:0 0}
+.office-plan,.office-live{position:absolute; inset:0; width:100%; height:100%; display:block; overflow:visible}
+.office-live{pointer-events:none}
+.office-overlay{position:absolute; inset:0}
+
+/* the plan: classes bound to the tokens */
+.office-plan .of-floor{fill:var(--warm)}
+.office-plan .of-wall{fill:var(--paper)}
+.office-plan .of-sky{fill:var(--paper)}
+.office.is-night .office-plan .of-sky{fill:var(--dark)}
+.office-plan .of-rug{fill:var(--col); opacity:.6}
+.office-plan .of-glass{fill:var(--line)}
+.office .of-top{fill:var(--paper); stroke:var(--ink); stroke-width:1.5; vector-effect:non-scaling-stroke}
+.office .of-front{fill:var(--col); stroke:var(--ink); stroke-width:1.5; vector-effect:non-scaling-stroke}
+.office .of-ln{fill:none; stroke:var(--ink); stroke-width:1.5; vector-effect:non-scaling-stroke; stroke-linecap:round}
+.office .of-fine{fill:none; stroke:var(--line2); stroke-width:1.5; vector-effect:non-scaling-stroke; stroke-linecap:round; stroke-linejoin:round}
+.office .of-dash{stroke-dasharray:4 5}
+.office .of-card{fill:var(--paper); stroke:var(--line2); stroke-width:1; vector-effect:non-scaling-stroke}
+.office .of-screen{fill:var(--col); stroke:var(--ink); stroke-width:1.2; vector-effect:non-scaling-stroke}
+.office .of-chair{fill:var(--paper); stroke:var(--ink); stroke-width:1.2; vector-effect:non-scaling-stroke}
+.office .of-flame{fill:var(--flame)}
+.office .of-ink{fill:var(--ink)}
+/* a phone's whole floor is small: the lines thin so the room still reads */
+.office.on-phone.whole :is(.of-top,.of-front,.of-ln,.of-fine,.of-chair,.of-screen){stroke-width:1}
+
+/* the live layer: chairs, cards, piles, the walls' moving parts, the lights */
+.office .of-chair.out{opacity:.75}
+.office .of-pile rect{fill:var(--paper); stroke:var(--ink); stroke-width:1; vector-effect:non-scaling-stroke}
+.office .of-pile.hot rect:last-child{stroke:var(--flame); stroke-width:2}
+.office .of-today{fill:none; stroke:var(--flame); stroke-width:2; vector-effect:non-scaling-stroke}
+.office .of-tick{fill:none; stroke:var(--flame); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; vector-effect:non-scaling-stroke}
+.office .of-slide,.office .of-pin{fill:var(--paper); stroke:var(--flame); stroke-width:1.5; vector-effect:non-scaling-stroke}
+.office .of-beat{fill:var(--flame); opacity:0}
+.office .of-strokes path{fill:none; stroke:var(--ink); stroke-width:3; stroke-linecap:round; vector-effect:non-scaling-stroke}
+.office .of-visitor{fill:none; stroke:var(--ink); stroke-width:1.5; stroke-dasharray:3 3; vector-effect:non-scaling-stroke}
+.office .of-dial{fill:none; stroke:var(--ink); stroke-width:1.5; vector-effect:non-scaling-stroke}
+.office .of-dial.late{stroke:var(--flame); stroke-width:3}
+.office .of-hand{fill:none; stroke:var(--ink); stroke-width:2.5; stroke-linecap:round; vector-effect:non-scaling-stroke}
+.office .of-glow{fill:rgba(245,57,1,.14)}
+.office .of-glow.dim{opacity:.4}
+.office.is-night .of-glow{fill:rgba(245,57,1,.34)}
+/* lights down: ink at .28 by day's theme, black at .35 by night's; the skyline's windows glow */
+.office .of-night{fill:var(--ink); opacity:0}
+.office.is-night .of-night{opacity:.28}
+:root[data-theme="dark"] .office .of-night{fill:#000}
+:root[data-theme="dark"] .office.is-night .of-night{opacity:.35}
+.office .of-lit rect{fill:var(--flame); opacity:0}
+.office.is-night .of-lit rect{opacity:1}
+
+/* the wall's own furniture in the overlay */
+.office-mark{position:absolute; width:9%; transform:translate(-50%,-50%); color:var(--mark); pointer-events:none}
+.office-mark .mark{display:block; width:100%}
+.office-sign,.office-card{position:absolute; transform:translate(-50%,-50%) scale(var(--inv,1)); z-index:5; pointer-events:none; white-space:nowrap;
+  font-size:11px; font-weight:500; line-height:1; padding:4px 8px; border-radius:999px; background:var(--paper); color:var(--ink); border:1px solid var(--line2)}
+.office-sign{background:var(--ink); color:var(--on-ink); border-color:var(--ink)}
+
+/* ---------- stations: the hit areas over the furniture ---------- */
+.office-station{position:absolute; z-index:1; margin:0; padding:0; border:0; border-radius:10px; background:transparent; cursor:pointer; color:var(--ink)}
+.office-station:focus-visible{outline:2px solid var(--flame); outline-offset:2px}
+.os-label{position:absolute; left:50%; top:0; transform:translate(-50%,-115%) scale(var(--inv,1)); transform-origin:50% 100%; white-space:nowrap; pointer-events:none;
+  font-size:12px; font-weight:500; line-height:1; padding:5px 9px; border-radius:999px; background:var(--ink); color:var(--on-ink); opacity:0}
+.office-station:focus-visible .os-label{opacity:1}
+@media (hover:hover){ .office-station:hover{background:rgba(245,57,1,.06)} .office-station:hover .os-label{opacity:1} }
+.os-count{position:absolute; right:0; top:0; transform:translate(40%,-40%) scale(var(--inv,1)); transform-origin:100% 0; pointer-events:none}
+.os-count .pill{min-width:22px; justify-content:center}
+
+/* ---------- desks ---------- */
+.office-desk{position:absolute; width:44px; height:44px; margin:0; padding:0; border:0; border-radius:999px; background:transparent; cursor:pointer; color:var(--ink);
+  display:flex; align-items:center; justify-content:center; transform:translate(-50%,-50%) scale(var(--inv,1)); -webkit-tap-highlight-color:transparent}
+.office-desk:focus-visible{outline:2px solid var(--flame); outline-offset:0}
+.od-face{position:relative; display:inline-flex; border-radius:999px; box-shadow:0 0 0 2px var(--paper)}
+.od-face .av{display:block}
+/* WFH: the person on the monitor, a call tile with a house on it */
+.od-face.call{border-radius:7px; padding:3px; background:var(--col); box-shadow:0 0 0 1.5px var(--ink)}
+.od-face.call .av{border-radius:4px}
+.od-house{position:absolute; right:-7px; bottom:-7px; width:16px; height:16px; border-radius:999px; background:var(--paper); box-shadow:0 0 0 1px var(--line2); display:flex; align-items:center; justify-content:center}
+.od-house svg{width:10px; height:10px; fill:none; stroke:var(--ink); stroke-width:1.4; stroke-linejoin:round}
+.od-empty{width:12px; height:12px; border-radius:999px; border:1.5px dashed var(--line2)}
+/* headphones: the person is in focus, so nobody is sent in */
+.od-focus{position:absolute; left:50%; top:1px; width:30px; transform:translateX(-50%); pointer-events:none; line-height:0}
+.od-focus svg{width:100%; fill:none; stroke:var(--ink); stroke-width:1.6}
+.od-focus svg rect{fill:var(--ink)}
+.od-live{position:absolute; right:7px; bottom:7px; width:9px; height:9px; border-radius:999px; background:var(--flame); box-shadow:0 0 0 2px var(--paper)}
+.od-new{position:absolute; right:-14px; top:-4px; font-size:11px; line-height:1; padding:3px 6px; border-radius:999px; background:var(--flame-deep); color:#fff; font-weight:500; pointer-events:none}
+.od-tag{position:absolute; top:calc(100% - 4px); left:50%; transform:translateX(-50%); display:inline-flex; align-items:center; gap:4px; white-space:nowrap; pointer-events:none;
+  font-size:11px; font-weight:400; line-height:1; padding:3px 7px; border-radius:999px; background:var(--paper); color:var(--ink); border:1px solid var(--line)}
+.od-hot{width:6px; height:6px; border-radius:999px; background:var(--flame); flex:none}
+.od-late{border:1px solid var(--flame); color:var(--flame-text); border-radius:999px; padding:1px 5px; font-size:11px}
+.office-desk[data-state="leave"] .od-tag,.office-desk[data-state="out"] .od-tag{color:var(--ink62)}
+.office-desk.cabin .od-face{box-shadow:0 0 0 2px var(--paper), 0 0 0 3.5px var(--ink)}
+
+/* ---------- the COO ---------- */
+.office-track{position:absolute; inset:0; pointer-events:none; will-change:transform}
+.office-anchor{position:absolute; left:0; top:0; width:0; height:0; transform:scale(var(--inv,1)); transform-origin:0 0}
+.office-mascot{position:absolute; left:calc(var(--bot,56px) * -.5); bottom:0; width:var(--bot,56px); height:var(--bot,56px); pointer-events:auto}
+.office-bob{position:absolute; inset:0; display:flex; align-items:center; justify-content:center}
+.office-bob .bot{margin:0}
+.office-shadow{position:absolute; left:50%; bottom:-5px; width:62%; height:12px; transform:translateX(-50%); border-radius:999px; background:radial-gradient(closest-side, var(--shadow), transparent); pointer-events:none}
+/* at its desk: lowered behind the desk's edge, cut along it */
+.office-mascot.seated .office-bob{transform:translateY(18%); clip-path:inset(-80% -60% 18% -60%)}
+.office-mascot.seated .office-shadow{display:none}
+.office-mascot-hit{position:absolute; inset:-4px; margin:0; padding:0; border:0; border-radius:16px; background:transparent; cursor:pointer}
+.office-mascot-hit:focus-visible{outline:2px solid var(--flame); outline-offset:2px}
+.office-orb{position:absolute; right:-14px; bottom:2px; line-height:0; pointer-events:none}
+.office-flamedot{position:absolute; right:-6px; bottom:6px; width:10px; height:10px; border-radius:999px; background:var(--flame); box-shadow:0 0 0 2px var(--paper)}
+.office-item{display:block; width:22px; line-height:0; pointer-events:none}
+.office-item svg{width:100%; height:auto; overflow:visible}
+.office-item .oi-paper{fill:var(--paper); stroke:var(--ink); stroke-width:1.4; stroke-linejoin:round}
+.office-item .oi-ln{fill:none; stroke:var(--ink); stroke-width:1.2; stroke-linecap:round}
+.office-item.card .oi-paper,.office-item.plane .oi-paper{stroke:var(--flame)}
+.office-item.carry{position:absolute; right:-16px; top:28%}
+.office-flight{position:absolute; inset:0; pointer-events:none; z-index:3000}
+.office-flight .office-item{position:absolute; left:0; top:0; transform:translate(-50%,-50%) scale(var(--inv,1))}
+
+/* ---------- the bubble ---------- */
+.office-bubble{position:absolute; left:0; bottom:calc(var(--bot,56px) + 10px); transform:translateX(-50%); width:max-content; max-width:280px; z-index:2; pointer-events:auto;
+  background:var(--paper); color:var(--ink); border:1px solid var(--line2); border-radius:var(--r-sm); padding:8px 11px; box-shadow:0 12px 28px -16px var(--shadow);
+  font-size:13px; line-height:1.35; text-align:left}
+.office-bubble.left{transform:translateX(calc(-100% + 26px))}
+.office-bubble.right{transform:translateX(-26px)}
+.office-bubble.below{bottom:auto; top:14px}
+.ob-what{display:flex; align-items:baseline; gap:6px}
+.ob-what b{font-weight:600; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+.ob-why{color:var(--ink62); margin-top:2px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+.ob-dot{width:7px; height:7px; border-radius:999px; background:var(--flame); flex:none; display:inline-block; transform:translateY(-1px)}
+.ob-acts{display:flex; gap:6px; flex-wrap:wrap; margin-top:7px}
+.ob-btn{cursor:pointer; background:var(--paper); color:var(--ink); height:26px; font:inherit; font-size:12px}
+.ob-btn:hover{background:var(--warm)}
+.office-bubble.fold{border-radius:999px; padding:5px 11px; max-width:240px}
+.office-bubble.fold .ob-what b{display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:500}
+.office-bubble.failed{border-color:var(--flame)}
+.office-bubble.big{position:relative; left:auto; bottom:auto; top:auto; transform:none; max-width:none; width:auto; box-shadow:none; font-size:14px}
+.office-bubble.big .ob-what b{-webkit-line-clamp:4}
+.office-under{min-height:0}
+.office-under:empty{display:none}
+.office-sr{position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0}
+
+/* ---------- the text twin ---------- */
+.office-run{list-style:none; margin:0; padding:0; display:grid; gap:12px}
+.or-row{display:grid; grid-template-columns:44px minmax(0,1fr) auto; gap:10px; align-items:start}
+.or-time{font-size:12px; color:var(--micro); padding-top:2px}
+.or-text{display:flex; flex-direction:column; align-items:flex-start; gap:3px; min-width:0}
+.or-text b{font-weight:500; font-size:14px; line-height:1.35}
+.or-row.would .or-text b{color:var(--ink62)}
+.office-desklist{display:grid; gap:4px}
+.odl-pod ul{list-style:none; margin:6px 0 12px; padding:0; display:grid; gap:8px}
+.odl-pod li{display:flex; align-items:center; gap:8px; font-size:14px; min-width:0}
+.odl-pod li .sub{text-align:right}
+.office-wait,.office-list{list-style:none; margin:0; padding:0; display:grid; gap:8px}
+.office-wait li{display:flex; align-items:center; gap:8px; font-size:14px}
+.office-list li{display:flex; gap:6px 8px; flex-wrap:wrap; font-size:14px; line-height:1.4}
+.office-drawer{gap:14px}
+
+/* ---------- the live window (HQ, Home, the COO tab) ---------- */
+.office-window{display:flex; flex-direction:column; gap:10px; min-width:0}
+.office-foot{display:flex; align-items:center; gap:10px; flex-wrap:wrap; min-width:0}
+.office-mirror{max-width:min(50%, 340px); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:4px 10px; border-radius:999px; border:1px solid var(--line2); background:var(--paper)}
+
+/* ---------- phones ---------- */
+.office-chips{display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; padding:2px 0}
+.office-chips::-webkit-scrollbar{display:none}
+.office-chip{flex:none}
+.office-chip b{font-weight:600; font-size:12px; color:var(--flame-text)}
+.office-chip.active{background:var(--ink); color:var(--on-ink); border-color:var(--ink)}
+.office-chip.active b{color:var(--on-ink)}
+.office.on-phone .office-view{border-radius:16px}
+.office.on-phone .office-under{margin-top:10px}
+/* the whole floor on a phone: small faces, the full 44px to tap, no tags */
+.office.on-phone.whole .office-desk .od-tag,.office.on-phone.whole .od-new,.office.on-phone.whole .od-focus{display:none}
+@media (max-width:700px){
+  .office-head{align-items:flex-start}
+  .office-ctl{width:100%}
+  body:has(.office-page) .content{padding-bottom:72px}
+}
+
+/* ---------- motion, only for those who have not asked for less ---------- */
+@media (prefers-reduced-motion:no-preference){
+  .office.follow .office-cam{transition:transform .7s var(--ease)}
+  .office .of-night{transition:opacity 1.2s ease}
+  .office .of-lit rect{transition:opacity 1.2s ease}
+  .os-label{transition:opacity .16s ease}
+  .office-mascot.walking .office-bob{animation:of-bob .34s ease-in-out infinite alternate}
+  .office-desk.lit .od-tag{animation:of-lit 1s var(--ease) both; animation-delay:var(--d,0ms)}
+  .office .of-tick{stroke-dasharray:40; animation:of-draw .6s var(--ease) both}
+  .office .of-slide{animation:of-slide 1.2s var(--ease) both}
+  .office .of-pin{transform-box:fill-box; transform-origin:center; animation:of-pop .5s var(--spring) both}
+  .office .of-beat{animation:of-beat 1.4s ease both}
+  .office .of-drawer{animation:of-drawer .6s var(--ease) both}
+  .office .of-strokes path{stroke-dasharray:200; stroke-dashoffset:200; animation:of-stroke .9s var(--ease) forwards}
+  .office .of-strokes path:nth-child(2){animation-delay:.3s}
+  .office .of-strokes path:nth-child(3){animation-delay:.6s}
+  .office-bubble:not(.big){animation:of-rise .28s var(--ease) both}
+  .office-bubble.fold{transition:padding .2s ease}
+}
+@keyframes of-bob{from{transform:translateY(0)} to{transform:translateY(-3px)}}
+@keyframes of-lit{0%{background:var(--paper)} 30%{background:var(--flame-deep); color:#fff; border-color:var(--flame-deep)} 100%{background:var(--paper)}}
+@keyframes of-draw{from{stroke-dashoffset:40} to{stroke-dashoffset:0}}
+@keyframes of-slide{from{transform:translateX(0)} to{transform:translateX(160px)}}
+@keyframes of-pop{from{transform:scale(.4); opacity:0} to{transform:scale(1); opacity:1}}
+@keyframes of-beat{0%{opacity:0} 25%{opacity:.85} 100%{opacity:0}}
+@keyframes of-drawer{from{transform:translateX(30px)} to{transform:translateX(0)}}
+@keyframes of-stroke{to{stroke-dashoffset:0}}
+@keyframes of-rise{from{opacity:0; margin-bottom:-6px} to{opacity:1; margin-bottom:0}}
