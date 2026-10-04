@@ -19,8 +19,10 @@
   /* the list, worked out once per context: the badge, the drawer and the watcher all read the same one */
   const memo = new WeakMap();
   function items(ctx) {
+    /* the COO's cards live outside the context: their version joins the key */
+    const v = M.cooUi ? M.cooUi.version() : 0;
     let list = memo.get(ctx);
-    if (!list) { list = build(ctx); memo.set(ctx, list); }
+    if (!list || list.v !== v) { list = build(ctx); list.v = v; memo.set(ctx, list); }
     return list;
   }
   function build(ctx) {
@@ -31,11 +33,19 @@
 
     /* tasks */
     const tmap = ctx.coll.tasks.map;
+    const coo = by => !!(M.coo && M.coo.isCoo && M.coo.isCoo(by));
     for (const id of Object.keys(tmap)) {
       const t = tmap[id];
       if (!t) continue;
       const mine = t.owner === me;
       if (mine && t.by && t.by !== me) push('assign:' + id, 'tasks', t.created || 0, T`${nm(t.by)} handed you ${t.title}`, '#tasks/' + id, t.by);
+      /* the COO's moves, to the people they touch: never silent, and never a reason (the task's note has it) */
+      for (const o of (Array.isArray(t.ownerLog) ? t.ownerLog : [])) {
+        if (!o || !coo(o.by)) continue;
+        if (o.to === me) push('coo:own:' + id + ':' + o.at, 'coo', o.at || 0, T`${nm(o.by)} handed you ${t.title}${t.due ? ', due ' + U.fmtDay(t.due) : ''}`, '#tasks/' + id, o.by, true);
+        else if (o.from === me && o.to) push('coo:off:' + id + ':' + o.at, 'coo', o.at || 0, T`${nm(o.by)} handed ${t.title} to ${nm(o.to)}`, '#tasks/' + id, o.by);
+      }
+      if (mine) for (const d of (Array.isArray(t.dueLog) ? t.dueLog : [])) if (d && coo(d.by)) push('coo:due:' + id + ':' + d.at, 'coo', d.at || 0, T`${nm(d.by)} moved ${t.title} to ${d.to ? U.fmtDay(d.to) : 'no date'}`, '#tasks/' + id, d.by);
       if (mine && t.status === 'done' && t.doneAt && t.approvedBy && t.approvedBy !== me) push('ok:' + id, 'review', t.doneAt, T`${nm(t.approvedBy)} approved ${t.title}`, '#tasks/' + id, t.approvedBy);
       if (mine && t.sentBackAt && t.sentBackBy && t.sentBackBy !== me) push('back:' + id, 'review', t.sentBackAt, T`${nm(t.sentBackBy)} sent ${t.title} back${t.sentBackNote ? ': ' + t.sentBackNote : ''}`, '#tasks/' + id, t.sentBackBy, true);
       if (!mine && t.status === 'review' && t.reviewAt && (M.reviews ? M.reviews.canReview(ctx, t) : ctx.isFounder))
@@ -48,7 +58,8 @@
         if (mentioned || mine) push('cm:' + cid, 'feed', c.at || 0, T`${nm(c.by)}${mentioned ? ' mentioned you on ' : ' commented on '}${t.title}`, '#tasks/' + id, c.by, mentioned);
       }
     }
-    /* the founder's flags: what somebody did to the record that deserves a look */
+    /* the founder's flags: what somebody did to the record that deserves a look. The COO's own moves list
+       here under its name, silently: its told card and the closing undo window are what ring */
     if (ctx.isFounder && M.tasks) {
       const founder = ctx.founderUid;
       const since0 = M.tasks.SIGNOFF_SINCE || 0;
@@ -64,8 +75,8 @@
         }
         if (t.status === 'done' && doneAt && t.due && dayOf(doneAt) > t.due) { const late = U.daysBetween(t.due, dayOf(doneAt)); push('flag:late:' + id, 'flag', doneAt, T`${nm(t.owner)} shipped ${t.title} ${late} ${late === 1 ? 'day' : 'days'} late`, '#tasks/' + id, t.owner); }
         if (t.status === 'done' && doneAt && t.created && doneAt - t.created < 600000 && t.by === t.owner) push('flag:rushed:' + id, 'flag', doneAt, T`${nm(t.owner)} created and finished ${t.title} within ${Math.max(1, Math.round((doneAt - t.created) / 60000))} min`, '#tasks/' + id, t.owner, true);
-        for (const d of (Array.isArray(t.dueLog) ? t.dueLog : [])) if (d && d.by === t.owner && d.to > d.from) push('flag:due:' + id + ':' + d.at, 'flag', d.at || 0, T`${nm(d.by)} moved the due date of ${t.title} from ${d.from ? U.fmtDate(d.from) : 'none'} to ${U.fmtDate(d.to)}`, '#tasks/' + id, d.by, true);
-        for (const o of (Array.isArray(t.ownerLog) ? t.ownerLog : [])) if (o && o.by !== founder) push('flag:owner:' + id + ':' + o.at, 'flag', o.at || 0, T`${nm(o.by)} handed ${t.title} ${o.to ? 'to ' : 'off'}${o.to ? nm(o.to) : ''}`, '#tasks/' + id, o.by);
+        for (const d of (Array.isArray(t.dueLog) ? t.dueLog : [])) if (d && (d.by === t.owner || coo(d.by)) && d.to > d.from) push('flag:due:' + id + ':' + d.at, 'flag', d.at || 0, T`${nm(d.by)} moved the due date of ${t.title} from ${d.from ? U.fmtDate(d.from) : 'none'} to ${U.fmtDate(d.to)}`, '#tasks/' + id, d.by, true, coo(d.by));
+        for (const o of (Array.isArray(t.ownerLog) ? t.ownerLog : [])) if (o && o.by !== founder) push('flag:owner:' + id + ':' + o.at, 'flag', o.at || 0, T`${nm(o.by)} handed ${t.title} ${o.to ? 'to ' : 'off'}${o.to ? nm(o.to) : ''}`, '#tasks/' + id, o.by, false, coo(o.by));
       }
       const trash = (ctx.coll.tasks && ctx.coll.tasks.trash) || {};
       for (const id of Object.keys(trash)) { const t = trash[id]; if (t && t.deletedBy && t.deletedBy !== founder) push('flag:del:' + id, 'flag', Number(t.deletedAt) || 0, T`${nm(t.deletedBy)} deleted ${t.title}. It is in the bin on Admin`, '#admin', t.deletedBy, true); }
@@ -79,6 +90,8 @@
     }
     /* the personal manager: steps due to the viewer, answers to their asks, the note up the line */
     if (M.pm && M.pm.loaded(ctx)) for (const it of M.pm.inboxItems(ctx)) push(it.id, 'pm', it.at, T`${it.line}`, it.ref, it.actor, it.hot, true, true);
+    /* the COO's lines for the founder: an urgent card, the morning brief, undo windows about to close */
+    if (M.cooUi && ctx.isFounder) for (const it of M.cooUi.founderItems(ctx)) push(it.id, 'coo', it.at, T`${it.line}`, it.ref, M.coo.UID, it.hot);
     /* kudos to me */
     const kmap = ctx.coll.kudos.map;
     for (const giver of Object.keys(kmap)) for (const k of (kmap[giver].given || [])) {
@@ -89,7 +102,7 @@
     const reqs = ((ctx.coll.leave.map[me] || {}).reqs) || [];
     for (const r of reqs) {
       const d = r && dec[r.id];
-      if (d && d.at) push('lv:' + r.id, 'leave', d.at, T`Leave ${U.fmtDate(r.from)}${r.to !== r.from ? ' to ' + U.fmtDate(r.to) : ''} ${d.status}`, '#leave', null, d.status === 'declined');
+      if (d && d.at) push('lv:' + r.id, 'leave', d.at, coo(d.by) ? T`Leave ${U.fmtDate(r.from)}${r.to !== r.from ? ' to ' + U.fmtDate(r.to) : ''} ${d.status} by ${nm(d.by)}, inside policy` : T`Leave ${U.fmtDate(r.from)}${r.to !== r.from ? ' to ' + U.fmtDate(r.to) : ''} ${d.status}`, '#leave', coo(d.by) ? d.by : null, d.status === 'declined');
     }
     /* announcements */
     const fmap = ctx.coll.feed.map;
@@ -134,7 +147,7 @@
   const seenAt = ctx => Number(((ctx.coll.me.map[ctx.uid] || {}).inboxSeen) || 0);
   const unread = ctx => items(ctx).filter(i => i.at > seenAt(ctx)).length;
 
-  const KIND_ICON = {pm: 'bell', tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift', fix: 'fix', chat: 'send', books: 'log', flag: 'shield'};
+  const KIND_ICON = {coo: 'bell', pm: 'bell', tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift', fix: 'fix', chat: 'send', books: 'log', flag: 'shield'};
 
   function Inbox({onClose}) {
     const ctx = M.useCtx();
@@ -170,13 +183,13 @@
      notification when m360 sits in another window. Chat lines have their own watcher. The mark of
      the newest item seen lives in this browser, per person; the first load on a device sets it, so
      a backlog never rains down. ---------- */
-  const TITLE = {pm: 'Your bot', tasks: 'Work', review: 'Review', feed: 'Feed', scores: 'Kudos', leave: 'Leave', people: 'Team', gift: 'Today', fix: 'Correction', books: 'Books', flag: 'Flag'};
+  const TITLE = {coo: 'm360 COO', pm: 'Your bot', tasks: 'Work', review: 'Review', feed: 'Feed', scores: 'Kudos', leave: 'Leave', people: 'Team', gift: 'Today', fix: 'Correction', books: 'Books', flag: 'Flag'};
   function InboxWatch() {
     const ctx = M.useCtx();
     const uid = ctx.uid;
     const ids = useMemo(() => ctx.activeMembers.map(m => m.uid), [ctx.activeMembers]);
     const profs = M.useProfiles(ids);
-    const nameOf = id => (profs[id] && profs[id].name) || (ctx.members[id] && ctx.members[id].name) || 'Someone';
+    const nameOf = id => (M.cooUi && M.cooUi.isCoo(id) ? M.cooUi.titleOf(ctx) : '') || (profs[id] && profs[id].name) || (ctx.members[id] && ctx.members[id].name) || 'Someone';
     useEffect(() => {
       if (!uid || !ctx.ready || !M.notices) return;
       const key = 'inboxNotice.' + uid;
@@ -207,7 +220,7 @@
         const who = it.actor ? nameOf(it.actor) : '';
         const line = it.plain(nameOf);
         const body = who && line.startsWith(who + ' ') ? U.cap(line.slice(who.length + 1)) : line;
-        M.notices.push({key: 'inbox:' + it.id, who: it.actor || null, title: who || (TITLE[it.kind] || 'm360'), body, hidden: 'Something new for you in m360', href: it.ref, life: 12000});
+        M.notices.push({key: it.kind === 'coo' ? it.id : 'inbox:' + it.id, who: it.actor || null, title: who || (TITLE[it.kind] || 'm360'), body, hidden: 'Something new for you in m360', href: it.ref, life: 12000});
       }
       M.sound.play('soft');
     }, [ctx, profs]);

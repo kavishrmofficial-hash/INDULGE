@@ -385,6 +385,8 @@
   const COUNTRIES = ['India', 'United Arab Emirates', 'Saudi Arabia', 'Qatar', 'Bahrain', 'Kuwait', 'Oman', 'United States', 'United Kingdom', 'Singapore', 'Other'];
   function Setup({id}) {
     const ctx = M.useCtx();
+    /* the COO takes the chasing over as drafts: nothing auto-sends while it is on */
+    const cooOn = !!(M.coo && M.coo.on && M.coo.on(ctx));
     const s = settings(ctx);
     const [f, setF] = useState(() => U.clone(s));
     const [dirty, setDirty] = useState(false);
@@ -459,7 +461,7 @@
         <div class="stack" style=${{gap: '18px'}}>
           <${UI.Card} title="Chasing">
             <div class="stack tight">
-              <div class="row between"><span>Chase overdue invoices by email on the team site</span>
+              <div class="row between"><span id="chase-line">${cooOn ? 'While the COO is on, reminders wait as drafts for your tap.' : 'Chase overdue invoices by email on the team site'}</span>
                 <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${f.chase.auto ? 'on' : 'off'} ariaLabel="Auto chase" onChange=${v => set('chase.auto', v === 'on')}/></div>
               <${In} k="chase.days" label="days after the due date, comma separated" hint="3,7,14 sends three reminders; the fourth day lands in your inbox for a call"/>
               <${In} k="chase.cc" label="copy every invoice and reminder to"/>

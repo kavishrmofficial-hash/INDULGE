@@ -291,10 +291,20 @@
     mo.observe(document.documentElement, {childList: true, subtree: true});
   } catch (e) { /* old browser */ }
 
+  /* the m360 COO is a bot, never on the roster: its face and its title stand in for a profile */
+  const cooOf = id => !!(id && M.coo && M.coo.isCoo && M.coo.isCoo(id));
+  const cooTitle = ctx => (M.coo && M.coo.title && ctx ? M.coo.title(ctx) : '') || 'm360 COO';
   UI.Avatar = function Avatar({id, size, title}) {
-    const ps = M.useProfiles(id ? [id] : []);
+    const coo = cooOf(id);
+    const ctx = React.useContext(M.Ctx || FoldCtx);
+    const ps = M.useProfiles(id && !coo ? [id] : []);
     const p = id ? ps[id] : null;
     const s = size || 28;
+    if (coo) {
+      const t = cooTitle(ctx && ctx.coll ? ctx : null);
+      const Face = M.parts.CooFace;
+      return html`<span class="av coo-av" style=${{width: s + 'px', height: s + 'px'}} title=${title || t}>${Face ? html`<${Face} size=${s} label=${t}/>` : null}</span>`;
+    }
     return html`<img class="av" width=${s} height=${s} style=${{width: s + 'px', height: s + 'px'}}
       src=${(M.photos && M.photos[id]) || (p ? p.avatarUrl : M.AV_FALLBACK)} alt=${p && p.name ? p.name : 'avatar'} title=${title || (p && p.name) || ''}/>`;
   };
@@ -304,8 +314,11 @@
       ${(ids || []).length > list.length ? html`<span class="pill warm">+${ids.length - list.length}</span>` : null}</span>`;
   };
   UI.Name = function Name({id, fallback}) {
-    const ps = M.useProfiles(id ? [id] : []);
+    const coo = cooOf(id);
+    const ctx = React.useContext(M.Ctx || FoldCtx);
+    const ps = M.useProfiles(id && !coo ? [id] : []);
     const p = id ? ps[id] : null;
+    if (coo) return html`<span data-uid=${id} class="coo-name">${cooTitle(ctx && ctx.coll ? ctx : null)}</span>`;
     return html`<span data-uid=${id || ''}>${(p && p.name) || fallback || 'Someone'}</span>`;
   };
 

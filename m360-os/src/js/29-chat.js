@@ -17,6 +17,9 @@
   const dmOther = (id, me) => String(id).slice(3).split('.').find(u => u !== me) || me;
   const docId = (room, uid) => room + ':' + uid;
   const norm = s => String(s || '').toLowerCase();
+  /* the m360 COO writes from its own thread: a bot with a face and a pill, never a person */
+  const isBot = id => !!(M.coo && M.coo.isCoo && M.coo.isCoo(id));
+  const botName = ctx => (M.coo && M.coo.title ? M.coo.title(ctx) : '') || 'm360 COO';
 
   /* every room this person can see: general, the team's rooms, and their own direct messages */
   function roomsOf(ctx) {
@@ -200,10 +203,11 @@
     useEffect(() => { if (roomFromRoute) { if (roomFromRoute !== room) setRoom(roomFromRoute); setListOpen(false); } else setListOpen(true); }, [roomFromRoute]);
     useEffect(() => { M.prefs.set('chatRoom.' + uid, room); }, [room]);
     const people = ctx.activeMembers.filter(m => m.uid !== uid);
-    const ids = useMemo(() => Array.from(new Set(ctx.activeMembers.map(m => m.uid).concat(dms.map(d => dmOther(d, uid))))), [ctx.activeMembers, dms]);
+    const ids = useMemo(() => Array.from(new Set(ctx.activeMembers.map(m => m.uid).concat(dms.map(d => dmOther(d, uid)).filter(u => !isBot(u))))), [ctx.activeMembers, dms]);
     const profs = M.useProfiles(ids.concat([uid]));
-    const nameOf = id => (profs[id] && profs[id].name) || (ctx.members[id] && ctx.members[id].name) || 'Someone';
+    const nameOf = id => (isBot(id) ? botName(ctx) : '') || (profs[id] && profs[id].name) || (ctx.members[id] && ctx.members[id].name) || 'Someone';
     const names = ids.map(nameOf).filter(Boolean);
+    const botDm = dms.find(d => isBot(dmOther(d, uid)));
     const msgs = useMemo(() => messagesOf(ctx, room), [ctx.coll.chat, room]);
     const latest = msgs.length ? msgs[msgs.length - 1].at : 0;
     const online = ctx.online || new Set();
@@ -269,7 +273,7 @@
       rows.push(html`<div key=${m.id} class=${'chat-msg' + (cont ? ' cont' : '') + (m.by === uid ? ' mine' : '') + (mentionsMe(m, ctx, nameOf(uid)) ? ' hot' : '')}>
         ${cont ? html`<span class="chat-gap"/>` : html`<${UI.Avatar} id=${m.by} size=${30}/>`}
         <div class="grow" style=${{minWidth: 0}}>
-          ${cont ? null : html`<div class="row nowrap" style=${{gap: '8px', alignItems: 'baseline'}}><span style=${{fontWeight: 500}}>${nameOf(m.by)}</span><span class="tiny ink62 num">${U.hhmm ? U.hhmm(new Date(m.at)) : new Date(m.at).toLocaleTimeString()}</span></div>`}
+          ${cont ? null : html`<div class="row nowrap" style=${{gap: '8px', alignItems: 'baseline'}}><span style=${{fontWeight: 500}}>${nameOf(m.by)}</span>${isBot(m.by) ? html`<span class="pill coo-pill">bot</span>` : null}<span class="tiny ink62 num">${U.hhmm ? U.hhmm(new Date(m.at)) : new Date(m.at).toLocaleTimeString()}</span></div>`}
           ${m.text ? html`<div class="chat-text"><${Rich} text=${m.text} names=${names}/>${m.edited ? html` <span class="tiny ink62">(edited)</span>` : null}${m.ask ? html` <span class="tiny ink62 chat-ask">${m.via === 'voice' ? 'asked by voice' : 'asked through m360'}</span>` : null}</div>` : null}
           ${(m.files || []).length ? html`<div class="chat-files">${m.files.map((f, k) => html`<${FileLine} key=${k} f=${f}/>`)}</div>` : null}
         </div>
@@ -290,6 +294,8 @@
         <span class="grow"># ${r.name}</span>${n ? html`<span class="badge">${n}</span>` : null}</button>`; })}
       <div class="row between" style=${{margin: '14px 0 6px'}}><${UI.Micro} plain>people<//></div>
       <input id="chat-find" class="input" placeholder="Find someone" value=${q} onInput=${e => setQ(e.target.value)} aria-label="Find someone" style=${{marginBottom: '6px'}}/>
+      ${botDm ? html`<button key="coo" type="button" class=${'chat-room chat-bot' + (room === botDm ? ' active' : '')} onClick=${() => openRoom(botDm)}>
+        <${UI.Avatar} id=${dmOther(botDm, uid)} size=${24}/><span class="grow">${botName(ctx)}</span><span class="pill coo-pill">bot</span>${unreadIn(ctx, botDm) ? html`<span class="badge">${unreadIn(ctx, botDm)}</span>` : null}</button>` : null}
       ${filtered.map(p => { const d = dmId(uid, p.uid); const n = unreadIn(ctx, d); return html`<button key=${p.uid} type="button" class=${'chat-room' + (room === d ? ' active' : '')} onClick=${() => openDm(p.uid)}>
         <${UI.Avatar} id=${p.uid} size=${24}/><span class="grow">${nameOf(p.uid)}</span>${isOn(p.uid) ? html`<span class="dot on" title="online"/>` : null}${n ? html`<span class="badge">${n}</span>` : null}</button>`; })}
       ${!people.length ? html`<div class="small ink62">Just you so far. Invite the team from Admin.</div>` : null}
@@ -300,7 +306,8 @@
         <div class="row nowrap" style=${{gap: '8px', minWidth: 0}}>
           ${phone ? html`<button type="button" class="iconbtn" aria-label="Rooms" onClick=${() => setListOpen(true)}><${icons.more}/></button>` : null}
           <div style=${{minWidth: 0}}><div style=${{fontWeight: 600, fontSize: '17px', letterSpacing: '-.01em'}} id="chat-title">${title}</div>
-            ${roomMeta && roomMeta.topic ? html`<div class="tiny ink62">${roomMeta.topic}</div>` : isDm(room) ? html`<div class="tiny ink62">${isOn(dmOther(room, uid)) ? 'online now' : 'direct message, only the two of you'}</div>` : html`<div class="tiny ink62">the whole team</div>`}</div>
+            ${roomMeta && roomMeta.topic ? html`<div class="tiny ink62">${roomMeta.topic}</div>` : isDm(room) && isBot(dmOther(room, uid)) ? html`<div class="tiny ink62">a bot. Kaavish reads this thread.</div>`
+              : isDm(room) ? html`<div class="tiny ink62">${isOn(dmOther(room, uid)) ? 'online now' : 'direct message, only the two of you'}</div>` : html`<div class="tiny ink62">the whole team</div>`}</div>
         </div>
         <div class="row nowrap chat-head-tools">
           ${canNotify ? html`<button type="button" class="linky tiny" id="chat-notify" onClick=${askNotify}>Turn on notices</button>` : null}
@@ -340,7 +347,7 @@
     const openedAt = useRef(Date.now());
     const ids = useMemo(() => ctx.activeMembers.map(m => m.uid), [ctx.activeMembers]);
     const profs = M.useProfiles(ids);
-    const nameOf = id => (profs[id] && profs[id].name) || (ctx.members[id] && ctx.members[id].name) || 'Someone';
+    const nameOf = id => (isBot(id) ? botName(ctx) : '') || (profs[id] && profs[id].name) || (ctx.members[id] && ctx.members[id].name) || 'Someone';
     useEffect(() => {
       if (!uid || !ctx.coll.chat.ready) return;
       const rooms = roomsOf(ctx);

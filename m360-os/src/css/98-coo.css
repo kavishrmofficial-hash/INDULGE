@@ -1,0 +1,137 @@
+/* ---------- v33: the m360 COO's surfaces. The face, the HQ tab (the ink hero with the live office, the
+   decision cards, today's ledger, watching, the week, health), the Admin card with the rungs and the
+   policy, the charter, the digest, the studio card on Home, the Friday ghost marks and the bot pill in
+   chat. Tokens only, both themes; on a phone everything stacks and every target is 44px. ---------- */
+
+/* the face: a droid head with square glasses and a bow tie, drawn from the tokens */
+.coo-face{display:block; flex:none; overflow:visible}
+.coo-face .cf-head{fill:var(--paper); stroke:var(--ink); stroke-width:1.6}
+.coo-face .cf-ear{fill:var(--col); stroke:var(--ink); stroke-width:1.4}
+.coo-face .cf-ant{fill:none; stroke:var(--ink); stroke-width:1.6; stroke-linecap:round}
+.coo-face .cf-tip,.coo-face .cf-tie{fill:var(--flame)}
+.coo-face .cf-knot{fill:var(--flame-deep)}
+.coo-face .cf-lens{fill:var(--line); stroke:var(--ink); stroke-width:1.5}
+.coo-face .cf-bridge,.coo-face .cf-mouth{fill:none; stroke:var(--ink); stroke-width:1.4; stroke-linecap:round}
+.coo-face .cf-eye{fill:var(--ink)}
+.av.coo-av{display:inline-flex; align-items:center; justify-content:center; overflow:hidden; background:var(--warm)}
+.pill.coo-pill{height:18px; padding:0 7px; font-size:11px; letter-spacing:.04em; background:var(--ink); border-color:var(--ink); color:var(--on-ink)}
+
+/* the office where the live window is not part of the build */
+.coo-office-still{display:flex; align-items:center; gap:14px; min-height:120px; padding:18px; border-radius:16px; background:var(--warm); color:var(--ink)}
+.hero.ink .coo-office-still{background:rgba(255,255,255,.06); color:#fff}
+.coo-hero .coo-office-still{aspect-ratio:16/9; flex-direction:column; justify-content:center; text-align:center}
+
+/* ---------- the HQ tab ---------- */
+.coo-page{gap:20px}
+.coo-hero{padding:22px}
+.coo-hero-grid{display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); gap:22px; align-items:start}
+.coo-hero-office{min-width:0}
+.coo-hero-side{gap:14px; min-width:0}
+.coo-hero-name{gap:12px; align-items:center}
+.coo-hero-title{font-size:clamp(26px,3vw,36px); margin-top:4px}
+.coo-bubble{display:grid; gap:2px; padding:10px 12px; border-radius:var(--r-sm); border:1px solid var(--line2); background:var(--paper); color:var(--ink); font-size:13px; line-height:1.4}
+.coo-bubble b{font-weight:500}
+.coo-bubble span{color:var(--ink62)}
+.coo-clock{color:rgba(255,255,255,.72)}
+.coo-clock.late{color:var(--flame)}
+.coo-switch .seg{flex-wrap:wrap}
+.coo-practice{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; padding:10px 12px; border:1px dashed rgba(255,255,255,.3); border-radius:12px}
+
+/* the decision cards */
+.coo-cards{gap:10px}
+.coo-card{display:grid; gap:8px; padding:14px 16px; border:1px solid var(--line); border-radius:16px; background:var(--paper); min-width:0}
+.coo-card.urgent{border-color:var(--flame)}
+.coo-card-head{gap:10px}
+.coo-card-title{font-size:15px; font-weight:500; line-height:1.4; overflow-wrap:anywhere}
+.coo-checks{gap:6px}
+.coo-check{display:inline-flex; align-items:center; gap:4px; min-height:24px; padding:2px 9px; border-radius:999px; border:1px solid var(--line); background:var(--warm); font-size:12px; font-weight:400; color:var(--ink)}
+.coo-check b{font-weight:500}
+.coo-check.no{border-color:var(--flame); background:transparent; color:var(--flame-text)}
+.coo-rec{padding:8px 10px; border-radius:var(--r-sm); background:var(--warm)}
+.coo-opts{display:grid; gap:4px}
+.coo-draft{display:grid; gap:4px; padding:10px 12px; border-radius:var(--r-sm); background:var(--warm); min-width:0}
+.coo-draft-subject{font-weight:500}
+.coo-draft-text{white-space:pre-wrap; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:6; -webkit-box-orient:vertical; overflow:hidden}
+.coo-edit .field{margin:0}
+.coo-told{padding:6px 0 0; border-top:1px solid var(--line)}
+.coo-told-row{gap:10px}
+.coo-note{gap:8px; align-items:center}
+.coo-note .input{min-width:0; min-height:38px}
+.coo-acts{gap:8px; align-items:center}
+.coo-src{overflow-wrap:anywhere}
+.coo-batch{gap:8px; padding:4px 0 2px}
+
+/* today's ledger */
+.coo-today{display:grid; gap:14px}
+.coo-slot-name{margin-bottom:2px}
+.coo-rows{list-style:none; margin:0; padding:0}
+.coo-row{display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; padding:9px 0; border-bottom:1px solid var(--line); min-width:0}
+.coo-row:last-child{border-bottom:0}
+.coo-row-main{flex:1 1 260px; display:flex; align-items:flex-start; gap:10px; min-width:0; padding:0; border:0; background:transparent; color:inherit; text-align:left; cursor:pointer}
+.coo-row-main .grow{min-width:0}
+.coo-row-line{display:block; font-size:14px; font-weight:400; overflow-wrap:anywhere}
+.coo-row-why{display:block; overflow-wrap:anywhere}
+.coo-row.would .coo-row-main{border-left:2px dashed var(--line2); padding-left:10px}
+.coo-row.bad .coo-row-line{color:var(--flame-text)}
+.coo-glyph{width:28px; height:28px; flex:none; border-radius:999px; background:var(--warm); color:var(--ink); display:inline-flex; align-items:center; justify-content:center}
+.coo-glyph svg{width:16px; height:16px}
+.coo-tbl td{padding:6px 8px 6px 0; font-size:13px; vertical-align:top; overflow-wrap:anywhere}
+.coo-told-line{padding:8px 10px; border-radius:var(--r-sm); background:var(--warm)}
+.coo-watch .row,.coo-health .row{gap:10px}
+.coo-memo-text{white-space:pre-wrap}
+.coo-memo-nums,.coo-zero{gap:6px}
+.coo-health-v{text-align:right; min-width:0; overflow-wrap:anywhere}
+.coo-ends{display:grid; gap:10px}
+
+/* the digest */
+.coo-digest{display:grid; gap:10px}
+.coo-digest.compact{padding:0; border:0; background:transparent}
+.coo-digest-head{gap:10px; align-items:center}
+.coo-digest-line{font-size:16px; font-weight:500; line-height:1.4}
+.coo-digest-list{margin:0; padding-left:18px; display:grid; gap:2px}
+
+/* the charter */
+.coo-charter{display:grid; gap:16px}
+.coo-charter-head{gap:14px; align-items:center}
+.coo-charter-title{display:flex; align-items:center; gap:8px; margin-top:4px}
+.coo-charter-text{gap:8px}
+.coo-charter-line{margin:0; padding:10px 12px; border-radius:var(--r-sm); background:var(--warm); font-size:14px; line-height:1.5}
+.coo-charter-line.never{background:transparent; border:1px solid var(--flame)}
+.coo-charter-foot{gap:8px}
+
+/* ---------- Admin ---------- */
+.coo-sec{display:grid; gap:10px; margin-top:18px; padding-top:14px; border-top:1px solid var(--line)}
+.coo-rungs{display:grid}
+.coo-rung-row{display:grid; grid-template-columns:minmax(110px,1fr) auto; align-items:center; gap:6px 12px; padding:6px 0; border-bottom:1px solid var(--line)}
+.coo-rung-row:last-child{border-bottom:0}
+.coo-rung .seg-btn:disabled{opacity:.35; cursor:not-allowed}
+.coo-breaker{grid-column:1/-1}
+.coo-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px 14px}
+.coo-field{display:grid; gap:4px; align-content:end}
+.coo-field.wide{grid-column:1/-1}
+.coo-num{width:100%; min-height:36px}
+.coo-title-row{gap:12px}
+.coo-title-in{max-width:220px; min-height:36px}
+.coo-setup{gap:8px}
+.coo-step{gap:10px; align-items:flex-start}
+.coo-step-tick{width:22px; height:22px; flex:none; border-radius:999px; border:1px solid var(--line2); display:inline-flex; align-items:center; justify-content:center; font-size:12px}
+.coo-step.done .coo-step-tick{background:var(--ink); border-color:var(--ink); color:var(--on-ink)}
+.coo-step-d{display:block}
+
+/* ---------- the week: the COO's Friday suggestion ---------- */
+.coo-ghost-head{display:grid; gap:8px; padding:10px 12px; margin-bottom:10px; border-radius:var(--r-sm); background:var(--warm)}
+.coo-ghost-ev{margin:0; padding-left:18px}
+.pill.coo-ghost{border-style:dashed; color:var(--ink62)}
+.pill.coo-ghost[data-ghost="miss"]{border-color:var(--flame); color:var(--flame-text)}
+
+/* phones: one column, thumbs */
+@media (max-width:860px){
+  .coo-hero{padding:16px}
+  .coo-hero-grid{grid-template-columns:minmax(0,1fr); gap:16px}
+  .coo-rung-row{grid-template-columns:minmax(0,1fr)}
+  .coo-rung{width:100%}
+  .coo-rung .seg-btn{flex:1 1 0; min-height:44px}
+  .coo-acts .btn,.coo-acts .linky,.coo-told-row .btn,.coo-row .btn,.coo-switch .seg-btn,.coo-ghost-confirm{min-height:44px}
+  .coo-title-in{max-width:none}
+  .coo-title-row{flex-wrap:wrap}
+}
