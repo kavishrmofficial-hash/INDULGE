@@ -63,8 +63,8 @@ export function safetyActions(h) {
   const owner = async v => { if (!v || v.uid !== (await ownerUid())) throw new HttpError(403, 'invalid_argument'); };
   /* private per-person docs (data/users/<uid>/...) are that person's and the owner's, never another admin's */
   const privateOf = p => { const sg = String(p || '').split('/'); return sg[0] === 'data' && sg[1] === 'users' ? sg[2] || '' : ''; };
-  /* the books are the owner's alone, whatever the caller's level */
-  const OWNER_ONLY = new Set(['books', 'invoices', 'expenses', 'payroll', 'hr']);
+  /* the books are the owner's alone, whatever the caller's level; so are the m360 COO's ledger, cards and state */
+  const OWNER_ONLY = new Set(['books', 'invoices', 'expenses', 'payroll', 'hr', 'coo']);
   const ownerOnly = p => OWNER_ONLY.has(String(p || '').split('/')[0]);
   const mayPeek = async (v, p) => { if (ownerOnly(p) && v.uid !== (await ownerUid())) return false; const who = privateOf(p); return !who || who === v.uid || v.uid === (await ownerUid()); };
   const peekOrRefuse = async (v, p) => { if (!(await mayPeek(v, p))) throw new HttpError(403, 'invalid_argument', 'private'); };

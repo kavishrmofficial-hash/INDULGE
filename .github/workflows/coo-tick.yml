@@ -1,0 +1,40 @@
+name: coo-tick
+# Wakes the team site every 15 minutes from 09:00 to 21:00 IST, plus the 21:00 close. Cron is UTC and best effort:
+# the server picks the due slot from its own IST clock, claims it once, and extra or late ticks do nothing.
+# Schedules fire only from the default branch (claude/luxury-concierge-research-orbwp5).
+on:
+  schedule:
+    - cron: '30,45 3 * * *'          # 09:00, 09:15 IST
+    - cron: '0,15,30,45 4-14 * * *'  # 09:30 to 20:15 IST
+    - cron: '0,15 15 * * *'          # 20:30, 20:45 IST
+    - cron: '30 15 * * *'            # 21:00 IST, the close
+  workflow_dispatch:
+    inputs:
+      site:
+        description: The site to wake
+        default: https://m360os-wx9u1bqs.edgeone.dev
+permissions: {}
+concurrency:
+  group: coo-tick
+  cancel-in-progress: false
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Wake the site
+        env:
+          SITE: ${{ github.event.inputs.site || vars.M360_SITE || 'https://m360os-wx9u1bqs.edgeone.dev' }}
+          WHICH: ${{ github.event.schedule == '30 15 * * *' && 'close' || (github.event_name == 'workflow_dispatch' && 'by hand' || 'slot') }}
+        run: |
+          set -u
+          echo "fired: $WHICH  utc: $(date -u +%H:%M)  ist: $(TZ=Asia/Kolkata date +%a' '%H:%M)"
+          ok=""
+          for i in 1 2; do
+            code=$(curl -sS -m 45 -o tick.json -w '%{http_code}' -X POST "$SITE/api/m360" -H 'content-type: application/json' -d '{"a":"tick"}' || echo 000)
+            echo "try $i: status $code, answer: $(head -c 600 tick.json 2>/dev/null)"
+            if [ "$code" = "200" ] && grep -q '"ok":true' tick.json; then ok=1; break; fi
+            sleep 20
+          done
+          echo "### coo-tick, $WHICH, $(TZ=Asia/Kolkata date +'%a %d %b %H:%M') IST: \`$(head -c 400 tick.json 2>/dev/null)\`" >> "$GITHUB_STEP_SUMMARY"
+          [ -n "$ok" ] || { echo "::warning::The site did not answer the tick with ok after two tries."; exit 1; }
