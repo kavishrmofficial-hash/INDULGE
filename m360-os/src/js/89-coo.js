@@ -62,6 +62,8 @@
     .sort((a, b) => (b.urgent ? 1 : 0) - (a.urgent ? 1 : 0) || (a.at || 0) - (b.at || 0));
   const rowsOf = live => list(live && live.ledger).sort((a, b) => (a.at || 0) - (b.at || 0));
   const undoBy = r => Number((r && r.undo && r.undo.until) || (r && r.undoUntil)) || 0;
+  /* an undo window in words: the time today, the day and time after */
+  const untilTxt = (ms, now) => (ymdIST(ms) === ymdIST(now) ? '' : dayName(ms) + ' ') + hm(ms);
   const canUndo = (r, now) => !!r && r.status === 'done' && undoBy(r) > now;
   const BRIEF = /^(J02|brief)$/;
   const briefOf = (ctx, rows) => rows.filter(r => BRIEF.test(String(r.job || '')) || BRIEF.test(String(r.code || ''))).filter(r => ymdIST(r.at || 0) === ymdIST(nowOf(ctx))).pop() || null;
@@ -383,7 +385,7 @@
   /* ---------- the charter: generated from the rungs, first person, always true ---------- */
   const CAPS = [
     ['roll', 'Roll call', () => 'take the morning roll call'],
-    ['nudge', 'Short asks', () => 'send short asks through the team bots, at most two a day to anyone'],
+    ['nudge', 'Short asks', c => { const n = Number((c.limits || {}).asksPerPersonDay) || 0; return 'send short asks through the team bots' + (n > 0 ? ', at most ' + (['one', 'two', 'three'][n - 1] || n) + ' a day to anyone' : ''); }],
     ['leave', 'Leave', c => 'approve leave of up to ' + plural(Number((c.leave || {}).maxAutoDays) || 0, 'working day', 'working days') + ' when there are days left, the team is covered and no client date is in the way'],
     ['wfh', 'WFH', () => 'approve WFH days booked ahead, inside the weekly cap'],
     ['cover', 'Cover', () => 'hand internal work to a teammate while someone is away'],
@@ -411,8 +413,8 @@
     for (const [k, , what] of CAPS) {
       let r = RUNGS.indexOf(caps[k]) >= 0 ? caps[k] : 'off';
       let text = what(c);
-      /* fail closed: with no leave days set, leave and WFH only ever reach Kaavish as a proposal */
-      if ((k === 'leave' || k === 'wfh') && (r === 'alone' || r === 'tell') && !policySet(c)) { r = 'propose'; text = k === 'leave' ? 'leave decisions, until the leave days are set' : 'WFH decisions, until the leave days are set'; }
+      /* fail closed: with no leave days set, leave only ever reaches Kaavish as a proposal (WFH needs no days) */
+      if (k === 'leave' && (r === 'alone' || r === 'tell') && !policySet(c)) { r = 'propose'; text = 'leave decisions, until the leave days are set'; }
       g[r].push(text);
     }
     const out = [];
@@ -572,7 +574,7 @@
             <span class="grow"><span class="coo-row-line">${s.line || codeOf(r)}</span>${s.why ? html`<span class="coo-row-why tiny ink62">${s.why}</span>` : null}</span>
             <span class="tiny ink62 num">${hm(r.at)}</span>
           </button>
-          ${canUndo(r, now) ? html`<button type="button" class="btn sec sm" data-act="undo" disabled=${busy === r.id} onClick=${() => undo(r.id)}>Undo until ${hm(undoBy(r))}</button>`
+          ${canUndo(r, now) ? html`<button type="button" class="btn sec sm" data-act="undo" disabled=${busy === r.id} onClick=${() => undo(r.id)}>Undo until ${untilTxt(undoBy(r), now)}</button>`
             : r.status === 'undone' ? html`<span class="tiny ink62 coo-undone">Undone by <${UI.Name} id=${r.undoneBy || ctx.founderUid} fallback="Kaavish"/> ${hm(Number(r.undoneAt || (r.undone && r.undone.at)) || r.at)}</span>`
             : r.status === 'would' ? html`<span class="pill">practice</span>`
             : r.status === 'conflict' ? html`<span class="tiny flame-t">Changed since, kept as it is</span>` : null}
@@ -766,7 +768,7 @@
     try { h = M.coo && M.coo.health ? M.coo.health(ctx) : null; } catch (e) { h = null; }
     const ok = v => v === true || v === 'ok' || v === 'on' || v === 'set';
     const steps = [
-      {k: 'leave', done: policySet(c), t: 'Leave days per type', d: 'Until they are set, every leave and WFH request comes to you.', go: () => { const el = document.getElementById('coo-leave'); if (el) el.scrollIntoView({block: 'center'}); }},
+      {k: 'leave', done: policySet(c), t: 'Leave days per type', d: 'Until they are set, every leave request comes to you.', go: () => { const el = document.getElementById('coo-leave'); if (el) el.scrollIntoView({block: 'center'}); }},
       {k: 'holidays', done: hol, t: 'Holidays for ' + yr, d: 'Working days come from the holidays list.', go: () => M.nav('#admin')},
       {k: 'client', done: seen, t: 'Client dates are never moved', d: 'A task with a client, on a client project, or due on its project date counts as client dated until you mark it internal in the task.', go: () => { M.prefs.set('cooClientDated', '1'); setSeen(true); }, label: 'Got it'},
       {k: 'pm', done: true, t: 'Personal managers are ' + (pm ? 'on' : 'off'), d: pm ? 'The COO never asks about what a manager\'s bot already chases.' : 'The COO reports and proposes switching them on, once a week.'},
