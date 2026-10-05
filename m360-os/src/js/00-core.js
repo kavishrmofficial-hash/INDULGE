@@ -279,9 +279,10 @@ M.makeWrites = (db, uidGetter) => {
      skips the log line too (its live feed); note replaces the summary ("coo J12 <actId>"). No delete: the bot
      never removes anything */
   W.as = (who, o) => {
-    const bot = who === 'coo' ? COO_UID : String(who || '');
+    /* the COO is the only other hand a page writes with */
+    if (who !== 'coo') throw new Error('W.as writes as the COO only');
     const opts = o || {};
-    return writer(opts.quiet ? () => {} : (a, p, d) => M.logWrite(db, bot, a, p, d, opts.note));
+    return writer(opts.quiet ? () => {} : (a, p, d) => M.logWrite(db, COO_UID, a, p, d, opts.note));
   };
   return W;
 };

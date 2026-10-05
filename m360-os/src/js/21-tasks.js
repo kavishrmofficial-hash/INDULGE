@@ -145,7 +145,8 @@
     const task = ctx.coll.tasks.map[id];
     if (!task) throw new Error('that task is gone');
     const o = opts || {};
-    const uid = o.by || ctx.uid;
+    /* by names the COO or nobody: a save is the viewer's own otherwise */
+    const uid = M.coo && o.by === M.coo.UID ? o.by : ctx.uid;
     const now = Date.now();
     const p = patch || {};
     if (M.coo && uid === M.coo.UID) return botSave(ctx, id, task, p, o, now);
@@ -172,6 +173,8 @@
   /* the COO's own move: the owner and the due date only, the logs with its reason, a comment saying why */
   async function botSave(ctx, id, task, p, o, now) {
     const bot = M.coo.UID;
+    /* the bot's hand is the founder's own page (its runner), never a member's or a preview */
+    if (!ctx.isFounder || ctx.viewAs) throw new Error('only the founder\'s page moves work as the COO');
     const out = {updatedBy: bot, updated: now};
     if (p.owner !== undefined && (task.owner || '') !== (p.owner || '')) {
       out.owner = p.owner || '';

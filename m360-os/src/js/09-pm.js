@@ -145,11 +145,11 @@
     for (let i = 0; i < 14; i++) { d = U.addDays(d, 1); const s = U.ymd(d); if (ctx.isWorkingDay(s)) return s; }
     return U.ymd(U.addDays(U.parseYmd(ymd), 1));
   };
-  /* a leave request with no decision yet that covers the day */
+  /* a leave request with no decision yet that covers the day (a WFH day booked ahead is not leave) */
   function leavePending(ctx, u, ymd) {
     const reqs = ((((ctx.coll.leave || {}).map || {})[u]) || {}).reqs || [];
     const dec = ((((ctx.coll.leavedec || {}).map || {})[u]) || {}).d || {};
-    return reqs.some(r => r && r.from && r.to && r.from <= ymd && r.to >= ymd && !(dec[r.id] && dec[r.id].status && dec[r.id].status !== 'pending'));
+    return reqs.some(r => r && r.type !== 'wfh' && r.from && r.to && r.from <= ymd && r.to >= ymd && !(dec[r.id] && dec[r.id].status && dec[r.id].status !== 'pending'));
   }
   /* the first coachDays working days from "joined": the bot tells the person only */
   function coachUntil(ctx, u) {
@@ -1139,7 +1139,9 @@
      M.coo.UID sends it as the m360 COO: founder-level rights, its own caps (M.coo counts them), the record
      on its own profile and the line from its own DM room */
   async function ask(ctx, o, opts) {
-    const bot = !!(opts && opts.as && isCoo(opts.as));
+    /* only the founder's own page speaks as the COO (its runner); anyone else's ask stays their own */
+    const bot = !!(opts && opts.as && isCoo(opts.as)) && !!ctx.isFounder && !ctx.viewAs;
+    if (opts && opts.as && !bot) return {askId: null, sent: [], skipped: Array.from(new Set(o.to || [])).map(u => ({uid: u, why: 'only the COO asks as the COO'})), already: []};
     const me = bot ? opts.as : ctx.uid;
     const p = P(ctx);
     const ag = {...(((M.SETTINGS_DEFAULTS || {}).agent) || {}), ...((ctx.settings && ctx.settings.agent) || {})};

@@ -81,9 +81,12 @@
     const names = useNames(ctx, list.map(x => x.uid));
     if (!ctx || !ctx.isFounder) return null;
     const nameOf = uid => (names[uid] && names[uid].name) || 'Someone';
+    /* an approval keeps the dates it approved (snap): leaveMap reads those, whatever the request says later */
     const decide = (uid, id, status) => {
       setBusy(id);
-      ctx.W.merge('leavedec/' + uid, {d: {[id]: {status, at: Date.now(), by: ctx.uid}}})
+      const r = reqsOf(ctx, uid).find(x => x.id === id);
+      const snap = status === 'approved' && r ? {snap: {from: r.from || '', to: r.to || '', type: r.type || 'casual'}} : {};
+      ctx.W.merge('leavedec/' + uid, {d: {[id]: {status, at: Date.now(), by: ctx.uid, ...snap}}})
         .then(() => M.toast(status === 'approved' ? 'Approved' : 'Declined'))
         .catch(() => {})
         .then(() => setBusy(null));
