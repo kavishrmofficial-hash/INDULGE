@@ -6,8 +6,8 @@
       and the period stamped on the draft so no page or instance drafts it twice) and tells the
       owner by mail. When auto-chase is on it sends the reminder steps for overdue invoices, one
       step a day, marking the invoice before the mail goes out. While the m360 COO is on
-      (settings/app.coo.on), auto-chase sends nothing: the reminders wait as the COO's drafts in
-      books/cooq for the owner's tap.
+      (settings/app.coo.on, past its practice week), auto-chase sends nothing: the reminders wait as
+      the COO's drafts in books/cooq for the owner's tap.
    The page keeps the same numbers and words (src/js/42-books.js and 43-invoices.js); the defaults
    here are the same defaults, kept short. */
 
@@ -321,9 +321,13 @@ export function booksDesk(h) {
       const today = ymdIST(Date.now());
       const [s, book] = await Promise.all([settings(), clientBook()]);
       const ids = Object.keys(book).filter(cid => { const r = book[cid] && book[cid].retainer; return r && r.active && num(r.amount) > 0; });
-      /* while the m360 COO is on, its drafts carry the reminders and nothing is sent from here */
+      /* while the m360 COO is on, its drafts carry the reminders and nothing is sent from here. In its practice
+         week, or with its invoice reminders off, it drafts nothing, so the reminders still go as before */
       const app = (await getJ(docKey('settings/app')).catch(() => null)) || {};
-      const cooOn = !!(app.coo && app.coo.on === true) && String((env && env.COO_OFF) || '') !== '1';
+      const pu = app.coo ? app.coo.practiceUntil : null;
+      const practice = !!pu && (typeof pu === 'number' ? Date.now() < pu : today <= String(pu));
+      const drafts = !(app.coo && app.coo.caps && app.coo.caps.invoiceMail === 'off');
+      const cooOn = !!(app.coo && app.coo.on === true) && !practice && drafts && String((env && env.COO_OFF) || '') !== '1';
       const chase = s.chase && s.chase.auto && !cooOn;
       if (!ids.length && !chase) return;
       const docs = await invoiceDocs();

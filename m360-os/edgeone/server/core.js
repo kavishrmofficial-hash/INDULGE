@@ -723,7 +723,8 @@ export function createApp({store, env = {}}) {
       const q = String(body.q || '').toLowerCase().trim();
       const blobs = await listAll('p/');
       const all = await Promise.all(blobs.slice(0, 400).map(async b => ({id: b.key.slice(2), name: ((await getJ(b.key).catch(() => null)) || {}).name || ''})));
-      return {hits: all.filter(p => p.name && (!q || p.name.toLowerCase().includes(q))).slice(0, 8)};
+      /* the m360 COO keeps a name (p/u_m360coo) so its lines resolve, but it is nobody to find or mention */
+      return {hits: all.filter(p => p.name && p.id !== 'u_m360coo' && (!q || p.name.toLowerCase().includes(q))).slice(0, 8)};
     },
 
     /* every collection this viewer may read, with its version; a page that sends tags gets deltas instead */

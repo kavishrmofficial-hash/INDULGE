@@ -1,13 +1,14 @@
 name: coo-tick
-# Wakes the team site every 15 minutes from 09:00 to 21:00 IST, plus the 21:00 close. Cron is UTC and best effort:
+# Wakes the team site every 15 minutes from 09:00 to 21:00 IST, plus the 21:00 close, Monday to Saturday (Sunday health
+# runs on page traffic). Cron is UTC and best effort:
 # the server picks the due slot from its own IST clock, claims it once, and extra or late ticks do nothing.
 # Schedules fire only from the default branch (claude/luxury-concierge-research-orbwp5).
 on:
   schedule:
-    - cron: '30,45 3 * * *'          # 09:00, 09:15 IST
-    - cron: '0,15,30,45 4-14 * * *'  # 09:30 to 20:15 IST
-    - cron: '0,15 15 * * *'          # 20:30, 20:45 IST
-    - cron: '30 15 * * *'            # 21:00 IST, the close
+    - cron: '30,45 3 * * 1-6'        # 09:00, 09:15 IST
+    - cron: '0,15,30,45 4-14 * * 1-6' # 09:30 to 20:15 IST
+    - cron: '0,15 15 * * 1-6'        # 20:30, 20:45 IST
+    - cron: '30 15 * * 1-6'          # 21:00 IST, the close
   workflow_dispatch:
     inputs:
       site:
@@ -25,7 +26,7 @@ jobs:
       - name: Wake the site
         env:
           SITE: ${{ github.event.inputs.site || vars.M360_SITE || 'https://m360os-wx9u1bqs.edgeone.dev' }}
-          WHICH: ${{ github.event.schedule == '30 15 * * *' && 'close' || (github.event_name == 'workflow_dispatch' && 'by hand' || 'slot') }}
+          WHICH: ${{ github.event.schedule == '30 15 * * 1-6' && 'close' || (github.event_name == 'workflow_dispatch' && 'by hand' || 'slot') }}
         run: |
           set -u
           echo "fired: $WHICH  utc: $(date -u +%H:%M)  ist: $(TZ=Asia/Kolkata date +%a' '%H:%M)"

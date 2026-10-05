@@ -2,9 +2,9 @@
    operating rhythm for Kaavish, inside the mandate he writes (settings/app.coo), with no page open.
 
    run(site, {t0, tick}) comes after the personal managers' pass, before every action. A tick (the GitHub
-   heartbeat, .github/workflows/coo-tick.yml, every 15 minutes from 09:00 to 21:00 IST) always looks; any other
-   request looks only when the last beat is over 20 minutes old inside the working day, so page traffic covers
-   a missed tick. The slot comes from this server's own IST clock, never from the body, and each one is claimed
+   heartbeat, .github/workflows/coo-tick.yml, every 15 minutes from 09:00 to 21:00 IST, Monday to Saturday)
+   always looks; any other request looks only when the last beat is over 20 minutes old between 09:00 and 21:00,
+   so page traffic covers a missed tick and runs Sunday's health check. The slot comes from this server's own IST clock, never from the body, and each one is claimed
    once in the store:
      x/coo/lease                     {id, until}                                 one pass at a time across instances
      x/coo/<ymd>/<slot>              {id, at, until, state, cursor, acts, ms}    state running, done, skipped or error
@@ -682,7 +682,7 @@ const COPY = {
   open_rest: {f: () => 'A day off for the team. I only checked my health.'},
   brief: {f: x => 'Morning. ' + x.leave + ' on leave, ' + x.wfh + ' WFH. Roll call at ' + x.roll + ' and rebalance at 3. ' + waits(x.wait)},
   caught: {f: x => 'I caught up at ' + x.atTxt + '. ' + plural(x.n, 'round', 'rounds') + ' ran late because m360 was closed.'},
-  roll: {f: x => 'Roll call. ' + x.n + ' in, ' + x.wfh + ' WFH, ' + x.leave + ' on leave' + (x.notIn ? ', ' + x.notIn + ' not in yet' : '') + '.'},
+  roll: {f: x => 'Roll call. ' + x.n + ' in, ' + x.wfh + ' WFH, ' + x.leave + ' on leave' + (x.notIn === 1 ? ', ' + x.name + ' not in yet' : x.notIn ? ', ' + x.notIn + ' not in yet' : '') + '.'},
   eod: {f: x => x.n + ' of ' + x.of + ' EOD lines in.'},
   close: {f: x => 'Day closed. ' + x.eod + ' of ' + x.of + ' EOD lines in. ' + (x.moves ? 'I made ' + plural(x.moves, 'move', 'moves') + ', still undoable till ' + x.untilT + '. ' : '') + waits(x.wait)},
   memo: {f: x => 'The memo for ' + String(x.week || 'the week').replace('-W', ' week ') + ' is ready.'},
@@ -741,6 +741,7 @@ const COPY = {
   audit: {f: x => x.n ? 'Self audit found ' + plural(x.n, 'thing', 'things') + '. It needs you.' : 'Self audit clean.'},
   cap_hit: {f: x => "I reached today's limit on " + (x.what || 'that') + ', so the rest waits for tomorrow.'},
   breaker: {f: x => 'You undid 2 of my ' + (x.what || 'moves') + ' this week, so I will only suggest ' + (x.what || 'moves') + ' until you say so.'},
+  breaker_wrong: {f: x => 'You marked 2 of my ' + (x.what || 'moves') + ' wrong this week, so I will only suggest ' + (x.what || 'moves') + ' until you say so.'},
   fails: {f: x => plural(x.n, 'act', 'acts') + ' failed in one round, so I will only suggest ' + (x.what || 'them') + ' until you say so.'},
   refused: {f: () => 'A write was refused, so I stopped. It needs you.'},
   undone: {f: x => 'Kaavish put ' + x.title + ' back with ' + x.name + '.', dm: x => 'Kaavish put ' + x.title + ' back with ' + x.name + '.'},
@@ -930,9 +931,18 @@ const openCards = ctx => {
   add(((mapOf(ctx, 'books').cooq) || {}).items, true);
   return out;
 };
-/* one card per thing: a card already open (or raised in this run) with the same dedupe key wins */
+/* every card that still speaks for its thing: open, or settled by Kaavish (a declined card is never raised
+   again). Voided and expired ones may come back */
+const liveDedupe = ctx => {
+  const out = new Set();
+  const add = items => { for (const id of Object.keys(items || {})) { const c = items[id]; if (c && c.dedupe && c.status !== 'void' && c.status !== 'expired') out.add(c.dedupe); } };
+  add(((ctx.coo || {}).dec || {}).items);
+  add(((mapOf(ctx, 'books').cooq) || {}).items);
+  return out;
+};
+/* one card per thing: a card already raised (or raised in this run) with the same dedupe key wins */
 function addCard(R, card) {
-  if (openCards(R.ctx).some(c => c.dedupe === card.dedupe) || R.cards.some(c => c.dedupe === card.dedupe)) return false;
+  if (liveDedupe(R.ctx).has(card.dedupe) || R.cards.some(c => c.dedupe === card.dedupe)) return false;
   R.cards.push(card);
   return true;
 }
@@ -965,8 +975,13 @@ async function act(R, o) {
   if (r === 'off') return {status: 'off'};
   /* no new act once the request has run 22 seconds: the slot keeps its cursor and the next tick carries on */
   if (R.io.late()) { R.out = true; return {status: 'budget'}; }
-  /* the mandate is read again before every act: a stop or a pause takes effect at once */
-  if (R.halt || await R.io.halted()) { R.halt = true; return {status: 'off'}; }
+  /* the mandate is read again before every act: a stop or a pause takes effect at once, a rung Kaavish lowered
+     since the round began holds from this act, and a practice week switched on makes the rest would rows */
+  const fresh = R.halt ? null : await R.io.mandate();
+  if (!fresh || fresh.st === 'off' || fresh.st === 'paused') { R.halt = true; return {status: 'off'}; }
+  if (fresh.st === 'practice') R.practice = true;
+  if (cap) r = lowerOf(r, rung({settings: fresh.settings, coo: R.ctx.coo}, cap));
+  if (r === 'off') return {status: 'off'};
   const writes = !!o.write && (r === 'alone' || r === 'tell');
   const carded = !writes && !!o.card && (r === 'draft' || r === 'propose' || !o.write);
   if (!writes && !carded && o.kind !== 'report') return {status: 'off'};
@@ -976,9 +991,10 @@ async function act(R, o) {
     if (limit !== 'asksPerPersonDay' && limit !== 'movesPerPersonDay') infoCard(R, 'cap_hit', {what: LIMIT_TXT[limit]}, 'info:cap:' + limit + ':' + R.ymd);
     return {status: 'cap', limit};
   }
-  if (carded && (openCards(R.ctx).some(c => c.dedupe === o.card.dedupe) || R.cards.some(c => c.dedupe === o.card.dedupe))) return {status: 'dupe'};
-  /* one act per kind, target and period, whichever instance, tab or retry gets there first */
-  const key = kind === 'report' ? '' : actKey(o.code, o.subject || o.code, o.period || R.ymd);
+  if (carded && o.card.dedupe && (liveDedupe(R.ctx).has(o.card.dedupe) || R.cards.some(c => c.dedupe === o.card.dedupe))) return {status: 'dupe'};
+  /* one act per kind, target and period, whichever instance, tab or retry gets there first. Practice keys are
+     their own, so the real act still runs the day Kaavish ends the practice week */
+  const key = kind === 'report' ? '' : actKey(o.code, o.subject || o.code, (o.period || R.ymd) + (R.practice ? ':practice' : ''));
   const row = {id: newId(), at: Date.now(), slot: R.slot, job: o.job, code: o.code, cap: cap || null, rung: r, kind, charter: Number(R.cfg.version) || 1,
     subject: o.subject || '', rule: o.rule || '', facts: o.facts || [], checks: o.checks || [], before: o.before || null, after: o.after || null,
     why: {code: o.why || '', args: o.args || {}}, args: o.args || {}, told: [], undo: null, status: 'running', station: job.station, refs: {...(o.refs || {})}, by: 'server'};
@@ -1014,6 +1030,7 @@ async function act(R, o) {
     }
   }
   try {
+    R.cur = o.target ? {path: o.target.path, pick: o.target.pick, before: o.before} : null;
     await o.write(row);
   } catch (e) {
     const code = e && e.code;
@@ -1024,9 +1041,15 @@ async function act(R, o) {
     if (row.status === 'refused') await stuck(R, row);
     else if (row.status === 'failed' && cap) { R.fails[cap] = (R.fails[cap] || 0) + 1; if (R.fails[cap] === 3) breaker(R, cap, 'fails'); }
     return {status: row.status, row};
-  }
+  } finally { R.cur = null; }
   if (o.target) row.status = same(pickOf(await R.io.read(o.target.path), o.target.pick), o.after) ? 'done' : 'conflict';
   else row.status = 'done';
+  if (row.status === 'done' && o.target && /^tasks\//.test(o.target.path)) {
+    /* the task as it now stands, its logs included, so the rest of the round sees this move (once a week a task) */
+    const id = o.target.path.slice(6);
+    const t = await R.io.read(o.target.path);
+    if (t) { R.state.tasks = {...R.state.tasks, [id]: t}; forget(R.state); }
+  }
   if (row.status === 'done') {
     for (const t of o.told || []) {
       const text = copy(t.code, {...row.args, ...(t.args || {})}, 'dm', R.ctx).line;
@@ -1058,6 +1081,8 @@ function breaker(R, cap, why) {
    name (writeAs: a version under ~u_m360coo and a log line "coo <job> <actId>") */
 async function cooWrite(R, path, fields, note) {
   const cur = await R.io.read(path);
+  /* the act's own target, read at the last moment: a person (or Kaavish) who changed it since the plan wins */
+  if (R.cur && R.cur.path === path && !same(pickOf(cur, R.cur.pick), R.cur.before)) { const e = new Error('moved since the plan'); e.code = 'skip'; throw e; }
   guard(path, fields, cur, R.ctx);
   const next = merge(cur || {}, fields);
   await R.io.write(path, next, note);
@@ -1310,11 +1335,21 @@ J.J05 = async R => {
     if (Object.keys(patch).length) { try { await R.io.mergeDoc('coo/dec', {items: patch}, 'coo cards'); } catch (e) { /* the next close */ } }
     await R.io.prune(R.ymd).catch(() => {});
   }
+  /* its own bookkeeping stays small: holds past their time, cover marks and seen requests past 30 days */
+  const cs = cooState(c);
+  const cut = now - 30 * DAY;
+  const drop = (map, old) => { const o = {}; for (const k of Object.keys(map || {})) if (old(k, map[k])) o[k] = null; return o; };
+  const holds = drop(cs.holds, (k, v) => Number(v) < now);
+  const cover = drop(cs.cover, (k, v) => Number(v) < cut);
+  const seenLeave = drop((cs.seen || {}).leave, k => { const [u, id] = k.split(':'); return !((R.state.leave[u] || []).some(r => r && r.id === id)) || decided(R.state, u, id); });
+  if (Object.keys(holds).length) R.patch.holds = {...holds, ...(R.patch.holds || {})};
+  if (Object.keys(cover).length) R.patch.cover = {...cover, ...(R.patch.cover || {})};
+  if (Object.keys(seenLeave).length) R.patch.seen = {leave: {...seenLeave, ...(((R.patch.seen || {}).leave) || {})}};
   const eod = R.day.eod || (((await R.io.read('coo/day-' + R.ymd)) || {}).eod) || {in: 0, of: 0};
   const wait = openCards(c).filter(k => !patch[k.id]).length + R.cards.length;
   R.day.close = {at: now, eod: eod.in, of: eod.of, moves, until, wait, skipped: R.late.map(x => x.id)};
   await act(R, {job: 'J05', code: 'close', kind: 'report', args: {eod: eod.in, of: eod.of, moves, until, wait}});
-  if (!R.practice) await R.io.founderMail(R, 'close', copy('close', {eod: eod.in, of: eod.of, moves, until, wait}, 'founder', c).line, wait).catch(() => {});
+  if (!R.practice && R.work) await R.io.founderMail(R, 'close', copy('close', {eod: eod.in, of: eod.of, moves, until, wait}, 'founder', c).line, wait).catch(() => {});
 };
 
 /* J06: the weekly memo, numbers by code; the prose by the model when the day's budget allows, else numbers only */
@@ -1424,14 +1459,16 @@ J.J12 = async R => {
       const key = u + ':' + req.id + (R.slot === 'brief' ? ':' + R.ymd : '');
       if (done[key] || (R.patch.cover || {})[key]) continue;
       if (R.slot === 'brief' && s.from > addDays(R.ymd, 1)) continue;
-      R.patch.cover = {...(R.patch.cover || {}), [key]: Date.now()};
+      /* a practice round plans the cover again each time (its act keys keep the would rows to one a day), so
+         the real cover still runs once practice ends */
+      if (!R.practice) R.patch.cover = {...(R.patch.cover || {}), [key]: Date.now()};
       const plan = planCover(st, u, req);
       for (const mv of plan.moves) {
         const t = st.tasks[mv.task];
         const until = Date.now() + DAY;
         const owner = mv.kind === 'owner';
         const args = {uid: u, to: owner ? mv.to : '', task: mv.task, d1: s.from, d2: s.to, due: owner ? mv.due : mv.newDue, newDue: mv.newDue, until};
-        const res = await act(R, {job: 'J12', code: owner ? 'cover_move' : 'cover_shift', kind: owner ? 'move' : 'shift', cap: 'cover', unsure: u === st.founder,
+        await act(R, {job: 'J12', code: owner ? 'cover_move' : 'cover_shift', kind: owner ? 'move' : 'shift', cap: 'cover', unsure: u === st.founder,
           subject: 'task:' + mv.task, args, refs: {uid: u, to: owner ? mv.to : '', task: mv.task, req: req.id}, why: 'leave',
           target: taskTarget(mv.task), before: {owner: u, due: t.due || ''}, after: {owner: owner ? mv.to : u, due: owner ? (t.due || '') : mv.newDue},
           write: moveSave(R, mv.task, owner ? {owner: mv.to} : {due: mv.newDue}, 'leave', args),
@@ -1439,7 +1476,6 @@ J.J12 = async R => {
           card: {kind: 'move', code: owner ? 'cover_move' : 'cover_shift', label: 'Move it', dedupe: 'move:task:' + mv.task + ':' + R.ymd},
           told: owner ? [{uid: mv.to, code: 'cover_move'}, {uid: u, code: 'cover_away'}] : [{uid: u, code: 'cover_shift'}],
           undo: {k: 'task', task: mv.task, fields: ['owner', 'due'], until}});
-        if (res.status === 'done') { st.tasks = {...st.tasks, [mv.task]: {...t, owner: owner ? mv.to : u, due: owner ? t.due : mv.newDue}}; forget(st); }
       }
       if (plan.propose.length) {
         const first = plan.propose[0];
@@ -1649,12 +1685,11 @@ J.J31 = async R => {
     const until = Date.now() + DAY;
     const args = {uid: mv.from, to: mv.to, task: mv.task, due: mv.due, newDue: mv.newDue !== mv.due ? mv.newDue : '', open: mv.open, over: mv.over, open2: mv.open2, until};
     const patch = mv.newDue !== (t.due || '') ? {owner: mv.to, due: mv.newDue} : {owner: mv.to};
-    const res = await act(R, {job: 'J31', code: 'rebalance', kind: 'move', cap: 'rebalance', subject: 'task:' + mv.task, args, refs: {uid: mv.from, to: mv.to, task: mv.task}, why: 'overload',
+    await act(R, {job: 'J31', code: 'rebalance', kind: 'move', cap: 'rebalance', subject: 'task:' + mv.task, args, refs: {uid: mv.from, to: mv.to, task: mv.task}, why: 'overload',
       target: taskTarget(mv.task), before: {owner: mv.from, due: t.due || ''}, after: {owner: mv.to, due: patch.due !== undefined ? patch.due : (t.due || '')},
       write: moveSave(R, mv.task, patch, 'overload', args), apply: {action: 'coo.move_task', input: {task: mv.task, ...patch, why: 'overload'}},
       card: {kind: 'move', label: 'Move it', dedupe: 'move:task:' + mv.task + ':' + R.ymd},
       told: [{uid: mv.to, code: 'rebalance'}, {uid: mv.from, code: 'handed_away'}], undo: {k: 'task', task: mv.task, fields: ['owner', 'due'], until}});
-    if (res.status === 'done') { st.tasks = {...st.tasks, [mv.task]: {...t, ...patch}}; forget(st); }
   }
 };
 
@@ -1667,7 +1702,9 @@ J.J32 = async R => {
     if (!openTask(t) || (t.owner && active(st, t.owner)) || !t.project) continue;
     const p = st.projects[t.project];
     if (!p || p.archived) continue;
-    const to = active(st, p.owner) ? p.owner : (Array.isArray(p.members) ? p.members : []).filter(u => active(st, u)).sort((a, b) => ((ld[a] || {}).score || 0) - ((ld[b] || {}).score || 0) || (a < b ? -1 : 1))[0];
+    /* never handed to someone away today */
+    const here = u => active(st, u) && !isOut(st, u, R.ymd);
+    const to = here(p.owner) ? p.owner : (Array.isArray(p.members) ? p.members : []).filter(here).sort((a, b) => ((ld[a] || {}).score || 0) - ((ld[b] || {}).score || 0) || (a < b ? -1 : 1))[0];
     if (!to || !movable(st, t).ok) continue;
     const until = Date.now() + DAY;
     const args = {uid: t.owner || '', to, task: t.id, left: !!t.owner, due: t.due || '', until};
@@ -1870,14 +1907,18 @@ J.J41 = async R => {
   for (const id of Object.keys(st.pitches || {})) { const p = st.pitches[id]; if (p && p.contact) want.push(p.contact); }
   for (const id of Object.keys(st.clients || {})) { const c = st.clients[id]; if (c && c.contact) want.push(c.contact); }
   R.contacts = want.length ? await R.io.contacts(want) : {};
+  /* one draft a client a week, whether its pitch or the client itself is the reason */
+  const recent = k => k && k.kind === 'client_mail' && k.refs && k.refs.client && (Number(k.at) || 0) > R.now - 7 * DAY;
+  const drafted = new Set(Object.values((((R.ctx.coo || {}).dec) || {}).items || {}).filter(recent).map(k => k.refs.client));
   for (const id of Object.keys(st.pitches || {}).sort()) {
     const p = st.pitches[id];
-    if (!p || p.archived || p.stage !== 'proposal') continue;
+    if (!p || p.archived || p.stage !== 'proposal' || (p.client && drafted.has(p.client))) continue;
     const since = ymdOf(Number(p.stageAt || p.created || R.now));
     const n = workDaysIn(st, addDays(since, 1), R.ymd).length;
     if (n < 5) continue;
     const to = contactMail(R, p.contact);
     const hi = firstOf(R, p.contact);
+    if (p.client) drafted.add(p.client);
     await act(R, {job: 'J41', code: 'client_mail', kind: 'card', cap: 'clientMail', rung: lowerOf(st.rungs.clientMail, 'draft'), subject: 'pitch:' + id, args: {pitch: id, n},
       period: 'w' + bucket, refs: {pitch: id, client: p.client || ''},
       card: {kind: 'client_mail', dedupe: 'client_mail:pitch:' + id + ':' + bucket, why: to ? 'Sent ' + dayTxt(since) + ', no reply in ' + plural(n, 'working day', 'working days') + '.' : 'Add the recipient before you send.',
@@ -1887,7 +1928,7 @@ J.J41 = async R => {
   const tasks = tasksList(st);
   for (const id of Object.keys(st.clients || {}).sort()) {
     const cl = st.clients[id];
-    if (!cl || cl.archived || (cl.status && cl.status !== 'live' && cl.status !== 'active')) continue;
+    if (!cl || cl.archived || drafted.has(id) || (cl.status && cl.status !== 'live' && cl.status !== 'active')) continue;
     let touch = 0;
     for (const t of tasks) if (t.client === id) touch = Math.max(touch, Number(t.updated) || 0, Number(t.created) || 0, Number(t.doneAt) || 0);
     for (const pid of Object.keys(st.projects || {})) { const p = st.projects[pid]; if (p && p.client === id) for (const u of Object.values(p.updates || {})) touch = Math.max(touch, Number(u && u.at) || 0); }
@@ -2078,6 +2119,9 @@ export function cooDesk(h) {
   const AI_MS = 14000, MAIL_MS = 8000, GOOGLE_MS = 8000;
   const build = String(env.BUILD || env.M360_BUILD || '');
   let lookAt = 0, busy = false;
+  /* after a beat that found nothing due, more ticks on this instance answer from memory until the next slot or
+     for a minute, whichever is first, so a flood of forged ticks costs the store nothing */
+  let idle = null;
   const cache = {};
   const read = path => getJ(docKey(path)).catch(() => null);
   const doFetch = env.fetch || fetch;
@@ -2132,7 +2176,7 @@ export function cooDesk(h) {
     const io = {
       build, site,
       late: () => Date.now() - t0 > STOP_MS,
-      async halted() { const st = status({settings: await appSettings(), coo: {state: {}}}, Date.now(), env); return st === 'off' || st === 'paused'; },
+      async mandate() { const settings = (await appSettings()) || {}; return {settings, st: status({settings, coo: {state: {}}}, Date.now(), env)}; },
       read,
       write: (path, doc, note) => writeAs(UID, path, doc, note),
       quiet: (path, doc) => writeQuiet(path, doc),
@@ -2349,8 +2393,8 @@ export function cooDesk(h) {
     }
     if (!(await ownerUid())) return null;
     if (!tick) {
-      const hol = new Set(Array.isArray(settings.holidays) ? settings.holidays : []);
-      if (mins < 540 || mins > 1260 || dowOf(ymd) === 0 || hol.has(ymd)) return null;
+      /* Sundays have no heartbeat (founder decisions 2): page traffic runs their health, open and close only */
+      if (mins < 540 || mins > 1260) return null;
       const beat = await getJ('x/coo/beat').catch(() => null);
       if (beat && Number(beat.at) > now - BEAT_STALE) return null;
     }
@@ -2396,6 +2440,7 @@ export function cooDesk(h) {
         /* nothing due: the clock on the office still moves, so the founder sees the heartbeat */
         const cur = (await read('coo/now')) || {};
         const next = slotsDue(slots, Date.now(), {}).next || null;
+        if (tick) idle = {until: Math.min(Date.now() + LOOK_MS, next ? next.at : Infinity), state: st === 'practice' ? 'practice' : 'on'};
         await writeQuiet('coo/now', {...cur, state: cur.state && cur.state !== 'off' && cur.state !== 'paused' ? cur.state : (st === 'practice' ? 'practice' : 'idle'), at: cur.at || Date.now(), next,
           pass: {at: Date.now(), slot: '', ms: Date.now() - t0, by: 'server', build}});
       }
@@ -2415,6 +2460,8 @@ export function cooDesk(h) {
     const t0 = (o && o.t0) || Date.now();
     const tick = !!(o && o.tick);
     const now = Date.now();
+    if (tick && idle && now < idle.until) return {slot: '', state: idle.state, acts: 0, ms: 0};
+    idle = null;
     if (busy || (!tick && now - lookAt < LOOK_MS)) return null;
     lookAt = now;
     /* the daily backup may have used the request's first seconds: a pass starts only inside the first 8 */

@@ -324,14 +324,16 @@ function reportLine(state, it, nameOf) {
   const t = it.t || {}, title = t.title || 'that task';
   const mgr = first(nameOf(it.mgr));
   if (it.source === 'ask') {
-    const head = asker(nameOf, it.from) + ' asked m360 to check with you, ' + hhmm(it.s1) + '. ';
+    /* the COO is a bot and asks in its own name; a person asks m360 to check */
+    const bot = it.from === COO_UID;
+    const head = bot ? asker(nameOf, it.from) + ' asked you something at ' + hhmm(it.s1) + '. ' : asker(nameOf, it.from) + ' asked m360 to check with you, ' + hhmm(it.s1) + '. ';
     const ci = it.ci || {};
     if (it.kind === 'noout') return head + 'You are still checked in from ' + (ci.in ? hhmm(ci.in) : 'this morning') + '. What happened?';
     if (it.kind === 'noin') return head + 'No check-in yet today (start ' + startLabel(state, it.rep) + '). All okay?';
     if (it.kind === 'noeod') return head + 'No EOD line for today yet. Two lines are enough.';
     if (it.kind === 'overdue') return head + "'" + title + "' was due " + fmtDay(t.due) + '. Where is it at?';
     if (it.kind === 'task') return head + "It is about '" + title + "'. Where is it at?";
-    return head + 'Their words are in your messages on m360.';
+    return head + (bot ? 'The question is in your messages on m360.' : 'Their words are in your messages on m360.');
   }
   if (it.kind === 'noin') return 'No check-in yet. Your day started at ' + startLabel(state, it.rep) + '.';
   if (it.kind === 'noeod') return "Today's EOD line is not in. Two lines do it: what shipped, what is next.";
@@ -469,7 +471,9 @@ export function pmDesk(h) {
     const inv = inventory ? await inventory() : {};
     const team = (await getJ(docKey('roster/team')).catch(() => null)) || {};
     const [me, checkin, eod, tasks, leave, leavedec] = await Promise.all(['me', 'checkin', 'eod', 'tasks', 'leave', 'leavedec'].map(c => coll(inv, c)));
-    return {members: team.members || {}, founderUid: await founderOf(team), settings, me, checkin, eod, tasks, leave, leavedec};
+    /* env COO_OFF=1 stops the m360 COO whatever the settings say, so its asks are not mailed either */
+    const st = env && String(env.COO_OFF || '') === '1' && isObj(settings && settings.coo) ? {...settings, coo: {...settings.coo, on: false}} : settings;
+    return {members: team.members || {}, founderUid: await founderOf(team), settings: st, me, checkin, eod, tasks, leave, leavedec};
   }
   async function beaconsNow() {
     const out = {};
