@@ -5,6 +5,10 @@ Run: M360_MODULES=06-points.js M360_TAG=points python3 harness/tests/test_points
 
 The browser clock is fixed at Thursday 15:00 IST of the current week, so "this week" has four working
 days up to today (Monday to Thursday) and the arithmetic below holds on any day the test runs.
+
+v33, the why codes on dueLog: a due date the m360 COO moved for a reason the owner did not choose (leave,
+a blocker, a pile-up) is the date the work is judged against; a date set from the owner's own ETA is not,
+so the date before it stands.
 """
 import os
 import sys
@@ -252,6 +256,19 @@ def test(h):
     check([r['uid'] for r in lb2] == [M1, M2, F], 'leaderboard with founder %r' % [r['uid'] for r in lb2])
 
     # ---- the pages this test opened stay clean ----
+    # ---- v33: the why codes. Both of m2's tasks were due Monday, moved to Tuesday, done Tuesday ----
+    def moved(tid, why, by):
+        task(tid, M2, ymd(tue), 'done', done_at=ms(tue, 16, 0))
+        t = page.evaluate('id => window.__db.get("tasks/" + id)', tid)
+        t['dueLog'] = [{'from': ymd(mon), 'to': ymd(tue), 'by': by, 'at': ms(mon, 9, 0), 'why': why}]
+        h.seed_doc(page, 'tasks/' + tid, t)
+    moved('t9', 'leave', 'u_m360coo')
+    moved('t10', 'eta', M2)
+    h.seed_doc(page, 'approvals/' + F, {'ok': dict(signed)})
+    page.wait_for_function('() => { const m = M.lastCtx.coll.tasks.map; return m.t9 && m.t10 && m.t10.dueLog && M.lastCtx.coll.approvals.map["u_founder"].ok.t10; }')
+    pw = h.ctx(page, 'M.points.pointsFor(ctx, "u_m2", "%s", "%s")' % (week_from, week_to))
+    check(pw['counts']['taskOnTime'] == p2['counts']['taskOnTime'] + 1 and pw['counts']['taskLate'] == p2['counts']['taskLate'] + 1,
+          "a date the COO moved for leave counts as moved, a date from the owner's ETA does not: %r then %r" % (p2['counts'], pw['counts']))
     check(h.overflow(page) == 0, 'horizontal overflow on the founder page: %d' % h.overflow(page))
     # a new browser context starts with its own empty store, so the member page is seeded again
     page2 = h.open('m1', width=390, hash='#today', seed=True)

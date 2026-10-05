@@ -452,12 +452,13 @@ def test(h):
     p.wait_for_function('() => document.activeElement && document.activeElement.id === "buddy-input"')
     check(True, 'a quick tap of the keys is ready for typing')
     p.keyboard.press('Escape'); p.wait_for_function('() => !document.querySelector(".buddy-bubble")')
-    # never pressed for them: marking pay as paid, an export, the pulse
+    # never pressed for them: marking pay as paid, an export, the pulse (at the top of the page: Home is taller
+    # since v33, so the pointing above may have scrolled it)
     p.evaluate('''() => { const box = document.createElement('div'); box.id = 'pulse-card';
       const a = document.createElement('button'); a.textContent = 'Mark paid'; a.onclick = () => { window.__pressed = (window.__pressed || 0) + 1; };
       const b = document.createElement('button'); b.textContent = 'Export CSV'; b.onclick = a.onclick;
       const c = document.createElement('button'); c.textContent = 'Great week'; c.onclick = a.onclick; box.appendChild(c);
-      document.querySelector('.main').prepend(a, b, box); }''')
+      document.querySelector('.main').prepend(a, b, box); window.scrollTo(0, 0); }''')
     said = p.evaluate('''async () => { const t = M.assistant.screenTools(M.lastCtx, {log: () => {}}); const click = t.tools.find(x => x.name === 'click');
       const out = []; for (const label of ['Mark paid', 'Export CSV', 'Great week']) { t.scan();
         const el = [...document.querySelectorAll('[data-ai]')].find(e => e.textContent.trim() === label);

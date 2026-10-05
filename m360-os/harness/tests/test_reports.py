@@ -8,6 +8,8 @@ the same flags land in m2's inbox, and the founder's Your team shows m2 only. m2
 scorecard (private detail); m1 cannot open m3's. The person page says who reports to whom. At 15:00
 with m1 in late and nothing moved on their tasks: late and idle. At 20:45 with no check-out and no EOD
 line: both flagged, and an overdue task on m3 counts. A report on approved leave carries no flags.
+v33: a task the m360 COO handed m1 a minute ago (updatedBy u_m360coo) is not m1's own movement, so m1
+stays idle until m1 moves something.
 
 Run: cd m360-os && python3 harness/tests/test_reports.py
 """
@@ -146,8 +148,17 @@ def test(h):
     check(any(k == 'idle' and hot == '1' for k, hot, _ in f1), 'nothing moved: %r, hour %r, ctx %r, tasks %r' % (f1, m2.evaluate('() => new Date().getHours()'), h.ctx(m2, '[ctx.now, new Date(ctx.now).getHours(), new Date(ctx.now).getMinutes(), M.lines.watch(ctx, "u_m1").map(f => f.k), M.att.dayStatus(ctx, "u_m1", M.U.todayStr()).in]'), m2.evaluate('''() => { const s = window.__db.store(); const day = new Date(); day.setHours(0,0,0,0); const out = []; for (const k of Object.keys(s)) if (k.startsWith('tasks/')) { const t = s[k]; if (t && (t.owner === 'u_m1' || t.by === 'u_m1' || t.approvedBy === 'u_m1')) out.push([k, t.updated >= day.getTime(), t.created >= day.getTime(), t.approvedBy === 'u_m1' && t.approvedAt >= day.getTime(), Object.keys(t.comments || {}).filter(c => t.comments[c].by === 'u_m1' && t.comments[c].at >= day.getTime()).length]); } return out; }''')))
     check(not any(k == 'noin' for k, _, _ in f1), 'no more "not checked in" once in')
     check(not flags(m2, M3) and 'on leave' in m2.inner_text('#team-u_m3'), 'leave carries no flags: %r' % flags(m2, M3))
-    # a move on a task clears idle
     now_ms = int(t_noon.timestamp() * 1000)
+    # the COO handing m1 a task is not m1 moving it: still idle
+    h.seed_doc(m2, 'tasks/tr0', {'title': 'Studio banner', 'owner': M1, 'by': F, 'status': 'todo', 'due': today, 'created': now_ms - 86400000 * 3, 'updated': now_ms - 60000,
+                                 'updatedBy': 'u_m360coo', 'ownerLog': [{'from': M3, 'to': M1, 'by': 'u_m360coo', 'at': now_ms - 60000, 'why': 'leave'}]})
+    m2.goto(h.url('m2', '#home', seed=True))
+    m2.reload()
+    h.ready(m2)
+    m2.wait_for_selector('#team-watch')
+    m2.wait_for_function('() => !!(M.lastCtx && M.lastCtx.coll.tasks.map.tr0)')
+    check(any(k == 'idle' for k, _, _ in flags(m2, M1)), 'a task the COO handed over is not the owner moving it: %r' % flags(m2, M1))
+    # a move on a task clears idle
     h.seed_doc(m2, 'tasks/tr1', {'title': 'Cut the teaser', 'owner': M1, 'by': M1, 'status': 'doing', 'due': today, 'created': now_ms - 3600000, 'updated': now_ms - 60000})
     m2.goto(h.url('m2', '#home', seed=True))
     m2.reload()
