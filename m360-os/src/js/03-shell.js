@@ -36,7 +36,9 @@
       {k: 'clients', label: 'Clients', route: 'clients'}, {k: 'pipeline', label: 'Pipeline', route: 'pitches'}, {k: 'crm', label: 'CRM', route: 'crm'}, {k: 'handshake', label: 'Handshake', route: 'handshake'}]},
     vibe: {label: 'Vibe', icon: 'feed', page: 'Vibe', tabs: [
       {k: 'feed', label: 'Feed', route: 'feed'}, {k: 'crew', label: 'Crew', route: 'people'},
-      {k: 'pulse', label: 'Pulse and ideas', route: 'voice'}, {k: 'scores', label: 'Leaderboard', route: 'scores'}, {k: 'music', label: 'Music', route: 'music'}]},
+      {k: 'pulse', label: 'Pulse and ideas', route: 'voice'}, {k: 'scores', label: 'Leaderboard', route: 'scores'}, {k: 'music', label: 'Music', route: 'music'},
+      /* the office, team scope (the founder's own office is under HQ) */
+      {k: 'office', label: 'Office', route: 'office', member: true}]},
     break: {label: 'Break', icon: 'breath', page: 'Break', tabs: [
       {k: 'play', label: 'Daily', route: 'play'}, {k: 'reset', label: 'Reset', route: 'reset'}, {k: 'care', label: 'Care', route: 'care'}, {k: 'reflect', label: 'Reflect', route: 'reflect'}]},
     base: {label: 'Base', icon: 'database', page: 'Base', tabs: [
@@ -49,9 +51,12 @@
       {k: 'news', label: 'News', route: 'radar'}, {k: 'awards', label: 'Awards', route: 'awards'}, {k: 'watch', label: 'Watch', route: 'watch'}]},
     me: {label: 'Me', icon: 'people', page: 'Me', tabs: [
       {k: 'profile', label: 'Profile', route: 'me'}, {k: 'notes', label: 'Notes', route: 'notes'}, {k: 'trophies', label: 'Trophies', route: 'trophies'}, {k: 'leave', label: 'Leave', route: 'leave'},
-      {k: 'handbook', label: 'Handbook', route: 'handbook'}, {k: 'hiring', label: 'Hiring', route: 'hiring'}]},
+      {k: 'handbook', label: 'Handbook', route: 'handbook'}, {k: 'hiring', label: 'Hiring', route: 'hiring'},
+      /* what the m360 COO does, read only (the founder runs it from HQ) */
+      {k: 'coo', label: 'COO', route: 'coo', member: true}]},
     hq: {label: 'HQ', icon: 'command', page: 'HQ', founder: true, tabs: [
       {k: 'brief', label: 'Intelligence', route: 'hq'}, {k: 'dashboard', label: 'Dashboard', route: 'command'},
+      {k: 'coo', label: 'COO', route: 'coo'}, {k: 'office', label: 'Office', route: 'office'},
       {k: 'hiring', label: 'Hiring', route: 'hiring'}]},
     admin: {label: 'Admin', icon: 'desk', page: 'Admin', founder: true},
     books: {label: 'Books', icon: 'log', page: 'Books', founder: true, owner: true, tabs: [
@@ -111,6 +116,10 @@
       case 'hiring': return isFounder ? {s: 'hq', t: 'hiring', id} : {s: 'me', t: 'hiring', id};
       case 'hq': return isFounder ? {s: 'hq', t: 'brief'} : {s: 'home'};
       case 'command': return isFounder ? {s: 'hq', t: 'dashboard'} : {s: 'home'};
+      /* the m360 COO: the founder's tab under HQ, the charter under Me for everyone else */
+      case 'coo': return isFounder ? {s: 'hq', t: 'coo'} : {s: 'me', t: 'coo'};
+      /* the virtual office: the founder's under HQ, the team's under Vibe */
+      case 'office': case 'studio': case 'coo-office': return isFounder ? {s: 'hq', t: 'office'} : {s: 'vibe', t: 'office'};
       case 'admin': case 'desk': return isFounder ? {s: 'admin'} : {s: 'home'};
       default: return {s: isFounder ? 'hq' : 'home'};
     }
@@ -154,6 +163,7 @@
     return (SECTIONS[section].tabs || []).filter(t => {
       if (section === 'me' && t.k === 'hiring') return !ctx.isFounder && ((b.hiring || 0) > 0 || Object.keys(ctx.coll.candidates.map).some(id => (ctx.coll.candidates.map[id].evaluators || []).includes(ctx.uid)));
       if (t.founder) return !!ctx.isFounder;
+      if (t.member) return !ctx.isFounder;
       return true;
     });
   }

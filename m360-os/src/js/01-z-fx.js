@@ -202,15 +202,21 @@
 
   /* BotAvatar: the library's plush fabric shading, bodies by feature, all in flame; paused holds it still.
      headphones, jumpEvery (seconds between idle hops) and interactive (eyes that follow the pointer) go
-     straight through, as the package ships them */
-  function Bot({type, feature, state, size, seed, face, label, id, className, paused, headphones, jumpEvery, interactive}) {
+     straight through, as the package ships them, and so does what the office's COO wears and does:
+     glasses, bowTie, hat and accessoryColor, a held pose ({yaw, pitch, roll}, while it walks), turn, speed
+     and jumpHeight. Left out, each keeps the package's own default */
+  function Bot({type, feature, state, size, seed, face, label, id, className, paused, headphones, jumpEvery, interactive,
+    glasses, bowTie, hat, accessoryColor, pose, turn, speed, jumpHeight}) {
     useSettled();
     const th = M.useResolvedTheme();
     const fx = FX();
     const body = type || BOTS[feature] || 'clover';
-    if (!fx) return M.parts.Bot ? html`<${M.parts.Bot} state=${state} size=${size} seed=${seed} label=${label} id=${id}/>` : null;
+    if (!fx) return M.parts.Bot ? html`<${M.parts.Bot} type=${body} state=${state} size=${size} seed=${seed} label=${label} id=${id} glasses=${glasses} bowTie=${bowTie} paused=${!!paused}/>` : null;
     return html`<${fx.BotAvatar} type=${body} state=${state || 'default'} size=${size || 28} seed=${seed || 0} face=${face || 'eyes'} color=${FLAME} theme=${th} paused=${!!paused} headphones=${!!headphones}
-      jumpEvery=${jumpEvery == null ? undefined : jumpEvery} interactive=${interactive == null ? undefined : !!interactive} id=${id} className=${className} aria-label=${label || 'm360'}/>`;
+      jumpEvery=${jumpEvery == null ? undefined : jumpEvery} interactive=${interactive == null ? undefined : !!interactive}
+      glasses=${glasses || undefined} bowTie=${bowTie == null ? undefined : !!bowTie} hat=${hat || undefined} accessoryColor=${accessoryColor || undefined}
+      pose=${pose || undefined} turn=${turn == null ? undefined : turn} speed=${speed == null ? undefined : speed} jumpHeight=${jumpHeight == null ? undefined : jumpHeight}
+      id=${id} className=${className} aria-label=${label || 'm360'}/>`;
   }
 
   /* BellToggle from React Bits; its count badge is drawn only where a count is passed, so a plain
@@ -223,5 +229,5 @@
     return html`<${fx.BellToggle} ...${all}/>`;
   }
 
-  M.fx = {...(M.fx || {}), Orb, Beam, Metal, MetalText, MetalBadge, Voice, VoicePill, Bot, Bell, BOTS, FLAME, has: () => !!window.FX, useSettled};
+  M.fx = {...(M.fx || {}), Orb, Beam, Metal, MetalText, MetalBadge, Voice, VoicePill, Bot, Bell, BOTS, FLAME, has: () => !!window.FX, useSettled, useHushed};
 })();

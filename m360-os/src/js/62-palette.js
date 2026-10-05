@@ -17,6 +17,7 @@
     ['Base', 'base', 'database'], ['Companies', 'companies', 'database'], ['Radar', 'radar', 'radar'],
     ['Me', 'me', 'people'], ['Leave', 'leave', 'leave'], ['Handbook', 'handbook', 'handbook'], ['Trophies', 'trophies', 'trophy'],
     ['HQ', 'hq', 'command', true], ['Dashboard', 'command', 'command', true], ['Hiring', 'hiring', 'hiring', true], ['Admin', 'admin', 'desk', true],
+    ['The office', 'office', 'desk'], ['The m360 COO', 'coo', 'command'],
     ['What\'s in m360', 'map', 'map'], ['Break', 'break', 'breath'], ['Five, the word of the day', 'play', 'breath'], ['Reset', 'reset', 'breath'], ['Care reminders', 'care', 'bell'], ['Reflect', 'reflect', 'review']
   ];
   /* the order headings appear in */
