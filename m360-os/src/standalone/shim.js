@@ -326,7 +326,7 @@
       }
       const tools = Array.isArray(opts.tools) ? opts.tools : [];
       const toolDefs = tools.map(t => ({name: t.name, description: t.description || '', input_schema: t.inputSchema || {type: 'object', properties: {}}}));
-      let text = '';
+      let text = '', cut = false;
       const ROUNDS = 10;
       for (let round = 0; round < ROUNDS; round++) {
         if (opts.signal && opts.signal.aborted) throw {code: 'cancelled', message: 'cancelled'};
@@ -336,6 +336,7 @@
         const said = blocks.filter(b => b.type === 'text').map(b => b.text).join('');
         if (said) { text += (text ? '\n' : '') + said; if (opts.onText) opts.onText({text, delta: said}); }
         const uses = blocks.filter(b => b.type === 'tool_use');
+        cut = r.stop_reason === 'max_tokens';
         if (!uses.length || r.stop_reason !== 'tool_use') break;
         messages = messages.concat([{role: 'assistant', content: blocks}]);
         const results = [];
@@ -349,7 +350,7 @@
         }
         messages = messages.concat([{role: 'user', content: results}]);
       }
-      return {text, truncated: false};
+      return {text, truncated: cut};
     }
     const sample = (input, opts) => run(input, opts);
     sample.json = async (input, opts) => {
@@ -359,7 +360,7 @@
       const a = t.indexOf('{') >= 0 && (t.indexOf('[') < 0 || t.indexOf('{') < t.indexOf('[')) ? t.indexOf('{') : t.indexOf('[');
       const b = Math.max(t.lastIndexOf('}'), t.lastIndexOf(']'));
       try { return JSON.parse(a >= 0 && b > a ? t.slice(a, b + 1) : t); }
-      catch (e) { throw {code: 'invalid_output', message: 'The model did not return JSON.', text: r.text}; }
+      catch (e) { throw {code: 'invalid_output', message: r.truncated ? 'The answer was cut short' : 'The model did not return JSON', text: r.text}; }
     };
     sample.limits = () => Promise.resolve({maxPromptBytes: 400000, tools: {maxCount: 32}, images: {maxCount: 4, maxBytes: IMAGE_MAX, mediaTypes: IMAGE_TYPES.slice()}});
     return sample;

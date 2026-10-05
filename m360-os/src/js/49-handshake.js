@@ -16,6 +16,7 @@
 
   const SETTINGS = 'dm/settings';
   const HOLD_H = 48;
+  const BATCH = 3;
   const BUCKETS = [
     {v: 'decision', label: 'Decision maker', who: 'founders, MDs, CMOs, CBOs, brand heads', ask: '20 minutes'},
     {v: 'marketer', label: 'Brand-side marketer', who: 'brand managers, social or comms leads at a named company', ask: 'a quick call'},
@@ -177,7 +178,9 @@
     }).join('\n\n');
     const prompt = 'HANDSHAKE WRITE:\n' + rules(s, who) + '\n\nOPENERS: alternate "Thanks for connecting" and "Good to connect" starting with ' + (people(ctx).filter(p => p.message).length % 2 ? '"Good to connect"' : '"Thanks for connecting"') + '.\n\n' + block +
       '\n\nReply with JSON only: {"people": [{"name": "", "bucket": "decision|marketer|partner|creator|talent|skip", "why": "one line on the bucket", "hookKind": "news|company|career|role|question", "hookLine": "the one line about them", "proof": "the proof line used or empty", "message": "the DM, or empty for a skip", "flags": ["conflict or caution, or none"], "skip": "reason when bucket is skip"}]}';
-    const out = await ctx.sample.json(prompt, {cache: false, modelTier: 'complex'});
+    /* medium effort with room to answer: at high effort the thinking used up the answer's room and the
+       JSON came back cut short, so nothing was written */
+    const out = await ctx.sample.json(prompt, live() ? {cache: false, modelTier: 'default', maxTokens: 8192} : {cache: false, modelTier: 'default'});
     const list = Array.isArray(out) ? out : (out && out.people) || [];
     const done = [];
     for (const p of batch) {
@@ -217,12 +220,30 @@
       await fresh().W.update('dm/' + p.id, {verified: v, updated: Date.now()});
     }
     await wait(150);
-    for (let i = 0; i < todo.length; i += 6) {
-      if (onStep) onStep('Writing ' + Math.min(6, todo.length - i) + (todo.length > 6 ? ' of ' + todo.length : '') + ' messages');
-      await write(fresh(), todo.slice(i, i + 6).map(p => p.id));
+    let lastErr = null;
+    for (let i = 0; i < todo.length; i += BATCH) {
+      const ids = todo.slice(i, i + BATCH).map(p => p.id);
+      if (onStep) onStep('Writing ' + (todo.length > BATCH ? (i + 1) + ' to ' + Math.min(todo.length, i + BATCH) + ' of ' + todo.length : ids.length === 1 ? 'the message' : ids.length + ' messages'));
+      let got = [];
+      try { got = await write(fresh(), ids); } catch (e) { lastErr = e; }
+      /* a batch that came back short or cut off is written one person at a time */
+      const left = ids.filter(id => !got.some(d => d.id === id));
+      if (left.length && ids.length > 1) {
+        for (const id of left) {
+          try { await write(fresh(), [id]); } catch (e) { lastErr = e; }
+        }
+      }
       await wait(150);
     }
+    for (let i = 0; i < 20 && todo.some(p => !written(fresh(), p.id)); i++) await wait(100);
+    const missed = todo.filter(p => !written(fresh(), p.id));
+    if (missed.length) {
+      const why = lastErr && lastErr.message ? ' (' + lastErr.message + ')' : '';
+      throw new Error((missed.length === todo.length ? 'Could not write ' + (todo.length === 1 ? 'it' : 'them') : 'Could not write ' + missed.map(p => p.name).join(', ')) + why + '. Try again in a minute.');
+    }
   }
+  /* written: a message, a skip, or a wait for the accept */
+  const written = (ctx, id) => { const d = ctx.coll.dm.map[id]; return !!d && d.state !== 'new'; };
   /* from Ask m360: "DM:" with screenshots */
   async function fromAsk(ctx, images, note) {
     const r = await intake(ctx, {images, note: String(note || '').replace(/^dm:\s*/i, '')});
@@ -344,6 +365,7 @@
     const ctx = M.useCtx();
     const [tick, setTick] = useState(0);
     const [showSent, setShowSent] = useState(false);
+    const [writing, setWriting] = useState('');
     const all = people(ctx);
     useEffect(() => { const t = setInterval(() => setTick(x => x + 1), 60000); return () => clearInterval(t); }, []);
     /* a hold that has run out is ready now */
@@ -351,6 +373,12 @@
     const by = st => all.filter(p => p.state === st).sort((a, b) => (RANK[a.bucket] == null ? 5 : RANK[a.bucket]) - (RANK[b.bucket] == null ? 5 : RANK[b.bucket]) || (b.updated || 0) - (a.updated || 0));
     const ready = by('ready'), hold = by('hold'), waiting = by('waiting'), fresh = by('new'), skipped = by('skipped'), sent = by('sent').sort((a, b) => (b.sentAt || 0) - (a.sentAt || 0));
     const flagged = all.filter(p => p.flags && p.flags.length && p.state !== 'sent');
+    const writeNew = async () => {
+      setWriting('Starting');
+      try { await run(ctx, fresh.map(p => p.id), setWriting); M.toast(fresh.length === 1 ? 'Written' : fresh.length + ' written'); }
+      catch (e) { M.toast((e && e.message) || 'Could not write', true); }
+      setWriting('');
+    };
     const group = (title, list, id) => list.length ? html`<${UI.Card} title=${title + ' (' + list.length + ')'} id=${id}>
       <div class="stack">${list.map(p => html`<${Person} key=${p.id} p=${p} ctx=${ctx} all=${all}/>`)}</div>
     <//>` : null;
@@ -369,7 +397,10 @@
       ${fresh.length ? html`<${UI.Card} title=${'Not written yet (' + fresh.length + ')'} id="hs-new">
         <div class="stack tight">
           ${fresh.map(p => html`<div key=${p.id} class="row between"><span><b>${p.name}</b> <span class="small ink62">${p.headline}</span></span></div>`)}
-          <div><${UI.Btn} sm=${true} id="hs-write-new" onClick=${() => run(ctx, fresh.map(p => p.id)).catch(e => M.toast((e && e.message) || 'Could not write', true))}>Write these<//></div>
+          <div class="row" style=${{gap: '8px', alignItems: 'center'}}>
+            <${UI.Btn} sm=${true} id="hs-write-new" disabled=${!!writing || !M.ai.on(ctx)} onClick=${writeNew}>${writing ? 'Writing' : 'Write these'}<//>
+            ${writing ? html`<span class="tiny ink62 row nowrap" style=${{gap: '8px'}}><${M.fx.Orb} state="composing" size=${20} label="writing"/>${writing}</span>` : null}
+          </div>
         </div>
       <//>` : null}
       ${skipped.length ? html`<${UI.Card} title=${'Skip list (' + skipped.length + ')'} id="hs-skipped">
