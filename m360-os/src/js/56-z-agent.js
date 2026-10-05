@@ -946,8 +946,9 @@
   const istAdd = (ymd, n) => new Date(Date.parse(ymd + 'T00:00:00Z') + n * 86400000).toISOString().slice(0, 10);
   const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   /* "till Monday", "until tomorrow", "till 4", "for an hour", "2026-10-12": the moment the pause ends, in IST.
-     A day means its 09:00, when the COO's day opens. Nothing said is null (the COO picks tomorrow's start);
-     words it cannot read are undefined */
+     A day means its 09:00, when the COO's day opens; a clock time is an IST one wherever Kaavish is. Nothing
+     said is null (the COO picks tomorrow's start); words it cannot read are undefined */
+  const COUNT = {a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6};
   function cooUntil(text, now) {
     const s = norm(text).replace(/^(till|until|to|for)\s+/, '');
     now = now || Date.now();
@@ -959,9 +960,25 @@
     if (s === 'next week') return istAt(istAdd(td, ((8 - dow) % 7) || 7), '09:00');
     const d = DAYS.findIndex(x => s === x || s === x.slice(0, 3) || s === 'next ' + x);
     if (d >= 0) return istAt(istAdd(td, ((d - dow + 7) % 7) || 7), '09:00');
-    const t = timeFrom(s, now);
-    if (t && t.ms) return t.ms > now ? t.ms : t.ms + 86400000;
-    if (t && t.ymd) return istAt(t.ymd, '09:00');
+    /* a stretch: "an hour", "half an hour", "30 minutes", "two days" */
+    let m = /^(?:in )?(half an|\d+|[a-z]+) ?(hours?|hrs?|minutes?|mins?|days?)$/.exec(s);
+    if (m && (m[1] === 'half an' || /^\d+$/.test(m[1]) || COUNT[m[1]])) {
+      const n = m[1] === 'half an' ? 0.5 : /^\d+$/.test(m[1]) ? Number(m[1]) : COUNT[m[1]];
+      if (/^d/.test(m[2])) return istAt(istAdd(td, Math.max(1, Math.round(n))), '09:00');
+      return now + Math.round(n * (/^h/.test(m[2]) ? 60 : 1)) * MIN;
+    }
+    m = /^(\d{1,2}|[a-z]+)(?::(\d{2})|( thirty))? ?(am|pm)?$/.exec(s);
+    if (m && (/^\d/.test(m[1]) || NUMW[m[1]])) {
+      let h = /^\d/.test(m[1]) ? Number(m[1]) : NUMW[m[1]];
+      const mm = m[2] ? Number(m[2]) : m[3] ? 30 : 0;
+      if (h > 23 || mm > 59) return undefined;
+      if (m[4] === 'pm' && h < 12) h += 12;
+      else if (m[4] === 'am' && h === 12) h = 0;
+      else if (!m[4] && h <= 8) h += 12;
+      const t = istAt(td, U.pad(h) + ':' + U.pad(mm));
+      return t > now ? t : t + 86400000;
+    }
+    if (/^(the )?(end of (the )?day|eod|tonight)$/.test(s)) { const t = timeFrom(s, now); if (t && t.ms) return t.ms > now ? t.ms : undefined; }
     return undefined;
   }
   /* the COO's settled rows, newest first: done, would (the practice week) and failed */
@@ -973,27 +990,45 @@
     return {line: c.line || ((M.coo.JOBS || {})[row.job] || {}).label || 'An act of mine', why: c.why || ''};
   };
   /* the row a question is about: a person's leave or WFH decision, a task by its title, an id, or the last
-     one a "why" answered ("undo that") */
+     one a "why" answered ("undo that"). For an undo (o.open) a row that can still be put back wins */
   let cooTalk = null;
   const LEAVE_JOBS = ['J10', 'J11'];
-  function cooRow(ctx, nm, input) {
+  const leaveJobs = kind => kind === 'wfh' ? ['J11'] : kind === 'leave' ? ['J10'] : LEAVE_JOBS;
+  /* an approval made before yesterday is off the page's two ledger days, yet undoable until the leave starts:
+     its row is read from the day the decision was made */
+  async function cooLeaveRow(ctx, u, jobs) {
+    const dec = ((ctx.coll.leavedec.map[u] || {}).d) || {};
+    const ids = Object.keys(dec).filter(id => dec[id] && dec[id].by === M.coo.UID && dec[id].status === 'approved').sort((a, b) => (dec[b].at || 0) - (dec[a].at || 0));
+    for (const id of ids.slice(0, 4)) {
+      const day = istYmd(Number(dec[id].at) || 0);
+      const doc = await ctx.db.doc('coo/L-' + day).get().then(x => (x && x.exists ? x.data() : null), () => null);
+      const acts = (doc && doc.acts) || {};
+      const k = Object.keys(acts).find(x => acts[x] && (acts[x].refs || {}).uid === u && (acts[x].refs || {}).req === id && jobs.indexOf(acts[x].job) >= 0 && acts[x].status !== 'running');
+      if (k) { const r = acts[k]; return {...r, id: k, ymd: day, args: r.args || {}, refs: r.refs || {}, undoUntil: r.undo && r.status === 'done' ? Number(r.undo.until) || 0 : 0}; }
+    }
+    return null;
+  }
+  async function cooRow(ctx, nm, input, o) {
     const rows = cooRows(ctx);
+    const best = f => (o && o.open && rows.find(r => f(r) && cooOpen(r))) || rows.find(f) || null;
     const q = String(input.subject || input.task || '').trim();
-    if (input.act && input.act !== 'last') return rows.find(r => r.id === input.act) || null;
+    if (input.act && input.act !== 'last') return rows.find(r => r.id === input.act) || (cooTalk && cooTalk.id === input.act ? cooTalk.row || null : null);
     if (input.person) {
       const u = member(ctx, nm, input.person);
       if (!u) throw new Error('no teammate called ' + input.person);
       const leave = input.kind === 'leave' || input.kind === 'wfh';
-      return rows.find(r => (r.refs || {}).uid === u && (!leave || LEAVE_JOBS.indexOf(r.job) >= 0)) || null;
+      const jobs = leaveJobs(input.kind);
+      const hit = best(r => (r.refs || {}).uid === u && (!leave || jobs.indexOf(r.job) >= 0));
+      return hit && (!leave || !o || !o.open || cooOpen(hit)) ? hit : (leave ? (await cooLeaveRow(ctx, u, jobs)) || hit : hit);
     }
     if (q) {
       const t = M.brain.findTask(ctx, q.replace(/^(the|my)\s+/i, ''));
-      const hit = t ? rows.find(r => (r.refs || {}).task === t.id) : null;
+      const hit = t ? best(r => (r.refs || {}).task === t.id) : null;
       if (hit) return hit;
       const w = M.coo.why ? M.coo.why(ctx, q) : null;
       return w ? rows.find(r => r.id === w.id) || {...w, undoUntil: w.undo && w.status === 'done' ? Number(w.undo.until) || 0 : 0} : null;
     }
-    if (cooTalk && Date.now() - cooTalk.at < 30 * MIN) return rows.find(r => r.id === cooTalk.id) || null;
+    if (cooTalk && Date.now() - cooTalk.at < 30 * MIN) return rows.find(r => r.id === cooTalk.id) || cooTalk.row || null;
     return rows.find(cooOpen) || null;
   }
   const said = v => v !== null && v !== undefined && v !== '';
@@ -1003,7 +1038,7 @@
     const full = (M.coo.why && M.coo.why(ctx, row.id)) || row;
     const c = cooLine(ctx, {...full, ...row});
     const checks = (full.checks || []).filter(k => k && k.k);
-    cooTalk = {id: row.id, at: Date.now()};
+    cooTalk = {id: row.id, at: Date.now(), row};
     const tail = cooOpen(row) ? ' Say undo to put it back.' : full.status === 'undone' ? ' You undid it.' : row.status === 'would' ? ' That was the practice week, so nothing changed.' : '';
     return c.line + (c.why ? ' ' + c.why : '') + (checks.length ? ' Checks: ' + checks.slice(0, 8).map(checkTxt).join('; ') + '.' : '') + tail;
   }
@@ -1055,16 +1090,16 @@
     }, 'founder'), {needs: 'coo'});
   /* a read: it answers at once, and Undo is the tap it offers */
   reg('coo_why', 'why the COO did something', '{subject? a task or a person, person?, kind? leave|wfh}', [], 'founder', 'tap', async (ctx, nm, input) => {
-    const row = cooRow(ctx, nm, input);
+    const row = await cooRow(ctx, nm, input);
     if (!row) return {ok: true, read: true, say: input.person ? 'I have not decided anything for ' + firstOf(nm, member(ctx, nm, input.person)) + ' lately.' : 'I have not moved that lately.'};
     return {ok: true, read: true, act: row.id, say: cooWhyLine(ctx, row)};
   }, {needs: 'coo', read: true});
   reg('coo_undo', 'put back something the COO did', '{act? last|id, task?, person?, kind? leave|wfh}', [], 'founder', 'tap', async (ctx, nm, input, io) => {
-    const row = cooRow(ctx, nm, input);
+    const row = await cooRow(ctx, nm, input, {open: true});
     if (!row) throw new Error('I cannot find that act of mine');
     if (!cooOpen(row)) throw new Error(row.status === 'would' ? 'that was the practice week, so nothing changed' : 'too late to undo that one');
     const line = cooLine(ctx, row).line.replace(/\s*(Undo for 24 hours|Undo until [^.]*)\.\s*$/, '');
-    cooTalk = {id: row.id, at: Date.now()};
+    cooTalk = {id: row.id, at: Date.now(), row};
     return tapHold(ctx, io, undoLabel(ctx, nm, row, line), line + ' I put it back as you, field by field, and anyone I told hears it. If someone changed it since, it stays and I say what changed.', async c => {
       const r = await M.coo.undo(c, row.id) || {};
       return {ok: !!r.ok, conflict: !!r.conflict, say: r.say || (r.ok ? 'Put back.' : 'That did not undo.')};
@@ -1074,8 +1109,17 @@
     const how = HOW[input.how] ? input.how : 'apply';
     const card = cooCard(ctx, nm, input);
     if (!card) {
-      /* no card for that leave: Kaavish's own decision, as before */
-      if (input.person && how === 'apply' && input.kind !== 'mail') return byName('decide_leave').run(ctx, nm, {person: input.person, status: 'approved'}, io);
+      /* no card for that leave: Kaavish's own decision, as before, on a request of the kind he named (a WFH
+         day is never approved for a leave, nor the other way round) */
+      if (input.person && how === 'apply' && input.kind !== 'mail') {
+        const u = member(ctx, nm, input.person);
+        if (!u) throw new Error('no teammate called ' + input.person);
+        const dec = ((ctx.coll.leavedec.map[u] || {}).d) || {};
+        const wfh = input.kind === 'wfh';
+        const r = ((ctx.coll.leave.map[u] || {}).reqs || []).find(x => x && !dec[x.id] && (!input.kind || (x.type === 'wfh') === wfh));
+        if (!r) throw new Error('nothing pending for ' + firstOf(nm, u) + (input.kind ? (wfh ? ' on WFH' : ' on leave') : ''));
+        return byName('decide_leave').run(ctx, nm, {person: input.person, from: r.from, status: 'approved'}, io);
+      }
       throw new Error('no card of mine matches that');
     }
     const d = ((card.payload || {}).draft) || {};
@@ -1086,16 +1130,26 @@
     const label = mail ? 'Send to ' + d.to : how === 'apply' && who && (card.kind === 'leave' || card.kind === 'wfh') ? 'Approve ' + firstOf(nm, who) + '\'s ' + (card.kind === 'wfh' ? 'WFH' : 'leave') : HOW[how] + ': ' + card.title;
     const detail = mail ? 'Subject: ' + (d.subject || 'none') + '. It goes from your own mail, in the thread.' : (card.why || card.recommend || '');
     const held = tapHold(ctx, io, cut(label, 90), detail, async c => {
+      /* the yes stands for what was read back: a draft edited or redrafted since sends nothing until he looks again */
+      if (mail) {
+        const k = (M.coo.decisions(c) || []).find(x => x.id === card.id);
+        const d2 = k ? ((k.payload || {}).draft) || {} : null;
+        if (!d2 || ['to', 'cc', 'subject'].some(f => String(d2[f] || '') !== String(d[f] || ''))) return {ok: false, say: 'The draft changed since I read it to you, so nothing went. Look at the card first.'};
+      }
       const r = await M.coo.decide(c, card.id, how === 'later' ? 'snooze' : mail ? 'send' : how, opt) || {};
       return {ok: r.ok !== false, say: r.say || 'Done.'};
     }, 'founder');
     /* client mail reads the recipient and the subject back before the yes */
-    return {...held, card: card.id, say: mail ? 'It goes to ' + d.to + ', subject "' + cut(d.subject || 'none', 80) + '". Say yes to send.' : held.label + ' is ready. Tap it, or say yes.'};
+    return {...held, card: card.id, say: mail ? 'It goes to ' + d.to + (String(d.cc || '').trim() ? ', a copy to ' + d.cc : '') + ', subject "' + cut(d.subject || 'none', 80) + '". Say yes to send.' : held.label + ' is ready. Tap it, or say yes.'};
   }, {needs: 'coo'});
   reg('coo_rebalance_now', 'a rebalance pass now', '{}', [], 'founder', 'tap', async (ctx, nm, input, io) =>
     tapHold(ctx, io, 'Rebalance the load now', 'A fresh load snapshot and one rebalance pass, inside the mandate: internal work only, never a client date.', async c => {
       if (!M.coo.rebalanceNow) throw new Error('rebalance now is not on this build');
       const r = await M.coo.rebalanceNow(c) || {};
+      /* off, paused or stuck, or outside the working day: nothing ran, and the answer says why */
+      if (r.stopped) return {ok: false, say: r.state === 'paused' ? 'The COO is paused, so nothing moved. Say COO resume first.' : r.state === 'stuck' ? 'The COO is held on a refused write, so nothing moved. Its card says what to look at.' : 'The COO is off, so nothing moved.'};
+      const td = istYmd(Date.now()), mins = Math.floor(((Date.now() + IST_MS) % 86400000) / MIN);
+      if (!r.acts && (new Date(td + 'T00:00:00Z').getUTCDay() === 0 || ((c.settings || {}).holidays || []).indexOf(td) >= 0 || mins < 540 || mins > 1260)) return {ok: false, say: 'I move work only on working days, 09:00 to 21:00, so nothing moved.'};
       const n = (r.rows || []).filter(x => x && x.job === 'J31' && (x.status === 'done' || x.status === 'would')).length;
       return {ok: true, say: r.practice ? (n ? 'Practice week: I would have made ' + n + (n === 1 ? ' move.' : ' moves.') : 'Practice week: nothing needed moving.')
         : n ? 'Done. I made ' + n + (n === 1 ? ' move' : ' moves') + ', each undoable for 24 hours.' : 'Done. Nothing needed moving.'};
@@ -1144,8 +1198,9 @@
     }
     const ch = M.coo.charter ? M.coo.charter(ctx) : null;
     const lines = ch ? [ch.alone, ch.tell, ch.draft, ch.propose, ch.never].filter(Boolean) : [];
-    return {ok: true, read: true, say: (M.coo.title ? M.coo.title(ctx) : 'm360 COO') + ' is a bot that helps Kaavish run the day. ' + (lines.length ? lines.join(' ') : 'Its charter is on the COO page.') +
-      (ctx.isFounder ? '' : ' Kaavish reads what you send it, and he can undo anything it changed.')};
+    /* the charter speaks as the COO, so the line before it does too */
+    return {ok: true, read: true, say: 'I am ' + (M.coo.title ? M.coo.title(ctx) : 'm360 COO') + ', a bot that helps Kaavish run the day. ' + (lines.length ? lines.join(' ') : 'My charter is on the COO page.') +
+      (ctx.isFounder ? '' : ' Kaavish reads what you send me, and he can undo anything I change.')};
   }, {needs: 'coo', read: true});
 
   /* never pressed by the agent: these are pointed at, and the person presses them */
@@ -1415,7 +1470,12 @@
     /* "undo that" is the COO's row only while one was just discussed; otherwise it is the agent's own undo */
     if (/^(please )?undo (that|it)( please)?$/.test(s) && cooTalk && Date.now() - cooTalk.at < 30 * MIN) return {action: 'coo_undo', input: {act: cooTalk.id}};
     if ((m = COO_APPROVE.exec(s))) return {action: 'coo_decide', input: {person: m[1], kind: m[2], how: 'apply'}};
-    if ((m = COO_SEND.exec(s))) return {action: 'coo_decide', input: {card: m[1], kind: 'mail', how: 'send'}};
+    /* "send ... reminder" is the COO's only when one of its drafts answers to those words */
+    if ((m = COO_SEND.exec(s))) {
+      let hit;
+      try { hit = !!cooCard(ctx, {}, {card: m[1], kind: 'mail', how: 'send'}); } catch (e) { hit = true; }
+      if (hit) return {action: 'coo_decide', input: {card: m[1], kind: 'mail', how: 'send'}};
+    }
     return null;
   }
 

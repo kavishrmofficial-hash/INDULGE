@@ -10,7 +10,7 @@ nothing run yet today. Checks:
 - two pages with no BroadcastChannel between them (two devices): the slots doc still lets each slot run
   once, and the roll call runs once;
 - a member's page, Kaavish previewing as a member (viewAs), the team site, the COO off, and Kaavish's own
-  page while it is hidden: nothing is claimed.
+  page while it is hidden: nothing is claimed, where his own visible page set up the same way does claim.
 
 Fails until builders 1 and 2 are merged (the runner and the place it is mounted); the message says so.
 
@@ -132,8 +132,9 @@ def test(h):
     done_ids = [v.get('id') for v in s.values() if isinstance(v, dict) and v.get('state') == 'done']
     check(done_ids and all(done_ids), 'and each settled slot names the tab that ran it: %r' % done_ids)
 
-    # ---- never: a member, viewAs, the team site, the COO off ----
-    for label, init, ident, on, view in (('a member', '', 'm1', True, False), ('viewAs', '', 'founder', True, True),
+    # ---- never: a member, viewAs, the team site, the COO off; the first case is the control (Kaavish's own
+    # visible page, switched on the same way, does claim inside the same wait), so a quiet page means something ----
+    for label, init, ident, on, view in (('the control', '', 'founder', True, False), ('a member', '', 'm1', True, False), ('viewAs', '', 'founder', True, True),
                                          ('the team site', 'window.M360_API = async () => ({ok: true});', 'founder', True, False),
                                          ('the COO off', '', 'founder', False, False),
                                          ('a hidden page', HIDDEN, 'founder', True, False)):
@@ -149,7 +150,10 @@ def test(h):
         if on:
             q.evaluate('() => { const s = window.__db.get("settings/app"); window.__db.set("settings/app", {...s, coo: {...s.coo, on: true}}); }')
         q.wait_for_timeout(6000)
-        check(not slots(q), '%s: nothing is claimed, nothing runs: %r' % (label, slots(q)))
+        if label == 'the control':
+            check(slots(q), 'the control: Kaavish\'s own page switched on the same way claims within the wait: %r' % slots(q))
+        else:
+            check(not slots(q), '%s: nothing is claimed, nothing runs: %r' % (label, slots(q)))
         c.close()
 
     errs = [e for e in h.errors() if 'AudioContext' not in str(e) and 'play()' not in str(e)]

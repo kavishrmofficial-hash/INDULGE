@@ -660,7 +660,7 @@
       case 'action': case 'actions': {
         const a = M.agent ? M.agent.byName(norm(q).replace(/[^a-z_]/g, '')) : null;
         if (!a || !M.agent.allowed(ctx, a)) return 'No action called "' + q + '" here. The actions: ' + actionsFor(ctx).map(x => x[0]).join(', ');
-        return 'ACTION ' + a.name + ': ' + a.gloss + '\nFIELDS: ' + a.sig + '\nRUNS: ' + (a.read ? 'at once, it only reads' : a.mode === 'tap' ? 'waits on the person\'s tap or spoken yes' : 'at once, with Undo for a moment') + '\nSCHEMA: ' + JSON.stringify(a.schema);
+        return 'ACTION ' + a.name + ': ' + a.gloss + '\nFIELDS: ' + a.sig + '\nRUNS: ' + (a.read ? 'at once, it only reads' : a.mode === 'tap' ? 'waits on the person\'s tap or spoken yes' : a.needs === 'coo' ? 'at once, and the COO tab undoes it' : 'at once, with Undo for a moment') + '\nSCHEMA: ' + JSON.stringify(a.schema);
       }
       case 'help': case '': return catalog(ctx);
       default: return 'Unknown area "' + what + '". ' + catalog(ctx);

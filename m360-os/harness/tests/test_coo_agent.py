@@ -21,7 +21,12 @@ Checks:
   Swisse follow-up reads the recipient and the subject back before the yes, and the yes sends it through
   M.coo.decide (the page opens it in the mail app);
 - COO stop and the pause land at once (settings/app.coo.on false; pausedUntil is Monday 09:00 IST);
-  COO resume and rebalance now wait on a tap;
+  COO resume and rebalance now wait on a tap; "for 2 hours" is a stretch, never 14:00; rebalance now while
+  paused says nothing moved;
+- a send line no COO draft answers to stays the agent's own; a draft whose recipient changed after it was
+  read back sends nothing on the yes;
+- with no card, "approve Durvesh's leave" and "approve Durvesh's WFH" each decide the request of their kind;
+- an approval made three days ago (off the page's two ledger days) still answers why and undoes on a tap;
 - a member asks why the COO moved their own work and what it may do, and nothing else: no founder action,
   no needs or done read, no look_up coo;
 - look_up 'coo' is the founder's only and hands back the cards and today's rows as data (and taints the turn);
@@ -211,6 +216,8 @@ def test(h):
     got = pg.evaluate('xs => Object.fromEntries(xs.map(s => [s, M.agent.route(s, M.lastCtx).grammar]))', list(lines))
     for s_, (a, i) in lines.items():
         check(got[s_] == {'action': a, 'input': i}, '"%s" parses to %s %r: %r' % (s_, a, i, got[s_]))
+    other = pg.evaluate('() => M.agent.parse("send Durvesh a reminder", M.lastCtx)')
+    check(not other or other.get('action') != 'coo_decide', 'a send line no draft of the COO answers to stays the agent\'s own: %r' % other)
     plain = pg.evaluate('() => M.agent.parse("undo that", M.lastCtx)')
     check(plain == {'action': 'undo', 'input': {'id': 'last'}}, 'with no COO row discussed, undo that stays the agent\'s own: %r' % plain)
 
@@ -281,6 +288,65 @@ def test(h):
     rb = pg.evaluate('''async () => { const r = await M.assistant.ask(M.lastCtx, "rebalance now", {via: "typed"}); const p = M.brain.pending.list[M.brain.pending.list.length - 1];
       if (p) M.brain.drop(p.id); return {waiting: !!r.waiting, label: p && p.label}; }''')
     check(rb['waiting'] and rb['label'] == 'Rebalance the load now', 'rebalance now waits on a tap: %r' % rb)
+    long = pg.evaluate('() => ["for 2 hours", "for an hour", "half an hour", "two days", "for 2 days", "till 4:30 pm"].map(s => M.agent.cooUntil(s))')
+    check(long == [ms(17, 20), ms(16, 20), ms(15, 50), ms(9, 0, 2), ms(9, 0, 2), ms(16, 30)], 'a stretch is a stretch, never a clock time ("for 2 hours" is 17:20, not 14:00): %r' % long)
+    check(pg.evaluate('() => M.agent.parse("pause the COO for 2 hours", M.lastCtx)') == {'action': 'coo_pause', 'input': {'until': '2 hours'}}, 'pause for a stretch parses')
+
+    if mode == 'real':
+        # every slot of the day settled, so the page's own runner adds nothing while the lines below run
+        pg.evaluate('''d => { const P = M.coo.plan; const ids = P.slotList(P.stateOf(M.lastCtx, Date.now()).slots).map(x => x.id);
+          window.__db.set('coo/slots-' + d, Object.fromEntries(ids.map(id => [id, {state: 'done', at: Date.now(), acts: 0}]))); }''', today)
+        # rebalance now while the COO is paused says so, and never "Done"
+        pg.evaluate('u => { const s = window.__db.get("settings/app"); window.__db.set("settings/app", {...s, coo: {...s.coo, pausedUntil: u}}); }', ms(9, 0, 1))
+        pg.wait_for_function('() => M.coo.status(M.lastCtx) === "paused"')
+        rp = pg.evaluate('''async () => { const r = await M.agent.runGrammar(M.lastCtx, null, M.agent.parse("rebalance now", M.lastCtx), {id: "trp", via: "typed"});
+          const p = M.brain.pending.list.find(x => x.turn === "trp"); return p ? M.brain.approve(p.id) : null; }''')
+        check(rp and rp.get('ok') is False and 'paused' in rp.get('say', ''), 'rebalance now while paused says nothing moved: %r' % rp)
+        pg.evaluate('() => { const s = window.__db.get("settings/app"); window.__db.set("settings/app", {...s, coo: {...s.coo, pausedUntil: null}}); }')
+        pg.wait_for_function('() => M.coo.status(M.lastCtx) === "on"')
+
+        # a draft edited after it was read back: the yes sends nothing
+        pg.evaluate('''t => { const d = window.__db.get("coo/dec"); d.items.c_ny = {id: "c_ny", kind: "client_mail", rung: "draft", title: "Drafted a follow-up to Nykaa. It waits for your tap.",
+          why: "", recommend: "", checks: [], options: [], sources: [], urgent: false, by: "u_m360coo", at: t, expires: t + 3 * 86400000, status: "open", money: false,
+          code: "client_mail", args: {}, refs: {client: "cl_ny"}, dedupe: "client_mail:cl_ny", payload: {action: "", input: {}, draft: {to: "ops@nykaa.example", cc: "", subject: "Following up on the Nykaa pitch", text: "Hi."}}};
+          window.__db.set("coo/dec", d); }''', ms(12, 0))
+        pg.wait_for_function('() => M.coo.decisions(M.lastCtx).some(k => k.id === "c_ny")')
+        ny = pg.evaluate('''async () => { const c = M.lastCtx; const r = await M.agent.runGrammar(c, null, M.agent.parse("send the Nykaa follow-up", c), {id: "tn", via: "voice"});
+          const p = M.brain.pending.list.find(x => x.turn === "tn"); return {text: r.text, id: p && p.id}; }''')
+        check(ny['id'] and 'ops@nykaa.example' in ny['text'], 'the Nykaa draft is read back: %r' % ny)
+        pg.evaluate('() => { const d = window.__db.get("coo/dec"); d.items.c_ny.payload.draft.to = "someone@else.example"; window.__db.set("coo/dec", d); }')
+        pg.wait_for_function('() => (M.coo.decisions(M.lastCtx).find(k => k.id === "c_ny").payload.draft || {}).to === "someone@else.example"')
+        sent = pg.evaluate('id => M.brain.approve(id, "tap")', ny['id'])
+        check(sent.get('ok') is False and 'changed since' in sent.get('say', '') and pg.evaluate('() => window.__opened.length') == 1
+              and pg.evaluate('() => window.__db.get("coo/dec").items.c_ny.status') == 'open', 'a recipient changed after the read back sends nothing: %r' % sent)
+
+        # with no card, "approve Durvesh's leave" is Kaavish's own decision on a leave request, never his WFH day
+        old = (tue - timedelta(days=3)).isoformat()
+        lv7 = (tue + timedelta(days=5)).isoformat()
+        h.seed_doc(pg, 'leave/' + M1, {'reqs': [{'id': 'W1', 'from': (tue + timedelta(days=2)).isoformat(), 'to': (tue + timedelta(days=2)).isoformat(), 'type': 'wfh', 'at': ms(14, 0)},
+                                                {'id': 'C1', 'from': (tue + timedelta(days=9)).isoformat(), 'to': (tue + timedelta(days=9)).isoformat(), 'type': 'casual', 'at': ms(13, 0)},
+                                                {'id': 'L7', 'from': lv7, 'to': lv7, 'type': 'casual', 'at': ms(9, 0, -5)}]})
+        aw = pg.evaluate('''async () => { const c = M.lastCtx; const out = {};
+          for (const [k, s] of [["leave", "approve Durvesh's leave"], ["wfh", "approve Durvesh's WFH"]]) {
+            const r = await M.agent.runGrammar(c, null, M.agent.parse(s, c), {id: "ta" + k, via: "typed"});
+            const p = r.waiting ? M.brain.pending.list.find(x => x.id === r.id) : null; out[k] = p ? p.detail : r.text; if (p) M.brain.drop(p.id); }
+          return out; }''')
+        check(aw['leave'].endswith('casual') and aw['wfh'].endswith('wfh'), 'with no card, each line decides the request of its own kind: %r' % aw)
+
+        # an approval from three days ago is off the page's two ledger days, and still undoable until the leave starts
+        h.seed_doc(pg, 'leavedec/' + M1, {'d': {'L7': {'status': 'approved', 'at': ms(10, 0, -3), 'by': BOT, 'why': 'leave', 'checks': [],
+                                                        'snap': {'from': lv7, 'to': lv7, 'type': 'casual', 'days': 1}, 'undoUntil': ms(9, 0, 5)}}})
+        h.seed_doc(pg, 'coo/L-' + old, {'acts': {'a_old': {**leave, 'at': ms(10, 0, -3), 'subject': 'leave:' + M1 + ':L7', 'args': {**leave['args'], 'uid': M1, 'd1': lv7, 'd2': lv7},
+                                                            'refs': {'uid': M1, 'req': 'L7'}, 'undo': {'k': 'leave', 'uid': M1, 'req': 'L7', 'until': ms(9, 0, 5)}}}})
+        pg.wait_for_function('() => !!((((M.lastCtx.coll.leavedec.map.u_m1 || {}).d) || {}).L7)')
+        wo = pg.evaluate(ask, "why did you approve Durvesh's leave")
+        check(wo['grammar'] and 'Durvesh' in wo['text'] and 'Say undo to put it back.' in wo['text'], 'why, for an approval three days old: %r' % wo)
+        uo = pg.evaluate('''async () => { const c = M.lastCtx; const r = await M.agent.runGrammar(c, null, M.agent.parse("undo Durvesh's leave approval", c), {id: "to", via: "typed"});
+          const p = M.brain.pending.list.find(x => x.turn === "to"); return {text: r.text, label: p && p.label, id: p && p.id}; }''')
+        check(uo['label'] == "Undo Durvesh's leave approval", 'and its undo waits on a tap: %r' % uo)
+        done_old = pg.evaluate('id => M.brain.approve(id)', uo['id'])
+        pg.wait_for_function('d => ((window.__db.get("coo/L-" + d).acts.a_old) || {}).status === "undone"', arg=old)
+        check(done_old.get('ok') and not (((pg.evaluate('() => window.__db.get("leavedec/u_m1")') or {}).get('d') or {}).get('L7')), 'the tap puts it back to pending: %r' % done_old)
 
     # ---- look_up coo: the founder's, as data ----
     lk = pg.evaluate('''async () => { const c = M.lastCtx, nm = await M.ai.names(c), turn = {id: "tk", via: "typed"}, t = M.brain.tools(c, nm, null, turn);
@@ -330,7 +396,7 @@ def test(h):
     check(mem['stop'] is None and mem['founderish'] == ['coo_info'], 'no founder control for a member: %r' % mem)
     check('Swisse reel cutdown' in mem['r1'] and 'handed it to Aanya' in mem['r1'] and 'ask Kaavish' in mem['r1'], 'why the COO moved my task, from the task log: %r' % mem['r1'])
     check(mem['r2'].startswith('ERR that is Kaavish') and mem['r3'].startswith('ERR only the founder'), 'the founder\'s reads and controls are refused: %r' % [mem['r2'], mem['r3']])
-    check('What I never do' in mem['r4'] and 'Kaavish reads what you send it' in mem['r4'], 'what the COO can do, the charter: %r' % mem['r4'])
+    check('What I never do' in mem['r4'] and 'Kaavish reads what you send me' in mem['r4'] and mem['r4'].startswith('I am m360 COO'), 'what the COO can do, the charter: %r' % mem['r4'])
     check(not mem['areas'] and 'Kaavish' in mem['look'] and 'WAITING' not in mem['look'], 'look_up coo is the founder\'s only: %r' % mem['look'])
 
     errs = [e for e in h.errors() if 'AudioContext' not in str(e) and 'play()' not in str(e)]

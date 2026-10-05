@@ -138,6 +138,12 @@ def test(h):
                 check(b and b['x'] >= 0 and b['y'] >= 0 and b['r'] <= w and b['b'] <= hh, '%s: the pop-up stays inside the window: %r' % (name, b))
                 head, comp = p.evaluate(RECT, '.buddy-bubble .panel-head'), p.evaluate(RECT, '.buddy-bubble .panel-composer')
                 check(head and comp and head['y'] >= 0 and comp['b'] <= hh, '%s: header and composer are in view: %r %r' % (name, head, comp))
+                # the saved thread loads after the pop-up opens; a busy page (the office and the COO's runner on Home
+                # since v33) can take a few seconds, so wait for it before reading the body
+                try:
+                    p.wait_for_function('() => { const e = document.querySelector(".buddy-bubble .panel-body"); return !!e && e.scrollHeight > e.clientHeight; }', timeout=8000)
+                except Exception:
+                    pass
                 body = p.evaluate('() => { const e = document.querySelector(".buddy-bubble .panel-body"); if (!e) return null; const cs = getComputedStyle(e); return {sh: e.scrollHeight, ch: e.clientHeight, ov: cs.overflowY}; }')
                 check(body and body['sh'] > body['ch'] and body['ov'] in ('auto', 'scroll'), '%s: the long thread scrolls inside the body: %r' % (name, body))
                 p.evaluate('() => { const e = document.querySelector(".buddy-bubble .panel-body"); if (e) e.scrollTop = 0; }')

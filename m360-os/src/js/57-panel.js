@@ -119,8 +119,9 @@
       const g = await M.agent.runGrammar(ctx, nm, route.grammar, turn, o.onAct);
       if (o.onText) o.onText(g.text);
       /* an answer the m360 COO gave carries its face in the thread */
-      if (/^coo_/.test(route.grammar.action) && !g.error) cooSaid.add(g.text);
-      return {text: g.text, turn, grammar: true, waiting: !!g.waiting, err: !!g.error, coo: cooSaid.has(g.text)};
+      const coo = /^coo_/.test(route.grammar.action) && !g.error;
+      if (coo) cooSaid.add(g.text);
+      return {text: g.text, turn, grammar: true, waiting: !!g.waiting, err: !!g.error, coo};
     }
     if (!M.ai.on(ctx)) return {text: '', turn, err: M.ai.errCopy('not_declared') + ' ' + OFFLINE_LINE, chips: offline()};
     const gone = () => { if (o.signal && o.signal.aborted) throw Object.assign(new Error('cancelled'), {code: 'cancelled'}); };

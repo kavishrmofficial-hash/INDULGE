@@ -160,6 +160,10 @@ def test(h):
       Object.defineProperty(document, 'hidden', {configurable: true, get: () => true}); document.dispatchEvent(new Event('visibilitychange')); }''')
     p.wait_for_timeout(500)
     check(p.evaluate(RUNNING) == 0, 'nothing in the office animates while the page is hidden')
+    # nor does the mascot's own canvas: its pixels hold while hidden
+    h0 = p.evaluate('() => document.querySelector(".office-mascot canvas").toDataURL()')
+    p.wait_for_timeout(1500)
+    check(p.evaluate('() => document.querySelector(".office-mascot canvas").toDataURL()') == h0, 'the mascot\'s canvas draws nothing while the page is hidden')
     p.evaluate('''() => { Object.defineProperty(document, 'visibilityState', {configurable: true, get: () => 'visible'});
       Object.defineProperty(document, 'hidden', {configurable: true, get: () => false}); document.dispatchEvent(new Event('visibilitychange')); }''')
 
