@@ -181,6 +181,16 @@ export const RULES = [
   "write": "interact"
  },
  {
+  "path": "coo",
+  "read": "admin",
+  "write": "admin"
+ },
+ {
+  "path": "office",
+  "read": "interact",
+  "write": "admin"
+ },
+ {
   "path": "me",
   "read": "interact",
   "write": "admin"

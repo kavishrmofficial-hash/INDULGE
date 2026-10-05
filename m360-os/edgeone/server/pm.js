@@ -26,6 +26,12 @@ const isObj = x => x && typeof x === 'object' && !Array.isArray(x);
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
+/* the m360 COO (coo.js): its asks count as the founder's while Kaavish has it on and its asks are not off */
+const COO_UID = 'u_m360coo';
+const cooAsks = settings => {
+  const c = isObj(settings && settings.coo) ? settings.coo : {};
+  return c.on === true && (!isObj(c.caps) || c.caps.nudge !== 'off');
+};
 
 /* the policy defaults, the same as M.SETTINGS_DEFAULTS.pm on the page (with the founder's launch calls:
    off until switched on in Admin, and a manager cannot switch their own bot off) */
@@ -147,6 +153,7 @@ const isFounder = (state, u) => !!u && (u === state.founderUid || ((state.member
    direct manager (canSee). The agent checks the same when the ask is made, so an ask written by hand into
    someone's own me doc outside these rights is never mailed */
 function mayAsk(state, x, rep, kind) {
+  if (x === COO_UID) return cooAsks(state.settings) && !!state.members[rep] && state.members[rep].active !== false;
   if (!x || x === rep || !state.members[x] || state.members[x].active === false) return false;
   if (isFounder(state, x)) return true;
   if (kind === 'noin' || kind === 'noout' || kind === 'noeod') return managerFrom(state.members, state.founderUid, rep) === x;
@@ -311,18 +318,22 @@ function inWindow(state, uid, now, kind) {
 
 /* ---------- the words (spec Part E) ---------- */
 const first = s => String(s || '').trim().split(/\s+/)[0] || '';
+/* who asked: a first name, or the COO's whole title */
+const asker = (nameOf, u) => u === COO_UID ? (nameOf(u) || 'm360 COO') : first(nameOf(u));
 function reportLine(state, it, nameOf) {
   const t = it.t || {}, title = t.title || 'that task';
   const mgr = first(nameOf(it.mgr));
   if (it.source === 'ask') {
-    const head = first(nameOf(it.from)) + ' asked m360 to check with you, ' + hhmm(it.s1) + '. ';
+    /* the COO is a bot and asks in its own name; a person asks m360 to check */
+    const bot = it.from === COO_UID;
+    const head = bot ? asker(nameOf, it.from) + ' asked you something at ' + hhmm(it.s1) + '. ' : asker(nameOf, it.from) + ' asked m360 to check with you, ' + hhmm(it.s1) + '. ';
     const ci = it.ci || {};
     if (it.kind === 'noout') return head + 'You are still checked in from ' + (ci.in ? hhmm(ci.in) : 'this morning') + '. What happened?';
     if (it.kind === 'noin') return head + 'No check-in yet today (start ' + startLabel(state, it.rep) + '). All okay?';
     if (it.kind === 'noeod') return head + 'No EOD line for today yet. Two lines are enough.';
     if (it.kind === 'overdue') return head + "'" + title + "' was due " + fmtDay(t.due) + '. Where is it at?';
     if (it.kind === 'task') return head + "It is about '" + title + "'. Where is it at?";
-    return head + 'Their words are in your messages on m360.';
+    return head + (bot ? 'The question is in your messages on m360.' : 'Their words are in your messages on m360.');
   }
   if (it.kind === 'noin') return 'No check-in yet. Your day started at ' + startLabel(state, it.rep) + '.';
   if (it.kind === 'noeod') return "Today's EOD line is not in. Two lines do it: what shipped, what is next.";
@@ -356,12 +367,12 @@ export function reportMail(state, rep, list, nameOf, site) {
   const bot = bots.length ? first(nameOf(bots[0].mgr)) + "'s bot" : '';
   let subject;
   if (!asks.length) subject = plural(list.length, 'thing', 'things') + ' from ' + bot;
-  else if (!bots.length && list.length === 1) subject = first(nameOf(asks[0].from)) + ' asked about ' + ASK_SUBJECT[asks[0].kind];
+  else if (!bots.length && list.length === 1) subject = asker(nameOf, asks[0].from) + ' asked about ' + ASK_SUBJECT[asks[0].kind];
   else subject = plural(list.length, 'thing', 'things') + ' waiting for you in m360';
   const lead = !asks.length ? 'Hi ' + who + ', ' + bot + ' in m360 has ' + plural(list.length, 'thing', 'things') + ' for you today.'
     : 'Hi ' + who + ', m360 has ' + plural(list.length, 'thing', 'things') + ' for you today.';
   const lines = list.map((it, i) => (i + 1) + '. ' + reportLine(state, it, nameOf));
-  const readers = Array.from(new Set(list.map(it => first(nameOf(it.source === 'ask' ? it.from : it.mgr))).filter(Boolean)));
+  const readers = Array.from(new Set(list.map(it => it.source === 'ask' && it.from === COO_UID ? first(nameOf(state.founderUid)) : asker(nameOf, it.source === 'ask' ? it.from : it.mgr)).filter(Boolean)));
   const link = String(site || '').replace(/\/+$/, '') + '/#home';
   const tail = ['Answer in m360: ' + link + '. ' + (readers.length ? readers.join(' and ') + ' ' + (readers.length === 1 ? 'reads' : 'read') + ' your answers there.' : ''),
     'It emails you at most twice a day, only when you are away from m360. Turn it off under Me.'];
@@ -460,7 +471,9 @@ export function pmDesk(h) {
     const inv = inventory ? await inventory() : {};
     const team = (await getJ(docKey('roster/team')).catch(() => null)) || {};
     const [me, checkin, eod, tasks, leave, leavedec] = await Promise.all(['me', 'checkin', 'eod', 'tasks', 'leave', 'leavedec'].map(c => coll(inv, c)));
-    return {members: team.members || {}, founderUid: await founderOf(team), settings, me, checkin, eod, tasks, leave, leavedec};
+    /* env COO_OFF=1 stops the m360 COO whatever the settings say, so its asks are not mailed either */
+    const st = env && String(env.COO_OFF || '') === '1' && isObj(settings && settings.coo) ? {...settings, coo: {...settings.coo, on: false}} : settings;
+    return {members: team.members || {}, founderUid: await founderOf(team), settings: st, me, checkin, eod, tasks, leave, leavedec};
   }
   async function beaconsNow() {
     const out = {};
@@ -500,7 +513,7 @@ export function pmDesk(h) {
       if (P.mail === false || !(await mailOn())) return;
       const state = await load(settings);
       const people = {};
-      await Promise.all(Object.keys(state.members).map(async u => { people[u] = (await getJ('p/' + u).catch(() => null)) || {}; }));
+      await Promise.all(Object.keys(state.members).concat([COO_UID]).map(async u => { people[u] = (await getJ('p/' + u).catch(() => null)) || {}; }));
       const nameOf = u => (people[u] && people[u].name) || ((state.me[u] || {}).name) || '';
       const emailOf = u => (people[u] && people[u].email) || '';
       const mailed = {};
@@ -539,8 +552,13 @@ export function pmDesk(h) {
   }
 
   const actions = {
-    /* an outside pinger's way in: the passes run before every action, this one does nothing itself */
-    async tick() { return {ok: true}; },
+    /* the heartbeat's way in (.github/workflows/coo-tick.yml): the passes run before every action, this one only
+       answers. While the m360 COO is on, the answer carries its pass, with no names: {slot, state, acts, ms} */
+    async tick(v, body, req) {
+      const c = req && req.coo;
+      if (!c) return {ok: true};
+      return {ok: true, at: Date.now(), coo: {slot: String(c.slot || ''), state: String(c.state || ''), acts: Number(c.acts) || 0, ms: Number(c.ms) || 0}};
+    },
     /* the day's mail ledger, the rows the viewer may see: their own, their reports' down the line, or all for the founder */
     async pmmail(v, body) {
       if (!v) throw new HttpError(401, 'noid');
