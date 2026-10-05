@@ -108,18 +108,29 @@ const offByFounder = (P, mgr) => isObj(P.off) && !!P.off[mgr];
 export const key = (rep, kind, sub, ymd) => rep + ':' + kind + ':' + (sub || '-') + ':' + ymd;
 
 /* ---------- one person's day, read the way the page reads it ---------- */
+/* as the page reads it (02-state.js leaveMap and 09-pm.js leavePending): an approved request's dates come from
+   the decision's snap when it has one; a 'wfh' request is never leave and never holds the day; a 'swap' is
+   leave only before the v33 release day, a WFH day from it on; a check-in day marked leave counts only when
+   the founder's fix set it */
+const COO_SINCE = '2026-10-05';
 function leaveState(state, uid, ymd) {
   const reqs = ((state.leave[uid] || {}).reqs) || [];
   const dec = ((state.leavedec[uid] || {}).d) || {};
   let approved = false, pending = false;
   for (const r of Array.isArray(reqs) ? reqs : []) {
-    if (!r || !r.from || !r.to || r.from > ymd || r.to < ymd) continue;
-    const st = (dec[r.id] || {}).status;
-    if (st === 'approved') approved = true;
-    else if (!st || st === 'pending') pending = true;
+    if (!r || !r.id) continue;
+    const dd = dec[r.id] || {};
+    const st = dd.status;
+    if (st === 'approved') {
+      const sn = dd.snap && dd.snap.from && dd.snap.to ? dd.snap : r;
+      const type = sn.type || r.type;
+      if (!sn.from || !sn.to || sn.from > ymd || sn.to < ymd) continue;
+      if (type === 'wfh' || (type === 'swap' && ymd >= COO_SINCE)) continue;
+      approved = true;
+    } else if ((!st || st === 'pending') && r.type !== 'wfh' && r.from && r.to && r.from <= ymd && r.to >= ymd) pending = true;
   }
   const ci = (((state.checkin[uid] || {}).days) || {})[ymd] || null;
-  if (ci && ci.mode === 'leave') approved = true;
+  if (ci && ci.mode === 'leave' && ci.fixedBy) approved = true;
   return {approved, pending};
 }
 const holidaysOf = settings => new Set(Array.isArray(settings && settings.holidays) ? settings.holidays : []);

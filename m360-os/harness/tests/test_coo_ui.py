@@ -139,9 +139,11 @@ def test(h):
             'c_prop': card('c_prop', 'proposal', 'Two people have no reporting line and fall back to you.', {'action': 'coo.ack', 'input': {}, 'draft': None}, {}),
             'c_leave': card('c_leave', 'leave', 'Ekta asked for leave on ' + lv + '. It needs you.', {'action': 'coo.approve_leave', 'input': {'uid': M4, 'req': 'L5', 'from': lv, 'to': lv}, 'draft': None},
                             {'uid': M4, 'req': 'L5'}, urgent=True),
-            'c_rev': card('c_rev', 'review', 'Friday review prep is ready for Durvesh.', {'action': '', 'input': {'uid': M1, 'week': wk, 'marks': {'o1': 'hit', 'o2': 'miss'},
-                                                                                                                     'evidence': ['Swisse reel cutdown shipped Thursday']}, 'draft': None},
-                          {'uid': M1}, rung='draft')}})
+            # the engine's J18 shape: the marks ride on the option and on the draft, the evidence is {item, task}
+            'c_rev': card('c_rev', 'review', 'Friday review prep is ready for Durvesh.',
+                          {'action': '', 'input': {}, 'draft': {'marks': {'o1': 'hit', 'o2': 'miss'}, 'evidence': [{'item': 'o1', 'task': 't_hero'}]}},
+                          {'uid': M1}, rung='draft', code='review_prep', args={'uid': M1, 'n': 1, 'week': wk},
+                          options=[{'label': 'Confirm marks', 'action': 'coo.confirm_marks', 'input': {'uid': M1, 'week': wk, 'marks': {'o1': 'hit', 'o2': 'miss'}}}])}})
         p.wait_for_timeout(500)
         return wk
 

@@ -775,7 +775,7 @@
       {k: 'holidays', done: hol, t: 'Holidays for ' + yr, d: 'Working days come from the holidays list.', go: () => M.nav('#admin')},
       {k: 'client', done: seen, t: 'Client dates are never moved', d: 'A task with a client, on a client project, or due on its project date counts as client dated until you mark it internal in the task.', go: () => { M.prefs.set('cooClientDated', '1'); setSeen(true); }, label: 'Got it'},
       {k: 'pm', done: true, t: 'Personal managers are ' + (pm ? 'on' : 'off'), d: pm ? 'The COO never asks about what a manager\'s bot already chases.' : 'The COO reports and proposes switching them on, once a week.'},
-      ctx.isOwner ? {k: 'chase', done: true, t: 'Invoice chasing waits for you', d: 'While the COO is on, reminders wait as drafts for your tap.'} : null,
+      ctx.isOwner ? {k: 'chase', done: true, t: 'Invoice chasing waits for you', d: 'After the practice week, reminders wait as drafts for your tap.'} : null,
       site() ? {k: 'mail', done: !!(h && ok(h.mail)), t: 'Mail set up', d: 'Sends and the away note go through it.'} : null,
       site() ? {k: 'google', done: !!(h && ok(h.google)), t: 'Google connected', d: 'Meeting nudges read your calendar.'} : null
     ].filter(Boolean);

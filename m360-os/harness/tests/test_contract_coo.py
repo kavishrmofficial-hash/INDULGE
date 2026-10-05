@@ -82,7 +82,11 @@ def test(h):
     check(shape['never'] == NEVER_V32, 'the agent NEVER list is the v32 one, unchanged')
     d = shape['defaults']
     check(d['on'] is False and d['title'] == 'm360 COO' and 'name' not in d, 'off by default, the display name is title and never name')
-    check(sorted(d['caps']) == sorted(CAPS) and all(v is None for v in d['leave']['perType'].values()), 'every capability has a rung; perType starts null (fail closed)')
+    check(sorted(d['caps']) == sorted(CAPS), 'every capability has a rung')
+    L = d['leave']
+    check(L['perType'] == {'casual': 12, 'sick': 12, 'other': None} and L['yearStart'] == '04-01' and L['maxAutoDays'] == 2
+          and L['noticeDays']['casual'] == 3 and L['maxOutPerDay'] == 2 and L['maxOutPerPod'] == 1,
+          "the founder's leave policy (decisions 2): 12 casual, 12 sick, other null so it fails closed to him: %r" % L)
 
     # ---------- ist ----------
     t = int(datetime(2026, 10, 4, 20, 0, tzinfo=ZoneInfo('UTC')).timestamp() * 1000)

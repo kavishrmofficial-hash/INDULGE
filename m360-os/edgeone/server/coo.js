@@ -34,14 +34,15 @@ const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
 const IST_MS = 330 * MIN;
 
 /* the mandate's defaults, the same as M.SETTINGS_DEFAULTS.coo on the page (test_coo_parity.py keeps them equal).
-   perType null fails closed: no leave is approved alone until Kaavish sets the days */
+   12 casual and 12 sick days are Kaavish's (founder decisions 2). 'other' stays null, so it fails closed and
+   every such request goes to him */
 export const COO_DEFAULTS = {
   on: false, title: 'm360 COO', pausedUntil: null, practiceUntil: null, version: 1, signedAt: null, signedBy: null,
   caps: {roll: 'alone', nudge: 'alone', leave: 'tell', wfh: 'tell', cover: 'tell', rebalance: 'tell', shift: 'tell', orphans: 'tell', reviews: 'alone', projects: 'tell',
     clientMail: 'draft', meetingMail: 'draft', invoiceMail: 'draft', clientDates: 'propose', memo: 'alone', reviewPrep: 'draft', structure: 'propose'},
   limits: {actsPerDay: 120, tellPerDay: 25, movesPerDay: 8, movesPerPersonDay: 3, movesPerTaskWeek: 1, shiftsPerDay: 12, leaveApprovalsPerDay: 6, asksPerDay: 30,
     asksPerPersonDay: 2, draftsPerDay: 10, draftsPerClientWeek: 1, aiPerDay: 40, foundMailsPerDay: 2},
-  leave: {yearStart: '04-01', perType: {casual: null, sick: null, other: null}, maxAutoDays: 2, noticeDays: {casual: 3, sick: 0, other: 7}, probationLop: false,
+  leave: {yearStart: '04-01', perType: {casual: 12, sick: 12, other: null}, maxAutoDays: 2, noticeDays: {casual: 3, sick: 0, other: 7}, probationLop: false,
     maxOutPerDay: 2, maxOutPerPod: 1, blackout: []},
   wfh: {minOffice: 0},
   load: {maxOpen: 12, maxOverdue: 3, margin: 1.5},
@@ -281,7 +282,8 @@ function leaveCheck(state, uid, req, nowMs) {
     worst = Math.max(worst, n); podWorst = Math.max(podWorst, p);
   }
   add('out', maxOut !== null && worst < maxOut, worst, maxOut, maxOut !== null && worst >= 0.9 * maxOut);
-  if (m.pod) add('pod', maxPod === null || podWorst < maxPod, podWorst, maxPod);
+  if (m.pod && maxPod === null) missing.push('how many of a pod can be out a day');
+  if (m.pod) add('pod', maxPod !== null && podWorst < maxPod, podWorst, maxPod);
   const black = (Array.isArray(c.blackout) ? c.blackout : []).find(b => {
     const bf = typeof b === 'string' ? b : (b && b.from) || '', bt = typeof b === 'string' ? b : (b && b.to) || bf;
     return datesOk && YMD.test(bf) && bf <= req.to && bt >= req.from;
@@ -380,8 +382,9 @@ const median = (state, ld) => {
 };
 const overLine = (state, ld) => { const L = (state.cfg || {}).load || {}; return Math.max(median(state, ld) * numOr(L.margin, 1.5), numOr(L.maxOpen, 12)); };
 
-/* who could take a task: its project's people first, then the owner's pod; under the team median, not out
-   in the next 3 working days, not on a 7 day hold, never the founder. Least loaded first */
+/* who could take a task: its project's people first, then the owner's pod; under the team median or with no
+   open work at all (in a mostly idle team the median is 0, and an empty desk must still count), not out in
+   the next 3 working days, not on a 7 day hold, never the founder. Least loaded first */
 function shortlist(state, task, ld, ymd) {
   const day = ymd || state.today;
   const owner = task && task.owner;
@@ -389,7 +392,7 @@ function shortlist(state, task, ld, ymd) {
   const pod = owner && (state.members || {})[owner] ? state.members[owner].pod : '';
   const med = median(state, ld);
   const next3 = [day].concat([1, 2].map(n => nthWork(state, day, n))).filter(d => isWork(state, d));
-  const ok = u => u !== owner && u !== state.founder && active(state, u) && !!ld[u] && ld[u].score < med
+  const ok = u => u !== owner && u !== state.founder && active(state, u) && !!ld[u] && (ld[u].score < med || ld[u].score === 0)
     && !next3.some(d => isOut(state, u, d)) && !held(state, 'uid:' + u);
   const order = list => list.filter((u, i) => list.indexOf(u) === i).filter(ok).sort((a, b) => ld[a].score - ld[b].score || (a < b ? -1 : 1));
   const fromProject = p ? order([p.owner].concat(Array.isArray(p.members) ? p.members : []).filter(Boolean)) : [];
@@ -775,7 +778,7 @@ const wouldOf = line => {
 /* the second line of a bubble or card: why, from a why code */
 const WHY = {
   leave: 'Inside the leave policy.', wfh: 'Inside the WFH allowance.', overload: 'Evening out the load.', orphan: 'It had nobody on it.',
-  blocked: 'Blocked work gets more time.', pileup: 'Too much due on one day.', eta: 'The owner gave a date.', policy: 'Outside what I approve alone.',
+  blocked: 'Blocked work gets more time.', pileup: 'Too much due on one day, or due on a day off.', eta: 'The owner gave a date.', policy: 'Outside what I approve alone.',
   missing: 'A policy number is not set.', client: 'A client date. Only you move those.', unsure: 'Close to a limit, so it waits for you.'
 };
 /* copy(code, args, scope, ctx): {line, why}. scope 'founder' (the default), 'team' or 'dm'. args.would gives
@@ -1646,7 +1649,7 @@ J.J20 = async R => {
   const card = (code, args, dedupe, options) => act(R, {job: 'J20', code, kind: 'card', cap: 'structure', rung: lowerOf(st.rungs.structure, 'propose'), subject: dedupe, args,
     period: week, card: {kind: 'proposal', dedupe: dedupe + ':' + week, options}});
   const per = (st.cfg.leave || {}).perType || {};
-  const unset = ['casual', 'sick', 'other'].filter(k => !isSet(per[k]));
+  const unset = ['casual', 'sick'].filter(k => !isSet(per[k]));
   if (unset.length) await card('setup_leave', {type: unset.length === 1 ? unset[0] : ''}, 'setup:leave', [{label: 'Open Admin', action: 'coo.open', input: {route: '#admin'}}]);
   if (R.ymd.slice(5) >= '11-01') {
     const next = String(Number(R.ymd.slice(0, 4)) + 1);

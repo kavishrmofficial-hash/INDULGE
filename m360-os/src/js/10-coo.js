@@ -360,8 +360,9 @@
   };
   const overLine = (state, ld) => { const L = (state.cfg || {}).load || {}; return Math.max(median(state, ld) * numOr(L.margin, 1.5), numOr(L.maxOpen, 12)); };
 
-  /* who could take a task: its project's people first, then the owner's pod; under the team median, not out
-     in the next 3 working days, not on a 7 day hold, never the founder. Least loaded first */
+  /* who could take a task: its project's people first, then the owner's pod; under the team median or with no
+     open work at all (in a mostly idle team the median is 0, and an empty desk must still count), not out in
+     the next 3 working days, not on a 7 day hold, never the founder. Least loaded first */
   function shortlist(state, task, ld, ymd) {
     const day = ymd || state.today;
     const owner = task && task.owner;
@@ -369,7 +370,7 @@
     const pod = owner && (state.members || {})[owner] ? state.members[owner].pod : '';
     const med = median(state, ld);
     const next3 = [day].concat([1, 2].map(n => nthWork(state, day, n))).filter(d => isWork(state, d));
-    const ok = u => u !== owner && u !== state.founder && active(state, u) && !!ld[u] && ld[u].score < med
+    const ok = u => u !== owner && u !== state.founder && active(state, u) && !!ld[u] && (ld[u].score < med || ld[u].score === 0)
       && !next3.some(d => isOut(state, u, d)) && !held(state, 'uid:' + u);
     const order = list => list.filter((u, i) => list.indexOf(u) === i).filter(ok).sort((a, b) => ld[a].score - ld[b].score || (a < b ? -1 : 1));
     const fromProject = p ? order([p.owner].concat(Array.isArray(p.members) ? p.members : []).filter(Boolean)) : [];
@@ -783,7 +784,7 @@
   /* the second line of a bubble or card: why, from a why code */
   const WHY = {
     leave: 'Inside the leave policy.', wfh: 'Inside the WFH allowance.', overload: 'Evening out the load.', orphan: 'It had nobody on it.',
-    blocked: 'Blocked work gets more time.', pileup: 'Too much due on one day.', eta: 'The owner gave a date.', policy: 'Outside what I approve alone.',
+    blocked: 'Blocked work gets more time.', pileup: 'Too much due on one day, or due on a day off.', eta: 'The owner gave a date.', policy: 'Outside what I approve alone.',
     missing: 'A policy number is not set.', client: 'A client date. Only you move those.', unsure: 'Close to a limit, so it waits for you.'
   };
   /* copy(code, args, scope, ctx): {line, why}. scope 'founder' (the default), 'team' or 'dm'. args.would gives
@@ -1563,7 +1564,7 @@
     const card = (code, args, dedupe, options) => act(R, {job: 'J20', code, kind: 'card', cap: 'structure', rung: lowerOf(st.rungs.structure, 'propose'), subject: dedupe, args,
       card: {kind: 'proposal', dedupe: dedupe + ':' + week, options}});
     const per = (st.cfg.leave || {}).perType || {};
-    const unset = ['casual', 'sick', 'other'].filter(k => !isSet(per[k]));
+    const unset = ['casual', 'sick'].filter(k => !isSet(per[k]));
     if (unset.length) await card('setup_leave', {type: unset.length === 1 ? unset[0] : ''}, 'setup:leave', [{label: 'Open Admin', action: 'coo.open', input: {route: '#admin'}}]);
     if (R.ymd.slice(5) >= '11-01') {
       const next = String(Number(R.ymd.slice(0, 4)) + 1);
@@ -2046,11 +2047,15 @@
     const hit = ledgerRows(ctx).find(r => r.id === id);
     if (hit) return hit;
     const today = ymdOf(Date.now());
-    for (let i = 2; i <= 14; i++) {
+    /* read back too when the subscriptions have not delivered yet; a busy day's rows run over into
+       L-<ymd>-2, which nothing subscribes */
+    for (let i = 0; i <= 14; i++) {
       const ymd = addDays(today, -i);
-      const doc = await read(ctx, 'coo/L-' + ymd);
-      const r = rowsOf(doc, ymd).find(x => x.id === id);
-      if (r) return r;
+      for (const path of ['coo/L-' + ymd, 'coo/L-' + ymd + '-2']) {
+        const doc = await read(ctx, path);
+        const r = rowsOf(doc, ymd).find(x => x.id === id);
+        if (r) return {...r, path};
+      }
     }
     return null;
   }
@@ -2172,7 +2177,8 @@
       return {ok: !!(r && r.ok !== false), say: (r && r.say) || 'Sent from your mail.', via: 'coosend', sent: true};
     }
     try { window.open(mailto(d), '_blank', 'noopener'); } catch (e) { /* the copy is still on the card */ }
-    return {ok: true, say: 'Opened in your mail app. Mark it sent when it goes.', via: 'mailto'};
+    /* the card stays open: opening the mail app is not sending, so Kaavish marks it sent on the card */
+    return {ok: true, say: 'Opened in your mail app. Mark it sent when it goes.', via: 'mailto', keep: true};
   }
   /* decide(ctx, id, how, edits): apply, send, edit, decline or snooze one card. Apply rebuilds the card's
      facts from live data first and voids it when they no longer hold. Returns {ok, say} */
@@ -2289,7 +2295,7 @@
       if (!p || p.status !== (row.after || {}).status) { conflict = {fields: ['status'], now: p ? {status: p.status} : null, by: ''}; msg = 'Could not undo. The project changed since.'; }
       else { await c.W.update('projects/' + u.project, {status: u.prev || 'on', updated: now, updates: {[row.id]: null}}); msg = 'The project is back as it was.'; }
     } else return {ok: false, conflict: false, say: 'That one cannot be undone.'};
-    const L = 'coo/L-' + (row.ymd || ymdOf(row.at || now));
+    const L = row.path || 'coo/L-' + (row.ymd || ymdOf(row.at || now));
     if (conflict) {
       await c.W.merge(L, {acts: {[row.id]: {conflict: plain(conflict)}}});
       if (!opts.quiet) {
@@ -2319,7 +2325,7 @@
     const row = await findRow(c, actId);
     if (!row) return {ok: false, say: 'I cannot find that one.'};
     const now = Date.now();
-    await c.W.merge('coo/L-' + (row.ymd || ymdOf(row.at || now)), {acts: {[row.id]: {wrong: now}}});
+    await c.W.merge(row.path || 'coo/L-' + (row.ymd || ymdOf(row.at || now)), {acts: {[row.id]: {wrong: now}}});
     const st = cooState(c);
     const list = ((st.wrong || {})[row.cap] || []).filter(x => Number(x) > now - 7 * DAY).concat([now]);
     if (row.cap) await c.W.merge('coo/state', {wrong: {[row.cap]: list}});
@@ -2380,7 +2386,9 @@
     return {ok: true, undone, conflicts, say: 'Stopped. ' + plural(undone, 'act', 'acts') + ' put back' + (conflicts ? ', ' + conflicts + ' changed since and stay' : '') + '.'};
   }
   /* "rebalance now": a load snapshot and a rebalance pass, outside the slots */
-  const rebalanceNow = ctx => runSlot(fresh(ctx), 'now', {});
+  /* two quick taps on one page run one pass; across devices the act keys keep it to one move per task */
+  let rebalancing = null;
+  const rebalanceNow = ctx => rebalancing || (rebalancing = runSlot(fresh(ctx), 'now', {}).finally(() => { rebalancing = null; }));
 
   /* one task to someone else, the founder's own move (HQ Workload apply). The COO's own moves happen only
      inside its rounds (act), where the rung, the caps, the practice week, the ledger and undo all hold, so
@@ -2466,7 +2474,7 @@
     if (chan || typeof BroadcastChannel !== 'function') return chan;
     try {
       chan = new BroadcastChannel('m360-coo');
-      chan.onmessage = e => { const d = (e && e.data) || {}; if (!d.tab || d.tab === TAB) return; if (d.bye) delete peers[d.tab]; else peers[d.tab] = Date.now(); };
+      chan.onmessage = e => { const d = (e && e.data) || {}; if (!d.tab || d.tab === TAB) return; if (d.bye) delete peers[d.tab]; else peers[d.tab] = {at: Date.now(), busy: !!d.busy}; };
     } catch (e) { chan = null; }
     return chan;
   }
@@ -2475,9 +2483,15 @@
   const beat = () => {
     const c = channel();
     if (!c) return;
-    try { c.postMessage(eligible(M.lastCtx) ? {tab: TAB, at: Date.now()} : {tab: TAB, bye: true}); } catch (e) { /* closed */ }
+    try { c.postMessage(eligible(M.lastCtx) ? {tab: TAB, at: Date.now(), busy: !!running} : {tab: TAB, bye: true}); } catch (e) { /* closed */ }
   };
-  const leads = () => { const cut = Date.now() - 5000; return Object.keys(peers).filter(t => peers[t] > cut).every(t => t > TAB); };
+  /* the lowest live tab id leads, and no tab starts while another is in the middle of a round (a tab
+     opened later may hold the lower id before the first one has heard of it) */
+  const leads = () => {
+    const cut = Date.now() - 5000;
+    const live = Object.keys(peers).filter(t => peers[t].at > cut);
+    return !live.some(t => peers[t].busy) && live.every(t => t > TAB);
+  };
   const eligible = ctx => !!ctx && !!ctx.isFounder && !ctx.viewAs && typeof window.M360_API !== 'function' && on(ctx) && !!ctx.coo && !!ctx.coo.ready
     && (typeof document === 'undefined' || document.visibilityState === 'visible');
   async function claim(ctx, path, slot, now) {
@@ -2495,7 +2509,8 @@
   /* one wake: the due slots, each claimed and run; the late ones recorded as skipped. Exported for tests */
   function tick(ctx, o) {
     if (running) return running;
-    running = tickNow(fresh(ctx), o || {}).finally(() => { running = null; });
+    running = tickNow(fresh(ctx), o || {}).finally(() => { running = null; beat(); });
+    beat();
     return running;
   }
   async function tickNow(ctx, o) {

@@ -36,6 +36,9 @@
   const istHm = ms => (C() && C().ist ? C().ist.hm(ms) : new Date(ms + IST_MS).toISOString().slice(11, 16));
   const istMins = ms => { const d = new Date(ms + IST_MS); return d.getUTCHours() * 60 + d.getUTCMinutes(); };
   const istDayStart = ms => Date.parse(istYmd(ms) + 'T00:00:00Z') - IST_MS;
+  /* an undo window that locks on another day names the day: "Fri 00:00", never a bare 00:00 */
+  const untilHm = ms => istYmd(ms) === istYmd(Date.now()) ? istHm(ms)
+    : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(Date.parse(istYmd(ms) + 'T00:00:00Z')).getUTCDay()] + ' ' + istHm(ms);
   /* the office day: closed on Sundays and holidays, lights down after the 21:00 close and before 09:00 */
   function dayOf(ctx, now) {
     const ymd = istYmd(now), mins = istMins(now), dow = new Date(now + IST_MS).getUTCDay();
@@ -531,7 +534,9 @@
       const a = el.animate(frames, {duration: dur, easing: EASE, fill: 'forwards'});
       anims.current.add(a);
       const timers = pts.slice(1, -1).map((p, i) => setTimeout(() => set({pose: {yaw: yawOf(p, pts[i + 2])}}), bez(offs[i + 1] / len) * dur));
-      try { await a.finished; } catch (x) { /* cancelled */ }
+      /* the walk ends with its animation, or a beat after its time: a walk the browser drops without
+         settling never holds up the rest of the queue */
+      await Promise.race([a.finished.catch(() => { /* cancelled */ }), sleep(dur + 400)]);
       timers.forEach(clearTimeout);
       if (!alive.current) return;
       el.style.transform = tr(L, pts[pts.length - 1]);
@@ -608,17 +613,20 @@
       if (busy.current) return;
       busy.current = true;
       try {
-        while (alive.current) {
-          await shown();
-          const step = q.current.shift();
-          if (!step) break;
-          await play(step);
-          lastWander.current = Date.now();
+        for (;;) {
+          while (alive.current) {
+            await shown();
+            const step = q.current.shift();
+            if (!step) break;
+            await play(step);
+            lastWander.current = Date.now();
+          }
+          /* between rounds it goes back to rest (a tray with cards waiting, or its desk); rows that came in
+             during that walk play next, so nothing waits for a later round */
+          if (alive.current && pos.current !== E.current.data.rest.station) await walk(E.current.data.rest.station);
+          if (!alive.current || !q.current.length) break;
         }
-        /* between rounds it goes back to rest (a tray with cards waiting, or its desk) */
-        const rest = E.current.data.rest;
-        if (alive.current && pos.current !== rest.station) await walk(rest.station);
-        if (alive.current) set({state: rest.state, speed: null, failed: false});
+        if (alive.current) set({state: E.current.data.rest.state, speed: null, failed: false});
       } finally { busy.current = false; }
     }
 
@@ -645,10 +653,16 @@
       if (!fresh.length) return;
       fresh.forEach(r => seen.current.add(r.id));
       M.prefs.set('office.seen', String(rows.reduce((m, r) => Math.max(m, Number(r.at) || 0), 0)));
-      const b = queue(fresh);
-      /* a new batch replaces whatever of the last one has not played yet */
-      q.current = b.steps.map(row => ({kind: 'row', row}));
-      if (b.more) q.current.push({kind: 'summary', bubble: {line: 'And ' + b.more + ' more since ' + istHm(b.since) + '. See today\'s run.', why: '', summary: true}});
+      /* a round writes its rows one by one, so a new batch joins what has not played yet; the whole backlog
+         keeps the cap of BURST steps and the rest folds into one summary bubble */
+      const waiting = q.current.filter(x => x.kind === 'row').map(x => x.row);
+      const told = q.current.find(x => x.kind === 'summary' && x.more);
+      const away = q.current.filter(x => x.kind === 'summary' && !x.more);
+      const b = queue(waiting.concat(fresh));
+      const more = b.more + (told ? told.more : 0);
+      const since = told && told.since && (!b.since || told.since < b.since) ? told.since : b.since;
+      q.current = away.concat(b.steps.map(row => ({kind: 'row', row})));
+      if (more) q.current.push({kind: 'summary', more, since, bubble: {line: 'And ' + more + ' more since ' + istHm(since) + '. See today\'s run.', why: '', summary: true}});
       if (E.current.onWake) E.current.onWake();
       pump();
     }, [rows, data.ready]);
@@ -870,7 +884,7 @@
       <div class="ob-what">${b.needs || b.failed ? html`<i class="ob-dot" aria-hidden="true"/>` : null}<b>${b.line}</b></div>
       ${b.why && !fold ? html`<div class="ob-why">${b.why}</div>` : null}
       ${founder && !fold && (b.undoUntil || b.id) && !b.rest && !b.summary ? html`<div class="ob-acts">
-        ${b.undoUntil ? html`<button type="button" class="pill ob-btn" onClick=${() => onUndo && onUndo(b.id)}>Undo until ${istHm(b.undoUntil)}</button>` : null}
+        ${b.undoUntil ? html`<button type="button" class="pill ob-btn" onClick=${() => onUndo && onUndo(b.id)}>Undo until ${untilHm(b.undoUntil)}</button>` : null}
         <button type="button" class="pill ob-btn" onClick=${() => M.nav('#coo')}>Open</button>
       </div>` : null}
     </div>`;
@@ -886,7 +900,7 @@
     const waiting = !walking && view.spot === 'tray' && rest.station === 'tray';
     const pose = walking && view.pose ? view.pose : (listening && !walking ? LISTEN : null);
     const props = {type: 'droid', glasses: 'square', bowTie: true, accessoryColor: dark ? '#F2F1EC' : '#0E0E0E', label: 'm360 COO', size,
-      state: st, paused: paused && !walking, headphones: !!listening, jumpEvery: still ? 0 : (waiting ? 40 : 0), interactive: !still && !walking,
+      state: st, paused: (paused || still) && !walking, headphones: !!listening, jumpEvery: still ? 0 : (waiting ? 40 : 0), interactive: !still && !walking,
       pose: pose || undefined, speed: view.speed || undefined, className: 'office-bot'};
     return html`<div class=${'office-mascot' + (walking ? ' walking' : '') + (seated ? ' seated' : '')} data-state=${walking ? 'walking' : st} data-spot=${view.spot} style=${{'--bot': size + 'px'}}>
       <span class="office-shadow" aria-hidden="true"/>

@@ -34,7 +34,7 @@
         clientMail: 'draft', meetingMail: 'draft', invoiceMail: 'draft', clientDates: 'propose', memo: 'alone', reviewPrep: 'draft', structure: 'propose'},
       limits: {actsPerDay: 120, tellPerDay: 25, movesPerDay: 8, movesPerPersonDay: 3, movesPerTaskWeek: 1, shiftsPerDay: 12, leaveApprovalsPerDay: 6, asksPerDay: 30,
         asksPerPersonDay: 2, draftsPerDay: 10, draftsPerClientWeek: 1, aiPerDay: 40, foundMailsPerDay: 2},
-      leave: {yearStart: '04-01', perType: {casual: null, sick: null, other: null}, maxAutoDays: 2, noticeDays: {casual: 3, sick: 0, other: 7}, probationLop: false,
+      leave: {yearStart: '04-01', perType: {casual: 12, sick: 12, other: null}, maxAutoDays: 2, noticeDays: {casual: 3, sick: 0, other: 7}, probationLop: false,
         maxOutPerDay: 2, maxOutPerPod: 1, blackout: []},
       wfh: {minOffice: 0},
       load: {maxOpen: 12, maxOverdue: 3, margin: 1.5},

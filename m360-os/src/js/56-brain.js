@@ -82,7 +82,7 @@
   const memoryLines = items => items.length ? 'WHAT YOU REMEMBER ABOUT THEM (they asked you to keep these in mind):\n' + items.map(x => '- ' + x.t).join('\n') : '';
 
   /* ---------- waiting on a tap: acts that leave the building or decide for someone ---------- */
-  /* opts: {turn, people: [{uid, name, facts, on, off}], channels, tellBy, title, warn, quiet, ringNowOk, from, left, kind}.
+  /* opts: {turn, people: [{uid, name, facts, on, off}], channels, tellBy, title, warn, quiet, ringNowOk, from, left, kind, action}.
      A card with people is the ask preview: each person ticks on or off, and run receives the edited
      opts {people: [ticked uids], tellBy, note, ringNow, via}. Every card carries its turn and when it
      was made, so a spoken yes can only ever confirm the one card its own turn just made. */
@@ -95,7 +95,7 @@
     const people = Array.isArray(o.people) && o.people.length ? o.people.map(p => ({uid: p.uid, name: p.name || 'Someone', facts: p.facts || '', on: p.on !== false, off: p.off || ''})) : null;
     pending.list = pending.list.concat([{id, label, detail: cut(detail, 400), run, at: Date.now(), turn, people, title: o.title || label, kind: o.kind || '',
       channels: o.channels || null, tellBy: o.tellBy || null, tellOn: !!o.tellBy, warn: o.warn || '', quiet: o.quiet || [], ringNowOk: !!o.ringNowOk, ringNow: false,
-      from: o.from || '', left: o.left || [], note: '', editing: false}]).slice(-6);
+      from: o.from || '', left: o.left || [], note: '', editing: false, action: o.action || ''}]).slice(-6);
     tell();
     return {waiting: true, label, id, note: 'Prepared. The person must tap "' + label + '" here, or say yes, to send it. Tell them it is ready and waiting on their tap.'};
   }
@@ -118,7 +118,7 @@
       /* a spoken yes hears the line in the panel; a tap reads it here */
       if (how !== 'voice') M.toast((r && typeof r === 'object' && r.say) || p.label + ': done');
       /* the panel puts the receipt of a card its own turn made into the thread */
-      try { window.dispatchEvent(new CustomEvent('m360:approved', {detail: {id, turn: p.turn || null, how: how === 'voice' ? 'voice' : 'tap', result: r}})); } catch (e) { /* no listener */ }
+      try { window.dispatchEvent(new CustomEvent('m360:approved', {detail: {id, turn: p.turn || null, how: how === 'voice' ? 'voice' : 'tap', result: r, action: p.action || p.kind || ''}})); } catch (e) { /* no listener */ }
       return r;
     } catch (e) {
       const why = (e && e.message) || 'That did not go through';
@@ -934,8 +934,10 @@
         const open = reqs.filter(r => !dec[r.id]);
         const r = (ymdOk(input.from) ? open.find(x => x.from === input.from) : null) || open[0];
         if (!r) throw new Error('nothing pending for ' + nameOf(nm, u));
-        /* by: whose decision it was, so the Leave page tells Kaavish's from the COO's */
-        return hold((status === 'approved' ? 'Approve' : 'Decline') + ' ' + nameOf(nm, u) + '\'s leave', r.from + ' to ' + r.to + ', ' + r.type, () => ctx.W.merge('leavedec/' + u, {d: {[r.id]: {status, at: Date.now(), by: ctx.uid}}}));
+        /* by: whose decision it was, so the Leave page tells Kaavish's from the COO's. An approval keeps the
+           dates it approved (snap), as the Leave page's does */
+        const snap = status === 'approved' ? {snap: {from: r.from || '', to: r.to || '', type: r.type || 'casual'}} : {};
+        return hold((status === 'approved' ? 'Approve' : 'Decline') + ' ' + nameOf(nm, u) + '\'s leave', r.from + ' to ' + r.to + ', ' + r.type, () => ctx.W.merge('leavedec/' + u, {d: {[r.id]: {status, at: Date.now(), by: ctx.uid, ...snap}}}));
       }
       case 'check_in': {
         const days = U.clone((ctx.coll.checkin.map[uid] || {}).days || {});

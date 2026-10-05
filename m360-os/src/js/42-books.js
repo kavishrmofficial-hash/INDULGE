@@ -385,8 +385,10 @@
   const COUNTRIES = ['India', 'United Arab Emirates', 'Saudi Arabia', 'Qatar', 'Bahrain', 'Kuwait', 'Oman', 'United States', 'United Kingdom', 'Singapore', 'Other'];
   function Setup({id}) {
     const ctx = M.useCtx();
-    /* the COO takes the chasing over as drafts: nothing auto-sends while it is on */
-    const cooOn = !!(M.coo && M.coo.on && M.coo.on(ctx));
+    /* as books.js on the server reads it: the COO's drafts take over chasing once its practice week is over,
+       and only while invoice reminders are not switched off */
+    const cooOn = !!(M.coo && M.coo.on && M.coo.on(ctx)) && !(M.coo.practicing && M.coo.practicing(ctx))
+      && !(M.coo.rung && M.coo.rung(ctx, 'invoiceMail') === 'off');
     const s = settings(ctx);
     const [f, setF] = useState(() => U.clone(s));
     const [dirty, setDirty] = useState(false);

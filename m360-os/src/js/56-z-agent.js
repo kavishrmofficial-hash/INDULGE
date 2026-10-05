@@ -566,7 +566,7 @@
     const c = fresh(ctx);
     if (who === 'founder' && !c.isFounder) throw new Error('only the founder can do that');
     return run(c);
-  }, {turn: io.turn, from: io.from || ''});
+  }, {turn: io.turn, from: io.from || '', action: io.action || ''});
 
   /* announcements are a tap now: everyone sees them pinned */
   const postRun = byName('post_to_feed').run;
@@ -1327,7 +1327,7 @@
       return held;
     }
     try {
-      const r = await a.run(ctx, nm, input, {...io, log, turn, from: turn && turn.tainted ? turn.from : ''});
+      const r = await a.run(ctx, nm, input, {...io, log, turn, from: turn && turn.tainted ? turn.from : '', action: a.name});
       /* a card waiting on a tap: its run settles this row when the tap (or the spoken yes) comes */
       const card = r && r.waiting && r.id ? M.brain.pending.list.find(x => x.id === r.id) : null;
       if (card) {
