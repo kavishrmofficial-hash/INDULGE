@@ -211,7 +211,7 @@
     const th = M.useResolvedTheme();
     const fx = FX();
     const body = type || BOTS[feature] || 'clover';
-    if (!fx) return M.parts.Bot ? html`<${M.parts.Bot} type=${body} state=${state} size=${size} seed=${seed} label=${label} id=${id} glasses=${glasses} bowTie=${bowTie}/>` : null;
+    if (!fx) return M.parts.Bot ? html`<${M.parts.Bot} type=${body} state=${state} size=${size} seed=${seed} label=${label} id=${id} glasses=${glasses} bowTie=${bowTie} paused=${!!paused}/>` : null;
     return html`<${fx.BotAvatar} type=${body} state=${state || 'default'} size=${size || 28} seed=${seed || 0} face=${face || 'eyes'} color=${FLAME} theme=${th} paused=${!!paused} headphones=${!!headphones}
       jumpEvery=${jumpEvery == null ? undefined : jumpEvery} interactive=${interactive == null ? undefined : !!interactive}
       glasses=${glasses || undefined} bowTie=${bowTie == null ? undefined : !!bowTie} hat=${hat || undefined} accessoryColor=${accessoryColor || undefined}

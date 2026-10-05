@@ -31,7 +31,7 @@
     </g>`;
   }
 
-  function Bot({type, state, size, seed, color, label, id, glasses, bowTie}) {
+  function Bot({type, state, size, seed, color, label, id, glasses, bowTie, paused}) {
     const kind = BODIES[type] ? type : 'blob';
     const st = state === 'working' || state === 'sleeping' ? state : 'default';
     const root = useRef(null);
@@ -41,7 +41,7 @@
     const s = Number(seed) || 0;
     /* looks about on its own; follows a pointer within reach */
     useEffect(() => {
-      if (M.reduced() || st === 'sleeping') { setLook({x: 0, y: 0}); return undefined; }
+      if (M.reduced() || st === 'sleeping' || paused) { setLook({x: 0, y: 0}); return undefined; }
       let timer = 0, near = false;
       const wander = () => { if (!near) setLook({x: (Math.random() - 0.5) * 2, y: (Math.random() - 0.5) * 1.2}); timer = setTimeout(wander, 1400 + Math.random() * 2200 + s * 500); };
       timer = setTimeout(wander, 600 + s * 400);
@@ -54,13 +54,13 @@
       };
       window.addEventListener('pointermove', move, {passive: true});
       return () => { clearTimeout(timer); window.removeEventListener('pointermove', move); };
-    }, [st, s]);
-    /* a jump now and then while idle */
+    }, [st, s, paused]);
+    /* a jump now and then while idle; paused (a hidden tab, the office dozing) holds it still */
     useEffect(() => {
-      if (M.reduced() || st !== 'default') return undefined;
+      if (M.reduced() || st !== 'default' || paused) return undefined;
       const t = setInterval(() => setHop(h => h + 1), 9000 + s * 1300);
       return () => clearInterval(t);
-    }, [st, s]);
+    }, [st, s, paused]);
     const [ex1, ey1, ex2, ey2] = EYES[kind];
     const lx = look.x * 3.2, ly = look.y * 2.4;
     const fill = color === 'ink' ? 'var(--ink)' : color === 'paper' ? 'var(--paper)' : 'var(--flame)';

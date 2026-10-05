@@ -41,7 +41,10 @@
     const ymd = istYmd(now), mins = istMins(now), dow = new Date(now + IST_MS).getUTCDay();
     const holiday = !!(ctx && ctx.holidays && ctx.holidays.has && ctx.holidays.has(ymd));
     const closed = dow === 0 || holiday;
-    return {ymd, mins, dow, holiday, closed, night: closed || mins < 540 || mins >= 1260};
+    /* after the close, does it open again in the morning (not a Sunday or a holiday tomorrow) */
+    const next = istYmd(now + 86400000);
+    const opens = mins < 540 || (dow !== 6 && !(ctx && ctx.holidays && ctx.holidays.has && ctx.holidays.has(next)));
+    return {ymd, mins, dow, holiday, closed, opens, night: closed || mins < 540 || mins >= 1260};
   }
 
   /* ---------- the floor plan ---------- */
@@ -426,9 +429,10 @@
     const line = (code, args) => { const t = say(ctx, code, args, 'founder'); return t.line ? {line: t.line, why: t.why, needs: NEEDS.test(t.line), rest: true} : null; };
     if (st === 'off' || st === 'paused' || day.night || idleLong) {
       Object.assign(out, {state: 'sleeping', asleep: true, card: st === 'paused' ? 'Paused' : ''});
-      if (founder) out.bubble = st === 'off' ? line('off') : st === 'paused' ? line('paused', {until: Number(((c.cfg && c.cfg(ctx)) || {}).pausedUntil) || 0}) : idleLong && !day.night ? line('page_runner', {at: lastAt})
-        : {line: teamLine(ctx, 'desk', true), why: '', rest: true};
-      else out.bubble = day.night || st === 'off' ? {line: teamLine(ctx, 'desk', true), why: '', rest: true} : null;
+      /* "Back at 09:00" only when it is: by day an off COO just sleeps, and a day off has the sign on the door */
+      const night = day.night && !day.closed && day.opens && st !== 'off' && st !== 'paused' ? {line: teamLine(ctx, 'desk', true), why: '', rest: true} : null;
+      if (founder) out.bubble = st === 'off' ? line('off') : st === 'paused' ? line('paused', {until: Number(((c.cfg && c.cfg(ctx)) || {}).pausedUntil) || 0}) : idleLong && !day.night ? line('page_runner', {at: lastAt}) : night;
+      else out.bubble = night;
       return out;
     }
     if (st === 'stuck') { Object.assign(out, {dot: true}); if (founder) out.bubble = line('refused'); return out; }
@@ -480,7 +484,14 @@
     const flightDone = useRef({});
     const lastWander = useRef(Date.now());
     const set = patch => { if (alive.current) setView(v => ({...v, ...(typeof patch === 'function' ? patch(v) : patch)})); };
-    const fxOn = (k, x) => set(v => ({fx: {...v.fx, [k]: {...(x || {}), k: Date.now() + Math.random()}}}));
+    /* a beat on the floor: the stamp and the whiteboard lines stay, the rest (the books drawer, a card on
+       the move, a pin, a pitch lit up) go back after a few seconds, so nothing reads as still happening */
+    const BEAT = {slide: 1, pin: 1, pitch: 1, books: 1};
+    const fxOn = (k, x) => {
+      const key = Date.now() + Math.random();
+      set(v => ({fx: {...v.fx, [k]: {...(x || {}), k: key}}}));
+      if (BEAT[k]) setTimeout(() => set(v => (v.fx[k] && v.fx[k].k === key ? {fx: {...v.fx, [k]: null}} : {})), 4000);
+    };
 
     useEffect(() => () => { alive.current = false; anims.current.forEach(a => { try { a.cancel(); } catch (e) { /* gone */ } }); }, []);
     /* a hidden tab holds the walk where it is; back again, it jumps to where it was going */
@@ -650,9 +661,10 @@
       else set({state: data.rest.state});
     }, [restKey]);
 
-    /* the founder approved a card the agent made: it goes to the station of that action */
+    /* the founder approved a card the agent made: it goes to the station of that action. Asleep (off,
+       paused, the night, a day off) it stays asleep: an off COO is never seen at work */
     useEffect(() => {
-      const f = ev => { if (!E.current.data.founder) return; q.current.push({kind: 'go', station: approvedAt((ev && ev.detail) || {})}); pump(); };
+      const f = ev => { const d = E.current.data; if (!d.founder || d.rest.asleep) return; q.current.push({kind: 'go', station: approvedAt((ev && ev.detail) || {})}); pump(); };
       window.addEventListener('m360:approved', f);
       return () => window.removeEventListener('m360:approved', f);
     }, []);
@@ -673,7 +685,8 @@
         if (now - lastWander.current < 5 * MIN) return;
         lastWander.current = now;
         const next = Number(((d.nowDoc || d.pub || {}).next || {}).at) || 0;
-        const lunch = [toMins(d.ctx.settings.lunchFrom), toMins(d.ctx.settings.lunchTo)];
+        const s = d.ctx.settings || {};
+        const lunch = [toMins(s.lunchFrom), toMins(s.lunchTo)];
         const atLunch = lunch[0] != null && d.day.mins >= lunch[0] && d.day.mins < lunch[1];
         let k;
         if (next && next - now > 0 && next - now <= 2 * MIN) k = 'clock';
@@ -847,12 +860,13 @@
   }
 
   /* the bubble: what (bold), why (ink62), a flame dot when it needs Kaavish; the founder's row of
-     Undo until hh:mm and Open. Full for six seconds, then a one-line pill */
+     Undo until hh:mm and Open. Full for six seconds, then a one-line pill. Not a live region itself: the
+     scene's one polite region speaks for it, at most once a minute and not at all when Kaavish mutes it */
   function Bubble({b, side, below, founder, onUndo, big, className}) {
     if (!b || !b.line) return null;
     const fold = b.fold && !big;
     return html`<div class=${'office-bubble' + (fold ? ' fold' : '') + (b.needs ? ' needs' : '') + (b.failed ? ' failed' : '') + (big ? ' big' : '') + (below ? ' below' : '') + (side ? ' ' + side : '') + (className ? ' ' + className : '')}
-      role="status" data-id=${b.id || ''}>
+      data-id=${b.id || ''}>
       <div class="ob-what">${b.needs || b.failed ? html`<i class="ob-dot" aria-hidden="true"/>` : null}<b>${b.line}</b></div>
       ${b.why && !fold ? html`<div class="ob-why">${b.why}</div>` : null}
       ${founder && !fold && (b.undoUntil || b.id) && !b.rest && !b.summary ? html`<div class="ob-acts">
@@ -863,13 +877,14 @@
   }
 
   /* the COO itself: the plush droid (square glasses, a bow tie), what it carries, its desk cards */
+  const LISTEN = {yaw: .45};   /* turned toward the dock; one object, so the droid is not handed a new pose each render */
   function Mascot({view, rest, size, still, paused, listening, dark, onOpen, label}) {
     const Bot = M.fx && M.fx.Bot;
     const walking = view.walking;
     const seated = !walking && view.spot === 'desk' && rest.seat !== false;
     const st = walking ? 'default' : rest.asleep && view.spot === rest.station ? 'sleeping' : view.state === 'working' ? 'working' : (view.state === 'sleeping' ? 'sleeping' : 'default');
     const waiting = !walking && view.spot === 'tray' && rest.station === 'tray';
-    const pose = walking && view.pose ? view.pose : (listening && !walking ? {yaw: .45} : null);
+    const pose = walking && view.pose ? view.pose : (listening && !walking ? LISTEN : null);
     const props = {type: 'droid', glasses: 'square', bowTie: true, accessoryColor: dark ? '#F2F1EC' : '#0E0E0E', label: 'm360 COO', size,
       state: st, paused: paused && !walking, headphones: !!listening, jumpEvery: still ? 0 : (waiting ? 40 : 0), interactive: !still && !walking,
       pose: pose || undefined, speed: view.speed || undefined, className: 'office-bot'};
@@ -915,6 +930,14 @@
       ${tags && (d.tag || d.quiet || asked) ? html`<span class="od-tag" key=${lit || 'tag'}>
         ${d.hot ? html`<i class="od-hot" aria-hidden="true"/>` : null}${d.late ? html`<span class="od-late">Late</span>` : null}<span>${asked ? 'Asked ' + istHm(asked) : (d.quiet || d.tag)}</span></span>` : null}
     </button>`;
+  }
+
+  /* the stations a viewer has: the tray is Kaavish's, the books cabinet the owner's, and the client wall the
+     founder's and the account owners' (a member who owns a pitch or a client) */
+  function shownStations(ctx, scope) {
+    const team = scope === 'team';
+    const mine = n => { const m = (ctx.coll && ctx.coll[n] && ctx.coll[n].map) || {}; return Object.keys(m).some(id => m[id] && m[id].owner === ctx.uid); };
+    return STATIONS().filter(k => AREA[k] && (k !== 'books' || scope === 'owner') && (k !== 'tray' || !team) && (k !== 'clients' || !team || mine('pitches') || mine('clients')));
   }
 
   /* ---------- the scene: plan, live layer, overlay and the COO, through a camera ---------- */
@@ -1025,7 +1048,7 @@
       if (el) el.focus();
     };
     const tabFor = d => { const k = d.cabin ? 'cabin' : d.pod; return (rove[k] || (pods[k] || [])[0]) === d.uid ? 0 : -1; };
-    const stationKeys = STATIONS().filter(k => AREA[k] && (k !== 'books' || scope === 'owner') && (k !== 'tray' || founder));
+    const stationKeys = shownStations(ctx, scope);
     const counts = useMemo(() => { const c = {}; data.rows.forEach(x => { const s = x.station || 'desk'; c[s] = (c[s] || 0) + 1; }); return c; }, [data.rows]);
     const stLabel = k => STATION_LABEL[k] + '.' + (founder && counts[k] ? ' ' + counts[k] + (counts[k] === 1 ? ' act' : ' acts') + ' today.' : '') + (k === 'tray' && data.dec.length ? ' ' + data.dec.length + ' waiting on you.' : '');
     const cooLabel = 'm360 COO. ' + (bubble && bubble.line ? bubble.line : rest.asleep ? 'Asleep.' : 'At ' + (STATION_LABEL[view.spot] || 'its desk').replace(/^The /, 'the ').replace(/^Your /, 'your ') + '.');
@@ -1152,7 +1175,7 @@
     const nm = u => ((profs[u] || {}).name) || 'Someone';
     const here = rows.filter(r => (r.station || 'desk') === k);
     const nav = NAV[k];
-    const nav2 = founder || ['attendance', 'calendar', 'board', 'review', 'meeting'].indexOf(k) >= 0 ? nav : (k === 'desk' || k === 'mail' || k === 'clock' ? ['#coo', 'What the COO does'] : nav);
+    const nav2 = founder || ['attendance', 'calendar', 'board', 'review', 'meeting'].indexOf(k) >= 0 ? nav : (k === 'desk' || k === 'mail' || k === 'clock' ? ['#coo', 'What the COO does'] : k === 'reception' ? null : nav);
     let body = null;
     if (k === 'attendance') {
       const grp = (st, label) => { const l = D.filter(d => d.state === st && !d.cabin); return l.length ? html`<li key=${st}><b>${label}</b> <span class="sub">${l.map(d => nm(d.uid)).join(', ')}</span></li>` : null; };
@@ -1177,7 +1200,9 @@
       body = qd.length ? html`<ul class="office-list">${qd.slice(0, 8).map(t => html`<li key=${t.id || t.title}>${t.title || 'A task'}</li>`)}</ul>` : html`<p class="sub small">Nothing waits for review.</p>`;
     } else if (k === 'tray' || (k === 'desk' && founder)) {
       const cards = k === 'desk' ? data.dec.filter(c => /mail|invoice/.test(c.kind || '')) : data.dec;
-      body = M.parts.CooCards && k === 'tray' ? html`<${M.parts.CooCards}/>` : (cards.length ? html`<ul class="office-list">${cards.slice(0, 10).map(c => html`<li key=${c.id}>${c.title || 'A card'}</li>`)}</ul>` : html`<p class="sub small">${k === 'desk' ? 'No drafts wait for you.' : 'Nothing waits on you.'}</p>`);
+      /* titles only: a card is applied, sent or declined in Needs you, never from an office click */
+      body = cards.length ? html`<ul class="office-list">${cards.slice(0, 10).map(c => html`<li key=${c.id}>${c.urgent ? html`<i class="ob-dot" aria-hidden="true"/>` : null}${c.title || 'A card'}</li>`)}
+        ${cards.length > 10 ? html`<li class="sub small">And ${cards.length - 10} more.</li>` : null}</ul>` : html`<p class="sub small">${k === 'desk' ? 'No drafts wait for you.' : 'Nothing waits on you.'}</p>`;
     } else if (k === 'reception' && founder) {
       const n = M.team && M.team.requests ? M.team.requests(ctx).length : 0;
       body = html`<p class="sub small">${n ? n + (n === 1 ? ' person waits to join.' : ' people wait to join.') : 'Nobody waits to join.'}</p>`;
@@ -1199,6 +1224,8 @@
     <//>`;
   }
   const L0 = ctx => layout(ctx);
+  /* the person's one-tap answer to a manager's bot, in the chips' own words */
+  const ANSWER = {onit: 'on it', blocked: 'blocked', wrong: 'not right', leave: 'off today', reply: 'replied in the messages'};
   function DeskDrawer({uid, data, onClose}) {
     const {ctx, D, profs, founder, scope} = data;
     const d = D.find(x => x.uid === uid);
@@ -1211,7 +1238,11 @@
     /* the last thing a personal manager's bot asked today, and the answer (the manager's own line) */
     let pm = '';
     if (see && (founder || uid !== ctx.uid) && M.pm && M.pm.log) {
-      try { const it = (((M.pm.log(ctx, uid, 1) || [])[0] || {}).items || []).slice(-1)[0]; pm = it ? String(it.mgrLine || it.line || '') : ''; } catch (e) { pm = ''; }
+      try {
+        const it = (((M.pm.log(ctx, uid, 1) || [])[0] || {}).items || []).slice(-1)[0];
+        const how = it && it.ack ? ANSWER[it.ack.how] : '';
+        pm = it ? String(it.mgrLine || it.line || '') + (how ? ' Answered: ' + how + '.' : it.ack ? '' : ' No answer yet.') : '';
+      } catch (e) { pm = ''; }
     }
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${name}
       footer=${html`<div class="row"><${UI.Btn} kind="sec" onClick=${() => { onClose(); M.nav('#people/' + uid); }}>Open profile<//>
@@ -1268,7 +1299,7 @@
     const whole = phone ? cam === 'floor-phone' : cam !== 'follow';
     const counts = {};
     data.rows.forEach(r => { const s = r.station || 'desk'; counts[s] = (counts[s] || 0) + 1; });
-    const chips = STATIONS().filter(k => AREA[k] && (k !== 'books' || data.scope === 'owner') && (k !== 'tray' || data.founder));
+    const chips = shownStations(data.ctx, data.scope);
     const scene = html`<${Scene} data=${data} mode="page" follow=${!whole} phone=${phone} whole=${whole} focusKey=${pick}
       onSay=${setNow} onOpenStation=${k => { setPick(phone ? k : null); dr.station(k); }} onOpenDesk=${dr.desk} onOpenCoo=${() => dr.coo(now)}/>`;
     return html`<div class="office-page stack" data-scope=${data.scope}>
