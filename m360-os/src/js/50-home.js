@@ -785,6 +785,8 @@
 
     return html`<div class="stack" style=${{gap: '18px'}}>
       <${Hero} onStatus=${() => setStatus(true)}/>
+      ${M.parts.CooRunner ? html`<${M.parts.CooRunner}/>` : null}
+      ${ctx.isFounder && M.parts.HomeDigest ? html`<${M.parts.HomeDigest}/>` : null}
       ${pmCard ? html`<${M.parts.PmCard} onStatus=${() => setStatus(true)}/>` : html`<${QuietNudge} onStatus=${() => setStatus(true)}/>`}
       ${M.parts.NoticePermit ? html`<${M.parts.NoticePermit}/>` : null}
       ${M.parts.JoinBanner ? html`<${M.parts.JoinBanner}/>` : null}
@@ -814,6 +816,7 @@
           <${F} title="My week" summary="check-ins and EOD lines, Monday to Saturday" id="fold-week"><${MyWeek}/><//>
           <${F} title="Rule box" summary=${flagN ? n(flagN, 'flag on you', 'flags on you') : 'all clear'} hot=${flagN > 0} open=${flagN > 0} id="fold-rules"><${HeadsUp}/><//>
           <${Nudges}/>
+          ${M.parts.StudioNow ? html`<${F} title="The studio now" summary="the office, live" open=${ctx.isFounder} id="fold-studio"><${M.parts.StudioNow}/><//>` : null}
           <${F} title="Who's in today" summary=${inN + ' of ' + ctx.activeMembers.length + ' in'} id="fold-crew"><${Crew}/><//>
           ${Day ? html`<${F} title="Your day" summary="calendar, mail and files" id="fold-day"><${Day}/><//>` : null}
         </div>
