@@ -332,7 +332,11 @@ def test(h):
     # the chat composer: the dock sits above it
     h.go(p, 'founder', hash='#chat')
     if p.locator('.chat-composer').count():
+        # the chat page lays out once more after its list fills and the dock glides after it: read both once still
         p.wait_for_timeout(500)
+        for _ in range(20):
+            a = (rect(p, '.chat-composer'), rect(p, '#buddy-dock .buddy-home')); p.wait_for_timeout(150)
+            if a == (rect(p, '.chat-composer'), rect(p, '#buddy-dock .buddy-home')): break
         cc = rect(p, '.chat-composer'); dk = rect(p, '#buddy-dock .buddy-home')
         if cc['r'] > dk['l']:
             check(dk['b'] <= cc['t'] - 10, 'the dock clears the chat composer: %r %r' % (dk, cc))
