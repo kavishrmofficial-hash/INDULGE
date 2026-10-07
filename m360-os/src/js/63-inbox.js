@@ -183,6 +183,8 @@
      notification when m360 sits in another window. Chat lines have their own watcher. The mark of
      the newest item seen lives in this browser, per person; the first load on a device sets it, so
      a backlog never rains down. ---------- */
+  /* "Durvesh and Aanya", "Durvesh, Aanya and Ishaan", "Durvesh, Aanya and 4 more" */
+  const namesOf = ws => ws.length <= 3 ? ws.slice(0, -1).join(', ') + (ws.length > 1 ? ' and ' : '') + ws[ws.length - 1] : ws.slice(0, 2).join(', ') + ' and ' + (ws.length - 2) + ' more';
   const TITLE = {coo: 'm360 COO', pm: 'Your bot', tasks: 'Work', review: 'Review', feed: 'Feed', scores: 'Kudos', leave: 'Leave', people: 'Team', gift: 'Today', fix: 'Correction', books: 'Books', flag: 'Flag'};
   function InboxWatch() {
     const ctx = M.useCtx();
@@ -216,11 +218,29 @@
       const next = JSON.stringify(Array.from(new Set(keep)).slice(-300));
       if (next !== JSON.stringify(done)) M.prefs.set(doneKey, next);
       if (!fresh.length) return;
-      for (const it of fresh.slice(-4)) {
+      /* the team's flags of one kind fold into one card that names the people, so the evening's
+         "no EOD line today" across the team is one card, never a stack over the page */
+      const cards = [], folds = {};
+      for (const it of fresh) {
         const who = it.actor ? nameOf(it.actor) : '';
         const line = it.plain(nameOf);
         const body = who && line.startsWith(who + ' ') ? U.cap(line.slice(who.length + 1)) : line;
-        M.notices.push({key: it.kind === 'coo' ? it.id : 'inbox:' + it.id, who: it.actor || null, title: who || (TITLE[it.kind] || 'm360'), body, hidden: 'Something new for you in m360', href: it.ref, life: 12000});
+        if (/^team:/.test(it.id) && who) {
+          const f = folds[body] || (folds[body] = {it, who: [], body});
+          if (!f.who.includes(who)) f.who.push(who);
+          if (f.who.length === 1) cards.push(f);
+          continue;
+        }
+        cards.push({it, who, body});
+      }
+      for (const c of cards.slice(-4)) {
+        const it = c.it;
+        if (Array.isArray(c.who) && c.who.length > 1) {
+          M.notices.push({key: 'inbox:team:' + c.body, title: c.body, body: namesOf(c.who), hidden: 'Something new for you in m360', href: '#home', life: 12000});
+          continue;
+        }
+        const who = Array.isArray(c.who) ? c.who[0] : c.who;
+        M.notices.push({key: it.kind === 'coo' ? it.id : 'inbox:' + it.id, who: it.actor || null, title: who || (TITLE[it.kind] || 'm360'), body: c.body, hidden: 'Something new for you in m360', href: it.ref, life: 12000});
       }
       M.sound.play('soft');
     }, [ctx, profs]);

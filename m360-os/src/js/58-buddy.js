@@ -106,10 +106,10 @@
   function useDockPlace(on) {
     useEffect(() => {
       if (!on) return undefined;
-      let raf = 0, ro = null, watched = [];
+      let tm = 0, ro = null, watched = [];
       const root = document.documentElement;
       const check = () => {
-        raf = 0;
+        tm = 0;
         const W = window.innerWidth, H = window.innerHeight;
         const drawer = document.querySelector('.drawer');
         /* beside a drawer only where the drawer is a side panel (wider than 860) and the pop-up still fits */
@@ -133,18 +133,21 @@
           ro.disconnect(); seen.forEach(el => ro.observe(el)); watched = seen;
         }
       };
-      const soon = () => { if (!raf) raf = requestAnimationFrame(check); };
+      /* a short timer, never an animation frame: a frame can wait as long as the page is not painting, and
+         then nothing would move the dock until the page paints again */
+      const soon = () => { if (!tm) tm = setTimeout(check, 16); };
       if (typeof ResizeObserver !== 'undefined') ro = new ResizeObserver(soon);
       let mo = null;
       try { mo = new MutationObserver(soon); mo.observe(document.body, {childList: true, subtree: true}); } catch (e) { mo = null; }
       window.addEventListener('resize', soon);
       window.addEventListener('scroll', soon, {passive: true});
-      /* a layout shift with no new node and no resize of what it watches (a font, a page's own grid): a slow look again */
-      const slow = setInterval(() => { if (!document.hidden) soon(); }, 1000);
+      /* a layout shift with no new node and no resize of what it watches (a chat list growing above its
+         composer, a font, a page's own grid): a look again, often enough that the dock settles within a moment */
+      const slow = setInterval(() => { if (!document.hidden) soon(); }, 400);
       check();
       return () => {
         clearInterval(slow);
-        if (raf) cancelAnimationFrame(raf);
+        if (tm) clearTimeout(tm);
         if (ro) ro.disconnect();
         if (mo) mo.disconnect();
         window.removeEventListener('resize', soon); window.removeEventListener('scroll', soon);
