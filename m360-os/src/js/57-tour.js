@@ -31,6 +31,8 @@
       say: 'Base is everyone we know. Search a name or a company here before you reach out, and add the people you talk to.'},
     {go: '#feed', sel: '.main .card, .main h1', title: 'Vibe',
       say: 'Vibe. Post an update, give kudos, run a poll, and see the leaderboard.'},
+    {go: '#office', sel: '.office-mascot, .office, .main h1', title: 'The office',
+      say: 'The office. A live drawing of the studio: who is in, who is away, and the m360 COO, a bot that helps Kaavish run the day, walking its rounds. Tap it to see what it did and why.'},
     {go: '#radar', sel: '.main .card, .main h1', title: 'Radar',
       say: 'Radar. Live news about our clients and the industry, plus awards and channels worth watching.'},
     {go: '#mail', sel: '#mail-card, #google-connect, #google-unconfigured, .main .card', title: 'Workspace',

@@ -367,7 +367,9 @@ def test(h):
         h.seed_doc(p, 'checkin/' + M2, {'days': {today: {'in': ms(10, 8), 'out': None, 'mode': 'office'}}})
         h.seed_doc(p, 'checkin/' + M3, {'days': {today: {'in': ms(10, 31), 'out': None, 'mode': 'office'}}})
         h.seed_doc(p, 'checkin/' + M1, {'days': {today: {'in': ms(11, 2), 'out': ms(19, 40), 'mode': 'office'}}})
-        p.wait_for_timeout(600)
+        # under the fixed clock the page's timers come late, so wait until the check-out has reached the live context
+        p.wait_for_function('''([u, d]) => { const c = M.lastCtx && M.lastCtx.coll.checkin.map[u]; return !!(c && c.days && c.days[d] && c.days[d].out); }''', arg=[M1, today], timeout=15000)
+        p.wait_for_timeout(300)
         r = p.evaluate('''async () => { const ctx = M.lastCtx;
           const r = await M.pm.ask(ctx, {kind: 'noout', to: ['u_m2', 'u_m3', 'u_m1'], ask: 'why', via: 'voice', tellBy: Date.now() + 64 * 60000});
           return r; }''')

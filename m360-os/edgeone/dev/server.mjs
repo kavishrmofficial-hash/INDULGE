@@ -1,6 +1,8 @@
 /* Local stand-in for EdgeOne Pages: serves public/ and runs the same API function code against a
    file-backed blob store (etags are content MD5s, like the real store). Dev and tests only.
-   node dev/server.mjs [port] [storeFile]   env MOCK_AI=1 answers AI calls locally. */
+   node dev/server.mjs [port] [storeFile]   env MOCK_AI=1 answers AI calls locally (the m360 COO's drafts and memo
+   included); env COO_SETTLE_MS sets the COO's claim settle (default 400). GET /__clock?at=<ms> pins the server's
+   clock for the COO tests (?add=<ms> moves it on, ?off=1 lets it run again); /__ai lists the model calls. */
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -228,7 +230,14 @@ async function fakeFetch(url, init) {
   const toolNames = (body.tools || []).map(t => t.name);
   const said = text.split('THEY SAID: ').pop();   /* the question itself, not the chat carried in the prompt */
   let content, cutShort = false;
-  if (/^BOOKS MINE/.test(body.system || '')) content = [{type: 'text', text: JSON.stringify({legalName: 'Swisse Wellness Middle East FZ LLC', address: 'Office 1204, Dubai Science Park\nDubai', country: 'United Arab Emirates', taxId: '100234567800003', contactName: 'Omar Haddad', contactEmail: 'ap@swisse.example', currency: 'AED', termsDays: 30, po: '4471', note: 'From the vendor registration mail and PO 4471.'})}];
+  /* the m360 COO: drafts reworded as JSON, one per draft given, and the memo's paragraph */
+  if (/^COO DRAFTS/.test(body.system || '')) {
+    let list = [];
+    try { list = JSON.parse(String(text).replace(/^DRAFTS:\n/, '')); } catch (e) { list = []; }
+    content = [{type: 'text', text: JSON.stringify({drafts: list.map(d => ({id: d.id, text: 'Hi,\n\nA quick follow-up from Mask360. Happy to walk you through it this week, whenever suits you.\n\nKaavish'}))})}];
+  }
+  else if (/^COO MEMO/.test(body.system || '')) content = [{type: 'text', text: 'A steady week. The team shipped what it promised and the dates held.'}];
+  else if (/^BOOKS MINE/.test(body.system || '')) content = [{type: 'text', text: JSON.stringify({legalName: 'Swisse Wellness Middle East FZ LLC', address: 'Office 1204, Dubai Science Park\nDubai', country: 'United Arab Emirates', taxId: '100234567800003', contactName: 'Omar Haddad', contactEmail: 'ap@swisse.example', currency: 'AED', termsDays: 30, po: '4471', note: 'From the vendor registration mail and PO 4471.'})}];
   else if (/^BOOKS STATEMENT/.test(body.system || '')) content = [{type: 'text', text: JSON.stringify({rows: [{date: '2026-09-03', vendor: 'Adobe', desc: 'POS ADOBE SYSTEMS', amount: 4999, credit: 0, method: 'card', ref: 'P1'}, {date: '2026-09-05', vendor: 'Titan Company', desc: 'NEFT CR TITAN COMPANY LTD', amount: 0, credit: 295000, method: 'bank', ref: 'N2'}, {date: '2026-09-09', vendor: 'Uber', desc: 'UPI/UBER INDIA/9091', amount: 640, credit: 0, method: 'upi', ref: 'U3'}]})}];
   else if (/^BOOKS CATEGORIES/.test(body.system || '')) { const n = ((text.match(/^\d+\. /gm) || []).length) || 1; content = [{type: 'text', text: JSON.stringify({categories: Array.from({length: n}, (_, i) => /uber|ola|indigo/i.test((text.split('\n')[i + 1] || '')) ? 'Travel' : /adobe|figma|notion/i.test((text.split('\n')[i + 1] || '')) ? 'Software and tools' : 'Other')})}]; }
   else if (Array.isArray(last.content) && last.content.some(c => c.type === 'tool_result')) {
@@ -277,6 +286,10 @@ async function fakeFetch(url, init) {
   return new Response(JSON.stringify({content, stop_reason: stop}), {status: 200, headers: {'content-type': 'application/json'}});
 }
 
+/* tests only: a pinned clock for the COO's slots (GET /__clock) */
+const realNow = Date.now.bind(Date);
+let pinned = null;
+Date.now = () => pinned === null ? realNow() : pinned;
 const env = {...process.env};
 if (process.env.MOCK_AI === '1') { env.ANTHROPIC_API_KEY = 'sk-ant-local-test-key-000000000000'; env.fetch = fakeFetch; }
 const CFG_HEADERS = (() => { try { return JSON.parse(fs.readFileSync(path.join(PUB, '..', 'edgeone.json'), 'utf8')).headers || []; } catch (e) { return []; } })();
@@ -318,6 +331,12 @@ http.createServer(async (req, res) => {
     return;
   }
   if (url.pathname === '/__reset') { data = {}; save(); res.end('ok'); return; }
+  if (url.pathname === '/__clock') {
+    if (url.searchParams.get('off')) pinned = null;
+    else if (url.searchParams.get('at')) pinned = Number(url.searchParams.get('at')) || null;
+    else if (url.searchParams.get('add')) pinned = (pinned === null ? realNow() : pinned) + (Number(url.searchParams.get('add')) || 0);
+    res.writeHead(200, {'content-type': 'application/json'}); res.end(JSON.stringify({now: Date.now(), pinned: pinned !== null})); return;
+  }
   if (url.pathname === '/__google') {
     /* tests: what the canned Google saw; ?expire=1 ages every stored access token so the next call must refresh */
     if (url.searchParams.get('expire')) { for (const k of Object.keys(data)) if (k.startsWith('x/g/')) { const t = JSON.parse(data[k]); t.exp = 0; data[k] = JSON.stringify(t); } save(); }

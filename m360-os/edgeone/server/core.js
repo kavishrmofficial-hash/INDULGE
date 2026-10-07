@@ -19,6 +19,7 @@
      i/<code>                            {email, name, title, role, by, until}   pending invites
      r/<uid>~<ms>~<page>                 ""                            presence beacons
      x/pm/<ymd>/<uid>/<am|pm|esc>        {at, id, to, slot, keys, steps, sent}   the personal managers' mail ledger (pm.js)
+     x/coo/...                           the m360 COO's slot claims, act keys, mail claims and heartbeat (coo.js)
 */
 import {RULES} from './rules.js';
 import {SEED} from './seed.js';
@@ -36,6 +37,7 @@ import {securityActions} from './security.js';
 import {fileActions} from './files.js';
 import {baseActions} from './base.js';
 import {pmDesk} from './pm.js';
+import {cooDesk} from './coo.js';
 
 const LEVEL = {view: 0, interact: 1, admin: 2, owner: 3};
 const SESSION_DAYS = 180;
@@ -419,7 +421,8 @@ export function createApp({store, env = {}}) {
     const cc = (opts && Array.isArray(opts.cc) ? opts.cc : []).filter(x => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(x)));
     const r = await (env.fetch || fetch)('https://api.resend.com/emails', {
       method: 'POST', headers: {'content-type': 'application/json', authorization: 'Bearer ' + c.key},
-      body: JSON.stringify(Object.assign({from: c.from, to: [to], subject, text, html: brandMail(htmlBody, base)}, cc.length ? {cc} : {}))
+      body: JSON.stringify(Object.assign({from: c.from, to: [to], subject, text, html: brandMail(htmlBody, base)}, cc.length ? {cc} : {})),
+      signal: (opts && opts.signal) || undefined
     });
     if (!r.ok) { const j = await r.json().catch(() => ({})); throw new HttpError(502, 'mail_failed', (j && j.message) || ('mail ' + r.status)); }
     return true;
@@ -720,7 +723,8 @@ export function createApp({store, env = {}}) {
       const q = String(body.q || '').toLowerCase().trim();
       const blobs = await listAll('p/');
       const all = await Promise.all(blobs.slice(0, 400).map(async b => ({id: b.key.slice(2), name: ((await getJ(b.key).catch(() => null)) || {}).name || ''})));
-      return {hits: all.filter(p => p.name && (!q || p.name.toLowerCase().includes(q))).slice(0, 8)};
+      /* the m360 COO keeps a name (p/u_m360coo) so its lines resolve, but it is nobody to find or mention */
+      return {hits: all.filter(p => p.name && p.id !== 'u_m360coo' && (!q || p.name.toLowerCase().includes(q))).slice(0, 8)};
     },
 
     /* every collection this viewer may read, with its version; a page that sends tags gets deltas instead */
@@ -1171,6 +1175,13 @@ export function createApp({store, env = {}}) {
     await bumpMarker(s.slice(0, -1).join('/'), s[s.length - 1], digest([str])).catch(() => {});
     await log(uid, 'set', path, what || '');
   }
+  /* a live feed the server writes (the COO's coo/now and office/live): the marker moves so open pages see it,
+     with no version kept and no log line */
+  async function writeQuiet(path, doc) {
+    const s = segs(path), str = JSON.stringify(doc);
+    await store.set(docKey(path), str);
+    await bumpMarker(s.slice(0, -1).join('/'), s[s.length - 1], digest([str])).catch(() => {});
+  }
   const holiday = holidayNotice({getJ, docKey, appSettings, ownerUid, sendMail, writeAs, ymdIST, env});
   /* radar actions (news, awards, watch) live in radar.js and share the store helpers */
   Object.assign(actions, radarActions({store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, isObj, stampKey}));
@@ -1197,12 +1208,19 @@ export function createApp({store, env = {}}) {
   const pm = pmDesk({store, getJ, putJ, docKey, listAll, readColl, inventory, ownerUid, appSettings, mailOn: async () => !!(await mailConf()),
     sendMail, ymdIST, env, log, levelOf, LEVEL, HttpError});
   Object.assign(actions, pm.actions);
+  /* the m360 COO: its slots on the heartbeat (or page traffic when a beat is missed), the owner's send and its health */
+  const coo = cooDesk({store, getJ, putJ, docKey, listAll, readColl, inventory, ownerUid, appSettings, writeAs, writeQuiet, sendMail,
+    mailOn: async () => !!(await mailConf()), aiKey, gapi: google.gapi, ymdIST, env, log, levelOf, LEVEL, HttpError, models: AI_MODELS,
+    call: (a, v, body, req) => actions[a](v, body, req), books: books.view, stampKey});
+  Object.assign(actions, coo.actions);
 
   const json = (obj, status = 200, extra = {}) => new Response(JSON.stringify(obj), {
     status, headers: {'content-type': 'application/json', 'cache-control': 'no-store', ...extra}
   });
 
   const handle = async function handle(request) {
+    /* the moment the request came in: the COO's pass starts only in its first seconds */
+    const t0 = Date.now();
     if (request.method !== 'POST') return json({error: {code: 'invalid_argument', message: 'POST only'}}, 405);
     /* JSON only: a cross-site form or text/plain post cannot reach an action */
     if (!/^application\/json\b/i.test(request.headers.get('content-type') || '')) return json({error: {code: 'invalid_argument', message: 'JSON only'}}, 415);
@@ -1230,10 +1248,12 @@ export function createApp({store, env = {}}) {
       await books.run(site).catch(() => {});
       /* the personal managers: email to someone who is away, at most every ten minutes per instance */
       await pm.run(site).catch(() => {});
+      /* the m360 COO: a tick always looks, other requests only when the heartbeat is late; a tick gets the summary */
+      const cooSum = await coo.run(site, {t0, tick: a === 'tick'}).catch(() => null);
       /* once a day per instance, off the request's path: old log days go */
       const today = ymdIST(Date.now());
       if (logPruneDay !== today) { logPruneDay = today; pruneOldLogs(LOG_DAYS).catch(() => {}); }
-      const out = await fn(v, body, {ua: deviceLabel(request.headers.get('user-agent')), site, ip});
+      const out = await fn(v, body, {ua: deviceLabel(request.headers.get('user-agent')), site, ip, coo: cooSum});
       const extra = {};
       if (out && out.__cookie) { extra['set-cookie'] = out.__cookie; delete out.__cookie; }
       return json(out || {}, 200, extra);

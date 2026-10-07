@@ -5,7 +5,9 @@
       retainer's billing day it drafts that month's invoice (one per client per month, the client
       and the period stamped on the draft so no page or instance drafts it twice) and tells the
       owner by mail. When auto-chase is on it sends the reminder steps for overdue invoices, one
-      step a day, marking the invoice before the mail goes out.
+      step a day, marking the invoice before the mail goes out. While the m360 COO is on
+      (settings/app.coo.on, past its practice week), auto-chase sends nothing: the reminders wait as
+      the COO's drafts in books/cooq for the owner's tap.
    The page keeps the same numbers and words (src/js/42-books.js and 43-invoices.js); the defaults
    here are the same defaults, kept short. */
 
@@ -71,6 +73,30 @@ function statusOf(inv, today) {
 }
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
+/* the reminder mail, the same words the page uses */
+function reminder(s, inv, today) {
+  const t = totals(inv);
+  const who = inv.billTo && inv.billTo.contactName ? String(inv.billTo.contactName).split(' ')[0] : 'there';
+  const amt = money(t.balance, inv.currency);
+  const late = inv.due ? daysBetween(inv.due, today) : 0;
+  const subject = 'Reminder: invoice ' + inv.no + ', ' + amt + (late > 0 ? ', ' + late + ' days past due' : '');
+  const bank = ['A/C name: ' + s.bank.holder, 'Bank: ' + s.bank.name + (s.bank.branch ? ', ' + s.bank.branch : ''), 'A/C no: ' + s.bank.account, 'IFSC: ' + s.bank.ifsc].concat(s.bank.iban ? ['IBAN: ' + s.bank.iban] : []).concat(s.bank.swift ? ['SWIFT: ' + s.bank.swift] : []);
+  const p1 = 'A gentle reminder that invoice ' + inv.no + ' for ' + amt + ' was due on ' + fmtDate(inv.due) + (late > 0 ? ' and is ' + late + ' days past due.' : '.');
+  const p2 = 'Could you let us know when it is scheduled for payment? If it has already gone out, please share the reference and we will close it on our side.';
+  const text = ['Hi ' + who + ',', '', p1, p2, '', 'Bank details for the transfer:', ...bank, '', 'Thank you,', s.signatory.who, s.signatory.title, s.company.mail].join('\n');
+  const html = '<p>' + esc('Hi ' + who + ',') + '</p><p>' + esc(p1) + '</p><p>' + esc(p2) + '</p>' +
+    '<p><b>Bank details</b><br>' + bank.map(esc).join('<br>') + '</p>' +
+    '<p>' + esc(s.signatory.who) + '<br><span style="color:#BBBBBB">' + esc(s.signatory.title) + ' · ' + esc(s.company.mail) + '</span></p>';
+  return {subject, text, html};
+}
+/* what the m360 COO (coo.js) reads of the books for its reminder drafts: the settings over the defaults, an
+   invoice's status, and the reminder in these same words */
+export const booksView = {
+  settingsOf: stored => deep(DEFAULTS, stored || {}),
+  statusOf,
+  reminderMail: (stored, inv, today) => reminder(deep(DEFAULTS, stored || {}), inv, today)
+};
+
 /* the model reads mail, attachments and statements for the books; JSON in, JSON out */
 const MODEL = 'claude-sonnet-5';
 const MINE_SYSTEM = 'BOOKS MINE. You read a company\'s mail about one client and pick out the billing details for that client. Reply with JSON only, one object: {"legalName": "", "address": "", "country": "", "taxId": "", "contactName": "", "contactEmail": "", "currency": "", "termsDays": 0, "po": "", "note": ""}. legalName is the registered name that should print on an invoice to them (the payer, not us). address is their billing address, lines separated by newlines. country is the country of that address. taxId is their GSTIN (India, 15 characters) or VAT or TRN number. contactName and contactEmail are the accounts payable person who receives invoices. currency is the ISO code they pay in. termsDays is the payment terms in days when stated. po is the latest purchase order number. Leave a field empty ("" or 0) when the mail does not say; never guess, never invent, never use our own company details. note is one short sentence on what you read and anything unsure.';
@@ -133,23 +159,6 @@ export function booksDesk(h) {
     for (const inv of all) { if (inv.fy !== fy || !String(inv.no || '').startsWith(head)) continue; const n = Number(String(inv.no).slice(head.length)) || 0; if (n > max) max = n; }
     return head + String(max + 1).padStart(3, '0');
   };
-
-  /* the reminder mail, the same words the page uses */
-  function reminder(s, inv, today) {
-    const t = totals(inv);
-    const who = inv.billTo && inv.billTo.contactName ? String(inv.billTo.contactName).split(' ')[0] : 'there';
-    const amt = money(t.balance, inv.currency);
-    const late = inv.due ? daysBetween(inv.due, today) : 0;
-    const subject = 'Reminder: invoice ' + inv.no + ', ' + amt + (late > 0 ? ', ' + late + ' days past due' : '');
-    const bank = ['A/C name: ' + s.bank.holder, 'Bank: ' + s.bank.name + (s.bank.branch ? ', ' + s.bank.branch : ''), 'A/C no: ' + s.bank.account, 'IFSC: ' + s.bank.ifsc].concat(s.bank.iban ? ['IBAN: ' + s.bank.iban] : []).concat(s.bank.swift ? ['SWIFT: ' + s.bank.swift] : []);
-    const p1 = 'A gentle reminder that invoice ' + inv.no + ' for ' + amt + ' was due on ' + fmtDate(inv.due) + (late > 0 ? ' and is ' + late + ' days past due.' : '.');
-    const p2 = 'Could you let us know when it is scheduled for payment? If it has already gone out, please share the reference and we will close it on our side.';
-    const text = ['Hi ' + who + ',', '', p1, p2, '', 'Bank details for the transfer:', ...bank, '', 'Thank you,', s.signatory.who, s.signatory.title, s.company.mail].join('\n');
-    const html = '<p>' + esc('Hi ' + who + ',') + '</p><p>' + esc(p1) + '</p><p>' + esc(p2) + '</p>' +
-      '<p><b>Bank details</b><br>' + bank.map(esc).join('<br>') + '</p>' +
-      '<p>' + esc(s.signatory.who) + '<br><span style="color:#BBBBBB">' + esc(s.signatory.title) + ' · ' + esc(s.company.mail) + '</span></p>';
-    return {subject, text, html};
-  }
 
   const actions = {
     /* the owner's page sends an invoice or a reminder; the server mails it and marks the invoice */
@@ -312,7 +321,14 @@ export function booksDesk(h) {
       const today = ymdIST(Date.now());
       const [s, book] = await Promise.all([settings(), clientBook()]);
       const ids = Object.keys(book).filter(cid => { const r = book[cid] && book[cid].retainer; return r && r.active && num(r.amount) > 0; });
-      const chase = s.chase && s.chase.auto;
+      /* while the m360 COO is on, its drafts carry the reminders and nothing is sent from here. In its practice
+         week, or with its invoice reminders off, it drafts nothing, so the reminders still go as before */
+      const app = (await getJ(docKey('settings/app')).catch(() => null)) || {};
+      const pu = app.coo ? app.coo.practiceUntil : null;
+      const practice = !!pu && (typeof pu === 'number' ? Date.now() < pu : today <= String(pu));
+      const drafts = !(app.coo && app.coo.caps && app.coo.caps.invoiceMail === 'off');
+      const cooOn = !!(app.coo && app.coo.on === true) && !practice && drafts && String((env && env.COO_OFF) || '') !== '1';
+      const chase = s.chase && s.chase.auto && !cooOn;
       if (!ids.length && !chase) return;
       const docs = await invoiceDocs();
       const all = flat(docs);
@@ -384,5 +400,5 @@ export function booksDesk(h) {
     finally { busy = false; }
   }
 
-  return {actions, run};
+  return {actions, run, view: booksView};
 }

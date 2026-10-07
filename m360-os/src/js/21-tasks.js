@@ -131,14 +131,25 @@
      bookkeeping, a shipped task keeping its owner, dates and project unless the founder changes them,
      the 20% mark as a reviewer's call, and every move of the due date or the owner kept in dueLog and
      ownerLog. patch holds the drawer's fields (title, status, owner, due, priority, project, client,
-     section, link, shown20); a field left out stays as it is. Returns {status, prev, msg, locked}, where
-     locked says the founder's fields were asked to change on a shipped task and were kept. */
-  async function saveTask(ctx, id, patch) {
+     section, link, shown20, dueKind); a field left out stays as it is. Returns {status, prev, msg, locked},
+     where locked says the founder's fields were asked to change on a shipped task and were kept.
+     opts {by, why, comment, note}: who made the move (updatedBy and the log entries; the viewer when left
+     out) and why (a code on the log entries: leave, wfh, overload, blocked, pileup, eta, orphan, undo).
+     The m360 COO (by M.coo.UID) writes only the owner and the due date, with their logs, its reason as a
+     comment, and nothing else, under its own name and inside its guard. */
+  const DUE_KINDS = [{v: '', label: 'Read from the client and project'}, {v: 'client', label: 'Client deadline'}, {v: 'internal', label: 'Internal date'}];
+  /* the founder or the task's project owner says whose date the due date is */
+  const canSetDueKind = (ctx, projectId) => !!ctx && (ctx.isFounder || !!(projectId && ctx.coll.projects.map[projectId] && ctx.coll.projects.map[projectId].owner === ctx.uid));
+  const logEntry = (from, to, by, at, why) => why ? {from, to, by, at, why} : {from, to, by, at};
+  async function saveTask(ctx, id, patch, opts) {
     const task = ctx.coll.tasks.map[id];
     if (!task) throw new Error('that task is gone');
-    const uid = ctx.uid;
+    const o = opts || {};
+    /* by names the COO or nobody: a save is the viewer's own otherwise */
+    const uid = M.coo && o.by === M.coo.UID ? o.by : ctx.uid;
     const now = Date.now();
     const p = patch || {};
+    if (M.coo && uid === M.coo.UID) return botSave(ctx, id, task, p, o, now);
     const pick = k => p[k] !== undefined ? p[k] : (task[k] === undefined || task[k] === null ? '' : task[k]);
     const f = {title: String(pick('title')).trim(), status: p.status || task.status || 'todo', owner: pick('owner'), due: pick('due'), priority: pick('priority') || 'normal',
       project: pick('project'), client: pick('client'), section: pick('section'), link: String(pick('link')).trim(), shown20: p.shown20 !== undefined ? !!p.shown20 : !!task.shown20};
@@ -150,13 +161,33 @@
     const kept = locked && (fx.owner !== f.owner || fx.due !== f.due || fx.project !== f.project);
     const shown20 = canSign(ctx, task) ? f.shown20 : !!task.shown20;
     const logs = {};
-    if ((task.due || '') !== (fx.due || '')) logs.dueLog = (Array.isArray(task.dueLog) ? task.dueLog : []).slice(-9).concat([{from: task.due || '', to: fx.due || '', by: uid, at: now}]);
-    if ((task.owner || '') !== (fx.owner || '')) logs.ownerLog = (Array.isArray(task.ownerLog) ? task.ownerLog : []).slice(-9).concat([{from: task.owner || '', to: fx.owner || '', by: uid, at: now}]);
+    if ((task.due || '') !== (fx.due || '')) logs.dueLog = (Array.isArray(task.dueLog) ? task.dueLog : []).slice(-9).concat([logEntry(task.due || '', fx.due || '', uid, now, o.why)]);
+    if ((task.owner || '') !== (fx.owner || '')) logs.ownerLog = (Array.isArray(task.ownerLog) ? task.ownerLog : []).slice(-9).concat([logEntry(task.owner || '', fx.owner || '', uid, now, o.why)]);
+    const kind = p.dueKind !== undefined && canSetDueKind(ctx, fx.project || task.project) && ['', 'client', 'internal'].indexOf(p.dueKind) >= 0 ? {dueKind: p.dueKind} : {};
     await ctx.W.update('tasks/' + id, {
-      title: f.title, ...fx, priority: f.priority, link: f.link, shown20, ...logs, ...sp.patch, status: sp.status, updated: now
+      title: f.title, ...fx, priority: f.priority, link: f.link, shown20, ...kind, ...logs, ...sp.patch, status: sp.status, updated: now, updatedBy: uid
     });
     if (sp.patch.approvedBy) await sign(ctx, id);
     return {status: sp.status, prev, msg: sp.msg, locked: kept};
+  }
+  /* the COO's own move: the owner and the due date only, the logs with its reason, a comment saying why */
+  async function botSave(ctx, id, task, p, o, now) {
+    const bot = M.coo.UID;
+    /* the bot's hand is the founder's own page (its runner), never a member's or a preview */
+    if (!ctx.isFounder || ctx.viewAs) throw new Error('only the founder\'s page moves work as the COO');
+    const out = {updatedBy: bot, updated: now};
+    if (p.owner !== undefined && (task.owner || '') !== (p.owner || '')) {
+      out.owner = p.owner || '';
+      out.ownerLog = (Array.isArray(task.ownerLog) ? task.ownerLog : []).slice(-9).concat([logEntry(task.owner || '', out.owner, bot, now, o.why || 'move')]);
+    }
+    if (p.due !== undefined && (task.due || '') !== (p.due || '')) {
+      out.due = p.due || '';
+      out.dueLog = (Array.isArray(task.dueLog) ? task.dueLog : []).slice(-9).concat([logEntry(task.due || '', out.due, bot, now, o.why || 'move')]);
+    }
+    if (o.comment) out.comments = {[U.uid()]: {by: bot, t: String(o.comment).slice(0, 600), at: now}};
+    M.coo.guard('tasks/' + id, out, {...task, id}, ctx);
+    await ctx.W.as('coo', {note: o.note || 'coo ' + (o.why || 'move') + ' ' + id}).update('tasks/' + id, out);
+    return {status: task.status || 'todo', prev: task.status || 'todo', msg: 'Moved', locked: false};
   }
 
   /* @mentions: names in a comment become ids the inbox can use */
@@ -247,7 +278,8 @@
       section: task ? (task.section || '') : (d.section || ''),
       client: task ? (task.client || '') : (d.client || ''),
       link: task ? (task.link || '') : '',
-      shown20: task ? !!task.shown20 : false
+      shown20: task ? !!task.shown20 : false,
+      dueKind: task ? (task.dueKind || '') : ''
     });
     const [f, setF] = useState(init);
     const [localSubs, setLocalSubs] = useState({});
@@ -344,6 +376,7 @@
           const st = gate(ctx, draft, f.status);
           await W.set('tasks/' + id, {
             title, owner: f.owner, client: f.client, project: f.project, section: f.section, due: f.due,
+            ...(f.dueKind && canSetDueKind(ctx, f.project) ? {dueKind: f.dueKind} : {}),
             status: st, priority: f.priority, link: f.link.trim(), revisions: 0, shown20: !!f.shown20,
             subtasks: localSubs, comments: {}, by: uid, created: now, updated: now,
             doneAt: st === 'done' ? now : null, ...(st === 'done' && canSign(ctx, draft) ? {approvedBy: uid, approvedAt: now} : {}), ...(st === 'review' ? {reviewAt: now} : {})
@@ -403,6 +436,10 @@
         <${UI.Select} id="task-section" label="section" value=${f.section} onChange=${set('section')} options=${secOpts}/>
         <${UI.Select} id="task-client" label="client" value=${f.client} onChange=${set('client')} options=${clientOpts}/>
       </div>
+      ${canSetDueKind(ctx, f.project) ? html`<div>
+        <${UI.Select} id="task-duekind" label="whose date" value=${f.dueKind} onChange=${set('dueKind')} options=${DUE_KINDS}/>
+        <div class="sub tiny" style=${{marginTop: '4px'}}>A client deadline never moves without Kaavish. The COO only moves internal dates.</div>
+      </div>` : null}
       <${UI.Input} id="task-link" label="link to the output" value=${f.link} onChange=${set('link')} placeholder="https://"/>
       <${UI.Check} label="Rough direction shown at the 20% check" checked=${f.shown20} onChange=${set('shown20')}/>
       <div class="row between small">
@@ -566,5 +603,5 @@
 
   M.pages.Tasks = Tasks;
   M.parts.TaskDrawer = TaskDrawer;
-  M.tasks = {isOverdue, progress, open, STATUSES, PRIORITIES, dueLabel, revNote, moveTask, statusPatch, gate, canSign, counted, signoffOn, statusOpts, binTask, sign, commit, signedBy, SIGNOFF_SINCE, save: saveTask};
+  M.tasks = {isOverdue, progress, open, STATUSES, PRIORITIES, dueLabel, revNote, moveTask, statusPatch, gate, canSign, counted, signoffOn, statusOpts, binTask, sign, commit, signedBy, SIGNOFF_SINCE, save: saveTask, canSetDueKind, DUE_KINDS};
 })();

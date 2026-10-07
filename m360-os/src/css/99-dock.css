@@ -68,6 +68,14 @@ body:has(.breathe, .dayrate, .pal-scrim) .buddy-dock{display:none}
   overflow:hidden; font-size:14px; line-height:1.45; transform-origin:bottom right; pointer-events:auto}
 .dock-beside-drawer .buddy-bubble.agent-pop{right:calc(min(480px, 100%) + 16px); width:min(400px, calc(100vw - min(480px, 100vw) - 32px))}
 /* asked for while a drawer is open, the pop-up comes over it and its scrim */
+/* notices sit above the pop-up in the stack, so while it is open they move beside it on a desk and never
+   cover its Close; on a phone the sheet covers the whole window and rises above them instead (a drawer's
+   rule below still wins, so the sheet stays over a drawer) */
+@media (min-width:861px){
+  body:has(.buddy-bubble.agent-pop) .notices{right:calc(24px + min(400px, calc(100vw - 48px)) + 12px)}
+  .dock-beside-drawer body:has(.buddy-bubble.agent-pop) .notices{right:calc(min(480px, 100%) + 16px + min(400px, calc(100vw - 48px)) + 12px)}
+}
+@media (max-width:860px){ body:has(.buddy-bubble.agent-pop) .buddy-bubble.agent-pop{z-index:62} }
 body:has(.drawer) .buddy-bubble.agent-pop{z-index:62}
 .buddy-bubble.agent-pop.folded{min-height:0; max-height:none}
 .buddy-bubble.agent-pop.folded .agent-panel > :not(.panel-head):not(.panel-unfold){display:none}

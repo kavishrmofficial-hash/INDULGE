@@ -23,8 +23,28 @@
       perDay: 4, mgrPerDay: 6, quietMax: 2, askPerDay: 3, minHours: 0, coachDays: 10, blockerMins: 120, mail: true
     },
     /* voice and chat commands: how far one ask reaches and what needs a tap */
-    agent: {on: true, bulkMax: 12, perSenderDay: 40, spokenYes: true, pressConfirmed: true}
+    agent: {on: true, bulkMax: 12, perSenderDay: 40, spokenYes: true, pressConfirmed: true},
+    /* the m360 COO (M.coo): off until the founder switches it on. caps hold the rung for each capability
+       (alone, tell, draft, propose, off); the policy numbers the founder has not set stay null, and a null
+       fails closed (a card asks for the number). A nested object: readers deep-merge it through M.coo.cfg.
+       The bot's display name is title, never name. edgeone/server/coo.js keeps COO_DEFAULTS equal to this */
+    coo: {
+      on: false, title: 'm360 COO', pausedUntil: null, practiceUntil: null, version: 1, signedAt: null, signedBy: null,
+      caps: {roll: 'alone', nudge: 'alone', leave: 'tell', wfh: 'tell', cover: 'tell', rebalance: 'tell', shift: 'tell', orphans: 'tell', reviews: 'alone', projects: 'tell',
+        clientMail: 'draft', meetingMail: 'draft', invoiceMail: 'draft', clientDates: 'propose', memo: 'alone', reviewPrep: 'draft', structure: 'propose'},
+      limits: {actsPerDay: 120, tellPerDay: 25, movesPerDay: 8, movesPerPersonDay: 3, movesPerTaskWeek: 1, shiftsPerDay: 12, leaveApprovalsPerDay: 6, asksPerDay: 30,
+        asksPerPersonDay: 2, draftsPerDay: 10, draftsPerClientWeek: 1, aiPerDay: 40, foundMailsPerDay: 2},
+      leave: {yearStart: '04-01', perType: {casual: 12, sick: 12, other: null}, maxAutoDays: 2, noticeDays: {casual: 3, sick: 0, other: 7}, probationLop: false,
+        maxOutPerDay: 2, maxOutPerPod: 1, blackout: []},
+      wfh: {minOffice: 0},
+      load: {maxOpen: 12, maxOverdue: 3, margin: 1.5},
+      stuck: {lead: 14, qualified: 14, diagnostic: 10, proposal: 7, negotiation: 10},
+      digest: {mail: 'away'}, memoDay: 'sat', off: {}
+    }
   };
+  /* the day v33 shipped: a 'swap' leave request before it keeps its old meaning (a day off, so past payroll
+     stands); from it on, an approved swap is a WFH day */
+  M.COO_SINCE = '2026-10-05';
 
   /* view as: the founder previews the app as one member. Held in memory only, never persisted. */
   let viewAsUid = null;
@@ -111,7 +131,8 @@
       const allowed = p => !viewAs && (p === 'me/' + uid || p === 'join/' + uid);
       const refuse = () => { M.toast(msg, true); return Promise.reject({code: 'locked', message: msg}); };
       const wrap = fn => (p, d) => allowed(p) ? fn(p, d) : refuse();
-      return {set: wrap(baseW.set), update: wrap(baseW.update), merge: wrap(baseW.merge), del: wrap(baseW.del)};
+      const as = (who, o) => { const b = baseW.as(who, o); return {set: wrap(b.set), update: wrap(b.update), merge: wrap(b.merge)}; };
+      return {set: wrap(baseW.set), update: wrap(baseW.update), merge: wrap(baseW.merge), del: wrap(baseW.del), as};
     }, [baseW, locked, isFounder, uid, viewAs]);
 
     /* profile photos ride in me/<uid>.photo; avatars everywhere read M.photos */
@@ -141,6 +162,16 @@
     const now = M.useNow();
     const online = M.usePresence(room, realUid);
 
+    /* the COO (M.coo): office/live for everyone; coo/now, the decisions, today's and yesterday's ledger and
+       its state for the founder only. IST days, as the COO keeps them; the collection is never subscribed whole */
+    const cooDays = [0, 1].map(n => new Date(now + 330 * 60000 - n * 86400000).toISOString().slice(0, 10));
+    const cooLive = M.useDoc(db, 'office/live');
+    const cooNow = M.useDoc(db, isFounder ? 'coo/now' : null);
+    const cooDec = M.useDoc(db, isFounder ? 'coo/dec' : null);
+    const cooL0 = M.useDoc(db, isFounder ? 'coo/L-' + cooDays[0] : null);
+    const cooL1 = M.useDoc(db, isFounder ? 'coo/L-' + cooDays[1] : null);
+    const cooState = M.useDoc(db, isFounder ? 'coo/state' : null);
+
     const ctx = React.useMemo(() => {
       const roster = rosterDoc.data || null;
       const members = (roster && roster.members) || {};
@@ -163,24 +194,37 @@
         .map(k => ({uid: k, ...members[k]}))
         .sort((a, b) => String(a.empId || '').localeCompare(String(b.empId || '')));
 
-      /* approved leave dates per person */
-      const leaveMap = {};
+      /* approved leave dates per person, and approved WFH days booked ahead. The dates come from the
+         decision's snap when it has one (what was approved, whatever the request says now); a 'wfh' request
+         is never leave, and a 'swap' is leave only before M.COO_SINCE, a WFH day from it on */
+      const leaveMap = {}, wfhMap = {};
       for (const lu of Object.keys(coll.leave.map)) {
         const reqs = (coll.leave.map[lu] || {}).reqs || [];
         const dec = (coll.leavedec.map[lu] || {}).d || {};
-        const set = new Set();
+        const set = new Set(), wfh = new Set();
         for (const r of reqs) {
-          if (!r || !r.from || !r.to) continue;
-          if ((dec[r.id] || {}).status !== 'approved') continue;
-          let d = U.parseYmd(r.from);
-          const end = U.parseYmd(r.to);
+          if (!r || !r.id) continue;
+          const dd = dec[r.id] || {};
+          if (dd.status !== 'approved') continue;
+          const sn = dd.snap && dd.snap.from && dd.snap.to ? dd.snap : r;
+          const type = sn.type || r.type;
+          if (!sn.from || !sn.to) continue;
+          let d = U.parseYmd(sn.from);
+          const end = U.parseYmd(sn.to);
           let guard = 0;
-          while (d <= end && guard++ < 370) { set.add(U.ymd(d)); d = U.addDays(d, 1); }
+          while (d <= end && guard++ < 370) {
+            const day = U.ymd(d);
+            if (type === 'wfh' || (type === 'swap' && day >= M.COO_SINCE)) wfh.add(day); else set.add(day);
+            d = U.addDays(d, 1);
+          }
         }
         leaveMap[lu] = set;
+        if (wfh.size) wfhMap[lu] = wfh;
       }
+      /* a check-in day marked leave counts only when the founder's fix set it (fixedBy): a person cannot mark
+         their own day as leave */
       const onLeave = (u, date) => !!((leaveMap[u] && leaveMap[u].has(date)) ||
-        (coll.checkin && ((((coll.checkin.map[u] || {}).days || {})[date] || {}).mode === 'leave')));
+        (coll.checkin && (d => d.mode === 'leave' && !!d.fixedBy)((((coll.checkin.map[u] || {}).days || {})[date] || {}))));
       const isWorkingDay = (date, u) => {
         const d = U.parseYmd(date);
         if (d.getDay() === 0) return false;
@@ -196,13 +240,18 @@
       /* private detail (locations, exact times, late marks, scores, leave) shows to the founder and the person only */
       const canSee = u => isFounder || u === uid || !!(M.lines && M.lines.managerFrom(members, founderUid, u) === uid);
 
-      return {db, user, mcp, downloads, permissions, sample, room, me, uid, realUid, viewAs, W,
+      /* the COO's documents: the team-safe office feed for everyone, the rest for the founder alone */
+      const coo = {live: cooLive.data || null, ready: cooLive.ready};
+      if (isFounder) Object.assign(coo, {now: cooNow.data, dec: cooDec.data, state: cooState.data, L: {[cooDays[0]]: cooL0.data, [cooDays[1]]: cooL1.data},
+        ready: cooNow.ready && cooDec.ready && cooL0.ready && cooState.ready});
+
+      return {db, user, mcp, downloads, permissions, sample, room, me, uid, realUid, viewAs, W, coo, wfhMap,
         priv: {state: privState, keeper: isFounder ? privKeeper : {ready: true, data: null}, finance: isFounder ? privFinance : {ready: true, data: null}},
         ready: rosterDoc.ready && settingsDoc.ready,
         roster, members, member, activeMembers, isFounder, isOwner: !viewAs && !!me.isOwner, founderUid, locked, remoteBase, baseOn,
         settings, holidays, coll, leaveMap, onLeave, isWorkingDay, startFor, canSee, now, online};
     }, [rosterDoc, settingsDoc, me, uid, realUid, viewAs, isFounder, locked, W, now, online, coll.join,
-      privState, privKeeper, privFinance, ...COLLS.map(c => coll[c]), ...BOOK_COLLS.map(c => coll[c])]);
+      privState, privKeeper, privFinance, cooLive, cooNow, cooDec, cooL0, cooL1, cooState, ...COLLS.map(c => coll[c]), ...BOOK_COLLS.map(c => coll[c])]);
 
     /* rules engine output, computed once per context (the context changes with every snapshot and each minute) */
     const flags = React.useMemo(() => (M.rules && M.rules.evaluate) ? M.rules.evaluate(ctx, new Date()) : [], [ctx]);

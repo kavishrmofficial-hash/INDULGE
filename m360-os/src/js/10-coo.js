@@ -1,0 +1,2575 @@
+/* module: coo. The m360 COO: a bot colleague that runs Mask360's operating rhythm for Kaavish, inside a
+   written mandate he sets and can read in plain words (settings/app.coo, read through cfg).
+
+   Five rungs per capability: alone (does it and logs it), tell (does it, tells Kaavish why and offers
+   undo), draft (writes it; one tap sends it), propose (carries the exact change; Kaavish applies it as
+   himself) and off. A fixed NEVER list sits above every rung (guard): money, scores and sign-offs, anything
+   removed, the roster and settings, letters, declining leave, client dates, private data, and anything
+   outward without his tap. Kaavish may set any rung. The COO only ever lowers its own (the breakers), and
+   the ceilings in CEIL hold whatever the settings say.
+
+   The day runs in named IST slots, each claimed once (slotsDue). On the team site the server heartbeat runs
+   them (edgeone/server/coo.js) with no page open; on the claude.ai artifact the Runner below runs them
+   inside Kaavish's own visible page, and only there. Both builds plan with the same pure planner (the
+   block marked PLANNER, which coo.js carries line for line), so a decision is the same wherever it is made.
+
+   Everything it does lands first in the ledger (coo/L-<ymd>): the facts, the checks, the before and after,
+   the exact words it told people, and an undo window. Rows carry codes, uids and numbers; the words come
+   from copy() when someone reads them, so what a member sees is decided per viewer. During the practice
+   week every act is planned and logged as 'would', and nothing changes. */
+'use strict';
+(function () {
+  const {U, React} = M;
+  const UID = 'u_m360coo';
+  const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
+  const IST_MS = 330 * MIN;
+
+  /* the rungs, lowest first; the capabilities; the ceilings no setting can raise */
+  const RUNGS = ['off', 'propose', 'draft', 'tell', 'alone'];
+  const CAPS = ['roll', 'nudge', 'leave', 'wfh', 'cover', 'rebalance', 'shift', 'orphans', 'reviews', 'projects',
+    'clientMail', 'meetingMail', 'invoiceMail', 'clientDates', 'memo', 'reviewPrep', 'structure'];
+  const CEIL = Object.freeze({clientMail: 'draft', meetingMail: 'draft', invoiceMail: 'draft', clientDates: 'propose', structure: 'propose'});
+  const rungAt = r => Math.max(0, RUNGS.indexOf(r));
+  const lowerOf = (a, b) => RUNGS[Math.min(rungAt(a), rungAt(b))];
+  /* escalate when unsure: one rung down, never below a card Kaavish can apply */
+  const escalate = r => r === 'off' || r === 'propose' ? r : RUNGS[rungAt(r) - 1];
+
+  /* the places in the office, and the station each job works at (the office and the copy read these) */
+  const STATIONS = ['attendance', 'calendar', 'board', 'review', 'desk', 'meeting', 'clients', 'mail', 'tray', 'books', 'reception', 'clock'];
+  const JOBS = {
+    J01: {station: 'clock', cap: null, label: 'Open the day'},
+    J02: {station: 'desk', cap: 'memo', label: 'Morning brief'},
+    J03: {station: 'attendance', cap: 'roll', label: 'Roll call'},
+    J04: {station: 'desk', cap: 'roll', label: 'EOD sweep'},
+    J05: {station: 'meeting', cap: 'memo', label: 'Close the day'},
+    J06: {station: 'meeting', cap: 'memo', label: 'Weekly memo'},
+    J07: {station: 'mail', cap: 'memo', label: 'Away mail'},
+    J10: {station: 'calendar', cap: 'leave', label: 'Leave within policy'},
+    J11: {station: 'calendar', cap: 'wfh', label: 'WFH within policy'},
+    J12: {station: 'calendar', cap: 'cover', label: 'Cover plan'},
+    J13: {station: 'tray', cap: 'leave', label: 'Leave waiting'},
+    J14: {station: 'mail', cap: 'nudge', label: 'Said off, not filed'},
+    J15: {station: 'mail', cap: 'nudge', label: 'Monday outcomes'},
+    J16: {station: 'review', cap: 'reviews', label: 'Review ageing'},
+    J17: {station: 'mail', cap: 'nudge', label: 'Blocked routing'},
+    J18: {station: 'meeting', cap: 'reviewPrep', label: 'Friday review prep'},
+    J19: {station: 'mail', cap: 'nudge', label: 'Care note'},
+    J20: {station: 'reception', cap: 'structure', label: 'Structure proposals'},
+    J30: {station: 'board', cap: null, label: 'Load snapshot'},
+    J31: {station: 'board', cap: 'rebalance', label: 'Rebalance'},
+    J32: {station: 'board', cap: 'orphans', label: 'Orphans'},
+    J33: {station: 'board', cap: 'shift', label: 'Blocked shift'},
+    J34: {station: 'board', cap: 'nudge', label: 'Overdue ETA'},
+    J35: {station: 'calendar', cap: 'shift', label: 'Pile-ups and impossible dates'},
+    J36: {station: 'desk', cap: 'clientDates', label: 'Client date at risk'},
+    J37: {station: 'calendar', cap: 'nudge', label: 'Due tomorrow'},
+    J38: {station: 'board', cap: 'projects', label: 'Project health'},
+    J40: {station: 'clients', cap: 'nudge', label: 'Pitch asks'},
+    J41: {station: 'desk', cap: 'clientMail', label: 'Client follow-ups'},
+    J42: {station: 'desk', cap: 'meetingMail', label: 'Meeting nudges'},
+    J43: {station: 'books', cap: 'invoiceMail', label: 'Invoice reminders'},
+    J50: {station: 'clock', cap: null, label: 'Live feed'},
+    J51: {station: 'meeting', cap: null, label: 'Self audit'}
+  };
+
+  /* ================= PLANNER =================
+     Pure functions over a plain state (stateOf builds it on the page; coo.js builds the same shape from the
+     store). edgeone/server/coo.js keeps this block line for line, and test_coo_parity.py holds the two to
+     the same answers. No M, no ctx, no page clock in here: every time is IST from the state or an argument.
+
+     state: {now, today, cfg (the deep-merged settings.coo), rungs {cap: rung}, founder, members (the
+       roster), holidays [ymd], settings {start, grace, eodCut, wfhCap}, tasks {id: task}, projects, pitches,
+       clients, leave {uid: reqs[]}, leavedec {uid: {reqId: decision}}, checkin {uid: {ymd: day}},
+       holds {subject: untilMs}, seen {leave: {'uid:reqId': snap}}, acts [today's ledger rows],
+       slots {holidays, rollAt [HH:MM], eodCut, memoDay}} */
+  const SINCE = '2026-10-05';   /* M.COO_SINCE: a 'swap' before it is leave, from it on a WFH day */
+  const YMD = /^\d{4}-\d{2}-\d{2}$/;
+  const pad2 = n => String(n).padStart(2, '0');
+  const ymdOf = ms => new Date(ms + IST_MS).toISOString().slice(0, 10);
+  const dayStart = ymd => Date.parse(ymd + 'T00:00:00Z') - IST_MS;
+  const minsOf = ms => { const d = new Date(ms + IST_MS); return d.getUTCHours() * 60 + d.getUTCMinutes(); };
+  const hmOf = ms => { const d = new Date(ms + IST_MS); return pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()); };
+  const toMins = s => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(s || '').trim()); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
+  const hhmmOf = mins => pad2(Math.floor(mins / 60)) + pad2(mins % 60);
+  const dowOf = ymd => new Date(ymd + 'T00:00:00Z').getUTCDay();
+  const addDays = (ymd, n) => new Date(Date.parse(ymd + 'T00:00:00Z') + n * DAY).toISOString().slice(0, 10);
+  const daysBetween = (a, b) => Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / DAY);
+  const isoWeekOf = ms => {
+    const x = new Date(ymdOf(ms) + 'T00:00:00Z');
+    x.setUTCDate(x.getUTCDate() - ((x.getUTCDay() + 6) % 7) + 3);
+    const fy = x.getUTCFullYear(), f = new Date(Date.UTC(fy, 0, 4));
+    return fy + '-W' + pad2(1 + Math.round(((x - f) / DAY - 3 + ((f.getUTCDay() + 6) % 7)) / 7));
+  };
+  const DOW = {sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6};
+  const numOr = (v, d) => v === null || v === undefined || v === '' || !isFinite(Number(v)) ? d : Number(v);
+  const isSet = v => v !== null && v !== undefined && v !== '' && isFinite(Number(v));
+
+  /* derived maps, worked out once per state object */
+  const memo = new WeakMap();
+  const memoOf = state => { let m = memo.get(state); if (!m) { m = {}; memo.set(state, m); } return m; };
+  /* after an act changes the state in place (an approval, a move), the derived maps start again */
+  const forget = state => { memo.delete(state); };
+
+  const holiSet = state => { const m = memoOf(state); return m.holi || (m.holi = new Set(state.holidays || [])); };
+  const isWork = (state, ymd) => dowOf(ymd) !== 0 && !holiSet(state).has(ymd);
+  const active = (state, u) => !!u && !!(state.members || {})[u] && state.members[u].active !== false;
+  const activeIds = state => Object.keys(state.members || {}).filter(u => active(state, u)).sort();
+  const WEIGHT = {low: 1, normal: 2, high: 3};
+  const weightOf = t => WEIGHT[t && t.priority] || 2;
+  const openTask = t => !!t && !t.deleted && (t.status === 'todo' || t.status === 'doing' || !t.status);
+  const tasksList = state => Object.keys(state.tasks || {}).sort().map(id => ({...state.tasks[id], id})).filter(t => !t.deleted);
+  const held = (state, key) => Number((state.holds || {})[key] || 0) > state.now;
+
+  /* who uid reports to: the page's managerFrom (07-lines.js), line for line */
+  function managerFrom(members, founderUid, uid) {
+    const m = members[uid];
+    if (!m) return null;
+    if (m.reportsTo && m.reportsTo !== uid && members[m.reportsTo] && members[m.reportsTo].active !== false) return m.reportsTo;
+    if (m.role === 'founder' || uid === founderUid) return null;
+    if (m.pod) {
+      const lead = Object.keys(members).find(k => k !== uid && members[k].active !== false && members[k].role === 'lead' && members[k].pod === m.pod);
+      if (lead) return lead;
+    }
+    return founderUid && founderUid !== uid ? founderUid : null;
+  }
+
+  /* approved days per person, from the decision's snap when it has one: leave, and WFH days booked ahead
+     (a 'wfh' request, or a 'swap' from SINCE on). The same reading as ctx.leaveMap and ctx.wfhMap */
+  function daysOff(state) {
+    const m = memoOf(state);
+    if (m.off) return m.off;
+    const leave = {}, wfh = {};
+    for (const u of Object.keys(state.leave || {})) {
+      const dec = (state.leavedec || {})[u] || {};
+      for (const r of state.leave[u] || []) {
+        if (!r || !r.id) continue;
+        const d = dec[r.id];
+        if (!d || d.status !== 'approved') continue;
+        const s = d.snap && d.snap.from && d.snap.to ? d.snap : r;
+        const type = s.type || r.type;
+        let day = s.from;
+        for (let i = 0; i < 370 && YMD.test(day || '') && day <= s.to; i++) {
+          const into = type === 'wfh' || (type === 'swap' && day >= SINCE) ? wfh : leave;
+          (into[u] = into[u] || {})[day] = true;
+          day = addDays(day, 1);
+        }
+      }
+    }
+    m.off = {leave, wfh};
+    return m.off;
+  }
+  const isOut = (state, u, ymd) => !!((daysOff(state).leave[u] || {})[ymd]);
+  const plannedWfh = (state, u, ymd) => !!((daysOff(state).wfh[u] || {})[ymd]);
+  const nextWork = (state, ymd, u) => {
+    let d = ymd;
+    for (let i = 0; i < 40; i++) { d = addDays(d, 1); if (isWork(state, d) && !(u && isOut(state, u, d))) return d; }
+    return addDays(ymd, 1);
+  };
+  const workDaysIn = (state, from, to) => {
+    const out = [];
+    if (!YMD.test(from || '') || !YMD.test(to || '') || to < from) return out;
+    let d = from;
+    for (let i = 0; i < 370 && d <= to; i++) { if (isWork(state, d)) out.push(d); d = addDays(d, 1); }
+    return out;
+  };
+  /* the nth working day after ymd */
+  const nthWork = (state, ymd, n) => { let d = ymd; for (let i = 0; i < n; i++) d = nextWork(state, d); return d; };
+  const decided = (state, u, id) => { const d = ((state.leavedec || {})[u] || {})[id]; return !!d && (d.status === 'approved' || d.status === 'declined'); };
+  const countsAsLeave = (type, ymd) => type !== 'wfh' && !(type === 'swap' && ymd >= SINCE);
+  /* a request nobody has decided that covers the day and was asked before `before` */
+  const pendingOn = (state, u, ymd, before) => ((state.leave || {})[u] || []).some(r => r && r.id && !decided(state, u, r.id)
+    && YMD.test(r.from || '') && YMD.test(r.to || '') && r.from <= ymd && r.to >= ymd && countsAsLeave(r.type, ymd) && (Number(r.at) || 0) < before);
+
+  /* the client-dated rule (B4): the COO never moves these */
+  function clientDated(state, t) {
+    if (!t) return false;
+    if (t.dueKind === 'client') return true;
+    if (t.dueKind === 'internal') return false;
+    if (t.client) return true;
+    const p = t.project ? (state.projects || {})[t.project] : null;
+    if (p && p.kind === 'client') return true;
+    return !!(p && p.due && t.due && t.due === p.due);
+  }
+
+  /* days of this leave type left in the leave year that holds today; null while the policy is not set */
+  function balance(state, uid, type, yearStart) {
+    const per = (((state.cfg || {}).leave || {}).perType || {})[type];
+    if (!isSet(per)) return null;
+    const ys = /^\d{2}-\d{2}$/.test(String(yearStart || '')) ? yearStart : '04-01';
+    const y = Number(state.today.slice(0, 4));
+    const from = state.today >= y + '-' + ys ? y + '-' + ys : (y - 1) + '-' + ys;
+    const to = addDays((Number(from.slice(0, 4)) + 1) + from.slice(4), -1);
+    const dec = (state.leavedec || {})[uid] || {};
+    let used = 0;
+    for (const r of (state.leave || {})[uid] || []) {
+      const d = r && r.id ? dec[r.id] : null;
+      if (!d || d.status !== 'approved') continue;
+      const s = d.snap && d.snap.from && d.snap.to ? d.snap : r;
+      if ((s.type || r.type) !== type) continue;
+      used += workDaysIn(state, s.from > from ? s.from : from, s.to < to ? s.to : to).length;
+    }
+    return Number(per) - used;
+  }
+
+  /* every check on one leave or WFH request, each with its value and limit. A missing policy number fails
+     closed and names itself in missing. near marks a check within 10 percent of its limit (unsure: the item
+     drops a rung). The COO never declines: a failed check makes a card for Kaavish */
+  function leaveCheck(state, uid, req, nowMs) {
+    const now = nowMs || state.now;
+    const today = ymdOf(now);
+    const c = (state.cfg || {}).leave || {};
+    const type = req.type || 'casual';
+    const checks = [], missing = [];
+    const add = (k, ok, val, limit, near) => checks.push({k, ok: !!ok, val: val === undefined ? null : val, limit: limit === undefined ? null : limit, near: !!(ok && near)});
+    const datesOk = YMD.test(req.from || '') && YMD.test(req.to || '') && req.to >= req.from;
+    add('dates', datesOk, datesOk ? req.from + ' ' + req.to : '', 'from before to');
+    const days = datesOk ? workDaysIn(state, req.from, req.to) : [];
+    const m = (state.members || {})[uid] || {};
+    const seen = ((state.seen || {}).leave || {})[uid + ':' + req.id];
+    const same = !seen || (seen.from === req.from && seen.to === req.to && seen.type === req.type);
+    if (type === 'wfh') return wfhCheck(state, uid, req, today, days, checks, add, same);
+
+    const known = type === 'casual' || type === 'sick' || type === 'other';
+    add('type', known, type, 'casual, sick or other');
+    const per = known ? (c.perType || {})[type] : null;
+    if (known && !isSet(per)) missing.push(type + ' leave days');
+    add('policy', known && isSet(per), isSet(per) ? Number(per) : null, 'set');
+    const maxDays = numOr(c.maxAutoDays, null);
+    if (maxDays === null) missing.push('the most days I approve alone');
+    add('days', days.length > 0 && maxDays !== null && days.length <= maxDays, days.length, maxDays);
+    const bal = known ? balance(state, uid, type, c.yearStart) : null;
+    add('balance', bal !== null && bal >= days.length, bal, days.length, bal !== null && (bal - days.length) < 0.1 * Number(per));
+    const prob = YMD.test(m.probationEnd || '') && datesOk && m.probationEnd > req.from;
+    add('probation', !prob || (type === 'sick' && c.probationLop === true), prob ? m.probationEnd : '', 'none');
+    const need = type === 'sick' ? 0 : numOr((c.noticeDays || {})[type], null);
+    if (need === null) missing.push('the notice for ' + type + ' leave');
+    const notice = datesOk ? daysBetween(today, req.from) : -1;
+    add('notice', need !== null && notice >= need, notice, need);
+    /* people out on each day: approved, plus requests asked before this one */
+    const at = Number(req.at) || now;
+    const maxOut = numOr(c.maxOutPerDay, null), maxPod = numOr(c.maxOutPerPod, null);
+    if (maxOut === null) missing.push('how many people can be out a day');
+    let worst = 0, podWorst = 0;
+    for (const d of days) {
+      let n = 0, p = 0;
+      for (const u of activeIds(state)) {
+        if (u === uid || !(isOut(state, u, d) || pendingOn(state, u, d, at))) continue;
+        n++;
+        if (m.pod && state.members[u].pod === m.pod) p++;
+      }
+      worst = Math.max(worst, n); podWorst = Math.max(podWorst, p);
+    }
+    add('out', maxOut !== null && worst < maxOut, worst, maxOut, maxOut !== null && worst >= 0.9 * maxOut);
+    if (m.pod && maxPod === null) missing.push('how many of a pod can be out a day');
+    if (m.pod) add('pod', maxPod !== null && podWorst < maxPod, podWorst, maxPod);
+    const black = (Array.isArray(c.blackout) ? c.blackout : []).find(b => {
+      const bf = typeof b === 'string' ? b : (b && b.from) || '', bt = typeof b === 'string' ? b : (b && b.to) || bf;
+      return datesOk && YMD.test(bf) && bf <= req.to && bt >= req.from;
+    });
+    add('blackout', !black, black ? (typeof black === 'string' ? black : black.from) : '', 'none');
+    /* no client date of theirs inside the leave: an open client-dated task, or a client project they own */
+    let client = 0;
+    if (datesOk) {
+      for (const t of tasksList(state)) if (t.owner === uid && openTask(t) && t.due && t.due >= req.from && t.due <= req.to && clientDated(state, t)) client++;
+      for (const pid of Object.keys(state.projects || {})) {
+        const p = state.projects[pid];
+        if (p && p.owner === uid && p.kind === 'client' && !p.archived && p.status !== 'done' && p.due && p.due >= req.from && p.due <= req.to) client++;
+      }
+    }
+    add('client', client === 0, client, 0);
+    const mgr = managerFrom(state.members || {}, state.founder, uid);
+    const mgrOut = !!mgr && days.length > 0 && days.every(d => isOut(state, mgr, d));
+    add('manager', !mgrOut, mgrOut ? mgr : '', 'in');
+    add('unchanged', same, same ? '' : 'changed', 'as seen');
+    return {kind: 'leave', ok: checks.every(x => x.ok), near: checks.some(x => x.near), days: days.length, checks, missing,
+      left: bal === null ? null : bal - days.length, out: worst, mgr: mgr || null, probation: prob};
+  }
+
+  /* a WFH day booked ahead: inside the person's weekly allowance (WFH check-ins plus approved planned days),
+     not on leave, booked for today or later, and enough people left in the office when minOffice is set */
+  function wfhCheck(state, uid, req, today, days, checks, add, same) {
+    const m = (state.members || {})[uid] || {};
+    const cap = m.wfhCap != null && String(m.wfhCap) !== '' && Number(m.wfhCap) >= 0 ? Math.floor(Number(m.wfhCap)) : numOr((state.settings || {}).wfhCap, 0);
+    add('ahead', days.length > 0 && req.from >= today, req.from || '', today);
+    let worstWeek = 0;
+    const weeks = {};
+    for (const d of days) { const mon = addDays(d, -((dowOf(d) + 6) % 7)); (weeks[mon] = weeks[mon] || []).push(d); }
+    for (const mon of Object.keys(weeks)) {
+      const used = new Set();
+      for (let i = 0; i < 6; i++) {
+        const d = addDays(mon, i);
+        const ci = ((state.checkin || {})[uid] || {})[d];
+        if ((ci && ci.mode === 'wfh') || plannedWfh(state, uid, d)) used.add(d);
+      }
+      for (const d of weeks[mon]) used.add(d);
+      worstWeek = Math.max(worstWeek, used.size);
+    }
+    add('cap', worstWeek <= cap, worstWeek, cap);
+    add('leave', !days.some(d => isOut(state, uid, d)), days.filter(d => isOut(state, uid, d)).length, 0);
+    const minOffice = numOr(((state.cfg || {}).wfh || {}).minOffice, 0);
+    if (minOffice > 0) {
+      let fewest = Infinity;
+      for (const d of days) {
+        const inOffice = activeIds(state).filter(u => u !== uid && u !== state.founder && !isOut(state, u, d) && !plannedWfh(state, u, d)).length;
+        fewest = Math.min(fewest, inOffice);
+      }
+      add('office', fewest >= minOffice, fewest === Infinity ? null : fewest, minOffice);
+    }
+    add('unchanged', same, same ? '' : 'changed', 'as seen');
+    return {kind: 'wfh', ok: checks.every(x => x.ok), near: false, days: days.length, checks, missing: [], nth: worstWeek, cap};
+  }
+
+  /* who reviews a task in review: its project's owner when that is someone else, else the founder */
+  const reviewerOf = (state, t) => {
+    const p = t.project ? (state.projects || {})[t.project] : null;
+    return p && p.owner && p.owner !== t.owner && active(state, p.owner) ? p.owner : state.founder;
+  };
+
+  /* the load snapshot (J30): score = priority weights of open todo and doing work, plus 2 per overdue task,
+     plus 1 per task due within 3 working days. Review items count on the reviewer. cap is maxOpen scaled
+     to the working days left this week, net of the person's leave */
+  function load(state, ymd) {
+    const day = ymd || state.today;
+    const out = {};
+    for (const u of activeIds(state)) out[u] = {score: 0, open: 0, over: 0, soon: 0, review: 0, cap: 0};
+    const soonEnd = nthWork(state, day, 3);
+    for (const t of tasksList(state)) {
+      if (openTask(t) && out[t.owner]) {
+        const o = out[t.owner];
+        o.open++; o.score += weightOf(t);
+        if (t.due && t.due < day) { o.over++; o.score += 2; } else if (t.due && t.due <= soonEnd) { o.soon++; o.score += 1; }
+      } else if (t.status === 'review') {
+        const rv = reviewerOf(state, t);
+        if (out[rv]) { out[rv].review++; out[rv].score += 1; }
+      }
+    }
+    const maxOpen = numOr(((state.cfg || {}).load || {}).maxOpen, 12);
+    const mon = addDays(day, -((dowOf(day) + 6) % 7));
+    for (const u of Object.keys(out)) {
+      let left = 0;
+      for (let i = 0; i < 6; i++) { const d = addDays(mon, i); if (d >= day && isWork(state, d) && !isOut(state, u, d)) left++; }
+      out[u].cap = Math.round(maxOpen * left / 6);
+    }
+    return out;
+  }
+  const median = (state, ld) => {
+    const xs = Object.keys(ld || {}).filter(u => u !== state.founder).map(u => ld[u].score).sort((a, b) => a - b);
+    if (!xs.length) return 0;
+    const h = Math.floor(xs.length / 2);
+    return xs.length % 2 ? xs[h] : (xs[h - 1] + xs[h]) / 2;
+  };
+  const overLine = (state, ld) => { const L = (state.cfg || {}).load || {}; return Math.max(median(state, ld) * numOr(L.margin, 1.5), numOr(L.maxOpen, 12)); };
+
+  /* who could take a task: its project's people first, then the owner's pod; under the team median or with no
+     open work at all (in a mostly idle team the median is 0, and an empty desk must still count), not out in
+     the next 3 working days, not on a 7 day hold, never the founder. Least loaded first */
+  function shortlist(state, task, ld, ymd) {
+    const day = ymd || state.today;
+    const owner = task && task.owner;
+    const p = task && task.project ? (state.projects || {})[task.project] : null;
+    const pod = owner && (state.members || {})[owner] ? state.members[owner].pod : '';
+    const med = median(state, ld);
+    const next3 = [day].concat([1, 2].map(n => nthWork(state, day, n))).filter(d => isWork(state, d));
+    const ok = u => u !== owner && u !== state.founder && active(state, u) && !!ld[u] && (ld[u].score < med || ld[u].score === 0)
+      && !next3.some(d => isOut(state, u, d)) && !held(state, 'uid:' + u);
+    const order = list => list.filter((u, i) => list.indexOf(u) === i).filter(ok).sort((a, b) => ld[a].score - ld[b].score || (a < b ? -1 : 1));
+    const fromProject = p ? order([p.owner].concat(Array.isArray(p.members) ? p.members : []).filter(Boolean)) : [];
+    const fromPod = pod ? order(activeIds(state).filter(u => state.members[u].pod === pod)) : [];
+    return fromProject.concat(fromPod.filter(u => fromProject.indexOf(u) < 0));
+  }
+
+  /* may the COO move this task at all: open, internal, nobody moved it by hand in 7 days, inside the
+     once-a-week limit per task, not on hold */
+  function movable(state, t) {
+    if (!openTask(t)) return {ok: false, why: 'status'};
+    if (clientDated(state, t)) return {ok: false, why: 'client'};
+    const since = state.now - 7 * DAY;
+    const logs = (Array.isArray(t.ownerLog) ? t.ownerLog : []).concat(Array.isArray(t.dueLog) ? t.dueLog : []).filter(e => e && Number(e.at) > since);
+    if (logs.some(e => e.by && e.by !== 'u_m360coo')) return {ok: false, why: 'person'};
+    if (logs.filter(e => e.by === 'u_m360coo').length >= numOr(((state.cfg || {}).limits || {}).movesPerTaskWeek, 1)) return {ok: false, why: 'week'};
+    if (held(state, 'task:' + t.id)) return {ok: false, why: 'hold'};
+    return {ok: true, why: ''};
+  }
+
+  /* what today's acts have used of the day's limits (done, would and running rows all count) */
+  function used(state) {
+    const out = {acts: 0, tell: 0, move: 0, shift: 0, leave: 0, ask: 0, draft: 0, per: {}, asked: {}};
+    for (const r of state.acts || []) {
+      if (!r || (r.status !== 'done' && r.status !== 'would' && r.status !== 'running')) continue;
+      out.acts++;
+      if (r.rung === 'tell') out.tell++;
+      if (out[r.kind] !== undefined) out[r.kind]++;
+      const refs = r.refs || {};
+      if (r.kind === 'move') for (const u of [refs.uid, refs.to]) if (u) out.per[u] = (out.per[u] || 0) + 1;
+      if (r.kind === 'ask' && refs.uid) out.asked[refs.uid] = (out.asked[refs.uid] || 0) + 1;
+    }
+    return out;
+  }
+  const limitOf = (state, k, d) => numOr((((state.cfg || {}).limits) || {})[k], d);
+
+  /* moves for one person's approved leave (J12): their open todo and doing work due inside the leave or one
+     working day after it. Each internal task goes to the first shortlist pick, else its date rolls to the
+     first working day after they are back. Client-dated work only goes to Kaavish (propose). Loads and caps
+     are worked out again after every pick */
+  function planCover(state, uid, req) {
+    const d = ((state.leavedec || {})[uid] || {})[req.id];
+    const s = d && d.snap && d.snap.from && d.snap.to ? d.snap : req;
+    const out = {moves: [], propose: [], skip: []};
+    if (!YMD.test(s.from || '') || !YMD.test(s.to || '')) return out;
+    const back = nextWork(state, s.to, uid);
+    const ld = load(state);
+    const u0 = used(state);
+    let moves = limitOf(state, 'movesPerDay', 8) - u0.move, shifts = limitOf(state, 'shiftsPerDay', 12) - u0.shift;
+    const per = {...u0.per}, perMax = limitOf(state, 'movesPerPersonDay', 3);
+    const list = tasksList(state).filter(t => t.owner === uid && openTask(t) && t.due && t.due >= s.from && t.due <= back)
+      .sort((a, b) => (a.due < b.due ? -1 : a.due > b.due ? 1 : a.id < b.id ? -1 : 1));
+    for (const t of list) {
+      if (clientDated(state, t)) { out.propose.push({task: t.id, uid, due: t.due, why: 'client'}); continue; }
+      const mv = movable(state, t);
+      if (!mv.ok) { out.skip.push({task: t.id, why: mv.why}); continue; }
+      const pick = (per[uid] || 0) < perMax && moves > 0 ? shortlist(state, t, ld, state.today).find(u => (per[u] || 0) < perMax) : null;
+      if (pick) {
+        out.moves.push({task: t.id, kind: 'owner', from: uid, to: pick, due: t.due, newDue: t.due, why: 'leave'});
+        const w = weightOf(t);
+        ld[pick].score += w; ld[pick].open++;
+        if (ld[uid]) { ld[uid].score -= w; ld[uid].open--; }
+        per[pick] = (per[pick] || 0) + 1; per[uid] = (per[uid] || 0) + 1; moves--;
+      } else if (t.due < back && shifts > 0) {
+        out.moves.push({task: t.id, kind: 'due', from: uid, to: uid, due: t.due, newDue: back, why: 'leave'});
+        shifts--;
+      } else out.skip.push({task: t.id, why: moves <= 0 && shifts <= 0 ? 'cap' : 'nobody'});
+    }
+    return out;
+  }
+
+  /* rebalance (J31): someone over max(team median x margin, maxOpen) on this snapshot and the one before
+     gives away their lowest-priority internal todo work (and doing work untouched for 24 hours) until they
+     are back under the line. An overdue task moves with its date set to the receiver's next working day,
+     so the receiver takes no penalty */
+  function planRebalance(state, ld, prev, ymd) {
+    const day = ymd || state.today;
+    const out = {moves: [], over: []};
+    if (!ld || !prev) return out;
+    const line = overLine(state, ld), line0 = overLine(state, prev);
+    out.over = Object.keys(ld).filter(u => u !== state.founder && ld[u].score > line && prev[u] && prev[u].score > line0)
+      .sort((a, b) => ld[b].score - ld[a].score || (a < b ? -1 : 1));
+    const work = JSON.parse(JSON.stringify(ld));
+    const u0 = used(state);
+    let moves = limitOf(state, 'movesPerDay', 8) - u0.move;
+    const per = {...u0.per}, perMax = limitOf(state, 'movesPerPersonDay', 3);
+    for (const u of out.over) {
+      const list = tasksList(state).filter(t => t.owner === u && (t.status === 'todo' || !t.status || (t.status === 'doing' && (Number(t.updated) || 0) < state.now - DAY)))
+        .filter(t => movable(state, t).ok)
+        .sort((a, b) => weightOf(a) - weightOf(b) || ((b.due || '') < (a.due || '') ? -1 : (b.due || '') > (a.due || '') ? 1 : 0) || (a.id < b.id ? -1 : 1));
+      for (const t of list) {
+        if (work[u].score <= line || moves <= 0 || (per[u] || 0) >= perMax) break;
+        const pick = shortlist(state, t, work, day).find(x => (per[x] || 0) < perMax);
+        if (!pick) continue;
+        const overdue = !!t.due && t.due < day;
+        const newDue = overdue ? nextWork(state, day, pick) : (t.due || '');
+        const w = weightOf(t) + (overdue ? 2 : 0) + (!overdue && t.due && t.due <= nthWork(state, day, 3) ? 1 : 0);
+        out.moves.push({task: t.id, kind: 'owner', from: u, to: pick, due: t.due || '', newDue, why: 'overload',
+          open: ld[u].open, over: ld[u].over, open2: ld[pick].open});
+        work[u].score -= w; work[u].open--; work[pick].open++;
+        work[pick].score += weightOf(t) + (newDue && newDue <= nthWork(state, day, 3) ? 1 : 0);
+        per[u] = (per[u] || 0) + 1; per[pick] = (per[pick] || 0) + 1; moves--;
+      }
+    }
+    return out;
+  }
+
+  /* the idempotency key for one act: the same kind, target and period always give the same key */
+  function actKey(kind, target, period) {
+    const s = String(kind) + '|' + String(target) + '|' + String(period);
+    let h = 0x811c9dc5;
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    return String(kind).replace(/[^A-Za-z0-9]/g, '').slice(0, 12) + '-' + h.toString(36);
+  }
+
+  /* the house rules on any line a model wrote (and every template, in the tests): no dashes, no exclamation
+     marks, no contrast constructions. {ok, why} */
+  function lint(text) {
+    const s = String(text == null ? '' : text);
+    const why = !s.trim() ? 'empty'
+      : /[\u2013\u2014]/.test(s) || /\s-{1,2}\s/.test(s) ? 'a dash'
+      : /!/.test(s) ? 'an exclamation mark'
+      : /\brather\s+than\b/i.test(s) ? 'rather than'
+      : /\binstead\s+of\b/i.test(s) ? 'instead of'
+      : /\bnot\s+[^,.;:]{1,40},\s*but\b/i.test(s) ? 'not X, but' : '';
+    return {ok: !why, why};
+  }
+
+  /* the named IST slots of a day (C1). at and late in minutes; late is lateMax, the last minute a slot may
+     still start. all: runs on Sundays and holidays too (health only); w: the watch family, where only the
+     latest due one runs */
+  const NAMED = [
+    {id: 'open', at: 540, late: 180, all: true}, {id: 'brief', at: 585, late: 180},
+    {id: 'r10', at: 600, late: 120}, {id: 'r11', at: 660, late: 120}, {id: 'r12', at: 720, late: 120}, {id: 'm1230', at: 750, late: 90},
+    {id: 'r15', at: 900, late: 120}, {id: 'r16', at: 960, late: 120}, {id: 'r1730', at: 1050, late: 120},
+    {id: 'close', at: 1260, late: 179, all: true}
+  ];
+  function slotList(c) {
+    const s = (c && c.slots) || c || {};
+    const out = NAMED.slice();
+    const rolls = Array.from(new Set((Array.isArray(s.rollAt) && s.rollAt.length ? s.rollAt : ['10:45']).map(toMins).filter(x => x !== null))).sort((a, b) => a - b);
+    for (const t of rolls) { out.push({id: 'roll' + hhmmOf(t), at: t, late: 120}); out.push({id: 'roll' + hhmmOf(t) + 'b', at: t + 60, late: 120}); }
+    const eod = toMins(s.eodCut);
+    out.push({id: 'eod', at: eod === null ? 1170 : eod, late: 120});
+    out.push({id: 'memo', at: 720, late: 360, dow: DOW[String(s.memoDay || 'sat').slice(0, 3).toLowerCase()]});
+    for (let t = 540; t <= 1260; t += 15) out.push({id: 'w' + hhmmOf(t), at: t, late: 14, w: true});
+    return out.sort((a, b) => a.at - b.at || (a.id < b.id ? -1 : 1));
+  }
+  /* which slots are due at nowMs. done: the slots already claimed or settled today (a Set, a list or a map).
+     {ymd, work, run [{id, at}], skip [{id, at, why}], next {slot, at}} */
+  function slotsDue(c, nowMs, done) {
+    const s = (c && c.slots) || c || {};
+    const ymd = ymdOf(nowMs), mins = minsOf(nowMs);
+    const work = dowOf(ymd) !== 0 && (s.holidays || []).indexOf(ymd) < 0;
+    const has = id => !!done && (done instanceof Set ? done.has(id) : Array.isArray(done) ? done.indexOf(id) >= 0 : !!done[id]);
+    const run = [], skip = [];
+    let next = null, w = null;
+    for (const x of slotList(s)) {
+      if (!work && !x.all) continue;
+      if (x.dow !== undefined && dowOf(ymd) !== x.dow) continue;
+      const at = dayStart(ymd) + x.at * MIN;
+      if (mins < x.at) { if (!next) next = {slot: x.id, at}; continue; }
+      if (has(x.id)) continue;
+      if (x.w) { if (mins < x.at + x.late) w = {id: x.id, at}; continue; }
+      if (mins <= x.at + x.late) run.push({id: x.id, at}); else skip.push({id: x.id, at, why: 'late'});
+    }
+    if (w) run.push(w);
+    run.sort((a, b) => a.at - b.at || (a.id < b.id ? -1 : 1));
+    return {ymd, work, run, skip, next};
+  }
+  /* ================= end PLANNER ================= */
+
+  /* ---------- the mandate as it stands ---------- */
+  const isCoo = u => u === UID;
+  const deep = (a, b) => {
+    const o = {...(a || {})};
+    for (const k of Object.keys(b || {})) {
+      const v = b[k];
+      o[k] = v && typeof v === 'object' && !Array.isArray(v) && o[k] && typeof o[k] === 'object' && !Array.isArray(o[k]) ? deep(o[k], v) : v;
+    }
+    return o;
+  };
+  const cfgMemo = new WeakMap();
+  const NONE = {};
+  /* settings.coo over the defaults, deep-merged: a stored number replaces its default, and anything not
+     stored keeps it */
+  function cfg(ctx) {
+    const raw = (ctx && ctx.settings && ctx.settings.coo && typeof ctx.settings.coo === 'object') ? ctx.settings.coo : NONE;
+    if (cfgMemo.has(raw)) return cfgMemo.get(raw);
+    const out = deep((M.SETTINGS_DEFAULTS || {}).coo || {}, raw);
+    cfgMemo.set(raw, out);
+    return out;
+  }
+  const title = ctx => String(cfg(ctx).title || 'm360 COO').slice(0, 40);
+  const on = ctx => cfg(ctx).on === true;
+  const cooState = ctx => (ctx && ctx.coo && ctx.coo.state) || {};
+  /* the rung a capability runs at now: the founder's setting, under its ceiling, under any breaker */
+  function rung(ctx, cap) {
+    const c = cfg(ctx);
+    let r = RUNGS.indexOf((c.caps || {})[cap]) >= 0 ? c.caps[cap] : 'off';
+    if (CEIL[cap]) r = lowerOf(r, CEIL[cap]);
+    const b = (cooState(ctx).breakers || {})[cap];
+    if (b && b.rung) r = lowerOf(r, b.rung);
+    return r;
+  }
+  /* the practice week: practiceUntil is its last day (YYYY-MM-DD) */
+  const practicing = (c, now) => !!c.practiceUntil && (typeof c.practiceUntil === 'number' ? now < c.practiceUntil : ymdOf(now) <= String(c.practiceUntil));
+  /* off, stuck (a refused write stopped it), paused, practice or on */
+  function status(ctx, nowMs) {
+    const now = nowMs || Date.now();
+    const c = cfg(ctx);
+    if (!c.on) return 'off';
+    if (cooState(ctx).stuck) return 'stuck';
+    if (Number(c.pausedUntil) > now) return 'paused';
+    return practicing(c, now) ? 'practice' : 'on';
+  }
+  /* six working days ahead, the first time Kaavish switches it on */
+  function practiceDefault(ctx, nowMs) {
+    const hol = new Set((ctx && ctx.settings && ctx.settings.holidays) || []);
+    let d = ymdOf(nowMs || Date.now()), n = 0;
+    for (let i = 0; i < 30 && n < 6; i++) { d = addDays(d, 1); if (dowOf(d) !== 0 && !hol.has(d)) n++; }
+    return d;
+  }
+
+  /* ---------- the planner's state, from the page ---------- */
+  const mapOf = (ctx, n) => ((ctx && ctx.coll && ctx.coll[n]) || {}).map || {};
+  function stateOf(ctx, nowMs) {
+    const now = nowMs || Date.now();
+    const today = ymdOf(now);
+    const s = (ctx && ctx.settings) || {};
+    const members = (ctx && ctx.members) || {};
+    const leave = {}, leavedec = {}, checkin = {};
+    for (const u of Object.keys(mapOf(ctx, 'leave'))) leave[u] = (mapOf(ctx, 'leave')[u] || {}).reqs || [];
+    for (const u of Object.keys(mapOf(ctx, 'leavedec'))) leavedec[u] = U.clone((mapOf(ctx, 'leavedec')[u] || {}).d || {});
+    for (const u of Object.keys(mapOf(ctx, 'checkin'))) checkin[u] = (mapOf(ctx, 'checkin')[u] || {}).days || {};
+    const cs = cooState(ctx);
+    const L = ((ctx && ctx.coo && ctx.coo.L) || {})[today];
+    const rungs = {};
+    for (const k of CAPS) rungs[k] = rung(ctx, k);
+    const grace = Number(s.grace) || 0;
+    /* the roll call runs at each distinct start plus grace on the roster */
+    const rollAt = Array.from(new Set(Object.keys(members).filter(u => members[u].active !== false && u !== (ctx && ctx.founderUid))
+      .map(u => { const m = toMins(members[u].start || s.start || '10:30'); return m === null ? null : hmOf(dayStart('2026-01-01') + (m + grace) * MIN); })
+      .filter(Boolean))).sort();
+    return {
+      now, today, cfg: cfg(ctx), rungs, founder: (ctx && ctx.founderUid) || null, members,
+      holidays: (s.holidays || []).slice(),
+      settings: {start: s.start || '10:30', grace, eodCut: s.eodCut || '19:30', wfhCap: s.wfhCap, mondayCut: s.mondayCut || '12:00'},
+      tasks: mapOf(ctx, 'tasks'), projects: mapOf(ctx, 'projects'), pitches: mapOf(ctx, 'pitches'), clients: mapOf(ctx, 'clients'),
+      leave, leavedec, checkin, holds: {...(cs.holds || {})}, seen: U.clone(cs.seen || {}),
+      acts: Object.keys((L && L.acts) || {}).map(id => ({...L.acts[id], id})),
+      slots: {holidays: (s.holidays || []).slice(), rollAt: rollAt.length ? rollAt : ['10:45'], eodCut: s.eodCut || '19:30', memoDay: cfg(ctx).memoDay || 'sat'}
+    };
+  }
+
+  /* ---------- names ---------- */
+  const fresh = ctx => M.lastCtx && ctx && M.lastCtx.uid === ctx.uid && !M.lastCtx.viewAs === !ctx.viewAs ? M.lastCtx : ctx;
+  const nameOf = (ctx, u) => !u ? 'Someone' : isCoo(u) ? title(ctx) : (M.pm && M.pm.first ? M.pm.first(ctx, u) : 'Someone');
+  /* the first names the copy needs, learned once per run (M.pm.first reads them) */
+  async function learnNames(ctx) {
+    try {
+      const ids = Object.keys((ctx && ctx.members) || {});
+      if (!ids.length || !ctx.user || typeof ctx.user.profiles !== 'function' || !M.pm || !M.pm.learn) return;
+      M.pm.learn(await ctx.user.profiles(ids));
+    } catch (e) { /* names fall back to the roster */ }
+  }
+
+  /* ---------- the copy: one source for DMs, cards, the digest and the office bubbles ----------
+     founder scope: the full line about the act. team scope: one generic line per station, with no names,
+     numbers, reasons, money or clients. dm scope: the words the person receives. Every line passes lint() */
+  const TEAM = {
+    attendance: 'Doing the morning roll call.', board: 'Tidying the task board.', calendar: 'Checking the calendar.',
+    desk: 'Writing at its desk.', review: 'Walking work to a reviewer.', mail: 'Sorting the mail.', meeting: 'In the meeting room.',
+    reception: 'At reception.', tray: 'In the cabin.', books: 'In the cabin.', clients: 'At the client wall.', clock: 'Checking the clock.',
+    night: 'Off for the night. Back at 09:00.'
+  };
+  const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
+  const capFirst = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+  const dayTxt = ymd => YMD.test(ymd || '') ? U.fmtDay(ymd) : '';
+  const rangeTxt = (a, b) => !YMD.test(a || '') ? '' : (!b || b === a ? dayTxt(a) : dayTxt(a) + ' to ' + dayTxt(b));
+  /* "15:00", "15:00 tomorrow" or "Thu 9 Oct" */
+  const untilTxt = (ms, now) => {
+    if (!ms) return '';
+    const d = ymdOf(ms), t = ymdOf(now || Date.now());
+    return d === t ? hmOf(ms) : d === addDays(t, 1) ? hmOf(ms) + ' tomorrow' : dayTxt(d);
+  };
+  const TYPE_TXT = {casual: 'casual', sick: 'sick', other: '', swap: 'WFH swap'};
+  const STATUS_TXT = {risk: 'at risk', off: 'off track'};
+  const waits = n => n ? plural(n, 'thing waits', 'things wait') + ' for you.' : 'Nothing waits for you.';
+  const outTxt = n => n === 0 ? 'nobody else out' : plural(n, 'other person', 'other people') + ' out';
+  const nthTxt = n => (['', 'The first', 'The second', 'The third', 'The fourth', 'The fifth', 'The sixth'][n] || 'Number ' + n);
+
+  /* the values a line uses, read from the ids at the moment of reading */
+  function fill(ctx, a) {
+    const x = a || {};
+    const t = x.task ? (mapOf(ctx, 'tasks')[x.task] || ((((ctx && ctx.coll && ctx.coll.tasks) || {}).trash) || {})[x.task] || null) : null;
+    const p = x.project ? mapOf(ctx, 'projects')[x.project] : null;
+    const cl = x.client ? mapOf(ctx, 'clients')[x.client] : null;
+    const pi = x.pitch ? mapOf(ctx, 'pitches')[x.pitch] : null;
+    return {...x,
+      name: x.uid ? nameOf(ctx, x.uid) : '', name2: x.to ? nameOf(ctx, x.to) : '',
+      title: t ? String(t.title || 'a task') : 'a task',
+      proj: p ? String(p.name || 'the project') : 'the project', cl: cl ? String(cl.name || 'the client') : (pi ? String(pi.brand || 'the client') : 'the client'),
+      pitchTxt: pi ? String(pi.brand || 'the pitch') : 'the pitch',
+      when: rangeTxt(x.d1, x.d2), dueTxt: dayTxt(x.due), due0Txt: dayTxt(x.due0), dayT: dayTxt(x.day),
+      untilT: untilTxt(x.until, Date.now()), atTxt: x.at ? hmOf(x.at) : '', typeTxt: TYPE_TXT[x.type] !== undefined ? TYPE_TXT[x.type] : String(x.type || ''),
+      statusTxt: STATUS_TXT[x.status] || String(x.status || '')};
+  }
+  const COPY = {
+    open: {f: () => 'Morning. The office is open.'},
+    open_rest: {f: () => 'A day off for the team. I only checked my health.'},
+    brief: {f: x => 'Morning. ' + x.leave + ' on leave, ' + x.wfh + ' WFH. Roll call at ' + x.roll + ' and rebalance at 3. ' + waits(x.wait)},
+    caught: {f: x => 'I caught up at ' + x.atTxt + '. ' + plural(x.n, 'round', 'rounds') + ' ran late because m360 was closed.'},
+    roll: {f: x => 'Roll call. ' + x.n + ' in, ' + x.wfh + ' WFH, ' + x.leave + ' on leave' + (x.notIn === 1 ? ', ' + x.name + ' not in yet' : x.notIn ? ', ' + x.notIn + ' not in yet' : '') + '.'},
+    eod: {f: x => x.n + ' of ' + x.of + ' EOD lines in.'},
+    close: {f: x => 'Day closed. ' + x.eod + ' of ' + x.of + ' EOD lines in. ' + (x.moves ? 'I made ' + plural(x.moves, 'move', 'moves') + ', still undoable till ' + x.untilT + '. ' : '') + waits(x.wait)},
+    memo: {f: x => 'The memo for ' + String(x.week || 'the week').replace('-W', ' week ') + ' is ready.'},
+    leave_ok: {f: x => 'I approved ' + x.name + "'s " + (x.typeTxt ? x.typeTxt + ' ' : '') + 'leave on ' + x.when + '. ' + plural(x.left, 'day', 'days') + ' left, ' + outTxt(x.out) + ', no client dates. Undo until ' + x.untilT + '.',
+      dm: x => 'Your leave for ' + x.when + ' is approved.'},
+    leave_card: {f: x => x.name + ' asked for leave on ' + x.when + '. It needs you.'},
+    leave_wait: {f: x => x.name + "'s leave from " + x.when + ' is still waiting on you. Pending leave holds every nudge for ' + x.name + ' that day.'},
+    wfh_ok: {f: x => 'Approved ' + x.name + "'s WFH on " + x.when + '. ' + nthTxt(x.nth) + ' this week.', dm: x => 'Your WFH day on ' + x.when + ' is approved.'},
+    wfh_card: {f: x => x.name + ' asked to work from home on ' + x.when + '. It needs you.'},
+    cover_move: {f: x => x.name + ' is away ' + x.when + '. I moved ' + x.title + ' to ' + x.name2 + '. Internal. Undo for 24 hours.',
+      dm: x => 'I handed you ' + x.title + (x.newDue ? ', due ' + dayTxt(x.newDue) : '') + '. ' + x.name + ' is out ' + x.when + '. Kaavish can undo this until ' + x.untilT + '.'},
+    cover_away: {f: x => 'Told ' + x.name + ' about ' + x.title + '.', dm: x => 'I handed ' + x.title + ' to ' + x.name2 + ' while you are away. Kaavish can undo this until ' + x.untilT + '.'},
+    cover_shift: {f: x => x.name + ' is away ' + x.when + '. I moved ' + x.title + ' to ' + x.dueTxt + '. Undo for 24 hours.',
+      dm: x => 'I moved ' + x.title + ' to ' + x.dueTxt + ', after your time away. Kaavish can undo this until ' + x.untilT + '.'},
+    cover_client: {f: x => capFirst(x.title) + ' is a client date and ' + x.name + ' is away ' + x.when + '. It needs you.'},
+    said_off: {f: x => 'Asked ' + x.name + ' to file the leave they mentioned.', dm: () => 'You said you are off today. File the leave so the bots stay quiet.'},
+    outcomes: {f: x => 'Asked ' + x.name + " for this week's outcomes.", dm: x => 'Your outcomes for this week are empty.' + (x.list ? ' From your open work: ' + x.list + '.' : '') + ' Save up to three on Home.'},
+    outcomes_mgr: {f: x => 'Told ' + x.name2 + ' that ' + x.name + ' has no outcomes yet.', dm: x => x.name + ' has no outcomes for this week yet.'},
+    review_ask: {f: x => 'Asked ' + x.name2 + ' to review ' + x.title + '. It has waited since ' + x.dayT + '.',
+      dm: x => capFirst(x.title) + ' has waited for your review since ' + x.dayT + '. ' + x.name + ' is waiting on it.'},
+    review_late: {f: x => capFirst(x.title) + ' has waited for review since ' + x.dayT + '. It needs you.'},
+    blocked_ask: {f: x => 'Asked ' + x.name2 + ' to unblock ' + x.name + ' on ' + x.title + '.', dm: x => x.name + ' is blocked on ' + x.title + '. Can you unblock it?'},
+    blocked_late: {f: x => x.name + ' has been blocked on ' + x.title + ' since ' + x.atTxt + '. It needs you.'},
+    review_prep: {f: x => 'Friday review prep is ready for ' + plural(x.n, 'person', 'people') + '.'},
+    care: {f: x => 'Sent a care note to ' + x.name + '.', dm: () => 'You have had three long days in a row. Take the evening if you can.'},
+    setup_leave: {f: x => 'Set ' + (x.typeTxt ? x.typeTxt + ' ' : '') + 'leave days in Admin, COO. Until then every leave request waits for you.'},
+    setup_policy: {f: x => 'Set ' + (x.what || 'the leave policy') + ' in Admin, COO. Until then leave waits for you.'},
+    setup_holidays: {f: x => 'No holidays are set for ' + x.year + '. Add them so nobody is chased on a day off.'},
+    setup_lines: {f: x => plural(x.n, 'person has', 'people have') + ' no reporting line and fall back to you.'},
+    setup_pm: {f: () => 'Personal managers are off. Switch them on so people hear from their own manager first.'},
+    setup_join: {f: x => plural(x.n, 'join request is', 'join requests are') + ' waiting.'},
+    load: {f: x => 'Load snapshot. ' + (x.n ? plural(x.n, 'person is', 'people are') + ' over the line.' : 'Nobody is over the line.')},
+    rebalance: {f: x => 'Moved ' + x.title + ' from ' + x.name + ' to ' + x.name2 + '. ' + x.name + ' has ' + x.open + ' open, ' + x.over + ' overdue. ' + x.name2 + ' has ' + x.open2 + '. Undo for 24 hours.',
+      dm: x => 'I handed you ' + x.title + (x.newDue ? ', due ' + dayTxt(x.newDue) : '') + '. Kaavish can undo this until ' + x.untilT + '.'},
+    handed_away: {f: x => 'Told ' + x.name + ' about ' + x.title + '.', dm: x => 'I moved ' + x.title + ' to ' + x.name2 + '. Kaavish can undo this until ' + x.untilT + '.'},
+    orphan: {f: x => 'Gave ' + x.title + ' to ' + x.name2 + '. ' + (x.left ? 'Its owner left.' : 'It had no owner.') + ' Undo for 24 hours.',
+      dm: x => 'I handed you ' + x.title + (x.newDue ? ', due ' + dayTxt(x.newDue) : '') + '. Kaavish can undo this until ' + x.untilT + '.'},
+    shift_blocked: {f: x => capFirst(x.title) + ' is blocked, so I moved it to ' + x.dueTxt + '. Undo for 24 hours.',
+      dm: x => 'You are blocked on ' + x.title + ', so I moved it to ' + x.dueTxt + '. Kaavish can undo this until ' + x.untilT + '.'},
+    eta_ask: {f: x => 'Asked ' + x.name + ' for a date on ' + x.title + '.', dm: x => capFirst(x.title) + ' was due ' + x.due0Txt + '. When will it be in?'},
+    eta_shift: {f: x => x.name + ' said ' + x.dueTxt + ' for ' + x.title + ', so I set it. Undo for 24 hours.'},
+    pileup: {f: x => x.name + ' had ' + x.n + ' tasks due ' + x.dayT + '. I moved ' + x.title + ' to ' + x.dueTxt + '. Undo for 24 hours.',
+      dm: x => 'You had ' + x.n + ' tasks due ' + x.dayT + ', so I moved ' + x.title + ' to ' + x.dueTxt + '. Kaavish can undo this until ' + x.untilT + '.'},
+    offday: {f: x => capFirst(x.title) + ' was due on a day ' + x.name + ' is off, so I moved it to ' + x.dueTxt + '. Undo for 24 hours.',
+      dm: x => capFirst(x.title) + ' was due on a day you are off, so I moved it to ' + x.dueTxt + '. Kaavish can undo this until ' + x.untilT + '.'},
+    pileup_client: {f: x => capFirst(x.title) + ' is a client date on a day ' + x.name + ' is off. It needs you.'},
+    client_risk: {f: x => capFirst(x.title) + ' is due ' + x.dueTxt + ' and ' + x.name + ' is ' + (x.state || 'stretched') + '. It needs you.'},
+    due_tomorrow: {f: x => 'Reminded ' + x.name + " of tomorrow's work.", dm: x => 'Due tomorrow: ' + (x.list || 'your open work') + '.'},
+    project_risk: {f: x => 'Raised ' + x.proj + ' to ' + x.statusTxt + '. ' + x.pct + ' percent done with ' + x.elapsed + ' percent of the time gone' + (x.over ? ', ' + x.over + ' overdue' : '') + '.',
+      dm: x => 'I raised ' + x.proj + ' to ' + x.statusTxt + '. ' + x.pct + ' percent done with ' + x.elapsed + ' percent of the time gone.'},
+    pitch_ask: {f: x => 'Asked ' + x.name + ' about the next step on ' + x.pitchTxt + '.', dm: x => capFirst(x.pitchTxt) + ' needs a next step. What is it, and when?'},
+    pitch_late: {f: x => capFirst(x.pitchTxt) + ' has waited ' + plural(x.n, 'working day', 'working days') + ' for a next step. It needs you.'},
+    client_mail: {f: x => 'Drafted a follow-up to ' + x.cl + '. It waits for your tap.'},
+    meeting_mail: {f: x => 'Drafted a confirm note for ' + (x.what || "tomorrow's meeting") + '. It waits for your tap.'},
+    invoice: {f: x => 'Drafted a reminder for ' + (x.no || 'an invoice') + '. It sends when you tap.'},
+    audit: {f: x => x.n ? 'Self audit found ' + plural(x.n, 'thing', 'things') + '. It needs you.' : 'Self audit clean.'},
+    cap_hit: {f: x => "I reached today's limit on " + (x.what || 'that') + ', so the rest waits for tomorrow.'},
+    breaker: {f: x => 'You undid 2 of my ' + (x.what || 'moves') + ' this week, so I will only suggest ' + (x.what || 'moves') + ' until you say so.'},
+    breaker_wrong: {f: x => 'You marked 2 of my ' + (x.what || 'moves') + ' wrong this week, so I will only suggest ' + (x.what || 'moves') + ' until you say so.'},
+    fails: {f: x => plural(x.n, 'act', 'acts') + ' failed in one round, so I will only suggest ' + (x.what || 'them') + ' until you say so.'},
+    refused: {f: () => 'A write was refused, so I stopped. It needs you.'},
+    undone: {f: x => 'Kaavish put ' + x.title + ' back with ' + x.name + '.', dm: x => 'Kaavish put ' + x.title + ' back with ' + x.name + '.'},
+    undone_due: {f: x => 'Kaavish put ' + x.title + ' back to ' + x.dueTxt + '.', dm: x => 'Kaavish put ' + x.title + ' back to ' + x.dueTxt + '.'},
+    undone_leave: {f: x => 'Kaavish took back the approval for ' + x.when + '.', dm: x => 'Kaavish took back the approval for ' + x.when + '. It is with him now.'},
+    hello: {f: x => 'Said hello to ' + x.name + '.',
+      dm: x => 'Hi ' + x.name + ', I am ' + x.bot + ', a bot that helps Kaavish run the day. I ask short questions and I explain anything I change. Kaavish reads what you send me. What I can do: #coo'},
+    waiting: {f: x => plural(x.n, 'thing needs', 'things need') + ' you.'},
+    paused: {f: x => 'Paused by you until ' + x.untilT + '.'},
+    off: {f: () => 'The COO is off. Admin, COO to switch it on.'},
+    late_beat: {f: x => 'No heartbeat since ' + (x.atTxt || 'this morning') + '. I will catch up on the next round.'},
+    page_runner: {f: x => 'I work while m360 is open. Last round ' + (x.atTxt || 'not yet') + '.'},
+    mail_off: {f: () => 'Mail is not set up, so the drafts wait. Admin, Mail.'}
+  };
+  /* the job behind each copy code (the station comes from the job) */
+  const CODE_JOB = {open: 'J01', open_rest: 'J01', brief: 'J02', caught: 'J02', roll: 'J03', eod: 'J04', close: 'J05', memo: 'J06',
+    leave_ok: 'J10', leave_card: 'J10', wfh_ok: 'J11', wfh_card: 'J11', cover_move: 'J12', cover_away: 'J12', cover_shift: 'J12', cover_client: 'J12',
+    leave_wait: 'J13', said_off: 'J14', outcomes: 'J15', outcomes_mgr: 'J15', review_ask: 'J16', review_late: 'J16', blocked_ask: 'J17',
+    blocked_late: 'J17', review_prep: 'J18', care: 'J19', setup_leave: 'J20', setup_policy: 'J20', setup_holidays: 'J20', setup_lines: 'J20', setup_pm: 'J20',
+    setup_join: 'J20', load: 'J30', rebalance: 'J31', handed_away: 'J31', orphan: 'J32', shift_blocked: 'J33', eta_ask: 'J34', eta_shift: 'J34',
+    pileup: 'J35', offday: 'J35', pileup_client: 'J35', client_risk: 'J36', due_tomorrow: 'J37', project_risk: 'J38', pitch_ask: 'J40', pitch_late: 'J40',
+    client_mail: 'J41', meeting_mail: 'J42', invoice: 'J43', audit: 'J51', undone: 'J31', undone_due: 'J33', undone_leave: 'J10', hello: 'J50'};
+  const stationOf = code => { const j = JOBS[code] ? code : CODE_JOB[code]; return (JOBS[j] || JOBS.J01).station; };
+  /* a practice line: "I would have moved ..." */
+  const wouldOf = line => {
+    const s = String(line).replace(/\s*(Undo for 24 hours|Undo until [^.]*)\./g, '');
+    const m = /\b(?:I )?(approved|moved|gave|asked|raised|drafted|reminded|sent|told)\b/i.exec(s);
+    if (!m) return 'Practice. ' + s;
+    return s.slice(0, m.index) + 'I would have ' + m[1].toLowerCase() + s.slice(m.index + m[0].length);
+  };
+  /* an act held back as a card: "I would move ... It waits for your tap." */
+  const BASE = {approved: 'approve', moved: 'move', gave: 'give', raised: 'raise', set: 'set'};
+  const proposeOf = line => {
+    const s = String(line).replace(/\s*(Undo for 24 hours|Undo until [^.]*)\./g, '');
+    const m = /\b(?:I )?(approved|moved|gave|raised|set)\b/i.exec(s);
+    return (m ? s.slice(0, m.index) + 'I would ' + BASE[m[1].toLowerCase()] + s.slice(m.index + m[0].length) : s) + ' It waits for your tap.';
+  };
+  /* the second line of a bubble or card: why, from a why code */
+  const WHY = {
+    leave: 'Inside the leave policy.', wfh: 'Inside the WFH allowance.', overload: 'Evening out the load.', orphan: 'It had nobody on it.',
+    blocked: 'Blocked work gets more time.', pileup: 'Too much due on one day, or due on a day off.', eta: 'The owner gave a date.', policy: 'Outside what I approve alone.',
+    missing: 'A policy number is not set.', client: 'A client date. Only you move those.', unsure: 'Close to a limit, so it waits for you.'
+  };
+  /* copy(code, args, scope, ctx): {line, why}. scope 'founder' (the default), 'team' or 'dm'. args.would gives
+     the practice line ("I would have ..."), args.propose the line of an act held back as a card, args.why a
+     code for the second line, args.night the team's line after the close */
+  function copy(code, args, scope, ctx) {
+    const c = COPY[code];
+    const a = args || {};
+    if (scope === 'team') return {line: a.night ? TEAM.night : TEAM[stationOf(code)] || TEAM.clock, why: ''};
+    if (!c) return {line: '', why: ''};
+    const cx = ctx || M.lastCtx;
+    const x = fill(cx, {...a, bot: title(cx)});
+    let line = scope === 'dm' && c.dm ? c.dm(x) : c.f(x);
+    if (a.propose && scope !== 'dm') line = proposeOf(line);
+    if (a.would && scope !== 'dm') line = wouldOf(line);
+    return {line: String(line).replace(/\s+/g, ' ').trim(), why: WHY[a.why] || ''};
+  }
+
+  /* ---------- the guard: ALLOW and NEVER, before every write the bot makes ---------- */
+  const NEVER_PATH = /^(review|kudos|points|approvals|payroll|invoices|expenses|hr|roster|settings|access|handbook|onboard|letters|trash|bin|log|data|pulse|evals|join|fixes)(\/|$)|^books\/(?!cooq$)/;
+  const TASK_FIELDS = new Set(['owner', 'due', 'ownerLog', 'dueLog', 'updatedBy', 'updated', 'comments']);
+  const DEC_FIELDS = new Set(['status', 'at', 'by', 'why', 'checks', 'snap', 'undoUntil']);
+  const PROJECT_FIELDS = new Set(['updates', 'status', 'updated']);
+  const RAISE = {on: 0, risk: 1, off: 2};
+  const refuse = (path, why) => { const e = new Error('Refused: ' + why + ' (' + path + ').'); e.code = 'refused'; e.path = path; throw e; };
+  const isPlain = x => !!x && typeof x === 'object' && !Array.isArray(x);
+  /* guard(path, fields, doc, ctx): true, or it throws {code: 'refused'}. doc is the target as it stands now,
+     for the checks that need it (a task's status and client date, a project's status) */
+  function guard(path, fields, doc, ctx) {
+    const p = String(path || '');
+    if (!isPlain(fields)) refuse(p, 'no fields');
+    if (NEVER_PATH.test(p)) refuse(p, 'never');
+    const keys = Object.keys(fields);
+    let m = /^tasks\/([^/]+)$/.exec(p);
+    if (m) {
+      for (const k of keys) if (!TASK_FIELDS.has(k)) refuse(p, 'the field ' + k);
+      for (const k of ['ownerLog', 'dueLog']) {
+        if (fields[k] === undefined) continue;
+        const list = fields[k];
+        const last = Array.isArray(list) ? list[list.length - 1] : null;
+        if (!last || last.by !== UID || !last.why) refuse(p, k + ' without the bot and a reason');
+      }
+      if (fields.updatedBy !== undefined && fields.updatedBy !== UID) refuse(p, 'updatedBy');
+      for (const c of Object.values(fields.comments || {})) if (!c || c.by !== UID) refuse(p, "a comment in someone else's name");
+      if (doc) {
+        const moves = 'owner' in fields || 'due' in fields;
+        if (!openTask(doc)) refuse(p, 'a task that is not open');
+        if (moves && clientDated({projects: mapOf(ctx || M.lastCtx, 'projects')}, doc)) refuse(p, 'a client date');
+        const since = Date.now() - 7 * DAY;
+        const human = (Array.isArray(doc.ownerLog) ? doc.ownerLog : []).concat(Array.isArray(doc.dueLog) ? doc.dueLog : []).some(e => e && e.by && e.by !== UID && Number(e.at) > since);
+        if (moves && human) refuse(p, 'a task a person moved this week');
+      }
+      return true;
+    }
+    m = /^leavedec\/([^/]+)$/.exec(p);
+    if (m) {
+      if (keys.join() !== 'd' || !isPlain(fields.d)) refuse(p, 'anything but decisions');
+      for (const id of Object.keys(fields.d)) {
+        const e = fields.d[id];
+        if (!isPlain(e) || Object.keys(e).some(k => !DEC_FIELDS.has(k))) refuse(p, 'the decision fields');
+        if (e.status !== 'approved') refuse(p, 'anything but an approval');
+        if (e.by !== UID) refuse(p, "a decision in someone else's name");
+      }
+      return true;
+    }
+    m = /^projects\/([^/]+)$/.exec(p);
+    if (m) {
+      for (const k of keys) if (!PROJECT_FIELDS.has(k)) refuse(p, 'the field ' + k);
+      for (const u of Object.values(fields.updates || {})) if (!u || u.by !== UID) refuse(p, "an update in someone else's name");
+      if (fields.status !== undefined) {
+        if (!(fields.status in RAISE) || fields.status === 'on') refuse(p, 'a status other than at risk or off track');
+        if (doc && RAISE[fields.status] <= (RAISE[doc.status] === undefined ? 0 : RAISE[doc.status])) refuse(p, 'lowering a project');
+        if (doc && (doc.status === 'done' || doc.archived)) refuse(p, 'a closed project');
+      }
+      return true;
+    }
+    if (p === 'me/' + UID) {
+      if (keys.join() !== 'pm' || !isPlain(fields.pm) || Object.keys(fields.pm).some(k => k !== 'asks')) refuse(p, 'anything but its asks');
+      return true;
+    }
+    m = /^chat\/(dm\.[^:/]+):([^:/]+)$/.exec(p);
+    if (m) {
+      if (m[2] !== UID || m[1].slice(3).split('.').indexOf(UID) < 0) refuse(p, 'a room that is not its own');
+      for (const k of keys) if (['msgs', 'room', 'by', 'updated'].indexOf(k) < 0) refuse(p, 'the field ' + k);
+      if (fields.by !== undefined && fields.by !== UID) refuse(p, "a line in someone else's name");
+      return true;
+    }
+    if (/^coo\/[^/]+$/.test(p) || p === 'office/live' || p === 'books/cooq') return true;
+    return refuse(p, 'outside the mandate');
+  }
+  /* the card actions Kaavish applies as himself still never reach these: the person's own presses (the
+     agent's list) and anything that removes, declines or pays */
+  const NEVER_ACT = /^(bin_task|archive_project|remove_|decline|delete|void|mark_paid|pay|run_payroll|issue_letter)/;
+  const actionAllowed = name => !NEVER_ACT.test(String(name || '')) && !(M.agent && M.agent.NEVER && M.agent.NEVER.test(String(name || '')));
+
+  /* ---------- the run: one slot, its acts, its cards ---------- */
+  const botW = (ctx, o) => fresh(ctx).W.as('coo', o);
+  const quietW = ctx => botW(ctx, {quiet: true});
+  const read = (ctx, path) => Promise.resolve().then(() => ctx.db.doc(path).get()).then(s => (s && s.exists ? U.dropNulls(s.data()) : null), () => null);
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const plain = x => JSON.parse(JSON.stringify(x === undefined ? null : x));
+  const norm = v => v === undefined || v === null ? '' : JSON.stringify(v);
+  const same = (cur, want) => !!want && Object.keys(want).every(k => norm((cur || {})[k]) === norm(want[k]));
+  const taskTarget = id => ({path: 'tasks/' + id, pick: t => ({owner: (t && t.owner) || '', due: (t && t.due) || ''})});
+  const MAIL = new Set(['client_mail', 'meeting_mail', 'invoice_reminder']);
+  /* the limits that stop a kind for the day (one info card says so); the per-person ones only skip */
+  const DAY_LIMIT = {move: 'movesPerDay', shift: 'shiftsPerDay', leave: 'leaveApprovalsPerDay', ask: 'asksPerDay', draft: 'draftsPerDay'};
+  const LIMIT_TXT = {actsPerDay: 'acts', tellPerDay: 'changes I tell you about', movesPerDay: 'task moves', shiftsPerDay: 'date moves',
+    leaveApprovalsPerDay: 'leave approvals', asksPerDay: 'asks', draftsPerDay: 'drafts'};
+  const CAP_TXT = {leave: 'leave approvals', wfh: 'WFH approvals', cover: 'cover moves', rebalance: 'task moves', shift: 'date moves', orphans: 'owner picks',
+    nudge: 'asks', reviews: 'review asks', projects: 'project updates', roll: 'roll calls', memo: 'reports'};
+
+  function newRun(ctx, slot, o) {
+    const now = (o && o.now) || Date.now();
+    const state = stateOf(ctx, now);
+    const ymd = ymdOf(now);
+    /* a full ledger day overflows to L-<ymd>-2, chosen once per round so a row never splits across the two */
+    const doc = (((ctx.coo || {}).L) || {})[ymd];
+    const big = !!doc && JSON.stringify(doc).length > 200000;
+    return {ctx, slot, now, t0: Date.now(), ymd, state, cfg: state.cfg, practice: practicing(state.cfg, now), work: isWork(state, state.today),
+      lpath: 'coo/L-' + ymd + (big ? '-2' : ''), big,
+      rows: [], cards: [], cardPatch: {}, told: [], patch: {}, day: {}, fails: {}, late: (o && o.late) || [], job: null, load: null, prevLoad: null};
+  }
+  /* the ledger row, written as it moves: running, then done, would, skipped, conflict, refused or failed */
+  async function keep(R, row) {
+    if (R.rows.indexOf(row) < 0) { R.rows.push(row); R.state.acts.push(row); }
+    const {id, ...rest} = row;
+    try { await quietW(R.ctx).merge(R.lpath, {acts: {[id]: plain(rest)}}); } catch (e) { /* the run goes on; the row stays in memory */ }
+  }
+  function overLimit(R, kind, refs, r) {
+    const u = used(R.state);
+    const L = k => limitOf(R.state, k, 0);
+    if (u.acts >= L('actsPerDay')) return 'actsPerDay';
+    if (r === 'tell' && u.tell >= L('tellPerDay')) return 'tellPerDay';
+    if (DAY_LIMIT[kind] && u[kind] >= L(DAY_LIMIT[kind])) return DAY_LIMIT[kind];
+    if (kind === 'ask' && refs.uid && (u.asked[refs.uid] || 0) >= L('asksPerPersonDay')) return 'asksPerPersonDay';
+    if (kind === 'move') for (const x of [refs.uid, refs.to]) if (x && (u.per[x] || 0) >= L('movesPerPersonDay')) return 'movesPerPersonDay';
+    return '';
+  }
+  const openCards = ctx => {
+    const out = [];
+    const add = (items, money) => { for (const id of Object.keys(items || {})) { const c = items[id]; if (c && (c.status === 'open' || c.status === 'snoozed' || c.status === 'sending')) out.push({...c, id, money}); } };
+    add(((ctx.coo || {}).dec || {}).items, false);
+    add(((mapOf(ctx, 'books').cooq) || {}).items, true);
+    return out;
+  };
+  /* every card that still speaks for its thing: open, or settled by Kaavish (a declined card is never raised
+     again). Voided and expired ones may come back */
+  const liveDedupe = ctx => {
+    const out = new Set();
+    const add = items => { for (const id of Object.keys(items || {})) { const c = items[id]; if (c && c.dedupe && c.status !== 'void' && c.status !== 'expired') out.add(c.dedupe); } };
+    add(((ctx.coo || {}).dec || {}).items);
+    add(((mapOf(ctx, 'books').cooq) || {}).items);
+    return out;
+  };
+  /* one card per thing: a card already raised (or raised in this run) with the same dedupe key wins */
+  function addCard(R, card) {
+    if (liveDedupe(R.ctx).has(card.dedupe) || R.cards.some(c => c.dedupe === card.dedupe)) return false;
+    R.cards.push(card);
+    return true;
+  }
+  function cardOf(R, o, r, row) {
+    const c = o.card;
+    const t = copy(row.code, row.args, 'founder', R.ctx);
+    return {id: U.uid(), kind: c.kind, rung: r, title: t.line, why: c.why || t.why || '', recommend: c.recommend || '', checks: o.checks || [],
+      options: c.options || (o.apply ? [{label: c.label || 'Apply', action: o.apply.action, input: o.apply.input}] : []),
+      payload: {action: o.apply ? o.apply.action : '', input: o.apply ? o.apply.input : {}, draft: c.draft || null},
+      sources: c.sources || [], refs: {...(o.refs || {}), actIds: [row.id]}, code: row.code, args: row.args, urgent: !!c.urgent,
+      dedupe: c.dedupe || (c.kind + ':' + (o.subject || row.id) + ':' + R.ymd), by: UID, at: Date.now(),
+      expires: c.expires || Date.now() + (MAIL.has(c.kind) ? 3 : 14) * DAY, status: 'open', money: !!c.money};
+  }
+  /* an info card straight from the run (limits, breakers, the audit), with no act behind it */
+  function infoCard(R, code, args, dedupe, urgent) {
+    const t = copy(code, args, 'founder', R.ctx);
+    addCard(R, {id: U.uid(), kind: 'info', rung: 'tell', title: t.line, why: t.why, recommend: '', checks: [], options: [{label: 'Got it', action: 'coo.ack', input: {}}],
+      payload: {action: 'coo.ack', input: {}, draft: null}, sources: [], refs: {}, code, args: args || {}, urgent: !!urgent, dedupe, by: UID, at: Date.now(),
+      expires: Date.now() + 2 * DAY, status: 'open', money: false});
+  }
+
+  /* one act through the mandate: the rung (lowered when unsure), the day's limits, the practice week, the
+     guard, the target read again just before the write, the write, the read back, the words told and the
+     ledger row. o: {job, code, kind (move, shift, leave, ask or report), cap, rung, unsure, subject, args,
+     refs, checks, facts, why, target {path, pick}, before, after, write(row), apply {action, input}, card,
+     told [{uid, code, args}], undo} */
+  async function act(R, o) {
+    const job = JOBS[o.job] || JOBS.J01;
+    const cap = o.cap !== undefined ? o.cap : job.cap;
+    /* the settings are read again before every act: a stop or a pause mid round holds from here on */
+    const now0 = status(fresh(R.ctx), Date.now());
+    if (now0 === 'off' || now0 === 'paused' || now0 === 'stuck') { R.halt = now0; return {status: 'off'}; }
+    let r = o.rung || (cap ? R.state.rungs[cap] || 'off' : 'alone');
+    if (o.unsure) r = escalate(r);
+    if (r === 'off') return {status: 'off'};
+    const writes = !!o.write && (r === 'alone' || r === 'tell');
+    const carded = !writes && !!o.card && (r === 'draft' || r === 'propose' || !o.write);
+    if (!writes && !carded && o.kind !== 'report') return {status: 'off'};
+    const kind = writes ? o.kind : carded ? (MAIL.has(o.card.kind) ? 'draft' : 'card') : 'report';
+    /* a card says what it is: its own code, or the act's line worded as a suggestion, so the ledger, the
+       feed and the office never read a proposal as done */
+    const code = carded ? (o.card.code || o.code) : o.code;
+    const args = carded && !!o.write && !o.card.code ? {...(o.args || {}), propose: true} : (o.args || {});
+    /* practice plans each thing once a day: the watch rounds would otherwise log it every 15 minutes */
+    if (R.practice && o.subject && kind !== 'report' && R.state.acts.some(x => x && x.status === 'would' && x.code === code && x.subject === o.subject)) return {status: 'would'};
+    const limit = overLimit(R, kind, o.refs || {}, r);
+    if (limit) {
+      if (limit !== 'asksPerPersonDay' && limit !== 'movesPerPersonDay') infoCard(R, 'cap_hit', {what: LIMIT_TXT[limit]}, 'info:cap:' + limit + ':' + R.ymd);
+      return {status: 'cap', limit};
+    }
+    const row = {id: U.uid(), at: Date.now(), slot: R.slot, job: o.job, code, cap: cap || null, rung: r, kind, charter: Number(R.cfg.version) || 1,
+      subject: o.subject || '', rule: o.rule || '', facts: o.facts || [], checks: o.checks || [], before: o.before || null, after: o.after || null,
+      why: {code: o.why || '', args}, args, told: [], undo: null, status: 'running', station: job.station, refs: {...(o.refs || {})}};
+    if (R.practice) {
+      row.status = 'would';
+      row.args = {...row.args, would: true};
+      await keep(R, row);
+      return {status: 'would', row};
+    }
+    if (kind === 'report') { row.status = 'done'; await keep(R, row); return {status: 'done', row}; }
+    if (carded) {
+      const card = cardOf(R, o, r, row);
+      if (!addCard(R, card)) return {status: 'dupe'};
+      row.status = 'done';
+      row.refs.card = card.id;
+      await keep(R, row);
+      return {status: 'card', row, card};
+    }
+    await keep(R, row);
+    if (o.target) {
+      const cur = o.target.pick(await read(R.ctx, o.target.path));
+      if (!same(cur, o.before)) { row.status = 'skipped'; row.note = 'moved'; await keep(R, row); return {status: 'skipped', row}; }
+    }
+    try {
+      await o.write(row);
+    } catch (e) {
+      const code = e && e.code;
+      row.status = code === 'refused' ? 'refused' : code === 'skip' ? 'skipped' : 'failed';
+      row.note = String((e && e.message) || 'failed').slice(0, 200);
+      await keep(R, row);
+      if (row.status === 'refused') await stuck(R, row);
+      else if (row.status === 'failed' && cap) { R.fails[cap] = (R.fails[cap] || 0) + 1; if (R.fails[cap] === 3) await breaker(R.ctx, cap, 'fails', R); }
+      return {status: row.status, row};
+    }
+    if (o.target) row.status = same(o.target.pick(await read(R.ctx, o.target.path)), o.after) ? 'done' : 'conflict';
+    else row.status = 'done';
+    if (row.status === 'done') {
+      for (const t of o.told || []) {
+        const text = copy(t.code, {...row.args, ...(t.args || {})}, 'dm', R.ctx).line;
+        try { await say(R.ctx, t.uid, text, 'coo.' + row.id + '.' + t.uid, null, R); row.told.push({uid: t.uid, text, at: Date.now()}); } catch (e) { /* the act stands; the line did not go */ }
+      }
+      if (o.undo) row.undo = {...o.undo, ...(row.undo || {})};
+      if (r === 'tell') R.told.push(row);
+    }
+    await keep(R, row);
+    return {status: row.status, row};
+  }
+
+  /* a refused write: the row says so, the whole COO stops (coo/state.stuck) and Kaavish hears */
+  async function stuck(R, row) {
+    R.patch.stuck = {at: Date.now(), why: row.note || 'refused', act: row.id};
+    R.patch.breakers = {...(R.patch.breakers || {}), [row.cap || 'all']: {at: Date.now(), why: 'refused', rung: escalate(R.state.rungs[row.cap] || 'propose')}};
+    infoCard(R, 'refused', {}, 'info:refused:' + R.ymd, true);
+    try { await quietW(R.ctx).merge('coo/state', plain({stuck: R.patch.stuck})); } catch (e) { /* the next round reads the row */ }
+    R.stopped = true;
+  }
+  /* a circuit breaker: the capability drops one rung until Kaavish resets it in Admin */
+  async function breaker(ctx, cap, why, R) {
+    const now = rung(ctx, cap);
+    const b = {at: Date.now(), why, rung: escalate(now)};
+    const what = CAP_TXT[cap] || 'acts';
+    if (R) {
+      R.patch.breakers = {...(R.patch.breakers || {}), [cap]: b};
+      infoCard(R, why === 'fails' ? 'fails' : 'breaker', {what, n: 3}, 'info:breaker:' + cap + ':' + R.ymd, true);
+      return;
+    }
+    const code = why === 'wrong' ? 'breaker_wrong' : 'breaker';
+    const t = copy(code, {what}, 'founder', ctx);
+    const id = U.uid();
+    await ctx.W.merge('coo/state', {breakers: {[cap]: b}});
+    await ctx.W.merge('coo/dec', {items: {[id]: {id, kind: 'info', rung: 'tell', title: t.line, why: '', recommend: '', checks: [], options: [{label: 'Got it', action: 'coo.ack', input: {}}],
+      payload: {action: 'coo.ack', input: {}, draft: null}, sources: [], refs: {}, code, args: {what}, urgent: true, dedupe: 'info:breaker:' + cap + ':' + ymdOf(Date.now()),
+      by: UID, at: Date.now(), expires: Date.now() + 2 * DAY, status: 'open', money: false}}});
+  }
+
+  /* ---------- the COO's own words to one person: a line in its DM room ----------
+     One merge per send, with every line this page has written there (the snapshot can lag a fast run).
+     The first line anyone gets from it is the hello */
+  const chatSeen = {};
+  async function say(ctx, u, text, xid, extra, R) {
+    const c = fresh(ctx);
+    if (!u || isCoo(u) || !String(text || '').trim()) return null;
+    const room = 'dm.' + [UID, u].sort().join('.');
+    const key = room + ':' + UID;
+    const snap = ((mapOf(c, 'chat')[key] || {}).msgs || []);
+    const mine = chatSeen[key] || [];
+    const have = snap.concat(mine.filter(m => !snap.some(s => s && s.id === m.id))).sort((a, b) => (a.at || 0) - (b.at || 0));
+    const ids = new Set(have.map(m => m && m.id));
+    if (xid && ids.has(xid)) return null;
+    const add = [];
+    if (!ids.has('hello.' + u) && !((cooState(c).hello || {})[u])) {
+      add.push({id: 'hello.' + u, at: Date.now(), text: copy('hello', {uid: u}, 'dm', c).line, mentions: [], via: 'coo'});
+      if (R) R.patch.hello = {...(R.patch.hello || {}), [u]: Date.now()};
+    }
+    const m = {id: xid || U.uid(), at: Date.now() + add.length, text: String(text).trim().slice(0, 4000), mentions: [], via: 'coo'};
+    for (const k of ['ask', 'k']) if (extra && extra[k] != null && extra[k] !== '') m[k] = String(extra[k]).slice(0, 120);
+    add.push(m);
+    let msgs = have.concat(add);
+    if (msgs.length > 300) msgs = msgs.slice(msgs.length - 160);
+    const body = {msgs, room, by: UID, updated: Date.now()};
+    guard('chat/' + key, body);
+    await botW(c, {note: 'coo dm ' + m.id}).merge('chat/' + key, body);
+    chatSeen[key] = msgs.slice(-40);
+    return m;
+  }
+  /* its asks, on its own profile (me/u_m360coo.pm.asks); asks past 14 days go with the next one */
+  function writeAsk(ctx, askId, rec) {
+    const c = fresh(ctx);
+    const old = (((mapOf(c, 'me')[UID] || {}).pm) || {}).asks || {};
+    const asks = {[askId]: rec};
+    for (const id of Object.keys(old)) if (old[id] && (Number(old[id].at) || 0) < Date.now() - 14 * DAY) asks[id] = null;
+    const body = {pm: {asks}};
+    guard('me/' + UID, body);
+    return botW(c, {note: 'coo ask ' + askId}).merge('me/' + UID, body);
+  }
+  /* an ask through the personal managers' pipes (M.pm.ask as the COO): its caps, ring window and answers.
+     o: {job, code, rcpt, kind, sub, ask, args, subject, refs, cap} */
+  function askAct(R, o) {
+    const rcpt = o.rcpt || (o.args || {}).uid;
+    const args = {...(o.args || {})};
+    if (!M.pm || !M.pm.ask || !rcpt || rcpt === R.state.founder || !active(R.state, rcpt)) return Promise.resolve({status: 'off'});
+    return act(R, {job: o.job, code: o.code, kind: 'ask', cap: o.cap || 'nudge', subject: o.subject || ('uid:' + rcpt), args, refs: {...(o.refs || {}), uid: rcpt},
+      why: o.why || '', undo: {k: 'ask', until: dayStart(R.ymd) + DAY - MIN},
+      write: async row => {
+        const text = copy(o.code, args, 'dm', R.ctx).line;
+        const res = await M.pm.ask(fresh(R.ctx), {to: [rcpt], kind: o.kind || 'custom', sub: o.sub, ask: o.ask || 'why', note: text, via: 'coo', code: o.code, args: plainArgs(args)}, {as: UID});
+        if (!res || !res.askId) { const e = new Error((res && res.skipped && res.skipped[0] && res.skipped[0].why) || 'not sent'); e.code = 'skip'; throw e; }
+        row.refs.ask = res.askId;
+        row.told.push({uid: rcpt, text, at: Date.now()});
+      }});
+  }
+  /* ids, dates and numbers only ride on an ask record */
+  const plainArgs = a => { const o = {}; for (const k of Object.keys(a || {})) if (typeof a[k] === 'number' || (typeof a[k] === 'string' && a[k].length <= 80)) o[k] = a[k]; return o; };
+  /* the reason left on the task itself, readable by the team: never a leave type, never "overloaded" */
+  const commentFor = (why, a, ctx) => {
+    const x = fill(ctx, a);
+    const base = {leave: 'I moved this while ' + x.name + ' is out ' + x.when + '.', overload: 'I moved this to even out the week.', orphan: 'I gave this an owner.',
+      blocked: 'I gave this more time while it is blocked.', pileup: 'I spread out a day with too much due.', eta: 'I set the date the owner gave.'}[why] || 'I moved this.';
+    return base + ' Kaavish can undo it until ' + untilTxt(a.until, Date.now()) + '.';
+  };
+  /* has this job already acted on this subject today (or this week) */
+  const didToday = (R, code, subject) => R.state.acts.some(r => r && r.code === code && r.subject === subject && r.status !== 'skipped' && r.status !== 'failed');
+  const cooAsks = ctx => (((mapOf(ctx, 'me')[UID] || {}).pm) || {}).asks || {};
+  const askedWithin = (ctx, u, code, days, sub) => Object.values(cooAsks(ctx)).some(a => a && !a.withdrawn && (a.to || []).indexOf(u) >= 0 && a.code === code
+    && (sub === undefined || a.sub === sub) && (Number(a.at) || 0) > Date.now() - days * DAY);
+  const pmAcks = (ctx, u) => ((((mapOf(ctx, 'me')[u] || {}).pm) || {}).ack) || {};
+  const nonFounders = R => activeIds(R.state).filter(u => u !== R.state.founder);
+  const failWhy = chk => {
+    const f = chk.checks.find(c => !c.ok);
+    if (!f) return chk.near ? WHY.unsure : '';
+    const T = {
+      dates: 'The dates do not add up.', type: 'A WFH swap always comes to you.', policy: 'A policy number is not set.', days: plural(f.val, 'working day', 'working days') + ', over the ' + f.limit + ' I approve alone.',
+      balance: f.val === null ? 'No leave balance is set.' : 'Only ' + plural(f.val, 'day', 'days') + ' left.', probation: 'In probation until ' + dayTxt(f.val) + '.',
+      notice: f.limit === null ? 'No notice period is set.' : 'Asked ' + plural(Math.max(0, f.val), 'day', 'days') + ' ahead, and the policy asks for ' + f.limit + '.',
+      out: f.limit === null ? 'No limit on people out is set.' : plural(f.val, 'person is', 'people are') + ' already out that day.', pod: 'Their pod is already short that day.',
+      blackout: 'A blackout date.', client: 'A client date falls inside it.', manager: 'Their manager is out those days.', unchanged: 'The request changed.',
+      ahead: 'Booked for a day already gone.', cap: 'Over their WFH days for the week.', leave: 'They are on leave that day.', office: 'Too few left in the office.'};
+    return T[f.k] || '';
+  };
+  /* undo windows: a leave approval until the leave starts (12 hours when it starts today) */
+  const leaveUntil = (from, now) => YMD.test(from || '') && from > ymdOf(now) ? dayStart(from) : now + 12 * HOUR;
+  const seenLeave = (R, u, req) => {
+    const k = u + ':' + req.id;
+    const snap = {from: req.from || '', to: req.to || '', type: req.type || ''};
+    const cur = ((R.state.seen || {}).leave || {})[k];
+    if (!cur || cur.from !== snap.from || cur.to !== snap.to || cur.type !== snap.type) {
+      R.patch.seen = R.patch.seen || {leave: {}};
+      R.patch.seen.leave[k] = snap;
+    }
+  };
+  /* every leave request nobody has decided, in a stable order: asked at, then person, then id */
+  function pendings(state, wfh) {
+    const out = [];
+    for (const u of Object.keys(state.leave || {}).sort()) {
+      if (!active(state, u)) continue;
+      for (const r of state.leave[u] || []) if (r && r.id && !decided(state, u, r.id) && ((r.type === 'wfh') === !!wfh)) out.push({uid: u, req: r});
+    }
+    return out.sort((a, b) => (Number(a.req.at) || 0) - (Number(b.req.at) || 0) || (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0) || (a.req.id < b.req.id ? -1 : 1));
+  }
+  const moveSave = (R, id, patch, why, args) => row => {
+    const c = fresh(R.ctx);
+    return M.tasks.save(c, id, patch, {by: UID, why, comment: commentFor(why, {...args, until: (row.undo && row.undo.until) || args.until}, c), note: 'coo ' + row.job + ' ' + row.id});
+  };
+
+  /* ---------- the jobs (part D of the spec) ---------- */
+  const J = {};
+
+  /* J01: the day opens. Health, and the office lights up */
+  J.J01 = async R => {
+    R.day.open = {at: Date.now(), by: 'page', work: R.work};
+    await act(R, {job: 'J01', code: R.work ? 'open' : 'open_rest', kind: 'report', cap: null, args: {}});
+  };
+
+  /* J02: the morning brief */
+  J.J02 = async R => {
+    const st = R.state;
+    const ids = nonFounders(R);
+    const leave = ids.filter(u => isOut(st, u, R.ymd)).length;
+    const wfh = ids.filter(u => plannedWfh(st, u, R.ymd) || (((st.checkin[u] || {})[R.ymd]) || {}).mode === 'wfh').length;
+    const wait = openCards(R.ctx).length + R.cards.length;
+    const roll = (st.slots.rollAt || ['10:45'])[0];
+    const late = R.late.filter(x => x.why === 'late');
+    R.day.brief = {at: Date.now(), leave, wfh, roll, wait, caught: late.length ? {at: Date.now(), n: late.length, slots: late.map(x => x.id)} : null};
+    if (dowOf(R.ymd) === 1) {
+      const next = workDaysIn(st, addDays(R.ymd, 7), addDays(R.ymd, 12));
+      R.day.brief.ahead = {leave: ids.filter(u => next.some(d => isOut(st, u, d))).length, due: tasksList(st).filter(t => openTask(t) && t.due && t.due >= R.ymd && t.due <= addDays(R.ymd, 5)).length};
+    }
+    if (late.length) await act(R, {job: 'J02', code: 'caught', kind: 'report', args: {at: Date.now(), n: late.length}});
+    await act(R, {job: 'J02', code: 'brief', kind: 'report', args: {leave, wfh, roll, wait}});
+  };
+
+  /* J03: the roll call, a report only (the nudges are the personal managers') */
+  J.J03 = async R => {
+    const c = R.ctx;
+    const out = {in: [], wfh: [], leave: [], notIn: [], late: [], at: Date.now(), slot: R.slot};
+    for (const u of nonFounders(R)) {
+      const a = M.att ? M.att.dayStatus(c, u, R.ymd) : {status: 'none'};
+      if (a.status === 'leave') out.leave.push(u);
+      else if (a.status === 'wfh') out.wfh.push(u);
+      else if (a.status === 'office') out.in.push(u);
+      else if (!plannedWfh(R.state, u, R.ymd)) out.notIn.push(u);
+      else out.wfh.push(u);
+      if (a.late) out.late.push(u);
+    }
+    R.day.roll = out;
+    await act(R, {job: 'J03', code: 'roll', kind: 'report', args: {n: out.in.length, wfh: out.wfh.length, leave: out.leave.length, notIn: out.notIn.length, uid: out.notIn[0] || ''}});
+  };
+
+  /* J04: the EOD sweep */
+  J.J04 = async R => {
+    const c = R.ctx;
+    const ids = nonFounders(R).filter(u => !isOut(R.state, u, R.ymd));
+    const eod = mapOf(c, 'eod');
+    const missing = ids.filter(u => !(((eod[u] || {}).days || {})[R.ymd]));
+    R.day.eod = {in: ids.length - missing.length, of: ids.length, missing, at: Date.now()};
+    await act(R, {job: 'J04', code: 'eod', kind: 'report', args: {n: ids.length - missing.length, of: ids.length}});
+  };
+
+  /* J05: the close. The report, undo windows and old cards settled, the office lights down */
+  J.J05 = async R => {
+    const c = R.ctx;
+    const now = Date.now();
+    const L = (c.coo && c.coo.L) || {};
+    let moves = 0, until = 0;
+    for (const ymd of Object.keys(L)) {
+      const acts = (L[ymd] && L[ymd].acts) || {};
+      const exp = {};
+      for (const id of Object.keys(acts)) {
+        const r = acts[id];
+        if (!r || r.status !== 'done' || !r.undo) continue;
+        if (Number(r.undo.until) < now) exp[id] = {status: 'expired'};
+        else if (ymd === R.ymd && (r.kind === 'move' || r.kind === 'shift')) { moves++; until = until ? Math.min(until, r.undo.until) : r.undo.until; }
+      }
+      if (Object.keys(exp).length && !R.practice) { try { await quietW(c).merge('coo/L-' + ymd, {acts: exp}); } catch (e) { /* the next close */ } }
+    }
+    /* cards past their date expire; settled ones older than 30 days move to coo/dec-<yyyy-mm> */
+    const items = ((c.coo && c.coo.dec) || {}).items || {};
+    const patch = {}, arch = {};
+    for (const id of Object.keys(items)) {
+      const k = items[id];
+      if (!k) continue;
+      if ((k.status === 'open' || k.status === 'snoozed') && k.kind !== 'leave' && k.kind !== 'wfh' && Number(k.expires) && k.expires < now) patch[id] = {status: 'expired', decidedAt: now};
+      if (k.status !== 'open' && k.status !== 'snoozed' && k.status !== 'sending' && (Number(k.decidedAt || k.at) || 0) < now - 30 * DAY) {
+        const mon = ymdOf(Number(k.at) || now).slice(0, 7);
+        (arch[mon] = arch[mon] || {})[id] = k; patch[id] = null;
+      }
+    }
+    if (!R.practice) {
+      for (const mon of Object.keys(arch)) { try { await botW(c, {note: 'coo archive ' + mon}).merge('coo/dec-' + mon, {items: arch[mon]}); } catch (e) { for (const id of Object.keys(arch[mon])) delete patch[id]; } }
+      if (Object.keys(patch).length) { try { await botW(c, {note: 'coo cards'}).merge('coo/dec', {items: patch}); } catch (e) { /* the next close */ } }
+    }
+    /* its own bookkeeping stays small: holds past their time, cover marks and seen requests past 30 days */
+    const cs = cooState(c);
+    const cut = now - 30 * DAY;
+    const drop = (map, old) => { const o = {}; for (const k of Object.keys(map || {})) if (old(k, map[k])) o[k] = null; return o; };
+    const holds = drop(cs.holds, (k, v) => Number(v) < now);
+    const cover = drop(cs.cover, (k, v) => Number(v) < cut);
+    const seenLeave = drop((cs.seen || {}).leave, k => { const [u, id] = k.split(':'); return !((R.state.leave[u] || []).some(r => r && r.id === id)) || decided(R.state, u, id); });
+    if (Object.keys(holds).length) R.patch.holds = {...holds, ...(R.patch.holds || {})};
+    if (Object.keys(cover).length) R.patch.cover = {...cover, ...(R.patch.cover || {})};
+    if (Object.keys(seenLeave).length) R.patch.seen = {leave: {...seenLeave, ...(((R.patch.seen || {}).leave) || {})}};
+    const eod = R.day.eod || (((await read(c, 'coo/day-' + R.ymd)) || {}).eod) || {in: 0, of: 0};
+    const wait = openCards(c).filter(k => !patch[k.id]).length + R.cards.length;
+    R.day.close = {at: now, eod: eod.in, of: eod.of, moves, until, wait, skipped: R.late.map(x => x.id)};
+    await act(R, {job: 'J05', code: 'close', kind: 'report', args: {eod: eod.in, of: eod.of, moves, until, wait}});
+  };
+
+  /* J06: the weekly memo, numbers by code */
+  J.J06 = async R => {
+    const st = R.state;
+    const week = isoWeekOf(R.now);
+    const mon = addDays(R.ymd, -((dowOf(R.ymd) + 6) % 7));
+    const days = [0, 1, 2, 3, 4, 5].map(i => addDays(mon, i));
+    const all = tasksList(st);
+    const done = all.filter(t => t.status === 'done' && t.doneAt && ymdOf(Number(t.doneAt)) >= mon && ymdOf(Number(t.doneAt)) <= R.ymd).length;
+    const slipped = all.filter(t => openTask(t) && t.due && t.due >= mon && t.due < R.ymd).length;
+    const nextWeek = [7, 8, 9, 10, 11, 12].map(i => addDays(mon, i));
+    const away = nonFounders(R).filter(u => nextWeek.some(d => isOut(st, u, d))).length;
+    let eodIn = 0, eodOf = 0;
+    for (const d of days) { const x = await read(R.ctx, 'coo/day-' + d); if (x && x.eod) { eodIn += x.eod.in || 0; eodOf += x.eod.of || 0; } }
+    const numbers = {done, slipped, away, eodIn, eodOf, acts: st.acts.length};
+    const lines = [done + ' tasks shipped this week, ' + slipped + ' slipped past their date.', eodIn + ' of ' + eodOf + ' EOD lines in.',
+      away ? plural(away, 'person is', 'people are') + ' away next week.' : 'Nobody is away next week.'];
+    if (!R.practice) { try { await quietW(R.ctx).merge('coo/memo-' + week, {at: Date.now(), week, numbers, lines}); } catch (e) { /* the card still carries it */ } }
+    await act(R, {job: 'J06', code: 'memo', kind: 'report', args: {week}});
+    await act(R, {job: 'J06', code: 'memo', kind: 'card', rung: lowerOf(st.rungs.memo, 'draft'), cap: 'memo', subject: 'memo:' + week, args: {week},
+      card: {kind: 'memo', dedupe: 'memo:' + week, why: lines.join(' '),
+        options: [{label: 'Post to Feed', action: 'post_to_feed', input: {kind: 'update', text: 'This week at Mask360. ' + lines.join(' ')}}, {label: 'Keep private', action: 'coo.ack', input: {}}]}});
+  };
+
+  /* J10: leave within policy. All checks pass and nothing is unsure: approved, told, undoable until it
+     starts. Anything else becomes a card. It never declines */
+  J.J10 = async R => {
+    const st = R.state;
+    for (const {uid, req} of pendings(st, false)) {
+      const subject = 'req:' + uid + ':' + req.id;
+      const chk = leaveCheck(st, uid, req, R.now);
+      seenLeave(R, uid, req);
+      if (!chk.checks.find(c => c.k === 'unchanged').ok) continue;
+      const unsure = chk.ok && (chk.near || uid === st.founder || chk.probation || held(st, subject) || held(st, 'uid:' + uid));
+      const until = leaveUntil(req.from, Date.now());
+      const snap = {from: req.from, to: req.to, type: req.type || 'casual', days: chk.days};
+      const checks = chk.checks.map(c => ({k: c.k, ok: c.ok, val: c.val, limit: c.limit}));
+      const entry = {status: 'approved', at: Date.now(), by: UID, why: 'policy', checks, snap, undoUntil: until};
+      const args = {uid, d1: req.from, d2: req.to, type: req.type || 'casual', left: chk.left, out: chk.out, until};
+      const why = chk.ok ? (unsure ? 'unsure' : 'leave') : chk.missing.length ? 'missing' : 'policy';
+      const res = await act(R, {job: 'J10', code: 'leave_ok', kind: 'leave', rung: chk.ok ? st.rungs.leave : lowerOf(st.rungs.leave, 'propose'), unsure,
+        subject, args, refs: {uid, req: req.id}, checks, why, facts: [{k: 'request', val: snap, src: 'leave/' + uid}],
+        target: {path: 'leavedec/' + uid, pick: d => ({status: ((((d || {}).d) || {})[req.id] || {}).status || 'pending'})},
+        before: {status: 'pending'}, after: {status: 'approved'},
+        write: row => { const body = {d: {[req.id]: entry}}; guard('leavedec/' + uid, body); return botW(R.ctx, {note: 'coo J10 ' + row.id}).merge('leavedec/' + uid, body); },
+        apply: {action: 'coo.approve_leave', input: {uid, req: req.id, from: req.from, to: req.to, type: req.type || 'casual'}},
+        card: {kind: 'leave', code: 'leave_card', label: 'Approve', urgent: req.from <= addDays(R.ymd, 1), expires: dayStart(req.from || R.ymd), dedupe: 'leave:' + subject,
+          why: chk.missing.length ? copy('setup_policy', {what: chk.missing.join(', ')}, 'founder', R.ctx).line : unsure ? (uid === st.founder ? 'Your own leave.' : WHY.unsure) : failWhy(chk)},
+        told: [{uid, code: 'leave_ok'}],
+        undo: {k: 'leave', uid, req: req.id, fields: ['status'], until}});
+      if (res.status === 'done') { st.leavedec[uid] = {...(st.leavedec[uid] || {}), [req.id]: entry}; forget(st); }
+    }
+  };
+
+  /* J11: a WFH day booked ahead, inside the allowance */
+  J.J11 = async R => {
+    const st = R.state;
+    for (const {uid, req} of pendings(st, true)) {
+      const subject = 'req:' + uid + ':' + req.id;
+      const chk = leaveCheck(st, uid, req, R.now);
+      seenLeave(R, uid, req);
+      if (!chk.checks.find(c => c.k === 'unchanged').ok) continue;
+      const unsure = chk.ok && (uid === st.founder || held(st, subject) || held(st, 'uid:' + uid));
+      const until = leaveUntil(req.from, Date.now());
+      const checks = chk.checks.map(c => ({k: c.k, ok: c.ok, val: c.val, limit: c.limit}));
+      const entry = {status: 'approved', at: Date.now(), by: UID, why: 'policy', checks, snap: {from: req.from, to: req.to, type: 'wfh', days: chk.days}, undoUntil: until};
+      const args = {uid, d1: req.from, d2: req.to, type: 'wfh', nth: chk.nth, until};
+      const res = await act(R, {job: 'J11', code: 'wfh_ok', kind: 'leave', rung: chk.ok ? st.rungs.wfh : lowerOf(st.rungs.wfh, 'propose'), unsure,
+        subject, args, refs: {uid, req: req.id}, checks, why: chk.ok ? (unsure ? 'unsure' : 'wfh') : 'policy',
+        target: {path: 'leavedec/' + uid, pick: d => ({status: ((((d || {}).d) || {})[req.id] || {}).status || 'pending'})},
+        before: {status: 'pending'}, after: {status: 'approved'},
+        write: row => { const body = {d: {[req.id]: entry}}; guard('leavedec/' + uid, body); return botW(R.ctx, {note: 'coo J11 ' + row.id}).merge('leavedec/' + uid, body); },
+        apply: {action: 'coo.approve_leave', input: {uid, req: req.id, from: req.from, to: req.to, type: 'wfh'}},
+        card: {kind: 'wfh', code: 'wfh_card', label: 'Approve', expires: dayStart(req.from || R.ymd), dedupe: 'wfh:' + subject, why: unsure ? WHY.unsure : failWhy(chk)},
+        told: [{uid, code: 'wfh_ok'}],
+        undo: {k: 'leave', uid, req: req.id, fields: ['status'], until}});
+      if (res.status === 'done') { st.leavedec[uid] = {...(st.leavedec[uid] || {}), [req.id]: entry}; forget(st); }
+    }
+  };
+
+  /* J12: cover for approved leave, whoever approved it. Once when the approval is seen, and again in the
+     brief for leave starting today or tomorrow */
+  J.J12 = async R => {
+    const st = R.state;
+    const done = cooState(R.ctx).cover || {};
+    for (const u of Object.keys(st.leave || {}).sort()) {
+      if (!active(st, u)) continue;
+      for (const req of st.leave[u] || []) {
+        const d = req && req.id ? (st.leavedec[u] || {})[req.id] : null;
+        if (!d || d.status !== 'approved') continue;
+        const s = d.snap && d.snap.from ? d.snap : req;
+        const type = s.type || req.type;
+        if (type === 'wfh' || (type === 'swap' && s.from >= SINCE) || !YMD.test(s.to || '') || s.to < R.ymd) continue;
+        const key = u + ':' + req.id + (R.slot === 'brief' ? ':' + R.ymd : '');
+        if (done[key] || (R.patch.cover || {})[key]) continue;
+        if (R.slot === 'brief' && s.from > addDays(R.ymd, 1)) continue;
+        /* practice leaves no mark, so the cover still happens once the practice week ends */
+        if (!R.practice) R.patch.cover = {...(R.patch.cover || {}), [key]: Date.now()};
+        const plan = planCover(st, u, req);
+        for (const mv of plan.moves) {
+          const t = st.tasks[mv.task];
+          const until = Date.now() + DAY;
+          const owner = mv.kind === 'owner';
+          const args = {uid: u, to: owner ? mv.to : '', task: mv.task, d1: s.from, d2: s.to, due: owner ? mv.due : mv.newDue, newDue: mv.newDue, until};
+          const res = await act(R, {job: 'J12', code: owner ? 'cover_move' : 'cover_shift', kind: owner ? 'move' : 'shift', cap: 'cover', unsure: u === st.founder,
+            subject: 'task:' + mv.task, args, refs: {uid: u, to: owner ? mv.to : '', task: mv.task, req: req.id}, why: 'leave',
+            target: taskTarget(mv.task), before: {owner: u, due: t.due || ''}, after: {owner: owner ? mv.to : u, due: owner ? (t.due || '') : mv.newDue},
+            write: moveSave(R, mv.task, owner ? {owner: mv.to} : {due: mv.newDue}, 'leave', args),
+            apply: {action: 'coo.move_task', input: owner ? {task: mv.task, owner: mv.to, why: 'leave'} : {task: mv.task, due: mv.newDue, why: 'leave'}},
+            card: {kind: 'move', code: owner ? 'cover_move' : 'cover_shift', label: 'Move it', dedupe: 'move:task:' + mv.task + ':' + R.ymd},
+            told: owner ? [{uid: mv.to, code: 'cover_move'}, {uid: u, code: 'cover_away'}] : [{uid: u, code: 'cover_shift'}],
+            undo: {k: 'task', task: mv.task, fields: ['owner', 'due'], until}});
+          if (res.status === 'done') { st.tasks = {...st.tasks, [mv.task]: {...t, owner: owner ? mv.to : u, due: owner ? t.due : mv.newDue}}; forget(st); }
+        }
+        if (plan.propose.length) {
+          const first = plan.propose[0];
+          const ld = load(st);
+          const opts = plan.propose.slice(0, 4).map(p => { const pick = shortlist(st, st.tasks[p.task], ld, R.ymd)[0]; return pick ? {label: 'Give ' + String((st.tasks[p.task] || {}).title || 'it').slice(0, 40) + ' to ' + nameOf(R.ctx, pick), action: 'coo.move_task', input: {task: p.task, owner: pick, why: 'leave'}} : null; }).filter(Boolean);
+          await act(R, {job: 'J12', code: 'cover_client', kind: 'card', cap: 'cover', rung: lowerOf(st.rungs.cover, 'propose'), subject: 'req:' + u + ':' + req.id,
+            args: {uid: u, task: first.task, d1: s.from, d2: s.to}, refs: {uid: u, req: req.id, task: first.task},
+            card: {kind: 'clientDate', urgent: s.from <= addDays(R.ymd, 1), dedupe: 'clientDate:req:' + u + ':' + req.id, why: plural(plan.propose.length, 'client date falls', 'client dates fall') + ' inside the leave.',
+              options: opts.concat([{label: 'Open the board', action: 'coo.open', input: {route: '#tasks'}}])}});
+        }
+      }
+    }
+  };
+
+  /* J13: leave still waiting on Kaavish after a day, or starting within two: the card goes to the top */
+  J.J13 = async R => {
+    const st = R.state;
+    const open = openCards(R.ctx);
+    for (const {uid, req} of pendings(st, false).concat(pendings(st, true))) {
+      const old = (Number(req.at) || R.now) < R.now - DAY;
+      const soon = YMD.test(req.from || '') && req.from <= addDays(R.ymd, 2);
+      if (!old && !soon) continue;
+      const subject = 'req:' + uid + ':' + req.id;
+      const has = open.find(c => (c.refs || {}).req === req.id);
+      if (has) { if (!has.urgent && !R.practice) R.cardPatch[has.id] = {urgent: true, money: has.money}; continue; }
+      await act(R, {job: 'J13', code: 'leave_wait', kind: 'card', cap: 'leave', rung: lowerOf(st.rungs.leave, 'propose'), subject, args: {uid, d1: req.from, d2: req.to},
+        refs: {uid, req: req.id}, apply: {action: 'coo.approve_leave', input: {uid, req: req.id, from: req.from, to: req.to, type: req.type || 'casual'}},
+        card: {kind: req.type === 'wfh' ? 'wfh' : 'leave', urgent: true, label: 'Approve', dedupe: (req.type === 'wfh' ? 'wfh:' : 'leave:') + subject, expires: dayStart(req.from || R.ymd)}});
+    }
+  };
+
+  /* J14: someone answered a bot "off today" and filed no leave */
+  J.J14 = async R => {
+    const st = R.state;
+    for (const u of nonFounders(R)) {
+      const acks = pmAcks(R.ctx, u);
+      const said = Object.keys(acks).some(k => k.endsWith(':' + R.ymd) && acks[k] && acks[k].how === 'leave');
+      if (!said || isOut(st, u, R.ymd) || pendingOn(st, u, R.ymd, Infinity) || didToday(R, 'said_off', 'uid:' + u)) continue;
+      await askAct(R, {job: 'J14', code: 'said_off', args: {uid: u}, subject: 'uid:' + u});
+    }
+  };
+
+  /* J15: Monday outcomes. At noon an ask with up to three ideas from their open work; at three, one line to
+     their manager. The person saves their own outcomes; the COO never writes plan/ */
+  J.J15 = async R => {
+    const st = R.state;
+    if (dowOf(R.ymd) !== 1 || minsOf(R.now) < (toMins(st.settings.mondayCut) || 720)) return;
+    const week = isoWeekOf(R.now);
+    const plans = mapOf(R.ctx, 'plan');
+    const end = addDays(R.ymd, 5);
+    for (const u of nonFounders(R)) {
+      if (isOut(st, u, R.ymd)) continue;
+      const items = ((((plans[u] || {}).weeks || {})[week]) || {}).items || [];
+      if (items.length) continue;
+      if (R.slot === 'r12') {
+        const ideas = tasksList(st).filter(t => t.owner === u && openTask(t) && t.due && t.due <= end).sort((a, b) => (a.due < b.due ? -1 : 1)).slice(0, 3).map(t => String(t.title || '').slice(0, 60));
+        if (!didToday(R, 'outcomes', 'uid:' + u)) await askAct(R, {job: 'J15', code: 'outcomes', args: {uid: u, list: ideas.join('; ')}, subject: 'uid:' + u});
+      } else {
+        const mgr = managerFrom(st.members, st.founder, u);
+        if (mgr && mgr !== st.founder && !didToday(R, 'outcomes_mgr', 'uid:' + u)) await askAct(R, {job: 'J15', code: 'outcomes_mgr', rcpt: mgr, args: {uid: u, to: mgr}, subject: 'uid:' + u});
+      }
+    }
+  };
+
+  /* J16: work waiting in review for over a working day: an ask to the reviewer; over two, Kaavish hears.
+     The COO never approves or sends back */
+  J.J16 = async R => {
+    const st = R.state;
+    for (const t of tasksList(st)) {
+      if (t.status !== 'review' || !t.reviewAt) continue;
+      const since = ymdOf(Number(t.reviewAt));
+      const waited = workDaysIn(st, addDays(since, 1), R.ymd).length;
+      if (waited < 1) continue;
+      const rv = reviewerOf(st, t);
+      const args = {uid: t.owner, to: rv, task: t.id, day: since};
+      if (rv && rv !== st.founder && !didToday(R, 'review_ask', 'task:' + t.id)) await askAct(R, {job: 'J16', code: 'review_ask', rcpt: rv, cap: 'reviews', args, subject: 'task:' + t.id});
+      if (waited >= 2 || rv === st.founder) {
+        await act(R, {job: 'J16', code: 'review_late', kind: 'card', cap: 'reviews', rung: lowerOf(st.rungs.reviews, 'propose'), subject: 'task:' + t.id, args, refs: {task: t.id, uid: t.owner},
+          card: {kind: 'info', dedupe: 'review:' + t.id + ':' + R.ymd, options: [{label: 'Open reviews', action: 'coo.open', input: {route: '#reviews'}}]}});
+      }
+    }
+  };
+
+  /* answers of "blocked" to a bot about a task, past the blocker wait: [{u, K, task, at}] */
+  function blockedNow(R) {
+    const out = [];
+    const mins = numOr(((R.ctx.settings || {}).pm || {}).blockerMins, 120);
+    for (const u of nonFounders(R)) {
+      const acks = pmAcks(R.ctx, u);
+      for (const K of Object.keys(acks).sort()) {
+        const a = acks[K];
+        if (!a || a.how !== 'blocked' || !M.pm || !M.pm.parseKey) continue;
+        const k = M.pm.parseKey(K);
+        if (k.rep !== u || k.ymd !== R.ymd) continue;
+        const t = R.state.tasks[k.sub];
+        if (!t || !openTask(t) || t.owner !== u) continue;
+        if ((Number(a.at) || 0) > R.now - mins * MIN) continue;
+        out.push({u, K, task: {...t, id: k.sub}, at: Number(a.at) || R.now});
+      }
+    }
+    return out;
+  }
+  /* J17: someone blocked on a task: an ask to whoever can unblock it; Kaavish after 4 working hours */
+  J.J17 = async R => {
+    const st = R.state;
+    for (const b of blockedNow(R)) {
+      const t = b.task;
+      const p = t.project ? st.projects[t.project] : null;
+      const who = [t.by, p && p.owner, t.sentBackBy].find(x => x && x !== b.u && active(st, x)) || st.founder;
+      const args = {uid: b.u, to: who, task: t.id, at: b.at};
+      const waitsOnLine = M.pm && M.pm.on && M.pm.on(R.ctx) && M.pm.chases(R.ctx, who, 'waiton');
+      if (who !== st.founder && !waitsOnLine && !didToday(R, 'blocked_ask', 'task:' + t.id)) await askAct(R, {job: 'J17', code: 'blocked_ask', rcpt: who, args, subject: 'task:' + t.id});
+      if (who === st.founder || R.now - b.at >= 4 * HOUR) {
+        await act(R, {job: 'J17', code: 'blocked_late', kind: 'card', cap: 'nudge', rung: lowerOf(st.rungs.nudge, 'propose'), subject: 'task:' + t.id, args, refs: {task: t.id, uid: b.u},
+          card: {kind: 'info', dedupe: 'blocked:' + t.id + ':' + R.ymd, options: [{label: 'Open the task', action: 'coo.open', input: {route: '#tasks/' + t.id}}]}});
+      }
+    }
+  };
+
+  /* J18: Friday review prep, a draft of hit or miss per outcome with the evidence; Kaavish confirms each
+     person's marks with one tap, as himself */
+  J.J18 = async R => {
+    const st = R.state;
+    const week = isoWeekOf(R.now);
+    const mon = addDays(R.ymd, -((dowOf(R.ymd) + 6) % 7));
+    const plans = mapOf(R.ctx, 'plan');
+    const words = s => String(s || '').toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length >= 4);
+    let n = 0;
+    for (const u of nonFounders(R)) {
+      const items = ((((plans[u] || {}).weeks || {})[week]) || {}).items || [];
+      if (!items.length) continue;
+      const done = tasksList(st).filter(t => t.owner === u && t.status === 'done' && t.doneAt && ymdOf(Number(t.doneAt)) >= mon);
+      const marks = {}, evidence = [];
+      for (const it of items) {
+        const w = words(it.text);
+        const hit = done.find(t => words(t.title).some(x => w.indexOf(x) >= 0));
+        marks[it.id] = hit ? 'hit' : 'miss';
+        if (hit) evidence.push({item: it.id, task: hit.id});
+      }
+      const r = await act(R, {job: 'J18', code: 'review_prep', kind: 'card', cap: 'reviewPrep', rung: lowerOf(st.rungs.reviewPrep, 'draft'), subject: 'review:' + u + ':' + week,
+        args: {uid: u, n: 1, week}, refs: {uid: u},
+        card: {kind: 'review', dedupe: 'review:' + u + ':' + week, why: plural(evidence.length, 'outcome matches', 'outcomes match') + ' shipped work.', sources: evidence.map(e => 'tasks/' + e.task),
+          options: [{label: 'Confirm marks', action: 'coo.confirm_marks', input: {uid: u, week, marks}}], draft: {marks, evidence}}});
+      if (r.status === 'card' || r.status === 'would') n++;
+    }
+    if (n) R.day.reviewPrep = {at: Date.now(), n};
+  };
+
+  /* J19: three long days running (over 11 hours each): one warm line, at most once a week. It never reads
+     care or break */
+  J.J19 = async R => {
+    const st = R.state;
+    for (const u of nonFounders(R)) {
+      const days = [];
+      let d = R.ymd;
+      for (let i = 0; i < 10 && days.length < 3; i++) { if (isWork(st, d)) days.push(d); d = addDays(d, -1); }
+      const long = days.length === 3 && days.every(x => { const c = (st.checkin[u] || {})[x]; return c && c.in && c.out && c.out - c.in > 11 * HOUR; });
+      if (!long || askedWithin(R.ctx, u, 'care', 7) || didToday(R, 'care', 'uid:' + u)) continue;
+      await askAct(R, {job: 'J19', code: 'care', args: {uid: u}, subject: 'uid:' + u});
+      R.day.care = (R.day.care || 0) + 1;
+    }
+  };
+
+  /* J20: structure proposals on Monday: the leave policy, next year's holidays, reporting lines, the
+     personal managers, join requests. Kaavish applies each as himself */
+  J.J20 = async R => {
+    const st = R.state;
+    const c = R.ctx;
+    const week = isoWeekOf(R.now);
+    const card = (code, args, dedupe, options) => act(R, {job: 'J20', code, kind: 'card', cap: 'structure', rung: lowerOf(st.rungs.structure, 'propose'), subject: dedupe, args,
+      card: {kind: 'proposal', dedupe: dedupe + ':' + week, options}});
+    const per = (st.cfg.leave || {}).perType || {};
+    const unset = ['casual', 'sick'].filter(k => !isSet(per[k]));
+    if (unset.length) await card('setup_leave', {type: unset.length === 1 ? unset[0] : ''}, 'setup:leave', [{label: 'Open Admin', action: 'coo.open', input: {route: '#admin'}}]);
+    if (R.ymd.slice(5) >= '11-01') {
+      const next = String(Number(R.ymd.slice(0, 4)) + 1);
+      if (!(st.holidays || []).some(h => String(h).startsWith(next))) await card('setup_holidays', {year: next}, 'setup:holidays', [{label: 'Open Admin', action: 'coo.open', input: {route: '#admin'}}]);
+    }
+    const loose = nonFounders(R).filter(u => !st.members[u].reportsTo && managerFrom(st.members, st.founder, u) === st.founder).length;
+    if (loose) await card('setup_lines', {n: loose}, 'setup:lines', [{label: 'Open Admin', action: 'coo.open', input: {route: '#admin'}}]);
+    if (!(M.pm && M.pm.on && M.pm.on(c))) await card('setup_pm', {}, 'setup:pm', [{label: 'Switch them on', action: 'pm_policy', input: {on: true}}]);
+    const join = Object.keys(mapOf(c, 'join')).filter(k => { const j = mapOf(c, 'join')[k]; return j && (!j.status || j.status === 'pending'); }).length;
+    if (join) await card('setup_join', {n: join}, 'setup:join', [{label: 'Open People', action: 'coo.open', input: {route: '#people'}}]);
+  };
+
+  /* J30: the load snapshot, with the one before it for the rebalance */
+  J.J30 = async R => {
+    const st = R.state;
+    const ld = load(st);
+    const today = await read(R.ctx, 'coo/load-' + R.ymd);
+    let prev = today && today.snap ? today.snap : null;
+    if (!prev) { const y = await read(R.ctx, 'coo/load-' + addDays(R.ymd, -1)) || await read(R.ctx, 'coo/load-' + addDays(R.ymd, -2)); prev = y && y.snap ? y.snap : null; }
+    R.load = ld; R.prevLoad = prev;
+    const line = overLine(st, ld);
+    const over = Object.keys(ld).filter(u => u !== st.founder && ld[u].score > line).length;
+    if (!R.practice) { try { await quietW(R.ctx).set('coo/load-' + R.ymd, {at: Date.now(), by: 'page', snap: ld, prev: prev || null, line}); } catch (e) { /* the next round */ } }
+    await act(R, {job: 'J30', code: 'load', kind: 'report', args: {n: over}});
+  };
+
+  /* J31: rebalance someone over the line on two snapshots running */
+  J.J31 = async R => {
+    const st = R.state;
+    if (!R.load) await J.J30(R);
+    const plan = planRebalance(st, R.load, R.prevLoad, R.ymd);
+    for (const mv of plan.moves) {
+      const t = st.tasks[mv.task];
+      const until = Date.now() + DAY;
+      const args = {uid: mv.from, to: mv.to, task: mv.task, due: mv.due, newDue: mv.newDue !== mv.due ? mv.newDue : '', open: mv.open, over: mv.over, open2: mv.open2, until};
+      const patch = mv.newDue !== (t.due || '') ? {owner: mv.to, due: mv.newDue} : {owner: mv.to};
+      const res = await act(R, {job: 'J31', code: 'rebalance', kind: 'move', cap: 'rebalance', subject: 'task:' + mv.task, args, refs: {uid: mv.from, to: mv.to, task: mv.task}, why: 'overload',
+        target: taskTarget(mv.task), before: {owner: mv.from, due: t.due || ''}, after: {owner: mv.to, due: patch.due !== undefined ? patch.due : (t.due || '')},
+        write: moveSave(R, mv.task, patch, 'overload', args), apply: {action: 'coo.move_task', input: {task: mv.task, ...patch, why: 'overload'}},
+        card: {kind: 'move', label: 'Move it', dedupe: 'move:task:' + mv.task + ':' + R.ymd},
+        told: [{uid: mv.to, code: 'rebalance'}, {uid: mv.from, code: 'handed_away'}], undo: {k: 'task', task: mv.task, fields: ['owner', 'due'], until}});
+      if (res.status === 'done') { st.tasks = {...st.tasks, [mv.task]: {...t, ...patch}}; forget(st); }
+    }
+  };
+
+  /* J32: open work with no owner, or an owner who left: the project's owner, else its least loaded member */
+  J.J32 = async R => {
+    const st = R.state;
+    const ld = R.load || load(st);
+    for (const t of tasksList(st)) {
+      if (!openTask(t) || (t.owner && active(st, t.owner)) || !t.project) continue;
+      const p = st.projects[t.project];
+      if (!p || p.archived) continue;
+      /* never handed to someone away today */
+      const can = u => active(st, u) && !isOut(st, u, R.ymd);
+      const to = can(p.owner) ? p.owner : (Array.isArray(p.members) ? p.members : []).filter(can).sort((a, b) => ((ld[a] || {}).score || 0) - ((ld[b] || {}).score || 0) || (a < b ? -1 : 1))[0];
+      if (!to || !movable(st, t).ok) continue;
+      const until = Date.now() + DAY;
+      const args = {uid: t.owner || '', to, task: t.id, left: !!t.owner, due: t.due || '', until};
+      await act(R, {job: 'J32', code: 'orphan', kind: 'move', cap: 'orphans', subject: 'task:' + t.id, args, refs: {uid: t.owner || '', to, task: t.id}, why: 'orphan',
+        target: taskTarget(t.id), before: {owner: t.owner || '', due: t.due || ''}, after: {owner: to, due: t.due || ''},
+        write: moveSave(R, t.id, {owner: to}, 'orphan', args), apply: {action: 'coo.move_task', input: {task: t.id, owner: to, why: 'orphan'}},
+        card: {kind: 'move', label: 'Give it to them', dedupe: 'move:task:' + t.id + ':' + R.ymd},
+        told: [{uid: to, code: 'orphan'}], undo: {k: 'task', task: t.id, fields: ['owner', 'due'], until}});
+    }
+  };
+
+  /* J33: a structured "blocked" on a task: its date moves by the working days it has been blocked, once a
+     week per task */
+  J.J33 = async R => {
+    const st = R.state;
+    for (const b of blockedNow(R)) {
+      const t = b.task;
+      if (!t.due || t.due > nextWork(st, R.ymd) || clientDated(st, t) || !movable(st, t).ok || didToday(R, 'shift_blocked', 'task:' + t.id)) continue;
+      const n = Math.max(1, workDaysIn(st, ymdOf(b.at), R.ymd).length);
+      const newDue = nthWork(st, t.due > R.ymd ? t.due : R.ymd, n);
+      const until = Date.now() + DAY;
+      const args = {uid: t.owner, task: t.id, due: newDue, due0: t.due, until};
+      await act(R, {job: 'J33', code: 'shift_blocked', kind: 'shift', cap: 'shift', subject: 'task:' + t.id, args, refs: {uid: t.owner, task: t.id}, why: 'blocked',
+        target: taskTarget(t.id), before: {owner: t.owner, due: t.due}, after: {owner: t.owner, due: newDue},
+        write: moveSave(R, t.id, {due: newDue}, 'blocked', args), apply: {action: 'coo.move_task', input: {task: t.id, due: newDue, why: 'blocked'}},
+        card: {kind: 'move', label: 'Move the date', dedupe: 'shift:task:' + t.id + ':' + R.ymd},
+        told: [{uid: t.owner, code: 'shift_blocked'}], undo: {k: 'task', task: t.id, fields: ['owner', 'due'], until}});
+    }
+  };
+
+  /* J34: internal work 2 or more working days overdue with no movement and no bot on it: an ask for a date
+     (brief). When the owner answers "on it, by <date>", that date becomes the due date (watch rounds), and
+     points still count the date before it */
+  J.J34 = async R => {
+    const st = R.state;
+    if (R.slot === 'brief') {
+      for (const t of tasksList(st)) {
+        if (!openTask(t) || !t.due || !active(st, t.owner) || t.owner === st.founder || clientDated(st, t)) continue;
+        if (workDaysIn(st, addDays(t.due, 1), R.ymd).length < 2 || (Number(t.updated) || 0) > R.now - 2 * DAY) continue;
+        if (M.pm && M.pm.chases && M.pm.chases(R.ctx, t.owner, 'overdue')) continue;
+        if (askedWithin(R.ctx, t.owner, 'eta_ask', 3, t.id)) continue;
+        await askAct(R, {job: 'J34', code: 'eta_ask', kind: 'overdue', sub: t.id, ask: 'eta', args: {uid: t.owner, task: t.id, due0: t.due}, subject: 'task:' + t.id});
+      }
+      return;
+    }
+    for (const id of Object.keys(cooAsks(R.ctx)).sort()) {
+      const a = cooAsks(R.ctx)[id];
+      if (!a || a.withdrawn || a.code !== 'eta_ask' || !a.sub || (Number(a.at) || 0) < R.now - 3 * DAY) continue;
+      const t = st.tasks[a.sub];
+      if (!t || !openTask(t)) continue;
+      const u = (a.to || [])[0];
+      const ack = M.pm && M.pm.key ? pmAcks(R.ctx, u)[M.pm.key(u, 'overdue', a.sub, ymdOf(Number(a.at)))] : null;
+      if (!ack || ack.how !== 'onit' || typeof ack.eta !== 'string' || !YMD.test(ack.eta) || ack.eta <= (t.due || '') || t.owner !== u) continue;
+      if (!movable(st, {...t, id: a.sub}).ok || didToday(R, 'eta_shift', 'task:' + a.sub)) continue;
+      const until = Date.now() + DAY;
+      const args = {uid: u, task: a.sub, due: ack.eta, due0: t.due, until};
+      await act(R, {job: 'J34', code: 'eta_shift', kind: 'shift', cap: 'shift', subject: 'task:' + a.sub, args, refs: {uid: u, task: a.sub}, why: 'eta',
+        target: taskTarget(a.sub), before: {owner: u, due: t.due}, after: {owner: u, due: ack.eta},
+        write: moveSave(R, a.sub, {due: ack.eta}, 'eta', args), apply: {action: 'coo.move_task', input: {task: a.sub, due: ack.eta, why: 'eta'}},
+        card: {kind: 'move', label: 'Set the date', dedupe: 'shift:task:' + a.sub + ':' + R.ymd}, undo: {k: 'task', task: a.sub, fields: ['owner', 'due'], until}});
+    }
+  };
+
+  /* J35: three or more internal tasks due one day for one person spread out; a date on their day off rolls
+     to their next working day. Client dates are only reported */
+  J.J35 = async R => {
+    const st = R.state;
+    for (const u of nonFounders(R)) {
+      const mine = tasksList(st).filter(t => t.owner === u && openTask(t) && t.due && t.due >= R.ymd);
+      const count = {};
+      for (const t of mine) count[t.due] = (count[t.due] || 0) + 1;
+      const moved = {};
+      for (const t of mine.sort((a, b) => (a.due < b.due ? -1 : a.due > b.due ? 1 : weightOf(b) - weightOf(a) || (a.id < b.id ? -1 : 1)))) {
+        const off = !isWork(st, t.due) || isOut(st, u, t.due);
+        const pile = !off && count[t.due] >= 3 && (moved[t.due] || 0) < count[t.due] - 2 && mine.filter(x => x.due === t.due).indexOf(t) >= 2;
+        if (!off && !pile) continue;
+        if (clientDated(st, t)) {
+          if (off) await act(R, {job: 'J35', code: 'pileup_client', kind: 'card', cap: 'shift', rung: lowerOf(st.rungs.shift, 'propose'), subject: 'task:' + t.id, args: {uid: u, task: t.id},
+            refs: {uid: u, task: t.id}, card: {kind: 'clientDate', dedupe: 'clientDate:task:' + t.id + ':' + R.ymd, options: [{label: 'Open the task', action: 'coo.open', input: {route: '#tasks/' + t.id}}]}});
+          continue;
+        }
+        if (!movable(st, t).ok) continue;
+        let newDue = nextWork(st, t.due, u);
+        while (pile && (count[newDue] || 0) >= 2) newDue = nextWork(st, newDue, u);
+        const until = Date.now() + DAY;
+        const args = {uid: u, task: t.id, due: newDue, due0: t.due, day: t.due, n: count[t.due], until};
+        const res = await act(R, {job: 'J35', code: off ? 'offday' : 'pileup', kind: 'shift', cap: 'shift', subject: 'task:' + t.id, args, refs: {uid: u, task: t.id}, why: 'pileup',
+          target: taskTarget(t.id), before: {owner: u, due: t.due}, after: {owner: u, due: newDue},
+          write: moveSave(R, t.id, {due: newDue}, 'pileup', args), apply: {action: 'coo.move_task', input: {task: t.id, due: newDue, why: 'pileup'}},
+          card: {kind: 'move', label: 'Move the date', dedupe: 'shift:task:' + t.id + ':' + R.ymd},
+          told: [{uid: u, code: off ? 'offday' : 'pileup'}], undo: {k: 'task', task: t.id, fields: ['owner', 'due'], until}});
+        if (res.status === 'done' || res.status === 'would') { moved[t.due] = (moved[t.due] || 0) + 1; count[newDue] = (count[newDue] || 0) + 1; }
+      }
+    }
+  };
+
+  /* J36: a client date within two working days whose owner is stretched, away, blocked or not started:
+     options for Kaavish, and a drafted ask to the client */
+  J.J36 = async R => {
+    const st = R.state;
+    const ld = R.load || load(st);
+    const line = overLine(st, ld);
+    const end = nthWork(st, R.ymd, 2);
+    const blocked = new Set(blockedNow(R).map(b => b.task.id));
+    for (const t of tasksList(st)) {
+      if (!openTask(t) || !t.due || t.due < R.ymd || t.due > end || !clientDated(st, t) || !t.owner) continue;
+      const away = workDaysIn(st, R.ymd, t.due).some(d => isOut(st, t.owner, d));
+      const state = away ? 'away' : blocked.has(t.id) ? 'blocked' : (ld[t.owner] && ld[t.owner].score > line) ? 'stretched' : t.status === 'todo' || !t.status ? 'not started' : '';
+      if (!state) continue;
+      const pick = shortlist(st, t, ld, R.ymd)[0];
+      const p = t.project ? st.projects[t.project] : null;
+      const helper = pick && p && (p.members || []).indexOf(pick) < 0 ? pick : null;
+      const opts = [];
+      if (pick) opts.push({label: 'Give it to ' + nameOf(R.ctx, pick), action: 'coo.move_task', input: {task: t.id, owner: pick, why: 'client'}});
+      if (helper) opts.push({label: 'Add ' + nameOf(R.ctx, helper) + ' to the project', action: 'add_project_member', input: {project: t.project, person: nameOf(R.ctx, helper)}});
+      opts.push({label: 'Ask the client for 2 days', action: 'coo.mail', input: {}});
+      await act(R, {job: 'J36', code: 'client_risk', kind: 'card', cap: 'clientDates', rung: lowerOf(st.rungs.clientDates, 'propose'), subject: 'task:' + t.id,
+        args: {uid: t.owner, task: t.id, due: t.due, state}, refs: {uid: t.owner, task: t.id, client: t.client || (p && p.client) || ''},
+        card: {kind: 'clientDate', urgent: true, dedupe: 'clientDate:task:' + t.id + ':' + R.ymd, options: opts,
+          draft: {to: '', cc: '', subject: 'A short extension on ' + String(t.title || 'the work').slice(0, 80),
+            text: 'Hi,\n\nWe want to get ' + String(t.title || 'this').slice(0, 80) + ' right, and two more working days would let us do that. Could we move it to ' + dayTxt(nthWork(st, t.due, 2)) + '?\n\nThank you,\nKaavish'}}});
+    }
+  };
+
+  /* J37: tomorrow's work, one line per owner */
+  J.J37 = async R => {
+    const st = R.state;
+    const tmr = nextWork(st, R.ymd);
+    const by = {};
+    for (const t of tasksList(st)) if (openTask(t) && t.due === tmr && t.owner) (by[t.owner] = by[t.owner] || []).push(t);
+    for (const u of Object.keys(by).sort()) {
+      if (u === st.founder || !active(st, u) || isOut(st, u, tmr) || isOut(st, u, R.ymd) || didToday(R, 'due_tomorrow', 'uid:' + u)) continue;
+      const list = by[u].slice(0, 3).map(t => String(t.title || 'a task').slice(0, 60)).join('; ') + (by[u].length > 3 ? ', and ' + (by[u].length - 3) + ' more' : '');
+      await askAct(R, {job: 'J37', code: 'due_tomorrow', args: {uid: u, list, day: tmr}, subject: 'uid:' + u});
+    }
+  };
+
+  /* J38: project health. Behind its own clock, a project is raised to at risk or off track (never
+     lowered), with an update, and its owner is told */
+  J.J38 = async R => {
+    const st = R.state;
+    for (const pid of Object.keys(st.projects || {}).sort()) {
+      const p = st.projects[pid];
+      if (!p || p.archived || !(p.status === 'on' || p.status === 'risk' || !p.status) || !YMD.test(p.start || '') || !YMD.test(p.due || '') || p.due <= p.start) continue;
+      const tasks = tasksList(st).filter(t => t.project === pid);
+      if (!tasks.length) continue;
+      const done = tasks.filter(t => t.status === 'done').length;
+      const over = tasks.filter(t => openTask(t) && t.due && t.due < R.ymd).length;
+      const pct = Math.round(100 * done / tasks.length);
+      const elapsed = Math.max(0, Math.min(100, Math.round(100 * daysBetween(p.start, R.ymd) / daysBetween(p.start, p.due))));
+      const gap = elapsed - pct;
+      const to = (p.due < R.ymd && done < tasks.length) || gap >= 50 ? 'off' : gap >= 25 && over > 0 ? 'risk' : '';
+      if (!to || RAISE[to] <= (RAISE[p.status || 'on'] || 0)) continue;
+      const args = {project: pid, status: to, pct, elapsed, over, uid: p.owner};
+      const text = copy('project_risk', args, 'dm', R.ctx).line;
+      await act(R, {job: 'J38', code: 'project_risk', kind: 'project', cap: 'projects', subject: 'project:' + pid, args, refs: {project: pid, uid: p.owner}, why: '',
+        target: {path: 'projects/' + pid, pick: d => ({status: (d && d.status) || 'on'})}, before: {status: p.status || 'on'}, after: {status: to},
+        write: row => {
+          const body = {updates: {[row.id]: {by: UID, status: to, text, at: Date.now()}}, status: to, updated: Date.now()};
+          guard('projects/' + pid, body, p);
+          return botW(R.ctx, {note: 'coo J38 ' + row.id}).merge('projects/' + pid, body);
+        },
+        apply: {action: 'coo.raise_project', input: {project: pid, status: to}}, card: {kind: 'proposal', label: 'Raise it', dedupe: 'project:' + pid + ':' + R.ymd},
+        told: p.owner && p.owner !== st.founder ? [{uid: p.owner, code: 'project_risk'}] : [], undo: {k: 'project', project: pid, prev: p.status || 'on', until: Date.now() + DAY}});
+    }
+  };
+
+  /* J40: pitches with no next step, an overdue one, or stuck in a stage: an ask to the owner; Kaavish hears at
+     2 working days or twice the stage limit. The COO never moves nextDate */
+  J.J40 = async R => {
+    const st = R.state;
+    const stuckDays = st.cfg.stuck || {};
+    for (const id of Object.keys(st.pitches || {}).sort()) {
+      const p = st.pitches[id];
+      if (!p || p.archived || !p.owner || ['won', 'lost'].indexOf(p.stage) >= 0) continue;
+      const since = ymdOf(Number(p.stageAt || p.created || R.now));
+      const inStage = daysBetween(since, R.ymd);
+      const late = YMD.test(p.nextDate || '') && p.nextDate < R.ymd ? workDaysIn(st, addDays(p.nextDate, 1), R.ymd).length : 0;
+      const none = !p.next && !p.nextDate && inStage >= 2;
+      const lim = numOr(stuckDays[p.stage], 0);
+      const stuckNow = lim > 0 && inStage > lim;
+      if (!late && !none && !stuckNow) continue;
+      const args = {uid: p.owner, pitch: id, n: late || inStage};
+      if (p.owner !== st.founder && !didToday(R, 'pitch_ask', 'pitch:' + id) && !askedWithin(R.ctx, p.owner, 'pitch_ask', 2, undefined)) await askAct(R, {job: 'J40', code: 'pitch_ask', args, subject: 'pitch:' + id, refs: {pitch: id}});
+      if (late >= 2 || (lim > 0 && inStage >= 2 * lim) || p.owner === st.founder) {
+        await act(R, {job: 'J40', code: 'pitch_late', kind: 'card', cap: 'nudge', rung: lowerOf(st.rungs.nudge, 'propose'), subject: 'pitch:' + id, args, refs: {pitch: id, uid: p.owner},
+          card: {kind: 'info', dedupe: 'pitch:' + id + ':' + isoWeekOf(R.now), options: [{label: 'Open the pitch', action: 'coo.open', input: {route: '#pitches/' + id}}]}});
+      }
+    }
+  };
+
+  /* a Base contact's address, from a structured id only (never from free text) */
+  const contactMail = (ctx, id) => {
+    const c = id && M.search && M.search.contactById ? M.search.contactById(ctx, id) : null;
+    return c ? String(c.mail || c['email'] || '').trim() : '';
+  };
+  const firstOf = (ctx, id) => { const c = id && M.search && M.search.contactById ? M.search.contactById(ctx, id) : null; return c ? String(c.first || c.name || '').split(' ')[0] : ''; };
+  /* J41: follow-up drafts. A proposal 5 working days without a reply, and a live client with no work touch in
+     21 days. One per client a week, drafts only: nothing leaves until Kaavish taps Send */
+  J.J41 = async R => {
+    const st = R.state;
+    const c = R.ctx;
+    const bucket = Math.floor(daysBetween('2026-01-05', R.ymd) / 7);
+    for (const id of Object.keys(st.pitches || {}).sort()) {
+      const p = st.pitches[id];
+      if (!p || p.archived || p.stage !== 'proposal') continue;
+      const since = ymdOf(Number(p.stageAt || p.created || R.now));
+      const n = workDaysIn(st, addDays(since, 1), R.ymd).length;
+      if (n < 5) continue;
+      const to = contactMail(c, p.contact);
+      const hi = firstOf(c, p.contact);
+      await act(R, {job: 'J41', code: 'client_mail', kind: 'card', cap: 'clientMail', rung: lowerOf(st.rungs.clientMail, 'draft'), subject: 'pitch:' + id, args: {pitch: id, n},
+        refs: {pitch: id, client: p.client || ''},
+        card: {kind: 'client_mail', dedupe: 'client_mail:pitch:' + id + ':' + bucket, why: to ? 'Sent ' + dayTxt(since) + ', no reply in ' + plural(n, 'working day', 'working days') + '.' : 'Add the recipient before you send.',
+          sources: ['pitches/' + id], draft: {to, cc: '', subject: 'Following up on our proposal',
+            text: 'Hi' + (hi ? ' ' + hi : '') + ',\n\nFollowing up on the proposal we sent on ' + dayTxt(since) + '. Happy to walk you through it or adjust anything. Would a short call this week work?\n\nKaavish'}}});
+    }
+    const tasks = tasksList(st);
+    for (const id of Object.keys(st.clients || {}).sort()) {
+      const cl = st.clients[id];
+      if (!cl || cl.archived || (cl.status && cl.status !== 'live' && cl.status !== 'active')) continue;
+      let touch = 0;
+      for (const t of tasks) if (t.client === id) touch = Math.max(touch, Number(t.updated) || 0, Number(t.created) || 0, Number(t.doneAt) || 0);
+      for (const pid of Object.keys(st.projects || {})) { const p = st.projects[pid]; if (p && p.client === id) for (const u of Object.values(p.updates || {})) touch = Math.max(touch, Number(u && u.at) || 0); }
+      if (!touch || touch > R.now - 21 * DAY) continue;
+      const to = contactMail(c, cl.contact);
+      const hi = firstOf(c, cl.contact);
+      await act(R, {job: 'J41', code: 'client_mail', kind: 'card', cap: 'clientMail', rung: lowerOf(st.rungs.clientMail, 'draft'), subject: 'client:' + id, args: {client: id},
+        refs: {client: id},
+        card: {kind: 'client_mail', dedupe: 'client_mail:client:' + id + ':' + bucket, why: to ? 'No work touch since ' + dayTxt(ymdOf(touch)) + '.' : 'Add the recipient before you send.',
+          sources: ['clients/' + id], draft: {to, cc: '', subject: 'Checking in',
+            text: 'Hi' + (hi ? ' ' + hi : '') + ',\n\nIt has been a few weeks, so a quick hello from Mask360. Is there anything on your side we can help with this month?\n\nKaavish'}}});
+    }
+  };
+
+  /* J42: tomorrow's meetings with people from a client, a pitch or an org: a short confirm note, drafted.
+     The artifact reads the calendar through the connector; nothing is sent from here */
+  J.J42 = async R => {
+    const c = R.ctx;
+    if (!c.mcp || typeof c.mcp.callTool !== 'function') return;
+    const tmr = nextWork(R.state, R.ymd);
+    const domains = new Set();
+    const dom = s => { const m = /@([a-z0-9.-]+\.[a-z]{2,})$/i.exec(String(s || '').trim()); return m ? m[1].toLowerCase() : ''; };
+    const web = s => { const m = /^(?:https?:\/\/)?(?:www\.)?([a-z0-9.-]+\.[a-z]{2,})/i.exec(String(s || '').trim()); return m ? m[1].toLowerCase() : ''; };
+    for (const n of ['clients', 'orgs']) for (const x of Object.values(mapOf(c, n))) if (x) { const d = web(x.website || x.domain || ''); if (d) domains.add(d); }
+    for (const p of Object.values(R.state.pitches || {})) { const d = dom(contactMail(c, p && p.contact)); if (d) domains.add(d); }
+    if (!domains.size) return;
+    let events = [];
+    try {
+      const r = await c.mcp.callTool('Google Calendar', 'list_events', {startTime: new Date(dayStart(tmr)).toISOString(), endTime: new Date(dayStart(tmr) + DAY).toISOString(), orderBy: 'startTime', pageSize: 20});
+      events = ((r && r.payload) || r || {}).events || [];
+    } catch (e) { return; }
+    for (const e of events.slice(0, 10)) {
+      const who = (e.attendees || []).map(a => String((a && (a['email'] || a.addr)) || '')).filter(a => domains.has(dom(a)));
+      if (!who.length) continue;
+      const what = String(e.summary || 'our meeting').slice(0, 80);
+      const at = (e.start && (e.start.dateTime || e.start.date)) || '';
+      await act(R, {job: 'J42', code: 'meeting_mail', kind: 'card', cap: 'meetingMail', rung: lowerOf(R.state.rungs.meetingMail, 'draft'), subject: 'event:' + (e.id || what), args: {what},
+        refs: {event: String(e.id || '')},
+        card: {kind: 'meeting_mail', dedupe: 'meeting_mail:' + (e.id || what) + ':' + tmr, why: 'Tomorrow' + (at.length > 10 ? ' at ' + at.slice(11, 16) : '') + '.',
+          draft: {to: who.join(', '), cc: '', subject: 'Confirming tomorrow: ' + what, text: 'Hi all,\n\nLooking forward to ' + what + ' tomorrow. A quick note to confirm we are set. Let me know if anything changes.\n\nKaavish'}}});
+    }
+  };
+
+  /* J43: overdue invoice reminders on the books chase steps, for the owner only, drafted with the books'
+     own reminder text. They wait in books/cooq for a tap */
+  J.J43 = async R => {
+    const c = R.ctx;
+    if (!c.isOwner || !M.books || !M.books.invoices || !M.invoices || !M.invoices.mailFor) return;
+    const bs = M.books.settings ? M.books.settings(c) : {};
+    const steps = String(((bs || {}).chase || {}).days || '3,7,14').split(',').map(Number).filter(n => n > 0).sort((a, b) => a - b);
+    const book = M.books.clientBook ? M.books.clientBook(c) : {};
+    for (const inv of M.books.invoices(c)) {
+      const s = M.books.status(inv, R.ymd);
+      if ((s !== 'overdue' && s !== 'part') || !inv.due || inv.due >= R.ymd) continue;
+      const late = daysBetween(inv.due, R.ymd);
+      const last = steps[steps.length - 1] || 14;
+      const due = steps.filter(d => late >= d).length + (late > last ? Math.floor((late - last) / 14) : 0);
+      const chased = (inv.chased || []).length;
+      if (!due || chased >= due) continue;
+      let mail = null;
+      try { mail = M.invoices.mailFor(c, inv, 'remind'); } catch (e) { continue; }
+      const to = String(((book[inv.client] || {}).contactEmail) || '').trim();
+      await act(R, {job: 'J43', code: 'invoice', kind: 'card', cap: 'invoiceMail', rung: lowerOf(R.state.rungs.invoiceMail, 'draft'), subject: 'invoice:' + inv.fy + ':' + inv.id,
+        args: {no: String(inv.no || '').slice(0, 40)}, refs: {invoice: inv.id, client: inv.client || ''},
+        card: {kind: 'invoice_reminder', money: true, dedupe: 'invoice:' + inv.fy + ':' + inv.id + ':' + due, why: plural(late, 'day', 'days') + ' past due, ' + plural(chased, 'reminder', 'reminders') + ' so far.',
+          sources: ['invoices/' + inv.fy], draft: {to, cc: String(((bs || {}).chase || {}).cc || ''), subject: mail.subject, text: mail.text, fy: inv.fy, invoice: inv.id}}});
+    }
+  };
+
+  /* J51: the self audit at the close, every zero-check over today's ledger */
+  J.J51 = async R => {
+    const st = R.state;
+    const rows = st.acts.filter(r => r && r.status !== 'would');
+    const done = rows.filter(r => r.status === 'done');
+    const u = used(st);
+    const L = k => limitOf(st, k, 0);
+    const twice = {};
+    for (const r of done) if (r.kind === 'move' || r.kind === 'shift' || r.kind === 'leave') { const k = r.code + '|' + r.subject; twice[k] = (twice[k] || 0) + 1; }
+    const checks = {
+      hours: done.filter(r => minsOf(Number(r.at)) < 540 || minsOf(Number(r.at)) > 1260 + 179).length,
+      caps: ['move', 'shift', 'leave', 'ask', 'draft'].filter(k => u[k] > L(DAY_LIMIT[k])).length + (u.acts > L('actsPerDay') ? 1 : 0),
+      onLeave: done.filter(r => { const x = r.kind === 'move' ? (r.refs || {}).to : r.kind === 'ask' ? (r.refs || {}).uid : ''; return !!x && isOut(st, x, R.ymd); }).length,
+      client: done.filter(r => (r.kind === 'move' || r.kind === 'shift') && r.refs && r.refs.task && clientDated(st, st.tasks[r.refs.task])).length,
+      double: Object.values(twice).filter(n => n > 1).length,
+      refused: rows.filter(r => r.status === 'refused').length,
+      focus: 0, mail: 0
+    };
+    const n = Object.values(checks).reduce((a, b) => a + b, 0);
+    const audit = {at: Date.now(), checks, n};
+    R.day.audit = audit;
+    R.patch.audit = audit;
+    await act(R, {job: 'J51', code: 'audit', kind: 'report', args: {n}});
+    if (n) infoCard(R, 'audit', {n}, 'info:audit:' + R.ymd, true);
+  };
+
+  /* which jobs a slot runs, in order */
+  function jobsFor(R) {
+    const s = R.slot, dow = dowOf(R.ymd);
+    if (!R.work) return s === 'open' ? ['J01'] : s === 'close' ? ['J05'] : [];
+    if (s === 'open') return ['J01'];
+    if (s === 'brief') return ['J30', 'J12', 'J34', 'J32', 'J35', 'J40', 'J36'].concat(dow === 1 ? ['J20'] : []).concat(['J02']);
+    if (/^roll\d{4}b?$/.test(s)) return ['J03'];
+    if (/^w\d{4}$/.test(s)) return ['J10', 'J11', 'J12', 'J17', 'J33', 'J34'];
+    if (s === 'r10') return ['J13'];
+    if (s === 'r11') return ['J16'];
+    if (s === 'r12') return ['J41', 'J43', 'J14', 'J38'].concat(dow === 1 ? ['J15'] : []);
+    if (s === 'r15') return ['J30', 'J31', 'J14', 'J36'].concat(dow === 1 ? ['J15'] : []);
+    if (s === 'r16') return ['J16', 'J42'].concat(dow === 5 ? ['J18'] : []);
+    if (s === 'r1730') return ['J37', 'J13'];
+    if (s === 'eod') return ['J04'];
+    if (s === 'close') return ['J19', 'J51', 'J05'];
+    if (s === 'memo') return ['J06'];
+    /* "rebalance now" moves work only inside the working day, like every round */
+    if (s === 'now') return minsOf(R.now) >= 540 && minsOf(R.now) <= 1260 ? ['J30', 'J31'] : [];
+    return [];
+  }
+
+  /* J50: the live feed. coo/now for the founder, office/live for everyone (team-safe: no uids, names,
+     counts of people, reasons or money). Quiet writes: no log line, no version */
+  async function pub(R, phase) {
+    const c = R.ctx;
+    const now = Date.now();
+    const last = R.rows.filter(r => r.status !== 'running').slice(-1)[0] || null;
+    const job = (last && last.job) || R.job || 'J50';
+    const st = phase === 'end' ? (R.stopped ? 'stuck' : R.halt ? R.halt : R.practice ? 'practice' : R.slot === 'close' ? 'closed' : 'idle') : 'working';
+    const next = slotsDue(R.state.slots, now, {}).next || null;
+    const prev = (c.coo && c.coo.now) || {};
+    const recent = R.rows.filter(r => r.status !== 'running').map(r => ({id: r.id, at: r.at, job: r.job, code: r.code, status: r.status}))
+      .concat((prev.recent || []).filter(x => x && !R.rows.some(r => r.id === x.id))).sort((a, b) => b.at - a.at).slice(0, 20);
+    const station = (JOBS[job] || JOBS.J50).station;
+    const nowDoc = {state: st, job, code: last ? last.code : '', station, args: {n: R.rows.length}, actId: last ? last.id : '', at: now,
+      pass: {at: now, slot: R.slot, ms: now - R.t0, by: 'page', build: String(window.M360_BUILD || '')}, next, recent, err: R.stopped ? {code: 'refused', at: now} : null};
+    const live = {v: 1, state: st, job, station, at: now, next, pass: {at: now, by: 'page'}, seq: now};
+    try { await Promise.all([quietW(c).set('coo/now', plain(nowDoc)), quietW(c).set('office/live', plain(live))]); } catch (e) { /* the next round */ }
+  }
+  /* a rest state outside a run (off, paused, stuck), at most once a day per state */
+  async function rest(ctx, st, now) {
+    const live = (ctx.coo && ctx.coo.live) || {};
+    if (live.state === st && ymdOf(Number(live.at) || 0) === ymdOf(now)) return;
+    const doc = {v: 1, state: st, job: '', station: st === 'off' || st === 'paused' ? 'desk' : 'clock', at: now, next: null, pass: {at: now, by: 'page'}, seq: now};
+    try { await quietW(ctx).set('office/live', doc); if (ctx.isFounder) await quietW(ctx).merge('coo/now', {state: st, at: now}); } catch (e) { /* the next wake */ }
+  }
+
+  /* the end of a run: the told card, the cards, its state, the day's report, the feed */
+  async function finish(R) {
+    const c = R.ctx;
+    if (R.told.length && !R.practice) {
+      const ids = R.told.map(r => r.id);
+      const first = R.told[0];
+      const t = R.told.length === 1 ? copy(first.code, first.args, 'founder', c).line : 'I made ' + plural(R.told.length, 'change', 'changes') + ' this round. Each one can be undone.';
+      addCard(R, {id: U.uid(), kind: 'told', rung: 'tell', title: t, why: R.told.length === 1 ? copy(first.code, {...first.args, why: first.why && first.why.code}, 'founder', c).why : '',
+        recommend: '', checks: [], options: [{label: 'Got it', action: 'coo.ack', input: {}}], payload: {action: 'coo.ack', input: {}, draft: null}, sources: [],
+        refs: {actIds: ids}, code: R.told.length === 1 ? first.code : 'told', args: R.told.length === 1 ? first.args : {n: R.told.length}, urgent: false,
+        dedupe: 'told:' + R.slot + ':' + R.ymd, by: UID, at: Date.now(), expires: Date.now() + DAY, status: 'open', money: false});
+    }
+    const items = {}, money = {};
+    for (const k of R.cards) (k.money ? money : items)[k.id] = plain(k);
+    for (const id of Object.keys(R.cardPatch)) { const p = R.cardPatch[id]; const {money: m, ...rest} = p; (m ? money : items)[id] = rest; }
+    try {
+      if (Object.keys(items).length) await botW(c, {note: 'coo cards ' + R.slot}).merge('coo/dec', {items});
+      if (Object.keys(money).length && c.isOwner) await botW(c, {note: 'coo cards ' + R.slot}).merge('books/cooq', {items: money});
+    } catch (e) { /* the cards come again next round: their dedupe keys hold */ }
+    const patch = plain(R.patch);
+    delete patch.stuck;
+    try {
+      if (Object.keys(patch).length) await quietW(c).merge('coo/state', patch);
+      if (Object.keys(R.day).length) await quietW(c).merge('coo/day-' + R.ymd, plain(R.day));
+    } catch (e) { /* the next round */ }
+    await pub(R, 'end');
+  }
+
+  /* one slot, start to finish. Exported for the runner and for tests (pin the clock first) */
+  async function runSlot(ctx, slot, o) {
+    /* off, paused or stuck runs nothing, whoever asks (a "rebalance now" included) */
+    const st0 = status(fresh(ctx), Date.now());
+    if (st0 === 'off' || st0 === 'paused' || st0 === 'stuck') return {slot, acts: 0, ms: 0, rows: [], cards: [], practice: false, stopped: true, state: st0};
+    const R = newRun(fresh(ctx), slot, o);
+    /* the overflow rows count against the day's limits too (the page subscribes the first ledger only) */
+    if (R.big) { const x = await read(R.ctx, R.lpath); for (const id of Object.keys((x && x.acts) || {})) R.state.acts.push({...x.acts[id], id}); }
+    await learnNames(R.ctx);
+    const jobs = jobsFor(R);
+    await pub(R, 'start');
+    for (const j of jobs) {
+      if (R.stopped || R.halt) break;
+      /* a long round keeps its claim, so no other device takes the slot halfway */
+      if (o && o.renew) await o.renew();
+      R.job = j;
+      try { await J[j](R); } catch (e) { R.fails[j] = (R.fails[j] || 0) + 1; R.day.errors = (R.day.errors || []).concat([{job: j, at: Date.now(), msg: String((e && e.message) || e).slice(0, 160)}]).slice(-10); }
+    }
+    await finish(R);
+    return {slot, acts: R.rows.length, ms: Date.now() - R.t0, rows: R.rows.map(r => ({...r})), cards: R.cards.map(k => ({...k})), practice: R.practice, stopped: !!(R.stopped || R.halt)};
+  }
+
+  /* ---------- the ledger as read ---------- */
+  const rowsOf = (doc, ymd) => Object.keys((doc && doc.acts) || {}).map(id => ({...doc.acts[id], id, ymd})).sort((a, b) => (a.at || 0) - (b.at || 0));
+  /* today's and yesterday's rows from the subscriptions; older ones (a leave approval undoable until next
+     week) are read when asked for */
+  function ledgerRows(ctx) {
+    const L = (ctx && ctx.coo && ctx.coo.L) || {};
+    return Object.keys(L).sort().reduce((out, ymd) => out.concat(rowsOf(L[ymd], ymd)), []);
+  }
+  async function findRow(ctx, id) {
+    const hit = ledgerRows(ctx).find(r => r.id === id);
+    if (hit) return hit;
+    const today = ymdOf(Date.now());
+    /* read back too when the subscriptions have not delivered yet; a busy day's rows run over into
+       L-<ymd>-2, which nothing subscribes */
+    for (let i = 0; i <= 14; i++) {
+      const ymd = addDays(today, -i);
+      for (const path of ['coo/L-' + ymd, 'coo/L-' + ymd + '-2']) {
+        const doc = await read(ctx, path);
+        const r = rowsOf(doc, ymd).find(x => x.id === id);
+        if (r) return {...r, path};
+      }
+    }
+    return null;
+  }
+  /* the settled rows since a moment, for the office: what to play */
+  function feed(ctx, sinceAt) {
+    const since = Number(sinceAt) || 0;
+    return ledgerRows(ctx).filter(r => (r.status === 'done' || r.status === 'would' || r.status === 'failed') && (Number(r.at) || 0) > since)
+      .map(r => ({id: r.id, at: r.at, job: r.job, code: r.code, station: r.station || stationOf(r.job), args: r.args || {}, why: r.why || {}, status: r.status,
+        undoUntil: r.undo && r.status === 'done' ? Number(r.undo.until) || 0 : 0, refs: r.refs || {}}));
+  }
+  /* the row behind a question: "why did you move the reel cut", "why did you approve Riya's leave". subject is
+     a row id, a task id, a uid, or words from a task title or a first name. The newest match wins */
+  function why(ctx, subjectQuery) {
+    const q = String(subjectQuery || '').trim();
+    if (!q) return null;
+    const lq = q.toLowerCase();
+    const rows = ledgerRows(ctx).filter(r => r.status !== 'running').reverse();
+    const tasks = mapOf(ctx, 'tasks');
+    return rows.find(r => r.id === q) || rows.find(r => (r.refs || {}).task === q || (r.refs || {}).uid === q || (r.refs || {}).req === q)
+      || rows.find(r => (r.refs || {}).task && String((tasks[r.refs.task] || {}).title || '').toLowerCase().indexOf(lq) >= 0)
+      || rows.find(r => ['uid', 'to'].some(k => (r.refs || {})[k] && nameOf(ctx, r.refs[k]).toLowerCase() === lq.replace(/'s$/, '')))
+      || null;
+  }
+  /* the rows Kaavish can still put back */
+  const undoable = ctx => ledgerRows(ctx).filter(r => r.status === 'done' && r.undo && Number(r.undo.until) > Date.now());
+
+  /* ---------- the decisions inbox ---------- */
+  /* the open cards, urgent first, then oldest; a snoozed card comes back at its time; money cards for the
+     owner only */
+  function decisions(ctx) {
+    if (!ctx || !ctx.isFounder) return [];
+    const now = Date.now();
+    return openCards(ctx).filter(c => (c.status === 'open' || c.status === 'sending' || (c.status === 'snoozed' && Number(c.snoozeUntil) <= now)) && (!c.money || ctx.isOwner))
+      .sort((a, b) => (b.urgent ? 1 : 0) - (a.urgent ? 1 : 0) || (a.at || 0) - (b.at || 0));
+  }
+  const cardPath = card => card.money ? 'books/cooq' : 'coo/dec';
+  /* the facts a card stood on, read again at the tap: a stale card is voided with its reason */
+  async function staleWhy(ctx, card, action, input) {
+    const i = input || {};
+    if (action === 'coo.approve_leave') {
+      const reqs = ((mapOf(ctx, 'leave')[i.uid] || {}).reqs) || [];
+      const r = reqs.find(x => x && x.id === i.req);
+      if (!r) return 'The request was withdrawn, so I dropped the card.';
+      const d = (((mapOf(ctx, 'leavedec')[i.uid] || {}).d) || {})[i.req];
+      if (d && (d.status === 'approved' || d.status === 'declined')) return 'It was already ' + d.status + ', so I dropped the card.';
+      if ((i.from && r.from !== i.from) || (i.to && r.to !== i.to)) return 'The dates changed since, so I dropped the card. A new one follows.';
+    }
+    if (action === 'coo.move_task') {
+      const t = mapOf(ctx, 'tasks')[i.task];
+      if (!t || !openTask(t)) return 'That task is no longer open, so I dropped the card.';
+    }
+    if (card.kind === 'invoice_reminder' && M.books && M.books.invoices) {
+      const inv = M.books.invoices(ctx).find(x => x.id === ((card.payload || {}).draft || {}).invoice);
+      if (!inv) return 'The invoice is gone, so I dropped the reminder.';
+      const s = M.books.status(inv);
+      if (s === 'paid' || s === 'void') {
+        const p = (inv.payments || []).slice(-1)[0];
+        return 'The invoice was ' + (s === 'paid' ? 'paid' + (p && p.date ? ' on ' + U.fmtDate(p.date) : '') : 'voided') + ', so I dropped the reminder.';
+      }
+    }
+    return '';
+  }
+  const mailto = d => 'mailto:' + encodeURIComponent(String(d.to || '')).replace(/%2C/gi, ',').replace(/%40/g, '@') + '?' + ['cc=' + encodeURIComponent(d.cc || ''),
+    'subject=' + encodeURIComponent(d.subject || ''), 'body=' + encodeURIComponent(d.text || '')].join('&');
+  /* the next morning brief, for Later */
+  const nextBrief = ctx => {
+    const hol = new Set((ctx.settings && ctx.settings.holidays) || []);
+    let d = ymdOf(Date.now());
+    for (let i = 0; i < 14; i++) { d = addDays(d, 1); if (dowOf(d) !== 0 && !hol.has(d)) break; }
+    return dayStart(d) + 585 * MIN;
+  };
+  /* one card action, as Kaavish himself: the COO's own kinds here, everything else through the agent with
+     his rights (ledger, taint and all), as if he had asked for it */
+  async function runAction(ctx, card, action, input) {
+    const i = input || {};
+    const c = fresh(ctx);
+    if (!action) return {ok: false, say: 'Pick one of the options on the card.', keep: true};
+    if (!actionAllowed(action)) return {ok: false, say: 'That one is yours to press yourself. I only point at it.'};
+    switch (action) {
+      case 'coo.ack': return {ok: true, say: 'Noted.'};
+      case 'coo.open': if (i.route) M.nav(i.route); return {ok: true, say: 'Opened.', keep: true};
+      case 'coo.approve_leave': {
+        /* the dates approved ride on the decision, so a later edit to the request changes nothing */
+        const r = ((((mapOf(c, 'leave')[i.uid] || {}).reqs) || []).find(x => x && x.id === i.req)) || i;
+        const snap = {from: r.from || '', to: r.to || '', type: r.type || i.type || 'casual'};
+        await c.W.merge('leavedec/' + i.uid, {d: {[i.req]: {status: 'approved', at: Date.now(), by: c.uid, snap}}});
+        return {ok: true, say: 'Approved. ' + nameOf(c, i.uid) + ' hears it in their inbox.'};
+      }
+      case 'coo.move_task': {
+        const patch = {};
+        if (i.owner) patch.owner = i.owner;
+        if (i.due) patch.due = i.due;
+        await M.tasks.save(c, i.task, patch, {why: i.why || ''});
+        return {ok: true, say: 'Moved.'};
+      }
+      case 'coo.raise_project':
+        await c.W.update('projects/' + i.project, {status: i.status, updated: Date.now()});
+        return {ok: true, say: 'Raised.'};
+      case 'coo.confirm_marks':
+        await c.W.merge('review/' + i.uid, {weeks: {[i.week]: {marks: i.marks || {}, at: Date.now()}}});
+        return {ok: true, say: nameOf(c, i.uid) + "'s marks are in."};
+      case 'coo.mail': return sendDraft(c, card, {});
+      default: break;
+    }
+    if (!M.agent || !M.agent.exec) return {ok: false, say: 'That needs the agent, which is not loaded.'};
+    let r = await M.agent.exec(c, null, action, i, {approved: true, via: 'coo-card'});
+    /* a tap card the action held is this tap: Kaavish already pressed Apply */
+    if (r && r.waiting && r.id && M.brain && typeof M.brain.approve === 'function') r = await M.brain.approve(r.id, 'tap');
+    if (r && r.never) return {ok: false, say: r.note || 'That one is yours to press yourself.'};
+    return {ok: !(r && r.ok === false), say: (r && r.say) || 'Done.'};
+  }
+  /* a draft goes out from Kaavish's own mail: on the team site the server sends it (coosend, owner only),
+     here it opens in his mail app with everything filled in */
+  async function sendDraft(ctx, card, edits) {
+    const d = {...(((card.payload || {}).draft) || {}), ...(edits || {})};
+    if (!String(d.to || '').trim()) return {ok: false, say: 'Add who it goes to first.', keep: true};
+    if (typeof window.M360_API === 'function') {
+      const r = await window.M360_API('coosend', {id: card.id});
+      return {ok: !!(r && r.ok !== false), say: (r && r.say) || 'Sent from your mail.', via: 'coosend', sent: true};
+    }
+    try { window.open(mailto(d), '_blank', 'noopener'); } catch (e) { /* the copy is still on the card */ }
+    /* the card stays open: opening the mail app is not sending, so Kaavish marks it sent on the card */
+    return {ok: true, say: 'Opened in your mail app. Mark it sent when it goes.', via: 'mailto', keep: true};
+  }
+  /* decide(ctx, id, how, edits): apply, send, edit, decline or snooze one card. Apply rebuilds the card's
+     facts from live data first and voids it when they no longer hold. Returns {ok, say} */
+  async function decide(ctx, id, how, edits) {
+    const c = fresh(ctx);
+    if (!c || !c.isFounder) return {ok: false, say: 'Only Kaavish decides these.'};
+    const card = openCards(c).find(k => k.id === id);
+    if (!card) return {ok: false, say: 'That card is gone.'};
+    if (card.money && !c.isOwner) return {ok: false, say: 'Only the owner sees that one.'};
+    const path = cardPath(card);
+    const now = Date.now();
+    const settle = (status, result, via) => c.W.merge(path, {items: {[id]: {status, decidedAt: now, decidedVia: via || how, result: String(result || '').slice(0, 300)}}});
+    const e = edits || {};
+    try {
+      if (how === 'decline') { await settle('declined', e.note || ''); return {ok: true, say: 'Declined. I will not raise it again.'}; }
+      if (how === 'snooze' || how === 'later') { await c.W.merge(path, {items: {[id]: {status: 'snoozed', snoozeUntil: nextBrief(c), decidedVia: 'later'}}}); return {ok: true, say: 'Back in the next morning brief.'}; }
+      if (how === 'edit') {
+        const draft = {};
+        for (const k of ['to', 'cc', 'subject', 'text']) if (e[k] !== undefined) draft[k] = String(e[k]).slice(0, k === 'text' ? 8000 : 400);
+        await c.W.merge(path, {items: {[id]: {payload: {draft}, editedAt: now}}});
+        return {ok: true, say: 'Saved.'};
+      }
+      const opt = e.option != null ? (card.options || [])[Number(e.option)] : null;
+      const action = opt ? opt.action : (card.payload && card.payload.action) || (card.options && card.options[0] && card.options[0].action) || '';
+      const input = opt ? opt.input : (card.payload && card.payload.input) || {};
+      if (how === 'send' || (MAIL.has(card.kind) && how === 'apply' && !opt)) {
+        if (!MAIL.has(card.kind) && !(card.payload && card.payload.draft)) return {ok: false, say: 'There is nothing to send on that card.'};
+        const gone = await staleWhy(c, card, action, input);
+        if (gone) { await settle('void', gone); return {ok: false, say: gone}; }
+        const r = await sendDraft(c, card, e);
+        if (r.ok && !r.keep) await settle('done', r.say, r.via);
+        return {ok: r.ok, say: r.say};
+      }
+      const gone = await staleWhy(c, card, action, input);
+      if (gone) { await settle('void', gone); return {ok: false, say: gone}; }
+      const r = await runAction(c, card, action, input);
+      if (r.ok && !r.keep) await settle('done', r.say, opt ? 'option' : 'apply');
+      return {ok: r.ok, say: r.say};
+    } catch (err) {
+      return {ok: false, say: 'That did not go through: ' + ((err && err.message) || 'try again') + '.'};
+    }
+  }
+
+  /* ---------- undo, as Kaavish's own write, field by field ----------
+     A task goes back only while it still holds what the COO set; otherwise the row says conflict and shows
+     what changed. Undoing a leave approval sets it back to pending and puts its cover moves back in the
+     same tap. Everyone told is told again, and the subject rests for 7 days */
+  async function undo(ctx, actId, o) {
+    const c = fresh(ctx);
+    const opts = o || {};
+    if (!c || !c.isFounder) return {ok: false, conflict: false, say: 'Only Kaavish can undo what the COO did.'};
+    const row = await findRow(c, actId);
+    if (!row) return {ok: false, conflict: false, say: 'I cannot find that one.'};
+    if (row.status === 'undone') return {ok: false, conflict: false, say: 'That one is already undone.'};
+    if (row.status !== 'done' || !row.undo) return {ok: false, conflict: false, say: 'There is nothing to undo there.'};
+    const now = Date.now();
+    const u = row.undo;
+    if (now > Number(u.until || 0)) return {ok: false, conflict: false, say: 'Too late to undo that one. It locked at ' + untilTxt(u.until, now) + '.'};
+    let conflict = null, msg = 'Put back.';
+    const tellAgain = [];
+    if (u.k === 'task') {
+      const t = await read(c, 'tasks/' + u.task);
+      const after = row.after || {};
+      const fields = (u.fields || Object.keys(after)).filter(k => k in after);
+      const changed = !t ? ['task'] : fields.filter(k => norm(t[k] || '') !== norm(after[k] || ''));
+      /* work someone sent for review or finished since stays where it is: its points and sign-off are theirs */
+      if (t && !openTask(t)) changed.push('status');
+      if (changed.length) {
+        const logs = t ? (Array.isArray(t.ownerLog) ? t.ownerLog : []).concat(Array.isArray(t.dueLog) ? t.dueLog : []).sort((a, b) => (Number(a && a.at) || 0) - (Number(b && b.at) || 0)) : [];
+        const by = (t && changed.indexOf('status') >= 0 && t.updatedBy) || (logs.slice(-1)[0] || {}).by;
+        conflict = {fields: changed, now: t ? {owner: t.owner || '', due: t.due || '', status: t.status || 'todo'} : null, by: by || ''};
+        msg = 'Could not undo. ' + (by && !isCoo(by) ? nameOf(c, by) : 'Someone') + ' changed it since.';
+      } else {
+        const back = {};
+        for (const k of fields) back[k] = (row.before || {})[k] || '';
+        /* only the owner and the date go back, on the task as it stands now: whatever else a person changed
+           since (the title, the status, a comment) stays theirs */
+        const at = Date.now();
+        const out = {updated: at, updatedBy: c.uid};
+        for (const [k, lk] of [['owner', 'ownerLog'], ['due', 'dueLog']]) {
+          if (!(k in back) || (t[k] || '') === back[k]) continue;
+          out[k] = back[k];
+          out[lk] = (Array.isArray(t[lk]) ? t[lk] : []).slice(-9).concat([{from: t[k] || '', to: back[k], by: c.uid, at, why: 'undo'}]);
+        }
+        await c.W.update('tasks/' + u.task, out);
+        const ownerBack = 'owner' in back && back.owner !== after.owner;
+        for (const t0 of row.told || []) tellAgain.push({uid: t0.uid, code: ownerBack ? 'undone' : 'undone_due', args: {task: u.task, uid: back.owner || (row.before || {}).owner, due: back.due}});
+        msg = ownerBack ? 'Put back with ' + nameOf(c, back.owner) + '.' : 'The date is back.';
+      }
+    } else if (u.k === 'leave') {
+      const d = await read(c, 'leavedec/' + u.uid);
+      const e = (((d || {}).d) || {})[u.req];
+      if (!e || e.status !== 'approved' || e.by !== UID) {
+        conflict = {fields: ['status'], now: e ? {status: e.status || 'pending'} : null, by: e ? e.by || '' : ''};
+        msg = 'Could not undo. The decision changed since.';
+      } else {
+        await c.W.merge('leavedec/' + u.uid, {d: {[u.req]: null}});
+        const a = row.args || {};
+        tellAgain.push({uid: u.uid, code: 'undone_leave', args: {uid: u.uid, d1: a.d1, d2: a.d2}});
+        msg = 'Taken back. ' + nameOf(c, u.uid) + "'s request waits for you again.";
+        if (opts.cover !== false) {
+          const cover = ledgerRows(c).filter(r => r.status === 'done' && r.undo && r.undo.k === 'task' && (r.refs || {}).req === u.req && (r.refs || {}).uid === u.uid);
+          let n = 0;
+          for (const r of cover) { const x = await undo(c, r.id, {quiet: true}); if (x.ok) n++; }
+          if (n) msg += ' ' + plural(n, 'cover move is', 'cover moves are') + ' back too.';
+        }
+      }
+    } else if (u.k === 'ask') {
+      const askId = (row.refs || {}).ask;
+      if (askId) await c.W.merge('me/' + UID, {pm: {asks: {[askId]: {withdrawn: now}}}});
+      msg = 'Taken back. They see it marked withdrawn.';
+    } else if (u.k === 'project') {
+      const p = await read(c, 'projects/' + u.project);
+      if (!p || p.status !== (row.after || {}).status) { conflict = {fields: ['status'], now: p ? {status: p.status} : null, by: ''}; msg = 'Could not undo. The project changed since.'; }
+      else { await c.W.update('projects/' + u.project, {status: u.prev || 'on', updated: now, updates: {[row.id]: null}}); msg = 'The project is back as it was.'; }
+    } else return {ok: false, conflict: false, say: 'That one cannot be undone.'};
+    const L = row.path || 'coo/L-' + (row.ymd || ymdOf(row.at || now));
+    if (conflict) {
+      await c.W.merge(L, {acts: {[row.id]: {conflict: plain(conflict)}}});
+      if (!opts.quiet) {
+        const id = U.uid();
+        await c.W.merge('coo/dec', {items: {[id]: {id, kind: 'info', rung: 'tell', title: msg, why: 'Undo on the whole document is in History on the team site.', recommend: '', checks: [],
+          options: [{label: 'Got it', action: 'coo.ack', input: {}}], payload: {action: 'coo.ack', input: {}, draft: null}, sources: [], refs: {actIds: [row.id]}, code: 'undo', args: {},
+          urgent: false, dedupe: 'undo:' + row.id, by: UID, at: now, expires: now + 2 * DAY, status: 'open', money: false}}});
+      }
+      return {ok: false, conflict: true, say: msg};
+    }
+    await c.W.merge(L, {acts: {[row.id]: {status: 'undone', undoneAt: now, undoneBy: c.uid}}});
+    for (const t of tellAgain) { try { await say(c, t.uid, copy(t.code, t.args, 'dm', c).line, 'undo.' + row.id + '.' + t.uid); } catch (e) { /* the undo stands */ } }
+    /* the subject rests for a week; two undos on one capability in 7 days lower it a rung */
+    const st = cooState(c);
+    const list = ((st.undos || {})[row.cap] || []).filter(x => Number(x) > now - 7 * DAY).concat([now]);
+    const patch = {holds: {[row.subject || ('act:' + row.id)]: now + 7 * DAY}};
+    if (row.cap) patch.undos = {[row.cap]: list};
+    await c.W.merge('coo/state', patch);
+    if (row.cap && list.length >= 2 && !((st.breakers || {})[row.cap])) await breaker(c, row.cap, 'undo');
+    return {ok: true, conflict: false, say: msg};
+  }
+
+  /* "that was wrong" on a row: noted on the row; two on one capability in 7 days lower it a rung */
+  async function wrong(ctx, actId) {
+    const c = fresh(ctx);
+    if (!c || !c.isFounder) return {ok: false, say: 'Only Kaavish can mark that.'};
+    const row = await findRow(c, actId);
+    if (!row) return {ok: false, say: 'I cannot find that one.'};
+    const now = Date.now();
+    await c.W.merge(row.path || 'coo/L-' + (row.ymd || ymdOf(row.at || now)), {acts: {[row.id]: {wrong: now}}});
+    const st = cooState(c);
+    const list = ((st.wrong || {})[row.cap] || []).filter(x => Number(x) > now - 7 * DAY).concat([now]);
+    if (row.cap) await c.W.merge('coo/state', {wrong: {[row.cap]: list}});
+    if (row.cap && list.length >= 2 && !((st.breakers || {})[row.cap])) await breaker(c, row.cap, 'wrong');
+    return {ok: true, say: 'Noted. ' + (row.undo && row.status === 'done' && Number(row.undo.until) > now ? 'Say undo to put it back.' : 'I will take more care with that one.')};
+  }
+
+  /* ---------- the controls: all Kaavish's own writes ---------- */
+  const setCoo = (ctx, patch) => fresh(ctx).W.merge('settings/app', {coo: patch, updated: Date.now()});
+  async function stop(ctx) {
+    const c = fresh(ctx);
+    if (!c || !c.isFounder) return {ok: false, say: 'Only Kaavish can stop the COO.'};
+    await setCoo(c, {on: false});
+    await rest(c, 'off', Date.now());
+    return {ok: true, say: 'Stopped. Anything I did today can still be undone.'};
+  }
+  async function pause(ctx, untilMs) {
+    const c = fresh(ctx);
+    if (!c || !c.isFounder) return {ok: false, say: 'Only Kaavish can pause the COO.'};
+    const until = Number(untilMs) > Date.now() ? Number(untilMs) : nextBrief(c) - 45 * MIN;
+    await setCoo(c, {pausedUntil: until});
+    await rest(c, 'paused', Date.now());
+    return {ok: true, say: copy('paused', {until}, 'founder', c).line};
+  }
+  async function resume(ctx) {
+    const c = fresh(ctx);
+    if (!c || !c.isFounder) return {ok: false, say: 'Only Kaavish can switch the COO on.'};
+    await setCoo(c, {on: true, pausedUntil: null});
+    if (cooState(c).stuck) await c.W.merge('coo/state', {stuck: null});
+    return {ok: true, say: 'Back on. The next round picks up from here.'};
+  }
+  async function endPractice(ctx) {
+    const c = fresh(ctx);
+    if (!c || !c.isFounder) return {ok: false, say: 'Only Kaavish can end the practice week.'};
+    await setCoo(c, {practiceUntil: null});
+    return {ok: true, say: 'Practice is over. From the next round I act inside the mandate.'};
+  }
+  /* the Admin switch: the first time on starts the practice week */
+  async function setOn(ctx, v) {
+    const c = fresh(ctx);
+    if (!c || !c.isFounder) return {ok: false, say: 'Only Kaavish can switch the COO.'};
+    if (!v) return stop(c);
+    const k = cfg(c);
+    const patch = {on: true, pausedUntil: null};
+    if (!k.signedAt) Object.assign(patch, {practiceUntil: practiceDefault(c), signedAt: Date.now(), signedBy: c.uid});
+    await setCoo(c, patch);
+    return {ok: true, say: patch.practiceUntil ? 'On, in practice until ' + dayTxt(patch.practiceUntil) + '. I plan everything and change nothing until then.' : 'On.'};
+  }
+  /* "Stop and undo today": off first, then every act still undoable, each with its conflict check */
+  async function stopAndUndo(ctx, ids) {
+    const c = fresh(ctx);
+    const r0 = await stop(c);
+    if (!r0.ok) return {...r0, undone: 0, conflicts: 0};
+    const today = ymdOf(Date.now());
+    const list = (ids && ids.length ? ids : undoable(c).filter(r => r.ymd === today).map(r => r.id));
+    let undone = 0, conflicts = 0;
+    for (const id of list) { const r = await undo(c, id, {quiet: true}); if (r.ok) undone++; else if (r.conflict) conflicts++; }
+    return {ok: true, undone, conflicts, say: 'Stopped. ' + plural(undone, 'act', 'acts') + ' put back' + (conflicts ? ', ' + conflicts + ' changed since and stay' : '') + '.'};
+  }
+  /* "rebalance now": a load snapshot and a rebalance pass, outside the slots */
+  /* two quick taps on one page run one pass; across devices the act keys keep it to one move per task */
+  let rebalancing = null;
+  const rebalanceNow = ctx => rebalancing || (rebalancing = runSlot(fresh(ctx), 'now', {}).finally(() => { rebalancing = null; }));
+
+  /* one task to someone else, the founder's own move (HQ Workload apply). The COO's own moves happen only
+     inside its rounds (act), where the rung, the caps, the practice week, the ledger and undo all hold, so
+     o.as 'coo' is refused here */
+  async function moveTask(ctx, taskId, toUid, why, o) {
+    const c = fresh(ctx);
+    const opts = o || {};
+    if (opts.as === 'coo') throw new Error('the COO moves work inside its rounds only');
+    const t = mapOf(c, 'tasks')[taskId];
+    if (!t) throw new Error('that task is gone');
+    const patch = {owner: toUid || ''};
+    if (opts.due) patch.due = opts.due;
+    return M.tasks.save(c, taskId, patch, {why: why || ''});
+  }
+
+  /* ---------- health ---------- */
+  function health(ctx) {
+    const now = Date.now();
+    const co = (ctx && ctx.coo) || {};
+    const n = co.now || null, live = co.live || null;
+    const pass = (n && n.pass) || (live && live.pass) || null;
+    const last = pass ? Number(pass.at) || 0 : 0;
+    const st = cooState(ctx);
+    const today = ymdOf(now);
+    const late = last ? Math.max(0, Math.round((now - last) / MIN)) : null;
+    const s = status(ctx, now);
+    const working = s !== 'off' && s !== 'paused' && s !== 'stuck' && dowOf(today) !== 0 && minsOf(now) >= 540 && minsOf(now) <= 1260;
+    return {status: s, state: (n && n.state) || (live && live.state) || 'off', last, next: (n && n.next) || (live && live.next) || null, late,
+      stale: working && (late === null || late > 30), runner: typeof window.M360_API === 'function' ? 'server' : 'page',
+      ai: {used: Number(((st.ai || {})[today]) || 0), cap: limitOf({cfg: cfg(ctx)}, 'aiPerDay', 40)}, breakers: st.breakers || {}, stuck: st.stuck || null,
+      practice: practicing(cfg(ctx), now) ? cfg(ctx).practiceUntil : null, audit: st.audit || null, err: (n && n.err) || null};
+  }
+
+  /* ---------- the charter, in the COO's own words, always true to the rungs ---------- */
+  const CHARTER = {
+    roll: 'take the morning roll call', nudge: 'ask people short questions through their managers\' bots', leave: 'approve leave of up to N working days when you have days left, the team is covered and no client date is in the way',
+    wfh: 'approve WFH days booked ahead inside the weekly allowance', cover: 'hand on internal work when someone is away', rebalance: 'move internal work off someone with too much',
+    shift: 'move internal dates for leave, blockers, pile-ups or an owner\'s own date', orphans: 'give an owner to work with none', reviews: 'ask reviewers when work waits',
+    projects: 'raise a project to at risk or off track', clientMail: 'client follow-ups', meetingMail: 'meeting nudges', invoiceMail: 'invoice reminders',
+    clientDates: 'options when a client date is at risk', memo: 'write the morning brief, the close and the weekly memo', reviewPrep: 'Friday review marks', structure: 'changes to the team, roles, lines, access and settings'
+  };
+  function charter(ctx) {
+    const by = {alone: [], tell: [], draft: [], propose: [], off: []};
+    const maxDays = numOr((cfg(ctx).leave || {}).maxAutoDays, 0);
+    for (const k of CAPS) by[rung(ctx, k)].push(CHARTER[k].replace('N working days', plural(maxDays, 'working day', 'working days')));
+    const list = xs => xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1];
+    return {
+      alone: by.alone.length ? 'What I do on my own: ' + list(by.alone) + '.' : '',
+      tell: by.tell.length ? 'What I do and then tell you: ' + list(by.tell) + '.' : '',
+      draft: by.draft.length ? 'What I only draft: ' + list(by.draft) + '.' : '',
+      propose: by.propose.length ? 'What I only propose: ' + list(by.propose) + '.' : '',
+      never: 'What I never do: move or pay money, decline leave, move a client deadline, mark work done, score anyone, delete anything.',
+      caps: by
+    };
+  }
+
+  /* ---------- the page's live view ---------- */
+  /* {pub (office/live), now (coo/now), ledger (today's rows), dec (open cards), health}. Members get pub
+     only: the rest is the founder's */
+  function useLive(ctxArg) {
+    const ctx0 = M.useCtx();
+    const ctx = ctxArg || ctx0;
+    const co = (ctx && ctx.coo) || {};
+    const today = ymdOf(Date.now());
+    const L = (co.L || {})[today];
+    const ledger = React.useMemo(() => rowsOf(L, today), [L, today]);
+    const ids = React.useMemo(() => Array.from(new Set(ledger.reduce((a, r) => a.concat([(r.refs || {}).uid, (r.refs || {}).to]), []).filter(u => u && !isCoo(u)))).sort(), [ledger]);
+    const profs = M.useProfiles(ctx && ctx.isFounder ? ids : []);
+    React.useEffect(() => { if (M.pm && M.pm.learn) M.pm.learn(profs); }, [profs]);
+    if (!ctx || !ctx.isFounder) return {pub: co.live || null, now: null, ledger: [], dec: [], health: null};
+    return {pub: co.live || null, now: co.now || null, ledger, dec: decisions(ctx), health: health(ctx)};
+  }
+
+  /* ---------- the artifact runner ----------
+     Kaavish's own visible page runs the slots, and only it: not a member, not a preview, not a hidden tab,
+     never on the team site (window.M360_API, where the server heartbeat runs them). One tab leads (a
+     BroadcastChannel heartbeat; the oldest tab wins) and each slot is claimed in coo/slots-<ymd> across
+     devices: merged, read back after 600 ms, run only while the claim is still this tab's */
+  const TAB = Date.now().toString(36).padStart(9, '0') + Math.random().toString(36).slice(2, 6);
+  const peers = {};
+  let chan = null;
+  function channel() {
+    if (chan || typeof BroadcastChannel !== 'function') return chan;
+    try {
+      chan = new BroadcastChannel('m360-coo');
+      chan.onmessage = e => { const d = (e && e.data) || {}; if (!d.tab || d.tab === TAB) return; if (d.bye) delete peers[d.tab]; else peers[d.tab] = {at: Date.now(), busy: !!d.busy}; };
+    } catch (e) { chan = null; }
+    return chan;
+  }
+  /* only a tab that could run beats: a hidden tab or a preview drops out within 5 seconds, so a visible tab
+     opened later is never held back by one in the background */
+  const beat = () => {
+    const c = channel();
+    if (!c) return;
+    try { c.postMessage(eligible(M.lastCtx) ? {tab: TAB, at: Date.now(), busy: !!running} : {tab: TAB, bye: true}); } catch (e) { /* closed */ }
+  };
+  /* the lowest live tab id leads, and no tab starts while another is in the middle of a round (a tab
+     opened later may hold the lower id before the first one has heard of it) */
+  const leads = () => {
+    const cut = Date.now() - 5000;
+    const live = Object.keys(peers).filter(t => peers[t].at > cut);
+    return !live.some(t => peers[t].busy) && live.every(t => t > TAB);
+  };
+  const eligible = ctx => !!ctx && !!ctx.isFounder && !ctx.viewAs && typeof window.M360_API !== 'function' && on(ctx) && !!ctx.coo && !!ctx.coo.ready
+    && (typeof document === 'undefined' || document.visibilityState === 'visible');
+  async function claim(ctx, path, slot, now) {
+    try {
+      /* read just before claiming: a slot another device has run, or still holds, is never taken over */
+      const cur = ((await read(ctx, path)) || {})[slot];
+      if (cur && cur.id !== TAB && (cur.state !== 'running' || Number(cur.until) > now)) return false;
+      await quietW(ctx).merge(path, {[slot]: {id: TAB, at: now, until: now + 45000, state: 'running'}});
+      await sleep(600);
+      const doc = await read(ctx, path);
+      return !!doc && !!doc[slot] && doc[slot].id === TAB;
+    } catch (e) { return false; }
+  }
+  let running = null;
+  /* one wake: the due slots, each claimed and run; the late ones recorded as skipped. Exported for tests */
+  function tick(ctx, o) {
+    if (running) return running;
+    running = tickNow(fresh(ctx), o || {}).finally(() => { running = null; beat(); });
+    beat();
+    return running;
+  }
+  async function tickNow(ctx, o) {
+    const now = o.now || Date.now();
+    const st = status(ctx, now);
+    if (st === 'off' || st === 'paused' || st === 'stuck') { await rest(ctx, st, now); return {state: st, ran: [], skipped: []}; }
+    const ymd = ymdOf(now);
+    const path = 'coo/slots-' + ymd;
+    const doc = (await read(ctx, path)) || {};
+    const done = {};
+    for (const k of Object.keys(doc)) { const x = doc[k]; if (x && (x.state !== 'running' || Number(x.until) > now)) done[k] = true; }
+    const due = slotsDue(stateOf(ctx, now).slots, now, done);
+    if (due.skip.length) { try { await quietW(ctx).merge(path, Object.fromEntries(due.skip.map(x => [x.id, {state: 'skipped', why: 'late', at: now}]))); } catch (e) { /* listed again next wake */ } }
+    const ran = [];
+    for (const s of due.run) {
+      if (!(await claim(ctx, path, s.id, now))) continue;
+      const renew = () => { const t = Math.max(now, Date.now()); return quietW(ctx).merge(path, {[s.id]: {id: TAB, at: now, until: t + 45000, state: 'running'}}).catch(() => {}); };
+      const r = await runSlot(fresh(ctx), s.id, {now: o.now, late: due.skip, renew});
+      try { await quietW(ctx).merge(path, {[s.id]: {id: TAB, at: now, state: r.stopped ? 'error' : 'done', acts: r.acts, ms: r.ms}}); } catch (e) { /* the lease runs out */ }
+      ran.push(s.id);
+      if (r.stopped) break;
+    }
+    return {state: st, ran, skipped: due.skip.map(x => x.id), next: due.next};
+  }
+  let loop = null, users = 0;
+  function startLoop() {
+    channel();
+    beat();
+    const wake = () => { const c = M.lastCtx; if (eligible(c) && leads()) tick(c).catch(() => {}); };
+    const vis = () => { beat(); if (document.visibilityState === 'visible') wake(); };
+    const hb = setInterval(beat, 2000);
+    const first = setTimeout(wake, 2500);
+    const t = setInterval(wake, 60000);
+    document.addEventListener('visibilitychange', vis);
+    return () => {
+      clearInterval(hb); clearTimeout(first); clearInterval(t);
+      document.removeEventListener('visibilitychange', vis);
+      if (chan) { try { chan.postMessage({tab: TAB, bye: true}); } catch (e) { /* closed */ } }
+    };
+  }
+  /* mounted wherever the shell puts it (more than once is fine: one loop runs); renders nothing */
+  function Runner() {
+    const ctx = M.useCtx();
+    const want = !!ctx && !!ctx.isFounder && !ctx.viewAs && typeof window.M360_API !== 'function' && on(ctx);
+    React.useEffect(() => {
+      if (!want) return undefined;
+      if (users++ === 0) loop = startLoop();
+      return () => { if (--users === 0 && loop) { loop(); loop = null; } };
+    }, [want]);
+    return null;
+  }
+
+  M.coo = {
+    UID, isCoo, title, cfg, on, rung, status, practicing: ctx => practicing(cfg(ctx), Date.now()), practiceDefault,
+    CEIL, RUNGS, CAPS, STATIONS, JOBS, TEAM, SINCE, codes: Object.keys(COPY),
+    ist: {ymd: ymdOf, hm: hmOf, isoWeek: isoWeekOf, now: () => Date.now(), dayStart, addDays},
+    plan: {stateOf, slotsDue, slotList, leaveCheck, balance, clientDated, load, shortlist, planCover, planRebalance, actKey, lint, movable, used, managerFrom, forget, median, overLine},
+    copy, station: stationOf, guard, actionAllowed, charter,
+    useLive, feed, decisions, decide, undo, undoable, wrong, stop, pause, resume, endPractice, setOn, stopAndUndo, why, health, moveTask, rebalanceNow,
+    say, writeAsk, tick, runSlot, Runner
+  };
+})();

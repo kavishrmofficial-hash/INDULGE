@@ -332,7 +332,11 @@ def test(h):
     # the chat composer: the dock sits above it
     h.go(p, 'founder', hash='#chat')
     if p.locator('.chat-composer').count():
+        # the chat page lays out once more after its list fills and the dock glides after it: read both once still
         p.wait_for_timeout(500)
+        for _ in range(20):
+            a = (rect(p, '.chat-composer'), rect(p, '#buddy-dock .buddy-home')); p.wait_for_timeout(150)
+            if a == (rect(p, '.chat-composer'), rect(p, '#buddy-dock .buddy-home')): break
         cc = rect(p, '.chat-composer'); dk = rect(p, '#buddy-dock .buddy-home')
         if cc['r'] > dk['l']:
             check(dk['b'] <= cc['t'] - 10, 'the dock clears the chat composer: %r %r' % (dk, cc))
@@ -371,8 +375,9 @@ def test(h):
     p.wait_for_selector('#buddy-dock')
     check(p.get_attribute('#buddy-dock', 'data-state') == 'idle', 'awake in working hours')
     p.evaluate('() => window.dispatchEvent(new CustomEvent("m360:pm", {detail: {type: "step", n: 1}}))')
-    p.wait_for_selector('#buddy-dock .dock-char.hop')
-    check('dockhop' in p.evaluate('() => document.querySelector("#buddy-dock .dock-char").getAnimations().map(a => a.animationName)'), 'something new: one hop')
+    # the hop lasts 380 ms: catch it while it runs, or its class if it has already landed
+    p.wait_for_function('() => { const e = document.querySelector("#buddy-dock .dock-char"); return !!e && (e.getAnimations().some(a => a.animationName === "dockhop") || e.classList.contains("hop")); }', timeout=8000)
+    check(True, 'something new: one hop')
     p.close()
 
     # ---------- reduced motion: fades only ----------
@@ -452,12 +457,13 @@ def test(h):
     p.wait_for_function('() => document.activeElement && document.activeElement.id === "buddy-input"')
     check(True, 'a quick tap of the keys is ready for typing')
     p.keyboard.press('Escape'); p.wait_for_function('() => !document.querySelector(".buddy-bubble")')
-    # never pressed for them: marking pay as paid, an export, the pulse
+    # never pressed for them: marking pay as paid, an export, the pulse (at the top of the page: Home is taller
+    # since v33, so the pointing above may have scrolled it)
     p.evaluate('''() => { const box = document.createElement('div'); box.id = 'pulse-card';
       const a = document.createElement('button'); a.textContent = 'Mark paid'; a.onclick = () => { window.__pressed = (window.__pressed || 0) + 1; };
       const b = document.createElement('button'); b.textContent = 'Export CSV'; b.onclick = a.onclick;
       const c = document.createElement('button'); c.textContent = 'Great week'; c.onclick = a.onclick; box.appendChild(c);
-      document.querySelector('.main').prepend(a, b, box); }''')
+      document.querySelector('.main').prepend(a, b, box); window.scrollTo(0, 0); }''')
     said = p.evaluate('''async () => { const t = M.assistant.screenTools(M.lastCtx, {log: () => {}}); const click = t.tools.find(x => x.name === 'click');
       const out = []; for (const label of ['Mark paid', 'Export CSV', 'Great week']) { t.scan();
         const el = [...document.querySelectorAll('[data-ai]')].find(e => e.textContent.trim() === label);

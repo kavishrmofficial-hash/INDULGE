@@ -23,7 +23,7 @@
 
   const SECTIONS = ['home', 'tasks', 'projects', 'calendar', 'reviews', 'week', 'clients', 'pitches', 'crm', 'feed', 'people', 'voice', 'scores', 'music',
     'chat', 'mail', 'gcal', 'drive', 'web', 'notes', 'break', 'play', 'reset', 'care', 'reflect', 'base', 'companies', 'import', 'radar', 'awards', 'watch', 'me', 'trophies', 'leave', 'handbook', 'hiring',
-    'handshake', 'map', 'hq', 'command', 'admin', 'books', 'invoices', 'expenses', 'payroll', 'letters', 'billing'];
+    'handshake', 'map', 'hq', 'command', 'admin', 'books', 'invoices', 'expenses', 'payroll', 'letters', 'billing', 'coo', 'office'];
   const FOUNDER_ONLY = ['hq', 'command', 'admin', 'hiring'];
   const OWNER_ONLY = ['books', 'invoices', 'expenses', 'payroll', 'letters', 'billing'];
   /* controls the buddy will point at but never press */
@@ -34,6 +34,7 @@
   const THEIRS = '#pulse-card';
   const STOP_WORDS = /^(stop listening|that s all|thats all|that is all|thanks bye|thank you bye|bye|stop)$/;
   const KEEP_WORDS = /^(keep listening|stay with me|conversation mode|keep going)$/;
+  const noCoo = () => null;
   const plainWords = t => String(t || '').toLowerCase().replace(/['’]/g, ' ').replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim();
 
   /* ---------- the screen, as Claude sees it ---------- */
@@ -105,10 +106,9 @@
   function useDockPlace(on) {
     useEffect(() => {
       if (!on) return undefined;
-      let raf = 0, ro = null, watched = [];
+      let tm = 0, raf = 0, again = 0, lastLift = -1, ro = null, watched = [];
       const root = document.documentElement;
       const check = () => {
-        raf = 0;
         const W = window.innerWidth, H = window.innerHeight;
         const drawer = document.querySelector('.drawer');
         /* beside a drawer only where the drawer is a side panel (wider than 860) and the pop-up still fits */
@@ -118,35 +118,56 @@
         const x1 = W - right, x0 = x1 - 64;
         let lift = 0;
         const seen = [];
+        /* the page's column moves a composer without resizing it (a list fills above it), so the
+           containers are watched too */
+        const main = document.querySelector('.main');
+        if (main) seen.push(main);
         document.querySelectorAll(AVOID).forEach(el => {
           if (el.closest('#buddy-dock, .agent-panel') || (onPhone && el.classList.contains('tabbar'))) return;
           seen.push(el);
+          /* what sits beside it moves it too: a chat list growing above its composer */
+          if (el.parentElement) for (const kin of [el.parentElement].concat(Array.from(el.parentElement.children))) if (seen.indexOf(kin) < 0) seen.push(kin);
           const r = el.getBoundingClientRect();
           if (!r.width || !r.height || r.right < x0 || r.left > x1 || r.top < H * 0.35 || r.top > H) return;
           lift = Math.max(lift, H - r.top + 12 - 24);
         });
         root.style.setProperty('--dock-lift', Math.max(0, Math.round(lift)) + 'px');
         root.classList.toggle('dock-beside-drawer', beside);
+        /* a page settles after it changes (a list fills, a font or a canvas lands): one more look soon after a move */
+        if (lift !== lastLift) { lastLift = lift; settle(); }
         /* observe a new set only when it changed: observing reports each size once, which would run this again */
         if (ro && (seen.length !== watched.length || seen.some((el, i) => el !== watched[i]))) {
           ro.disconnect(); seen.forEach(el => ro.observe(el)); watched = seen;
         }
       };
-      const soon = () => { if (!raf) raf = requestAnimationFrame(check); };
-      if (typeof ResizeObserver !== 'undefined') ro = new ResizeObserver(soon);
+      /* the next frame when the page is painting, a short timer when it is not: whichever comes first */
+      const soon = () => {
+        if (tm || raf) return;
+        raf = requestAnimationFrame(() => { raf = 0; if (tm) { clearTimeout(tm); tm = 0; } check(); });
+        tm = setTimeout(() => { tm = 0; if (raf) { cancelAnimationFrame(raf); raf = 0; } check(); }, 32);
+      };
+      const settle = () => { if (!again) again = setTimeout(() => { again = 0; soon(); }, 300); };
+      /* a change in the page: look now, in the same turn (an observer's callback already follows layout),
+         and once more when the page has settled */
+      let inCheck = false;
+      const burst = () => { if (!inCheck) { inCheck = true; try { check(); } finally { inCheck = false; } } settle(); };
+      if (typeof ResizeObserver !== 'undefined') ro = new ResizeObserver(burst);
       let mo = null;
-      try { mo = new MutationObserver(soon); mo.observe(document.body, {childList: true, subtree: true}); } catch (e) { mo = null; }
-      window.addEventListener('resize', soon);
+      try { mo = new MutationObserver(burst); mo.observe(document.body, {childList: true, subtree: true}); } catch (e) { mo = null; }
+      window.addEventListener('resize', burst);
       window.addEventListener('scroll', soon, {passive: true});
-      /* a layout shift with no new node and no resize of what it watches (a font, a page's own grid): a slow look again */
-      const slow = setInterval(() => { if (!document.hidden) soon(); }, 1000);
+      /* a layout shift with no new node and no resize of what it watches (a chat list growing above its
+         composer, a font, a page's own grid): a look again, often enough that the dock settles within a moment */
+      const slow = setInterval(() => { if (!document.hidden) soon(); }, 400);
       check();
       return () => {
         clearInterval(slow);
+        if (tm) clearTimeout(tm);
         if (raf) cancelAnimationFrame(raf);
+        if (again) clearTimeout(again);
         if (ro) ro.disconnect();
         if (mo) mo.disconnect();
-        window.removeEventListener('resize', soon); window.removeEventListener('scroll', soon);
+        window.removeEventListener('resize', burst); window.removeEventListener('scroll', soon);
         root.style.removeProperty('--dock-lift'); root.classList.remove('dock-beside-drawer');
       };
     }, [on]);
@@ -207,6 +228,12 @@
     const [hover, setHover] = useState(false);          /* a pointer over the character wakes it */
     const [badge, setBadge] = useState(0);
     const [prefsN, setPrefsN] = useState(0);
+    /* the COO's open cards and its morning brief (the founder's; a member's feed carries neither) */
+    const coo = (M.cooUi ? M.cooUi.useLive : noCoo)(ctx);
+    const cooOpen = M.cooUi && ctx.isFounder ? M.cooUi.openCards(coo).length : 0;
+    const brief = M.cooUi && ctx.isFounder ? M.cooUi.briefOf(ctx, M.cooUi.rowsOf(coo)) : null;
+    const briefDay = brief ? M.cooUi.ymdIST(brief.at) : '';
+    const [briefRead, setBriefRead] = useState(() => pref('cooDigestRead', ''));
     const ride = pref('buddyRide', '0') === '1' && !phone;
     const showDock = pref('dockShow', '1') !== '0' && pref('dockHidden', '') !== U.todayStr();
     const talkKey = pref('talkKey', 'ctrlopt');
@@ -263,13 +290,19 @@
       const count = () => {
         let n = M.brain && M.brain.pending ? M.brain.pending.list.length : 0;
         try { n += M.pm && M.pm.badge ? Number(M.pm.badge(ctx)) || 0 : 0; } catch (e) { /* not ready */ }
-        setBadge(n);
+        setBadge(n + cooOpen);
       };
       count();
       const subs = M.brain && M.brain.pending ? M.brain.pending.subs : null;
       if (subs) subs.add(count);
       return () => { if (subs) subs.delete(count); };
-    }, [ctx]);
+    }, [ctx, cooOpen]);
+    /* the morning brief lands: one hop, once a day on this device; the pop-up shows it until it is read */
+    useEffect(() => {
+      if (!briefDay || pref('cooDigestHop', '') === briefDay) return;
+      M.prefs.set('cooDigestHop', briefDay);
+      setHop(n => n + 1); setIdle(false);
+    }, [briefDay]);
     /* something new for you: one hop, and it wakes */
     useEffect(() => {
       const f = () => { setHop(n => n + 1); setIdle(false); lastInput.current = Date.now(); };
@@ -971,7 +1004,9 @@
         </div>
       </div>`) : null;
 
-    const panelProps = {initial, intro: introNode, talk, conv, onConv: () => conv ? endConv('toggle') : startConv(), onClose: () => { if (intro && intro.kind === 'welcome') M.tour.mark(ctx, 'asked'); closePanel(); },
+    const digest = !introNode && briefDay && briefRead !== briefDay && M.parts.CooDigest ? html`<div class="msg panel-intro"><${M.parts.CooDigest} live=${coo} compact=${true}
+      onDone=${() => { M.prefs.set('cooDigestRead', briefDay); setBriefRead(briefDay); }}/></div>` : null;
+    const panelProps = {initial, intro: introNode || digest, talk, conv, onConv: () => conv ? endConv('toggle') : startConv(), onClose: () => { if (intro && intro.kind === 'welcome') M.tour.mark(ctx, 'asked'); closePanel(); },
       onHide: () => { M.prefs.set('dockHidden', U.todayStr()); setPrefsN(n => n + 1); closePanel(); M.toast('The dock is hidden for today. The talk key and the spark still open it.'); },
       botState, folded, onUnfold: () => setFolded(false), closing, onTour: startTour, iosTap: iOS(),
       title: intro && intro.kind === 'hello' ? 'Hello' : intro && intro.kind === 'welcome' ? 'Hello' : ''};

@@ -10,6 +10,8 @@
   const QUALITY = [1, 2, 3, 4, 5].map(n => ({v: String(n), label: String(n)}));
   const MARKS = [{v: 'hit', label: 'Hit'}, {v: 'miss', label: 'Miss'}];
 
+  const noCoo = () => null;
+
   function eodOf(ctx, uid, date) {
     return ((ctx.coll.eod.map[uid] || {}).days || {})[date] || null;
   }
@@ -71,7 +73,27 @@
     <//>`;
   }
 
-  function ReviewCard({uid, weekId}) {
+  /* the COO's Friday suggestion for one person: a ghost beside each mark not set yet, and one tap that
+     writes them as Kaavish's own (M.cooUi.confirmReview). A mark he set, saved or not yet, always stays his. */
+  function Ghost({ghost, uid, items, marks}) {
+    const ctx = M.useCtx();
+    const [busy, setBusy] = useState(false);
+    const open = items.filter(it => !marks[it.id] && ghost.marks[it.id]).length;
+    const ev = ghost.evidence.map(e => M.cooUi.evidenceLine(ctx, e)).filter(Boolean);
+    const confirm = async () => {
+      setBusy(true);
+      try { await M.cooUi.confirmReview(ctx, ghost.card, marks); M.toast('Marks saved as yours'); } catch (e) { M.toast((e && e.message) || 'Those marks did not save.', true); }
+      setBusy(false);
+    };
+    return html`<div class="coo-ghost-head" data-uid=${uid}>
+      <div class="row nowrap" style=${{gap: '8px'}}>${M.parts.CooFace ? html`<${M.parts.CooFace} size=${22}/>` : null}
+        <span class="small grow">${M.cooUi.titleOf(ctx)} suggests ${open ? 'marks from the work shipped this week' : 'marks, and yours are all in'}.</span></div>
+      ${ev.length ? html`<ul class="tiny ink62 coo-ghost-ev">${ev.slice(0, 4).map((e, i) => html`<li key=${i}>${e}</li>`)}</ul>` : null}
+      <div class="row"><button type="button" class="btn sec sm coo-ghost-confirm" data-act="confirm" disabled=${busy} onClick=${confirm}>Confirm <${UI.Name} id=${uid}/>'s marks</button></div>
+    </div>`;
+  }
+
+  function ReviewCard({uid, weekId, ghost}) {
     const ctx = M.useCtx();
     const plan = ((ctx.coll.plan.map[uid] || {}).weeks || {})[weekId];
     const rev = ((ctx.coll.review.map[uid] || {}).weeks || {})[weekId];
@@ -94,10 +116,13 @@
       M.toast('Review saved');
     }
 
+    const g = ctx.isFounder && ghost && items.length ? ghost : null;
     const card = html`<${UI.Card} title=${html`<${UI.Name} id=${uid}/>`}>
+      ${g ? html`<${Ghost} ghost=${g} uid=${uid} items=${items} marks=${marks}/>` : null}
       ${items.length ? html`<div class="stack tight">
         ${items.map(it => html`<div class="listrow" key=${it.id}>
           <span class="grow">${it.text}</span>
+          ${g && !marks[it.id] && g.marks[it.id] ? html`<span class="pill coo-ghost" data-ghost=${g.marks[it.id]} title="Suggested by the COO">${g.marks[it.id]}, suggested</span>` : null}
           ${ctx.isFounder
             ? html`<${UI.Seg} sm=${true} options=${MARKS} value=${marks[it.id] || ''}
                 onChange=${v => setMarks(m => ({...m, [it.id]: v}))} ariaLabel="Mark"/>`
@@ -131,6 +156,9 @@
     const weekId = U.isoWeek(monday);
     const days = U.weekDays(monday);
     const range = U.fmtDate(days[0]) + ' to ' + U.fmtDate(days[5]);
+    /* the founder's open review cards from the COO, read once for the page */
+    const coo = (M.cooUi ? M.cooUi.useLive : noCoo)(ctx);
+    const cards = M.cooUi && ctx.isFounder ? M.cooUi.openCards(coo).filter(c => c.kind === 'review') : [];
 
     return html`<div class="stack" style=${{gap: '18px'}}>
       <${UI.PageHead} micro=${weekId.toLowerCase() + ', ' + range.toLowerCase()} title="The week">
@@ -156,7 +184,7 @@
       <//>
 
       <${UI.Micro}>outcomes and review<//>
-      ${ctx.activeMembers.map(m => html`<${ReviewCard} key=${m.uid + weekId} uid=${m.uid} weekId=${weekId}/>`)}
+      ${ctx.activeMembers.map(m => html`<${ReviewCard} key=${m.uid + weekId} uid=${m.uid} weekId=${weekId} ghost=${cards.length ? M.cooUi.ghostOf(cards, m.uid, weekId) : null}/>`)}
       ${cell ? html`<${CellDrawer} cell=${cell} onClose=${() => setCell(null)}/>` : null}
     </div>`;
   }

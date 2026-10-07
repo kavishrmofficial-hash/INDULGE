@@ -172,13 +172,13 @@ let logRefused = false;
 /* the private mark that someone answered this week's pulse is written a moment after the anonymous
    answer: a line for it would tie the answer to them, so it never lands in the log */
 const pulseMark = (p, d) => /^data\/users\/[^/]+\/state$/.test(String(p || '')) && !!d && typeof d === 'object' && d.pulse != null;
-M.logWrite = function logWrite(db, uid, a, p, d) {
+M.logWrite = function logWrite(db, uid, a, p, d, note) {
   try {
     if (window.M360_STANDALONE || logRefused || !db || !uid || !p || /^(log|pulse)(\/|$)/.test(String(p)) || pulseMark(p, d)) return;
     const at = Date.now();
     const id = String(at) + Math.random().toString(36).slice(2, 6).padEnd(4, '0');
     const path = 'log/' + uid + '/days/' + U.todayStr();
-    const body = {e: {[id]: {at, a, p: String(p), s: a === 'delete' ? '' : logSummary(d)}}};
+    const body = {e: {[id]: {at, a, p: String(p), s: a === 'delete' ? '' : note ? String(note).slice(0, 120) : logSummary(d)}}};
     queued(path, () => db.doc(path).update(body).catch(e => {
       if (e && e.code === 'invalid_argument') return db.doc(path).set(body).catch(e2 => { if (e2 && e2.code === 'invalid_argument') logRefused = true; throw e2; });
       throw e;
@@ -230,6 +230,8 @@ M.stamp = function stamp(db, uid, p, focus) {
 };
 /* does a write to this path count as someone's work */
 M.stamp.counts = p => !!p && !ACT_SKIP.test(String(p));
+/* the m360 COO's uid (M.coo.UID); the writer below needs it before that module loads */
+const COO_UID = 'u_m360coo';
 /* uidGetter is optional: without it the writer is read from the live context */
 M.makeWrites = (db, uidGetter) => {
   const fail = e => { M.toast(WRITE_MSG[e && e.code] || 'That did not save. Try again in a moment.', true); throw e; };
@@ -262,7 +264,7 @@ M.makeWrites = (db, uidGetter) => {
     M.toast('That change looked wrong and was not saved: ' + why + '.', true);
     return Promise.reject({code: 'refused', message: why});
   };
-  return {
+  const writer = log => ({
     set: (p, d) => check('set', p, d) || queued(p, () => db.doc(p).set(d).then(r => { log('set', p, d); return r; })).catch(fail),
     update: (p, d) => check('update', p, d) || queued(p, () => db.doc(p).update(d).then(r => { log('update', p, d); return r; })).catch(fail),
     /* merge-or-create: update first, set when the document is missing */
@@ -270,9 +272,19 @@ M.makeWrites = (db, uidGetter) => {
       /* only a missing document is created; any other refusal (too large, malformed) is never turned into an overwrite */
       if (e && (e.code === 'not_found' || (e.code === 'invalid_argument' && /missing/i.test(String(e.message || ''))))) return db.doc(p).set(d).then(r => { log('set', p, d); return r; });
       throw e;
-    })).catch(fail),
-    del: p => queued(p, () => db.doc(p).delete().then(r => { log('delete', p); return r; })).catch(fail)
+    })).catch(fail)
+  });
+  const W = {...writer(log), del: p => queued(p, () => db.doc(p).delete().then(r => { log('delete', p); return r; })).catch(fail)};
+  /* the bot's own hand (M.coo): its writes log under the bot and never stamp the founder's activity. quiet
+     skips the log line too (its live feed); note replaces the summary ("coo J12 <actId>"). No delete: the bot
+     never removes anything */
+  W.as = (who, o) => {
+    /* the COO is the only other hand a page writes with */
+    if (who !== 'coo') throw new Error('W.as writes as the COO only');
+    const opts = o || {};
+    return writer(opts.quiet ? () => {} : (a, p, d) => M.logWrite(db, COO_UID, a, p, d, opts.note));
   };
+  return W;
 };
 
 /* ---------- data hooks ---------- */

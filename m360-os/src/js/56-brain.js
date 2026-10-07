@@ -82,7 +82,7 @@
   const memoryLines = items => items.length ? 'WHAT YOU REMEMBER ABOUT THEM (they asked you to keep these in mind):\n' + items.map(x => '- ' + x.t).join('\n') : '';
 
   /* ---------- waiting on a tap: acts that leave the building or decide for someone ---------- */
-  /* opts: {turn, people: [{uid, name, facts, on, off}], channels, tellBy, title, warn, quiet, ringNowOk, from, left, kind}.
+  /* opts: {turn, people: [{uid, name, facts, on, off}], channels, tellBy, title, warn, quiet, ringNowOk, from, left, kind, action}.
      A card with people is the ask preview: each person ticks on or off, and run receives the edited
      opts {people: [ticked uids], tellBy, note, ringNow, via}. Every card carries its turn and when it
      was made, so a spoken yes can only ever confirm the one card its own turn just made. */
@@ -95,7 +95,7 @@
     const people = Array.isArray(o.people) && o.people.length ? o.people.map(p => ({uid: p.uid, name: p.name || 'Someone', facts: p.facts || '', on: p.on !== false, off: p.off || ''})) : null;
     pending.list = pending.list.concat([{id, label, detail: cut(detail, 400), run, at: Date.now(), turn, people, title: o.title || label, kind: o.kind || '',
       channels: o.channels || null, tellBy: o.tellBy || null, tellOn: !!o.tellBy, warn: o.warn || '', quiet: o.quiet || [], ringNowOk: !!o.ringNowOk, ringNow: false,
-      from: o.from || '', left: o.left || [], note: '', editing: false}]).slice(-6);
+      from: o.from || '', left: o.left || [], note: '', editing: false, action: o.action || ''}]).slice(-6);
     tell();
     return {waiting: true, label, id, note: 'Prepared. The person must tap "' + label + '" here, or say yes, to send it. Tell them it is ready and waiting on their tap.'};
   }
@@ -118,7 +118,7 @@
       /* a spoken yes hears the line in the panel; a tap reads it here */
       if (how !== 'voice') M.toast((r && typeof r === 'object' && r.say) || p.label + ': done');
       /* the panel puts the receipt of a card its own turn made into the thread */
-      try { window.dispatchEvent(new CustomEvent('m360:approved', {detail: {id, turn: p.turn || null, how: how === 'voice' ? 'voice' : 'tap', result: r}})); } catch (e) { /* no listener */ }
+      try { window.dispatchEvent(new CustomEvent('m360:approved', {detail: {id, turn: p.turn || null, how: how === 'voice' ? 'voice' : 'tap', result: r, action: p.action || p.kind || ''}})); } catch (e) { /* no listener */ }
       return r;
     } catch (e) {
       const why = (e && e.message) || 'That did not go through';
@@ -214,16 +214,17 @@
     ['memory', 'what you have been asked to remember'],
     ['day', 'one person\'s day as a timeline: check-in, saves, quiet stretches, tasks moved, EOD, status; q a name and an optional YYYY-MM-DD'],
     ['bot', 'the personal managers: what is waiting on you, the asks you sent and their answers'],
+    ['coo', 'the m360 COO: its cards waiting on you and what it did today, with the reasons and checks (founder)'],
     ['action', 'the fields of one act action, q its name'],
     ['help', 'this list']
   ];
   /* text other people wrote: once a turn reads it, every outward act after it in that turn waits on a tap */
   const UNTRUSTED = ['chat', 'mail', 'gmail', 'email', 'web', 'page', 'url', 'feed', 'vibe', 'task', 'client', 'radar', 'news', 'handshake', 'dm', 'dms', 'base', 'contacts',
-    'inbox', 'meetings', 'gcal', 'events', 'drive', 'project', 'day', 'timeline'];
+    'inbox', 'meetings', 'gcal', 'events', 'drive', 'project', 'day', 'timeline', 'coo'];
   const taintFrom = (ctx, nm, area, q) => area === 'chat' && q ? (M.ai.findMember(ctx, nm || {}, q) ? q.replace(/^./, c => c.toUpperCase()) + '\'s message' : 'the chat in ' + q)
     : area === 'mail' || area === 'gmail' || area === 'email' ? 'the mail' : area === 'web' || area === 'page' || area === 'url' ? 'that web page'
     : area === 'task' ? 'the task' + (q ? ' "' + cut(q, 40) + '"' : '') : area === 'client' ? 'the client page' : 'the ' + area;
-  const AREA_WHO = {hiring: 'founder', books: 'owner', radar: 'site', web: 'site'};
+  const AREA_WHO = {hiring: 'founder', books: 'owner', radar: 'site', web: 'site', coo: 'founder'};
   function areasFor(ctx) {
     return AREAS.filter(([k]) => {
       const w = AREA_WHO[k];
@@ -286,6 +287,33 @@
         L.push('- ' + (a.kind || 'ask') + ' at ' + U.hhmm(a.at || 0) + (a.withdrawn ? ', withdrawn' : '') + ': ' + rows.map(r => nameOf(nm, r.uid) + (r.how ? ' ' + r.how : r.sorted ? ' sorted' : r.seen ? ' seen' : ' no answer yet')).join(', '));
       });
     }
+    return L.join('\n');
+  }
+
+  /* the m360 COO as data, the founder's only: the cards waiting on him and today's rows, in the COO's own
+     words, with their reasons and checks. Acting on any of it still goes through the card */
+  function cooLine(ctx) {
+    if (!ctx.isFounder) return 'The COO\'s cards and log are Kaavish\'s.';
+    if (!M.coo || !M.coo.feed) return 'The m360 COO is not on this page yet.';
+    const C = M.coo;
+    const L = [];
+    const h = C.health ? C.health(ctx) || {} : {};
+    L.push('COO: ' + (h.status || (C.on(ctx) ? 'on' : 'off')) + (h.last ? ', last round ' + U.hhmm(h.last) : '') + (h.practice ? ', practice week until ' + h.practice : ''));
+    const cards = C.decisions(ctx) || [];
+    L.push('WAITING ON YOU: ' + cards.length);
+    list(cards, 20).forEach(k => {
+      const d = ((k.payload || {}).draft) || null;
+      L.push('- [' + k.kind + (k.urgent ? ', urgent' : '') + '] ' + cut(k.title, 160) + (k.why ? ' Why: ' + cut(k.why, 120) : '') + (d ? ' Draft to ' + (d.to || 'nobody yet') + ', subject "' + cut(d.subject, 80) + '"' : '') + ' (card ' + k.id + ')');
+    });
+    const ist = ms => new Date((ms || 0) + 330 * 60000).toISOString().slice(0, 10);
+    const td = ist(Date.now());
+    const until = ms => (ist(ms) === td ? '' : U.fmtDay(ist(ms)) + ' ') + U.hhmm(ms);
+    const rows = (C.feed(ctx, 0) || []).filter(r => ist(r.at) === td).sort((a, b) => (a.at || 0) - (b.at || 0));
+    L.push('TODAY: ' + rows.length);
+    list(rows.slice(-30), 30).forEach(r => {
+      const c = C.copy(r.code, {...(r.args || {}), ...(r.status === 'would' ? {would: true} : {}), why: r.why && typeof r.why === 'object' ? r.why.code : r.why}, 'founder', ctx) || {};
+      L.push('- ' + U.hhmm(r.at) + ' ' + r.status + ': ' + cut(c.line || r.code, 200) + (c.why ? ' ' + c.why : '') + (r.status === 'done' && r.undoUntil > Date.now() ? ' (undo until ' + until(r.undoUntil) + ')' : '') + ' (act ' + r.id + ')');
+    });
     return L.join('\n');
   }
 
@@ -628,10 +656,11 @@
       case 'memory': { const items = memoryOf(await readAi(ctx)); return items.length ? 'REMEMBERED:\n' + items.map(x => '- ' + x.t + ' (since ' + U.ymd(new Date(x.at)) + ')').join('\n') : 'Nothing remembered yet.'; }
       case 'day': case 'timeline': return dayLine(ctx, nm, q);
       case 'bot': case 'asks': case 'pm': return botLine(ctx, nm);
+      case 'coo': return cooLine(ctx);
       case 'action': case 'actions': {
         const a = M.agent ? M.agent.byName(norm(q).replace(/[^a-z_]/g, '')) : null;
         if (!a || !M.agent.allowed(ctx, a)) return 'No action called "' + q + '" here. The actions: ' + actionsFor(ctx).map(x => x[0]).join(', ');
-        return 'ACTION ' + a.name + ': ' + a.gloss + '\nFIELDS: ' + a.sig + '\nRUNS: ' + (a.mode === 'tap' ? 'waits on the person\'s tap or spoken yes' : 'at once, with Undo for a moment') + '\nSCHEMA: ' + JSON.stringify(a.schema);
+        return 'ACTION ' + a.name + ': ' + a.gloss + '\nFIELDS: ' + a.sig + '\nRUNS: ' + (a.read ? 'at once, it only reads' : a.mode === 'tap' ? 'waits on the person\'s tap or spoken yes' : a.needs === 'coo' ? 'at once, and the COO tab undoes it' : 'at once, with Undo for a moment') + '\nSCHEMA: ' + JSON.stringify(a.schema);
       }
       case 'help': case '': return catalog(ctx);
       default: return 'Unknown area "' + what + '". ' + catalog(ctx);
@@ -905,7 +934,10 @@
         const open = reqs.filter(r => !dec[r.id]);
         const r = (ymdOk(input.from) ? open.find(x => x.from === input.from) : null) || open[0];
         if (!r) throw new Error('nothing pending for ' + nameOf(nm, u));
-        return hold((status === 'approved' ? 'Approve' : 'Decline') + ' ' + nameOf(nm, u) + '\'s leave', r.from + ' to ' + r.to + ', ' + r.type, () => ctx.W.merge('leavedec/' + u, {d: {[r.id]: {status, at: Date.now()}}}));
+        /* by: whose decision it was, so the Leave page tells Kaavish's from the COO's. An approval keeps the
+           dates it approved (snap), as the Leave page's does */
+        const snap = status === 'approved' ? {snap: {from: r.from || '', to: r.to || '', type: r.type || 'casual'}} : {};
+        return hold((status === 'approved' ? 'Approve' : 'Decline') + ' ' + nameOf(nm, u) + '\'s leave', r.from + ' to ' + r.to + ', ' + r.type, () => ctx.W.merge('leavedec/' + u, {d: {[r.id]: {status, at: Date.now(), by: ctx.uid, ...snap}}}));
       }
       case 'check_in': {
         const days = U.clone((ctx.coll.checkin.map[uid] || {}).days || {});

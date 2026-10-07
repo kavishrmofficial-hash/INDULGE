@@ -115,7 +115,8 @@ def main():
             }''')
             print('one edit', one)
             check(one['contactDocs'] == [one['pid']] and not one['more'], 'one edit should cost one page: %r' % one)
-            check(all(c in ('contacts', 'log') for c in one['colls']), 'nothing else should travel for one edit: %r' % one['colls'])
+            # the save also stamps the day's activity on me/<uid> (v30), once per five minutes, so that may ride along
+            check(all(c in ('contacts', 'log', 'me') for c in one['colls']), 'nothing else should travel for one edit: %r' % one['colls'])
             # a second browser loads the whole base and sees that edit
             t1 = time.time()
             d = browser.new_context(viewport={'width': 1280, 'height': 900}).new_page(); d.set_default_timeout(60000)

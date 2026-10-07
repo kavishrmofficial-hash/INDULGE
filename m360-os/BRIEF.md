@@ -348,6 +348,10 @@ Conventions: timestamps are epoch milliseconds. Dates are local "YYYY-MM-DD". We
 | settings/app.pm | founder | the personal managers' policy, read through M.pm.P (deep-merged with the defaults): {on:false, require:true, off:{[managerUid]:true}, kinds:{noin, noeod, overdue, sentback, chase, quiet, waiton, noout:true, idle, short:false}, wait:60, waitMin:30, waitMax:180, carry:120, digestAt:"17:30", perDay:4, mgrPerDay:6, quietMax:2, askPerDay:3, minHours:0, coachDays:10, blockerMins:120, mail:true}. Off until the founder switches it on; a manager cannot switch their own bot off (require), the founder can (off) |
 | settings/app.agent | founder | voice and chat commands: {on:true, bulkMax:12, perSenderDay:40, spokenYes:true, pressConfirmed:true} |
 | me/<uid>.pm | person | the personal manager's side effects, uids, times and codes only: {cfg:{on, kinds, wait, voice:"warm" or "brief", mail, pause:{[repUid]:date} (today only while require holds), plog:{["repUid:date"]:at} (every pause, for the founder's audit, 8 days), next:{from:date, wait?, kinds?}, at}, chase:{[taskId]:{rep, at}}, asks:{[askId]:{kind, to:[uid], sub?, ask:"why" or "eta" or "confirm", at, showAt?, tellBy?, ringNow?, via, note?:true, withdrawn?}}, ack:{[K]:{at, how, eta?, until?, n?, again?}}, told:{[stepId]:at}, mail:true or false}. K is rep:kind:sub:date. A told value is positive when the step rang (a bubble, a notice) and negative when a card or the inbox showed it silently. Entries past 8 days, and past 400 a map (asks: 60, 14 days), go as nulls with the next write. Never a name, a reason or a line of text |
+| settings/app.coo | founder | the m360 COO's mandate, read by everyone (the charter), deep-merged with the defaults: {on:false, title:"m360 COO", pausedUntil, practiceUntil, version, signedAt, signedBy, caps:{[capability]:"alone" or "tell" or "draft" or "propose" or "off"}, limits:{actsPerDay, tellPerDay, movesPerDay, movesPerPersonDay, movesPerTaskWeek, shiftsPerDay, leaveApprovalsPerDay, asksPerDay, asksPerPersonDay, draftsPerDay, draftsPerClientWeek, aiPerDay, foundMailsPerDay}, leave:{yearStart, perType:{casual, sick, other} (null fails closed), maxAutoDays, noticeDays, probationLop, maxOutPerDay, maxOutPerPod, blackout}, wfh:{minOffice}, load:{maxOpen, maxOverdue, margin}, stuck, digest:{mail:"away" or "always" or "off"}, memoDay, off}. Nothing private in it |
+| coo/now, coo/L-<date>, coo/dec, coo/day-<date>, coo/load-<date>, coo/memo-<weekId>, coo/state, coo/slots-<date> | the m360 COO (u_m360coo) and the founder | its live state, its ledger (every act with its checks, before and after, the words it told and its undo window; 90 days), the decisions inbox, the day's brief, roll, EOD sweep, close and audit, the load snapshot, the weekly memo, its seen sets, holds and breakers, and the artifact runner's slot claims. Admin only |
+| office/live | the m360 COO | the office's team-safe feed: {v, state, job, station, at, next:{slot, at}, pass:{at, by}, seq}. No uids, names, counts of people, reasons or money |
+| books/cooq | the m360 COO and the owner | the owner's money cards (invoice reminder drafts), the coo/dec card shape |
 | data/users/<uid>/agent | person, private | the voice and chat ledger: {runs:[{id, at, said, via:"voice" or "typed" or "grammar", acts:[{action, input, result, undo, status}]}]}, the last 200 |
 
 `Loc` = {lat, lng (both rounded to 4 decimals), acc (metres), dist (metres to the office, or null), verified:boolean, place:string, src:"gps" or "self"}.
@@ -535,11 +539,21 @@ Access rules to declare exactly, as `capabilities.db.rules`:
   {
     "path": "play/{self}",
     "write": "interact"
+  },
+  {
+    "path": "coo",
+    "read": "admin",
+    "write": "admin"
+  },
+  {
+    "path": "office",
+    "read": "interact",
+    "write": "admin"
   }
 ]
 ```
 
-What these rules do: the founder alone writes the roster, settings, handbook, reviews, leave decisions and candidates. Each person writes only their own check-ins, EOD lines, plans, rocks, posts, reactions, reads, kudos, leave requests, ideas, votes, access list and onboarding ticks, and everyone on the team can read them. Evaluations are readable by the founder and by their own author only. The founder's keeper test and finance, and each person's private state, sit in private per-user space.
+What these rules do: the founder alone writes the roster, settings, handbook, reviews, leave decisions and candidates. Each person writes only their own check-ins, EOD lines, plans, rocks, posts, reactions, reads, kudos, leave requests, ideas, votes, access list and onboarding ticks, and everyone on the team can read them. Evaluations are readable by the founder and by their own author only. The m360 COO's own documents (coo/) are the founder's to read and write; its office feed (office/live) is written by the founder's side and read by everyone. The founder's keeper test and finance, and each person's private state, sit in private per-user space.
 
 ---
 

@@ -183,11 +183,12 @@
     });
     const [f, setF] = useState(() => pitch ? fromDoc(pitch, fe) : blank());
     const [busy, setBusy] = useState(false);
+    /* a deep link can open the drawer before the pitches have loaded: the form fills once the pitch is here */
     useEffect(() => {
       const p = pitchId ? ctx.coll.pitches.map[pitchId] : null;
       setF(p ? fromDoc(p, pitchId ? financeOf(ctx)[pitchId] : null) : blank());
       setBusy(false);
-    }, [pitchId, finReady]);
+    }, [pitchId, finReady, !!pitch]);
     const set = k => v => setF(x => ({...x, [k]: v}));
 
     const memberIds = useMemo(() => {

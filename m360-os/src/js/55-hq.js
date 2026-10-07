@@ -68,7 +68,9 @@
     }
     async function assign(a, i, ev) {
       const nm = await M.ai.names(ctx);
-      const owner = M.ai.findMember(ctx, nm, a.owner) || ctx.uid;
+      /* a name the roster does not know stays unassigned here: the task never lands on Kaavish by default */
+      const owner = M.ai.findMember(ctx, nm, a.owner);
+      if (!owner) { M.toast('Nobody on the roster is called ' + (a.owner || 'that') + '. Make it from Tasks and pick the owner.', true); return; }
       await ctx.W.set('tasks/' + U.uid(), {title: String(a.title).slice(0, 140), owner, client: '', project: '', section: '',
         due: /^\d{4}-\d{2}-\d{2}$/.test(String(a.due || '')) ? a.due : '', status: 'todo', priority: 'high', link: '', revisions: 0,
         shown20: false, subtasks: {}, comments: {}, by: ctx.uid, created: Date.now(), updated: Date.now(), doneAt: null});
@@ -140,15 +142,23 @@
         '(many open or overdue tasks, or on leave) to people with capacity and a fitting role. Keep client relationships in mind. ' +
         'Reply with only a JSON array of {"task": "exact task title from the data", "to": "first name", "why": "under 12 words"}. ' +
         'Reply [] if the load is already fair.\n\n' + slice, {signal: o.signal, cache: false}));
-      if (Array.isArray(out)) setMoves(out.slice(0, 5));
+      /* each suggestion is pinned to one open task by its exact title, or it gets no Move button */
+      if (Array.isArray(out)) setMoves(out.slice(0, 5).map(mv => ({...mv, id: exactTask(mv.task)})));
+    }
+    function exactTask(title) {
+      const q = String(title || '').trim().toLowerCase();
+      const hits = q ? Object.keys(map).filter(k => map[k] && map[k].status !== 'done' && String(map[k].title || '').trim().toLowerCase() === q) : [];
+      return hits.length === 1 ? hits[0] : null;
     }
     async function apply(mv, i, ev) {
       const nm = await M.ai.names(ctx);
       const to = M.ai.findMember(ctx, nm, mv.to);
-      const q = String(mv.task || '').toLowerCase();
-      const id = Object.keys(map).find(k => String(map[k].title).toLowerCase() === q) || Object.keys(map).find(k => String(map[k].title).toLowerCase().indexOf(q) >= 0);
-      if (!to || !id) { M.toast('Could not find that task or person', true); return; }
-      await ctx.W.update('tasks/' + id, {owner: to, updated: Date.now()});
+      if (!to || !mv.id || !map[mv.id]) { M.toast('Could not pin down that task or person', true); return; }
+      /* the one path for a move, the founder's or the COO's: by id, logged, and through the task's own save */
+      try {
+        if (M.coo && M.coo.moveTask) await M.coo.moveTask(ctx, mv.id, to, 'overload');
+        else await M.tasks.save(ctx, mv.id, {owner: to});
+      } catch (e) { M.toast((e && e.message) || 'That move did not save', true); return; }
       setDone(x => ({...x, [i]: true}));
       M.toast('Moved to ' + nm[to]);
     }
@@ -181,7 +191,7 @@
       ${moves ? html`<div style=${{marginTop: '14px'}}>
         ${moves.length ? moves.map((mv, i) => html`<div class="focus" key=${i}>
           <div class="grow"><div style=${{fontWeight: 700}}>${mv.task} → ${mv.to}</div><div class="tiny ink62">${mv.why}</div></div>
-          ${done[i] ? html`<span class="pill ink">moved</span>` : html`<button type="button" class="btn sm" onClick=${e => apply(mv, i, e)}>Move it</button>`}
+          ${done[i] ? html`<span class="pill ink">moved</span>` : mv.id ? html`<button type="button" class="btn sm" onClick=${e => apply(mv, i, e)}>Move it</button>` : html`<span class="tiny ink62">no exact match</span>`}
         </div>`) : html`<div class="focus"><span style=${{fontWeight: 500}}>Load looks fair. Nothing to move.</span></div>`}
       </div>` : null}
     </section>`;
@@ -251,8 +261,15 @@
       ${M.parts.JoinBanner ? html`<${M.parts.JoinBanner}/>` : null}
       ${M.parts.SetupCard && !setupDone ? html`<${UI.Fold} title="Get m360 ready" summary=${setupSum} open=${false} id="fold-setup"><${M.parts.SetupCard}/><//>` : null}
       <${M.SectionTabs} section="hq" active=${t}/>
-      ${t === 'dashboard' ? html`<${Embed} page="Command"/>` : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>` : html`<div class="stack" style=${{gap: '20px'}}>
+      ${M.parts.CooRunner ? html`<${M.parts.CooRunner}/>` : null}
+      ${t === 'dashboard' ? html`<${Embed} page="Command"/>` : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>`
+        : t === 'coo' ? (M.pages.Coo ? html`<${M.pages.Coo}/>` : null)
+        : t === 'office' ? (M.pages.Office ? html`<${M.pages.Office} scope="founder"/>` : M.parts.OfficeSlot ? html`<${UI.Card} title="The office"><${M.parts.OfficeSlot} mode="hq" scope="founder"/><//>` : null)
+        : html`<div class="stack" style=${{gap: '20px'}}>
         <${IntelBrief}/>
+        ${M.parts.OfficeSlot ? html`<${UI.Fold} title="The office" summary="the COO and the team, live" open=${true} id="fold-office"><section class="card hq-office">
+          <div class="card-head"><h2 class="card-title">The office</h2></div>
+          <${M.parts.OfficeSlot} mode="hq" scope="founder"/></section><//>` : null}
         ${M.parts.BaseNudges ? html`<${M.parts.BaseNudges}/>` : null}
         ${M.parts.QuietBoard ? html`<${UI.Fold} title="Quiet stretches" summary=${q.summary} open=${q.now > 0} hot=${q.now > 0} id="fold-quiet"><${M.parts.QuietBoard} log=${q.log} today=${q.today}/><//>` : null}
         <div class="split">
