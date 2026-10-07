@@ -451,6 +451,21 @@
     async function add() {
       const text = q.trim();
       if (!text) return;
+      /* a prospect line ("spoke to Meera at Swisse, talk after the 16th") is private: it goes to Prospects, never a shared task */
+      if (M.prospects && M.prospects.read && M.prospects.isCapture && !ctx.viewAs) {
+        let r = null;
+        try { r = M.prospects.read(text, ctx); } catch (e) { r = null; }
+        if (r && M.prospects.isCapture(r)) {
+          setBusy(true);
+          try {
+            const out = M.agent && M.agent.capture ? await M.agent.capture(ctx, text, {}) : await M.prospects.apply(ctx, r, {}, {});
+            M.toast((out && (out.say || out.text || out.ask)) || 'Logged on Prospects');
+            setQ('');
+          } catch (e) { /* toasted by the write layer */ }
+          setBusy(false);
+          return;
+        }
+      }
       setBusy(true);
       let task = {title: text, owner: ctx.uid, due: '', priority: 'normal'};
       if (M.ai.on(ctx)) {
@@ -803,6 +818,7 @@
         <div class="stack" style=${{gap: '18px'}}>
           ${eodFirst ? html`<${F} title="EOD line" summary=${eodPosted ? 'posted for today' : 'due by ' + (ctx.settings.eodCut || '19:30')} open=${!eodPosted} hot=${!eodPosted} id="fold-eod"><${Wrap}/><//>` : null}
           <${F} title="Today's focus" summary=${n(myOpen.length, 'open task', 'open tasks') + (myLate ? ', ' + n(myLate, 'overdue', 'overdue') : '')} open=${true} hot=${myLate > 0} id="fold-focus"><${Focus} onOpen=${setTask}/><//>
+          ${M.parts.FollowupsFold ? html`<${M.parts.FollowupsFold}/>` : null}
           ${Reviews && revN ? html`<${F} title="Waiting on your review" summary=${n(revN, 'piece', 'pieces')} open=${true} hot=${true} id="fold-reviews"><${Reviews} compact=${true}/><//>` : null}
           ${Outcomes ? html`<${F} title="This week's outcomes" summary="what you said you would ship" id="fold-outcomes"><${Outcomes}/><//>` : null}
           ${!eodFirst && working ? html`<${F} title="EOD line" summary=${'three lines before ' + (ctx.settings.eodCut || '19:30')} id="fold-eod"><${Wrap}/><//>` : null}

@@ -1,0 +1,115 @@
+/* ---------- v34: prospects. The Prospects page (capture line, groups, rows), the person page, the Home fold
+   "Follow-ups today", the pitch drawer's Sent and notes folds, the Base contact drawer's conversations.
+   Tokens only, both themes; flame marks late. Under 860px rows go one column with the date on the right,
+   inputs keep 16px and every target is 44px; nothing scrolls sideways at 390px. ---------- */
+
+/* the capture line */
+.pros-cap{min-width:0}
+.pros-cap-row{gap:8px; align-items:center}
+.pros-cap-row .grow{min-width:0}
+.pros-cap .input{width:100%; min-width:0}
+.pros-back{margin-top:8px; color:var(--ink); font-weight:400}
+.pros-receipt{margin-top:10px; padding:10px 12px; border-radius:var(--r-sm); background:var(--warm); display:grid; gap:8px; min-width:0}
+.pros-chips{gap:6px}
+.pros-hold{gap:8px; padding:8px 10px; border-radius:var(--r-sm); border:1px solid var(--line2); background:var(--paper)}
+.pros-cap.compact .pros-receipt{padding:8px 10px}
+
+/* the page */
+.pros-top .pros-count{gap:8px 12px}
+.pros-week{gap:14px}
+.pros-group{background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card); padding:14px 18px 6px; min-width:0}
+.pros-group.hot{border-color:var(--flame)}
+.pros-gh{gap:8px; margin-bottom:4px}
+.pros-foot{gap:8px 16px}
+.pros-filters{gap:6px}
+.chip.on{background:var(--ink); border-color:var(--ink); color:var(--on-ink)}
+.pros-list{display:grid; gap:0}
+
+/* a person row */
+.pros-row{display:grid; gap:4px; padding:8px 0; border-bottom:1px solid var(--line); min-width:0}
+.pros-row:last-child{border-bottom:0}
+.pros-open{display:flex; align-items:center; gap:12px; min-height:56px; padding:4px 0; min-width:0}
+.pros-open:hover .pros-who{text-decoration:underline; text-underline-offset:3px}
+.pros-av{flex:none; width:36px; height:36px; border-radius:999px; background:var(--col); color:var(--ink); font-size:13px; font-weight:600; letter-spacing:.02em; display:inline-flex; align-items:center; justify-content:center}
+.pros-av.lg{width:48px; height:48px; font-size:16px}
+.pros-main{display:flex; flex-direction:column; gap:1px; min-width:0; flex:1}
+.pros-who{font-weight:500; font-size:15px; line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.pros-role,.pros-sub{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.35}
+.pros-chip{flex:none; height:26px; padding:0 10px; border-radius:999px; border:1px solid var(--line2); font-size:12px; display:inline-flex; align-items:center; color:var(--ink); white-space:nowrap}
+.pros-chip.late{border-color:var(--flame); color:var(--flame-text); font-weight:500}
+.pros-tail{gap:6px; padding:0 0 4px 48px}
+.pros-pitch{height:28px; font-size:12px; gap:6px}
+.pros-row.own .pros-av{background:transparent; border:1px dashed var(--line2)}
+
+/* chips that pick a day */
+.pros-when{gap:6px}
+.pros-pick{gap:6px}
+.pros-pick .input{width:auto; min-height:32px; height:32px; padding:0 8px}
+.pros-next{display:grid; gap:8px; padding:8px 0 2px}
+.pros-acts{gap:6px}
+
+/* Home: the follow-ups fold */
+.fu-rows{display:grid; gap:0}
+.fu-row{display:grid; gap:8px; padding:10px 0; border-bottom:1px solid var(--line); min-width:0}
+.fu-row:last-child{border-bottom:0}
+.fu-row[data-late="1"] .fu-line b{color:var(--flame-text)}
+.fu-line{display:flex; align-items:flex-start; gap:10px; line-height:1.45; min-width:0}
+.fu-line .dotflame{margin-top:8px}
+.fu-line .grow{overflow-wrap:anywhere}
+.fu-cap{margin-top:12px; padding-top:12px; border-top:1px solid var(--line)}
+
+/* the person page */
+.pros-person{gap:14px}
+.pros-head{gap:12px}
+.pros-name{font-weight:600; font-size:19px; letter-spacing:-.01em; line-height:1.2}
+.pros-contact{gap:8px}
+.pros-contact .btn{text-decoration:none}
+.pros-next-line{line-height:1.5}
+.pros-mirror{align-items:flex-start}
+.pros-mirror input{margin-top:3px}
+.pros-timeline{min-width:0}
+.pros-month{display:grid; gap:4px; padding:6px 0}
+.pros-month .micro{margin-bottom:2px}
+.pros-tl{gap:10px; align-items:baseline; padding:3px 0; min-width:0}
+.pros-tl .grow{overflow-wrap:anywhere}
+.pros-tl-at{flex:none; width:92px}
+.pros-tl.shared .grow{color:var(--ink62)}
+
+/* the pitch drawer and the Base drawer folds */
+.pros-fold{display:grid; gap:8px; padding:12px 14px; border-radius:var(--r-sm); border:1px solid var(--line); background:var(--warm); min-width:0}
+.pros-fold .input,.pros-fold select.input{background:var(--paper)}
+.pros-notes{border-style:dashed}
+.sent-row{display:flex; align-items:center; gap:6px 8px; flex-wrap:wrap; padding:6px 0; min-width:0}
+.sent-row + .sent-row{border-top:1px solid var(--line)}
+.sent-row > .grow{flex:1 1 200px; overflow-wrap:anywhere}
+.pros-reply{gap:6px; flex-basis:100%}
+.pros-addsend{padding-top:4px}
+
+/* dark: the same tokens; the late chip keeps flame on text */
+:root[data-theme="dark"] .pros-av{background:var(--col)}
+
+/* phones */
+@media (max-width:860px){
+  .pros-cap-row{flex-wrap:wrap}
+  .pros-cap-row .grow{flex-basis:100%}
+  .pros-cap .input,.pros-fold .input{font-size:16px}
+  .pros-top .pros-count{flex-direction:column; align-items:flex-start}
+  .pros-top .seg{max-width:100%}
+  .pros-group{padding:12px 14px 4px}
+  .pros-open{min-height:56px}
+  .pros-tail{padding-left:0}
+  .pros-chip,.pros-pitch,.pros-when .chip,.pros-chips .chip,.pros-reply .chip,.pros-filters .chip{min-height:44px}
+  .pros-acts .btn,.pros-when .btn,.fu-row .btn{min-height:44px}
+  .pros-pick .input{min-height:44px; height:44px}
+  .pros-tl{flex-wrap:wrap}
+  .pros-tl-at{width:auto}
+  .pros-contact .btn{min-height:44px; flex:1 1 auto; justify-content:center}
+  .pros-foot{flex-direction:column; align-items:flex-start}
+}
+@media (max-width:600px){
+  .pros-who{white-space:normal}
+  .pros-role,.pros-sub{white-space:normal}
+  .pros-open{align-items:flex-start}
+  .pros-chip{margin-top:6px}
+  .sent-row > .grow{flex-basis:100%}
+}

@@ -33,7 +33,10 @@
       {k: 'calendar', label: 'Calendar', route: 'calendar'}, {k: 'reviews', label: 'Reviews', route: 'reviews'},
       {k: 'week', label: 'The week', route: 'week'}]},
     accounts: {label: 'Accounts', icon: 'clients', page: 'Accounts', tabs: [
-      {k: 'clients', label: 'Clients', route: 'clients'}, {k: 'pipeline', label: 'Pipeline', route: 'pitches'}, {k: 'crm', label: 'CRM', route: 'crm'}, {k: 'handshake', label: 'Handshake', route: 'handshake'}]},
+      {k: 'clients', label: 'Clients', route: 'clients'}, {k: 'pipeline', label: 'Pipeline', route: 'pitches'},
+      /* each member's own people, talks and follow-ups (v34); the pitch itself stays on the pipeline */
+      {k: 'prospects', label: 'Prospects', route: 'prospects'},
+      {k: 'crm', label: 'CRM', route: 'crm'}, {k: 'handshake', label: 'Handshake', route: 'handshake'}]},
     vibe: {label: 'Vibe', icon: 'feed', page: 'Vibe', tabs: [
       {k: 'feed', label: 'Feed', route: 'feed'}, {k: 'crew', label: 'Crew', route: 'people'},
       {k: 'pulse', label: 'Pulse and ideas', route: 'voice'}, {k: 'scores', label: 'Leaderboard', route: 'scores'}, {k: 'music', label: 'Music', route: 'music'},
@@ -90,6 +93,7 @@
       case 'trophies': return {s: 'me', t: 'trophies'};
       case 'accounts': case 'clients': return {s: 'accounts', t: 'clients'};
       case 'pitches': case 'pipeline': return {s: 'accounts', t: 'pipeline'};
+      case 'prospects': case 'followups': case 'follow-ups': return {s: 'accounts', t: 'prospects', id};
       case 'crm': return {s: 'accounts', t: 'crm'};
       case 'handshake': case 'dm': case 'dms': return {s: 'accounts', t: 'handshake', id};
       case 'web': case 'browser': return {s: 'web'};
@@ -206,6 +210,8 @@
     const run = fn => () => { onClose(); fn(); };
     const items = [
       {k: 'task', label: 'Task', sub: 'for you or anyone', icon: 'tasks', go: onTask},
+      /* a private follow-up: how the founder reaches Prospects on the phone, where Accounts sits under More */
+      {k: 'followup', label: 'Follow-up', sub: 'someone you are talking to', icon: 'bell', go: () => M.intend('#prospects', 'capture')},
       {k: 'post', label: 'Update or win', sub: 'on the feed', icon: 'feed', go: () => M.intend('#feed', 'post')},
       {k: 'kudos', label: 'Kudos', sub: 'thank someone', icon: 'scores', go: () => M.intend('#feed', 'kudos')},
       {k: 'leave', label: 'Leave request', sub: 'days off', icon: 'leave', go: () => M.nav('#leave')},
@@ -452,6 +458,7 @@
       ${M.parts.FixHost ? html`<${M.parts.FixHost}/>` : null}
       ${M.parts.BooksWatch ? html`<${M.parts.BooksWatch}/>` : null}
       ${M.parts.CareWatch ? html`<${M.parts.CareWatch}/>` : null}
+      ${M.parts.FollowWatch ? html`<${M.parts.FollowWatch}/>` : null}
       ${M.parts.BreatheHost ? html`<${M.parts.BreatheHost}/>` : null}
       ${M.parts.DayRateHost ? html`<${M.parts.DayRateHost}/>` : null}
       ${M.parts.ChatWatch ? html`<${M.parts.ChatWatch}/>` : null}

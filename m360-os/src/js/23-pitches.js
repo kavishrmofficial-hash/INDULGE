@@ -113,6 +113,16 @@
   }
 
   /* ---------- board ---------- */
+  /* the latest shared send, in one line: "Sent to Meera, 3 days, no reply yet" or "Meera replied" */
+  function SendLine({p}) {
+    const s = M.prospects && M.prospects.latestSend ? M.prospects.latestSend(p) : null;
+    const cid = s && /^[A-Za-z0-9_-]{1,40}$/.test(String(s.to || '')) ? s.to : null;
+    const got = M.base && M.base.useRow ? M.base.useRow('contacts', cid) : {row: null};
+    if (!s || !M.prospectsUi) return null;
+    const who = got.row ? String(got.row.name || got.row.first || 'them').split(' ')[0] : /^c_/.test(String(s.to || '')) ? 'them' : (String(s.to || 'them').split(/[,\s]+/)[0] || 'them');
+    const line = M.prospectsUi.sendLine(p, who);
+    return line ? html`<span class="tiny sub pitch-sent-line">${line}</span>` : null;
+  }
   function PitchCard({p, fe, founder, today, now, onOpen, beam}) {
     const days = Math.max(0, Math.floor((now - (p.stageAt || p.created || now)) / DAY));
     const od = isOverdue(p, today);
@@ -130,6 +140,7 @@
         <span class="small grow" style=${{overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>${p.next || 'Next step'}</span>
         ${p.nextDate ? html`<span class=${'tiny num' + (od ? ' flame-t' : ' sub')}>${U.fmtDay(p.nextDate)}</span>` : null}
       </span>` : null}
+      <${SendLine} p=${p}/>
     </button>`;
     /* the pitch whose next step is most overdue carries the beam, one card only */
     return beam ? html`<${M.fx.Beam} radius=${14}>${card}<//>` : card;
@@ -171,12 +182,14 @@
     const finReady = !!(ctx.priv && ctx.priv.finance && ctx.priv.finance.ready);
     const fe = pitchId ? financeOf(ctx)[pitchId] : null;
 
-    /* pitch.contact holds a Base contact id when one is picked, else a typed name and role */
-    const baseContact = cid => (cid && M.search && M.search.contactById) ? M.search.contactById(ctx, cid) : null;
+    /* pitch.contact holds a Base contact id (c_...) when one is picked, else a typed name and role. The id is
+       recognised by its shape, so the team site (where the page holds no Base index) reads it the same way;
+       an older id is still found through the local index where there is one. */
+    const isCid = v => /^c_/.test(String(v || '')) || !!(v && !/\s/.test(String(v)) && M.search && M.search.contactById && M.search.contactById(ctx, v));
     const blank = () => ({brand: '', category: '', contact: '', contactId: '', source: '', stage: 'lead', owner: ctx.uid,
       next: '', nextDate: '', lost: '', value: '', prob: ''});
     const fromDoc = (p, e) => ({
-      brand: p.brand || '', category: p.category || '', contact: baseContact(p.contact) ? '' : (p.contact || ''), contactId: baseContact(p.contact) ? p.contact : '',
+      brand: p.brand || '', category: p.category || '', contact: isCid(p.contact) ? '' : (p.contact || ''), contactId: isCid(p.contact) ? p.contact : '',
       source: p.source || '',
       stage: stageOf(p).v, owner: p.owner || ctx.uid, next: p.next || '', nextDate: p.nextDate || '', lost: p.lost || '',
       value: valueOf(e) > 0 ? String(valueOf(e)) : '', prob: hasProb(e) ? String(Number(e.prob)) : ''
@@ -211,6 +224,10 @@
     const cq = M.base && M.base.useQuery ? M.base.useQuery('contacts', {client: cidForBrand || '', limit: 200}) : {rows: []};
     const contactOpts = useMemo(() => cq.rows.map(c => ({v: c.id, label: (c.name || [c.first, c.last].filter(Boolean).join(' ') || 'Someone') + (c.title ? ', ' + c.title : '') + (!cidForBrand && c.orgName ? ' (' + c.orgName + ')' : '')}))
       .sort((a, b) => a.label.localeCompare(b.label)), [cq.rows, cidForBrand]);
+    /* the linked contact's name, from its own row: the team site's list may not hold it */
+    const contactRow = M.base && M.base.useRow ? M.base.useRow('contacts', f.contactId || null) : {row: null, loading: false};
+    const contactName = contactRow.row ? (contactRow.row.name || [contactRow.row.first, contactRow.row.last].filter(Boolean).join(' ') || 'Someone') + (contactRow.row.title ? ', ' + contactRow.row.title : '') : '';
+    const pickOpts = useMemo(() => f.contactId && contactName && !contactOpts.some(o => o.v === f.contactId) ? [{v: f.contactId, label: contactName}].concat(contactOpts) : contactOpts, [contactOpts, f.contactId, contactName]);
 
     const save = () => {
       if (!canSave) return;
@@ -222,7 +239,7 @@
         source: f.source.trim(), owner: f.owner || ctx.uid, updated: now, ...(orgMatch ? {org: orgMatch.id} : {})};
       let p;
       if (isNew) {
-        p = W.set('pitches/' + id, {...body, stage: 'lead', stageAt: now, next: '', nextDate: '', project: '', lost: '', created: now});
+        p = W.set('pitches/' + id, {...body, stage: 'lead', stageAt: now, next: f.next.trim(), nextDate: f.nextDate || '', project: '', lost: '', created: now});
       } else {
         p = W.update('pitches/' + id, {...body, stage: f.stage,
           stageAt: f.stage !== stageOf(pitch).v ? now : (pitch.stageAt || now),
@@ -298,17 +315,20 @@
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${isNew ? 'New pitch' : 'Pitch'} head=${stagePill} footer=${footer}>
       <${UI.Input} id="pitch-brand" label="brand" value=${f.brand} onChange=${set('brand')} placeholder="Brand name" onEnter=${save}/>
       <${UI.Input} id="pitch-category" label="category" value=${f.category} onChange=${set('category')} placeholder="Fine jewellery, hospitality, wellness"/>
-      ${contactOpts.length ? html`<${UI.Select} id="pitch-contact-pick" label="contact from the Base" value=${f.contactId} onChange=${set('contactId')}
-        options=${[{v: '', label: f.contact ? 'Typed below' : 'Pick a contact'}].concat(contactOpts)}/>` : null}
+      ${pickOpts.length || f.contactId ? html`<${UI.Select} id="pitch-contact-pick" label="contact from the Base" value=${f.contactId} onChange=${set('contactId')}
+        options=${[{v: '', label: f.contact ? 'Typed below' : 'Pick a contact'}].concat(pickOpts)}/>` : null}
+      ${f.contactId ? html`<div class="small ink62" id="pitch-contact-name">${contactName || (contactRow.loading ? 'Looking up the contact.' : 'This contact is no longer in the Base.')}${contactRow.row ? html` <button type="button" class="linky tiny" onClick=${() => M.nav('#base/' + f.contactId)}>Open in the Base</button>` : null}</div>` : null}
       ${!f.contactId ? html`<${UI.Input} id="pitch-contact" label=${contactOpts.length ? 'or type a contact, name and role' : 'contact, name and role'} value=${f.contact} onChange=${set('contact')} placeholder="Name and role"/>` : null}
       <${UI.Input} id="pitch-source" label="source" value=${f.source} onChange=${set('source')} placeholder="Referral, inbound, event"/>
       ${!isNew ? html`<${UI.Field} label="stage">
         <${UI.Seg} sm options=${STAGE_OPTS} value=${f.stage} onChange=${set('stage')} ariaLabel="Stage"/>
       <//>` : null}
       <${UI.Select} id="pitch-owner" label="owner" value=${f.owner} onChange=${set('owner')} options=${ownerOpts}/>
+      <${UI.Input} id="pitch-next" label="next step" value=${f.next} onChange=${set('next')} placeholder="What happens next"/>
+      <${UI.Input} id="pitch-nextdate" label="next date" type="date" value=${f.nextDate} onChange=${set('nextDate')}/>
       ${!isNew ? html`<${React.Fragment}>
-        <${UI.Input} id="pitch-next" label="next step" value=${f.next} onChange=${set('next')} placeholder="What happens next"/>
-        <${UI.Input} id="pitch-nextdate" label="next date" type="date" value=${f.nextDate} onChange=${set('nextDate')}/>
+        ${M.parts.SentFold ? html`<${M.parts.SentFold} pitchId=${pitchId}/>` : null}
+        ${M.parts.PitchNotes ? html`<${M.parts.PitchNotes} pitchId=${pitchId}/>` : null}
         ${f.stage === 'lost' ? html`<${UI.TextArea} id="pitch-lost" label="lost reason" value=${f.lost} onChange=${set('lost')} rows=${3} placeholder="Why it was lost, in one or two lines"/>` : null}
         ${pitch.project ? html`<${UI.Field} label="project">
           <div><${UI.Btn} kind="sec" sm onClick=${() => M.nav('#projects/' + pitch.project)}><${icons.link}/>${project ? (project.name || 'Project') : 'Open project'}<//></div>

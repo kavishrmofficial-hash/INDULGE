@@ -941,10 +941,11 @@
             ${client ? html`<div class="row small"><span class="ink62">client</span><button type="button" class="linky" onClick=${() => go('#clients')}>${client.name}</button><${UI.Pill} kind="ink">${client.status || 'live'}<//></div>`
               : html`<div class="small ink62">${o ? 'This company is not mapped to a client.' : 'No company on this person yet.'}</div>`}
             ${projects.map(p => html`<div key=${p.id} class="row small"><span class="ink62">project</span><button type="button" class="linky" onClick=${() => go('#projects/' + p.id)}>${p.name}</button><span class="tiny ink62">${p.status || ''}</span></div>`)}
-            ${pitches.map(p => html`<div key=${p.id} class="row small"><span class="ink62">pitch</span><button type="button" class="linky" onClick=${() => go('#pitches')}>${p.brand}</button><span class="tiny ink62">${p.stage || ''}</span></div>`)}
+            ${pitches.map(p => html`<div key=${p.id} class="row small"><span class="ink62">pitch</span><button type="button" class="linky" onClick=${() => go('#pitches/' + p.id)}>${p.brand}</button><span class="tiny ink62">${p.stage || ''}</span></div>`)}
           </div>
         <//>` : null}
         ${!isNew && M.parts.Connections ? html`<${M.parts.Connections} kind="contact" id=${existing.id}/>` : null}
+        ${!isNew && M.parts.ContactConversations ? html`<${M.parts.ContactConversations} cid=${existing.id} who=${existing.name} org=${o ? o.name : f.orgName} role=${existing.title} oid=${o ? o.id : ''} client=${client && o ? {...client, id: o.client} : null}/>` : null}
         ${!isNew ? html`<${IntroNote} c=${existing} o=${o}/>` : null}
       </div>
     <//>`;
