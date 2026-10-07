@@ -87,6 +87,9 @@
     const privState = M.useDoc(db, 'data/users/' + uid + '/state');
     const privKeeper = M.useDoc(db, me.isOwner ? 'data/users/' + uid + '/keeper' : null);
     const privFinance = M.useDoc(db, me.isOwner ? 'data/users/' + uid + '/finance' : null);
+    /* prospects (M.prospects): every member's own people, follow-ups and meetings, on the signed-in person's
+       id whatever the preview shows; never a collection, so the COO and the office never read it */
+    const privPros = M.useDoc(db, viewAs ? null : 'data/users/' + realUid + '/prospects');
 
     const rosterDoc = M.useDoc(db, 'roster/team');
     const settingsDoc = M.useDoc(db, 'settings/app');
@@ -246,12 +249,13 @@
         ready: cooNow.ready && cooDec.ready && cooL0.ready && cooState.ready});
 
       return {db, user, mcp, downloads, permissions, sample, room, me, uid, realUid, viewAs, W, coo, wfhMap,
-        priv: {state: privState, keeper: isFounder ? privKeeper : {ready: true, data: null}, finance: isFounder ? privFinance : {ready: true, data: null}},
+        priv: {state: privState, keeper: isFounder ? privKeeper : {ready: true, data: null}, finance: isFounder ? privFinance : {ready: true, data: null},
+          prospects: viewAs ? {ready: true, data: null} : privPros},
         ready: rosterDoc.ready && settingsDoc.ready,
         roster, members, member, activeMembers, isFounder, isOwner: !viewAs && !!me.isOwner, founderUid, locked, remoteBase, baseOn,
         settings, holidays, coll, leaveMap, onLeave, isWorkingDay, startFor, canSee, now, online};
     }, [rosterDoc, settingsDoc, me, uid, realUid, viewAs, isFounder, locked, W, now, online, coll.join,
-      privState, privKeeper, privFinance, cooLive, cooNow, cooDec, cooL0, cooL1, cooState, ...COLLS.map(c => coll[c]), ...BOOK_COLLS.map(c => coll[c])]);
+      privState, privKeeper, privFinance, privPros, cooLive, cooNow, cooDec, cooL0, cooL1, cooState, ...COLLS.map(c => coll[c]), ...BOOK_COLLS.map(c => coll[c])]);
 
     /* rules engine output, computed once per context (the context changes with every snapshot and each minute) */
     const flags = React.useMemo(() => (M.rules && M.rules.evaluate) ? M.rules.evaluate(ctx, new Date()) : [], [ctx]);

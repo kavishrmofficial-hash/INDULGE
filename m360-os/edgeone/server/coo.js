@@ -1873,7 +1873,9 @@ J.J38 = async R => {
 };
 
 /* J40: pitches with no next step, an overdue one, or stuck in a stage: an ask to the owner; Kaavish hears at
-   2 working days or twice the stage limit. The COO never moves nextDate */
+   2 working days or twice the stage limit. The COO never moves nextDate. A next date still ahead keeps the
+   stage quiet, and a date a private follow-up set (nextBy 'fu') gets a working day of grace, because the
+   owner's own reminder already rang on the day */
 J.J40 = async R => {
   const st = R.state;
   const stuckDays = st.cfg.stuck || {};
@@ -1882,10 +1884,12 @@ J.J40 = async R => {
     if (!p || p.archived || !p.owner || ['won', 'lost'].indexOf(p.stage) >= 0) continue;
     const since = ymdOf(Number(p.stageAt || p.created || R.now));
     const inStage = daysBetween(since, R.ymd);
-    const late = YMD.test(p.nextDate || '') && p.nextDate < R.ymd ? workDaysIn(st, addDays(p.nextDate, 1), R.ymd).length : 0;
-    const none = !p.next && !p.nextDate && inStage >= 2;
+    const ahead = YMD.test(p.nextDate || '') && p.nextDate >= R.ymd;
+    let late = YMD.test(p.nextDate || '') && p.nextDate < R.ymd ? workDaysIn(st, addDays(p.nextDate, 1), R.ymd).length : 0;
+    if (late && p.nextBy === 'fu') late = Math.max(0, late - 1);
+    const none = !ahead && !p.next && !p.nextDate && inStage >= 2;
     const lim = numOr(stuckDays[p.stage], 0);
-    const stuckNow = lim > 0 && inStage > lim;
+    const stuckNow = !ahead && lim > 0 && inStage > lim;
     if (!late && !none && !stuckNow) continue;
     const args = {uid: p.owner, pitch: id, n: late || inStage};
     if (p.owner !== st.founder && !didToday(R, 'pitch_ask', 'pitch:' + id) && !askedWithin(R, p.owner, 'pitch_ask', 2, undefined)) await askAct(R, {job: 'J40', code: 'pitch_ask', args, subject: 'pitch:' + id, refs: {pitch: id}});
@@ -1900,14 +1904,19 @@ J.J40 = async R => {
 const contactOf = (R, id) => (id && R.contacts && R.contacts[id]) || null;
 const contactMail = (R, id) => { const c = contactOf(R, id); return c ? String(c.mail || c['email'] || '').trim() : ''; };
 const firstOf = (R, id) => { const c = contactOf(R, id); return c ? String(c.first || c.name || '').split(' ')[0] : ''; };
+/* the newest send row on a pitch (pitches/<id>.sent, written by the page's prospects module) */
+const latestSent = p => { const s = (p && p.sent) || {}; let best = null; for (const k of Object.keys(s)) { const r = s[k]; if (r && typeof r === 'object' && (!best || (Number(r.at) || 0) > (Number(best.at) || 0))) best = r; } return best; };
 /* J41: follow-up drafts. A proposal 5 working days without a reply, and a live client with no work touch in
    21 days. One per client a week, drafts only: nothing leaves until Kaavish taps Send. The model may reword a
-   draft afterwards (the desk's drafts step); the template stands when it cannot */
+   draft afterwards (the desk's drafts step); the template stands when it cannot. A proposal whose next date
+   is still ahead, or whose latest send has a reply, waits; the days count from the later of the stage move
+   and the latest send, and the recipient is the latest send's Base contact, else the pitch's */
 J.J41 = async R => {
   const st = R.state;
   const bucket = Math.floor(daysBetween('2026-01-05', R.ymd) / 7);
   const want = [];
-  for (const id of Object.keys(st.pitches || {})) { const p = st.pitches[id]; if (p && p.contact) want.push(p.contact); }
+  const recipient = p => { const ls = latestSent(p); return ls && /^c_/.test(String(ls.to || '')) ? ls.to : p.contact; };
+  for (const id of Object.keys(st.pitches || {})) { const p = st.pitches[id]; const cid = p && recipient(p); if (cid) want.push(cid); }
   for (const id of Object.keys(st.clients || {})) { const c = st.clients[id]; if (c && c.contact) want.push(c.contact); }
   R.contacts = want.length ? await R.io.contacts(want) : {};
   /* one draft a client a week, whether its pitch or the client itself is the reason */
@@ -1916,11 +1925,15 @@ J.J41 = async R => {
   for (const id of Object.keys(st.pitches || {}).sort()) {
     const p = st.pitches[id];
     if (!p || p.archived || p.stage !== 'proposal' || (p.client && drafted.has(p.client))) continue;
-    const since = ymdOf(Number(p.stageAt || p.created || R.now));
+    if (YMD.test(p.nextDate || '') && p.nextDate >= R.ymd) continue;
+    const ls = latestSent(p);
+    if (ls && ls.reply) continue;
+    const since = ymdOf(Math.max(Number(p.stageAt || p.created || R.now), Number((ls && ls.at) || 0)));
     const n = workDaysIn(st, addDays(since, 1), R.ymd).length;
     if (n < 5) continue;
-    const to = contactMail(R, p.contact);
-    const hi = firstOf(R, p.contact);
+    const cid = recipient(p);
+    const to = contactMail(R, cid);
+    const hi = firstOf(R, cid);
     if (p.client) drafted.add(p.client);
     await act(R, {job: 'J41', code: 'client_mail', kind: 'card', cap: 'clientMail', rung: lowerOf(st.rungs.clientMail, 'draft'), subject: 'pitch:' + id, args: {pitch: id, n},
       period: 'w' + bucket, refs: {pitch: id, client: p.client || ''},

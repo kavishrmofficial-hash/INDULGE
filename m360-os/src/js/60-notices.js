@@ -19,7 +19,9 @@
   M.notices = {
     previews: () => M.prefs.get('noticePreview', '1') !== '0',
     setPreviews: v => M.prefs.set('noticePreview', v ? '1' : '0'),
-    /* {key, who (uid), title, body, href, icon, bot (the personal manager's pill face)} */
+    /* {key, who (uid), title, body, href, icon, bot (the personal manager's pill face), away {title, body}}.
+       away is what goes out of the page (the system's notification, the service worker's, the desktop
+       card) in place of title and body, so a lock screen never shows a name */
     push(n) {
       if (!n || !n.title) return;
       if (n.key && list.some(x => x.key === n.key)) return;
@@ -30,18 +32,20 @@
       /* the tab is away: the notice goes out of the page too */
       try {
         if (document.hidden || !document.hasFocus()) {
-          const body = M.notices.previews() ? String(n.body || '').slice(0, 140) : (n.hidden || 'New message');
+          const away = n.away && typeof n.away === 'object' ? n.away : null;
+          const title = String((away && away.title) || n.title).slice(0, 80);
+          const body = away && away.body ? String(away.body).slice(0, 140) : M.notices.previews() ? String(n.body || '').slice(0, 140) : (n.hidden || 'New message');
           const desk = window.m360desktop;
-          if (desk && typeof desk.notify === 'function') desk.notify({key: n.key || ('m360-' + item.id), title: String(n.title).slice(0, 80), body, href: n.href || '', life: n.life || LIFE});
+          if (desk && typeof desk.notify === 'function') desk.notify({key: n.key || ('m360-' + item.id), title, body, href: n.href || '', life: n.life || LIFE});
           else if (window.Notification && Notification.permission === 'granted') {
             /* the same key is one notification: a second device or a second pass replaces it, never stacks */
             const opts = {body, tag: n.key || ('m360-' + item.id), icon: 'icons/notify-256.png', badge: 'icons/notify-badge-96.png', data: {href: n.href || ''}};
             const sw = window.M360_STANDALONE && navigator.serviceWorker && navigator.serviceWorker.controller;
             /* on the team site the service worker shows it (Android Chrome refuses a page's own); a tap
                comes back through the worker's notificationclick with the href */
-            if (sw) navigator.serviceWorker.ready.then(r => r.showNotification(String(n.title).slice(0, 80), opts)).catch(() => {});
+            if (sw) navigator.serviceWorker.ready.then(r => r.showNotification(title, opts)).catch(() => {});
             else {
-              const nn = new Notification(n.title, opts);
+              const nn = new Notification(title, opts);
               nn.onclick = () => { try { window.focus(); if (n.href) M.nav(n.href); nn.close(); } catch (e) { /* closed */ } };
             }
           }
