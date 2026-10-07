@@ -42,6 +42,17 @@ VIEWS = [(1440, 900, 1), (1280, 720, 1), (1024, 640, 1), (390, 844, 3)]
 RECT = '''s => { const e = document.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect();
   return {x: r.left, y: r.top, r: r.right, b: r.bottom, w: r.width, h: r.height}; }'''
 
+def stable(p, sel, tries=20):
+    """the element's rect once two reads 150 ms apart agree, or the last read after three seconds"""
+    last = p.evaluate(RECT, sel)
+    for _ in range(tries):
+        p.wait_for_timeout(150)
+        cur = p.evaluate(RECT, sel)
+        if cur == last:
+            return cur
+        last = cur
+    return last
+
 
 def test(h):
     fails, passed = [], []
@@ -134,9 +145,11 @@ def test(h):
                 check(p.locator('text=/ask\\s*⌃⌥/').count() == 0, '%s: the old ask pill is gone' % name)
                 open_pop(p)
                 check(p.evaluate('() => document.activeElement && document.activeElement.id') == 'buddy-input', '%s: opening focuses the input' % name)
-                b = p.evaluate(RECT, '.buddy-bubble')
+                # the pop-up springs open; on a busy page (the office and the COO's runner on Home since v33) that
+                # can take a moment, so read its places once they hold still
+                b = stable(p, '.buddy-bubble')
                 check(b and b['x'] >= 0 and b['y'] >= 0 and b['r'] <= w and b['b'] <= hh, '%s: the pop-up stays inside the window: %r' % (name, b))
-                head, comp = p.evaluate(RECT, '.buddy-bubble .panel-head'), p.evaluate(RECT, '.buddy-bubble .panel-composer')
+                head, comp = stable(p, '.buddy-bubble .panel-head'), stable(p, '.buddy-bubble .panel-composer')
                 check(head and comp and head['y'] >= 0 and comp['b'] <= hh, '%s: header and composer are in view: %r %r' % (name, head, comp))
                 # the saved thread loads after the pop-up opens; a busy page (the office and the COO's runner on Home
                 # since v33) can take a few seconds, so wait for it before reading the body
