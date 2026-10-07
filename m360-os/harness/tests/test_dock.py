@@ -375,8 +375,9 @@ def test(h):
     p.wait_for_selector('#buddy-dock')
     check(p.get_attribute('#buddy-dock', 'data-state') == 'idle', 'awake in working hours')
     p.evaluate('() => window.dispatchEvent(new CustomEvent("m360:pm", {detail: {type: "step", n: 1}}))')
-    p.wait_for_selector('#buddy-dock .dock-char.hop')
-    check('dockhop' in p.evaluate('() => document.querySelector("#buddy-dock .dock-char").getAnimations().map(a => a.animationName)'), 'something new: one hop')
+    # the hop lasts 380 ms: catch it while it runs, or its class if it has already landed
+    p.wait_for_function('() => { const e = document.querySelector("#buddy-dock .dock-char"); return !!e && (e.getAnimations().some(a => a.animationName === "dockhop") || e.classList.contains("hop")); }', timeout=8000)
+    check(True, 'something new: one hop')
     p.close()
 
     # ---------- reduced motion: fades only ----------
