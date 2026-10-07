@@ -149,10 +149,16 @@ def test(h):
             q.wait_for_timeout(500)
         if on:
             q.evaluate('() => { const s = window.__db.get("settings/app"); window.__db.set("settings/app", {...s, coo: {...s.coo, on: true}}); }')
-        q.wait_for_timeout(6000)
         if label == 'the control':
+            # the runner's first wake comes at 2.5 s and the claim takes a few writes; under the fixed clock the
+            # page's timers come late, so give the control up to fifteen seconds
+            try:
+                q.wait_for_function('d => Object.keys(window.__db.get("coo/slots-" + d) || {}).length > 0', arg=today, timeout=15000)
+            except Exception:
+                pass
             check(slots(q), 'the control: Kaavish\'s own page switched on the same way claims within the wait: %r' % slots(q))
         else:
+            q.wait_for_timeout(6000)
             check(not slots(q), '%s: nothing is claimed, nothing runs: %r' % (label, slots(q)))
         c.close()
 
