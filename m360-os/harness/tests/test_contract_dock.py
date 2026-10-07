@@ -53,6 +53,16 @@ def stable(p, sel, tries=20):
         last = cur
     return last
 
+def close_pop(p):
+    """tap Close once the pop-up holds still; a blocked tap names what sits over the button"""
+    stable(p, '.buddy-bubble')
+    try:
+        p.locator('#buddy-close').click(timeout=5000)
+    except Exception as e:
+        over = p.evaluate('''() => { const b = document.querySelector('#buddy-close'); if (!b) return 'no button'; const r = b.getBoundingClientRect();
+          const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return e ? (e.tagName + '#' + e.id + '.' + String(e.className).slice(0, 60) + ' in ' + (e.closest('.notices, .buddy-bubble, #buddy-dock, .drawer, .main') || {}).className) : 'nothing'; }''')
+        raise AssertionError('Close is covered by %s: %s' % (over, str(e).split('\n')[0]))
+
 
 def test(h):
     fails, passed = [], []
@@ -149,14 +159,15 @@ def test(h):
                 # can take a moment, so read its places once they hold still
                 b = stable(p, '.buddy-bubble')
                 check(b and b['x'] >= 0 and b['y'] >= 0 and b['r'] <= w and b['b'] <= hh, '%s: the pop-up stays inside the window: %r' % (name, b))
-                head, comp = stable(p, '.buddy-bubble .panel-head'), stable(p, '.buddy-bubble .panel-composer')
-                check(head and comp and head['y'] >= 0 and comp['b'] <= hh, '%s: header and composer are in view: %r %r' % (name, head, comp))
-                # the saved thread loads after the pop-up opens; a busy page (the office and the COO's runner on Home
-                # since v33) can take a few seconds, so wait for it before reading the body
+                # the saved thread loads after the pop-up opens and the pop-up grows to fit it; a busy page (the
+                # office and the COO's runner on Home since v33) can take a few seconds, so wait for it, then read
+                # the header and composer once they hold still
                 try:
                     p.wait_for_function('() => { const e = document.querySelector(".buddy-bubble .panel-body"); return !!e && e.scrollHeight > e.clientHeight; }', timeout=8000)
                 except Exception:
                     pass
+                head, comp = stable(p, '.buddy-bubble .panel-head'), stable(p, '.buddy-bubble .panel-composer')
+                check(head and comp and head['y'] >= 0 and comp['b'] <= hh, '%s: header and composer are in view: %r %r' % (name, head, comp))
                 body = p.evaluate('() => { const e = document.querySelector(".buddy-bubble .panel-body"); if (!e) return null; const cs = getComputedStyle(e); return {sh: e.scrollHeight, ch: e.clientHeight, ov: cs.overflowY}; }')
                 check(body and body['sh'] > body['ch'] and body['ov'] in ('auto', 'scroll'), '%s: the long thread scrolls inside the body: %r' % (name, body))
                 p.evaluate('() => { const e = document.querySelector(".buddy-bubble .panel-body"); if (e) e.scrollTop = 0; }')
@@ -194,13 +205,13 @@ def test(h):
         p.evaluate('() => window.dispatchEvent(new CustomEvent("m360:ask"))')
         p.wait_for_selector('.buddy-bubble[role="dialog"]', timeout=8000)
         check(True, "'m360:ask' opens the pop-up")
-        p.locator('#buddy-close').click()
+        close_pop(p)
         p.wait_for_timeout(400)
         p.evaluate('() => M.assistant.open()')
         p.wait_for_selector('#buddy-input', timeout=8000)
         for sel in ('#buddy-send', '#buddy-talk', '#buddy-conv', '#buddy-expand', '#buddy-close'):
             check(p.locator(sel).count() == 1, 'the pop-up has %s' % sel)
-        p.locator('#buddy-close').click()
+        close_pop(p)
         p.wait_for_timeout(400)
         # with text, it opens and asks it (the palette's "Ask m360: ..."); the words show either way
         p.evaluate('() => M.assistant.open("who has not checked in")')

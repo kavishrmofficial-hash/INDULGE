@@ -106,10 +106,9 @@
   function useDockPlace(on) {
     useEffect(() => {
       if (!on) return undefined;
-      let tm = 0, again = 0, lastLift = -1, ro = null, watched = [];
+      let tm = 0, raf = 0, again = 0, lastLift = -1, ro = null, watched = [];
       const root = document.documentElement;
       const check = () => {
-        tm = 0;
         const W = window.innerWidth, H = window.innerHeight;
         const drawer = document.querySelector('.drawer');
         /* beside a drawer only where the drawer is a side panel (wider than 860) and the pop-up still fits */
@@ -140,11 +139,17 @@
           ro.disconnect(); seen.forEach(el => ro.observe(el)); watched = seen;
         }
       };
-      /* a short timer, never an animation frame: a frame can wait as long as the page is not painting, and
-         then nothing would move the dock until the page paints again */
-      const soon = () => { if (!tm) tm = setTimeout(check, 16); };
+      /* the next frame when the page is painting, a short timer when it is not: whichever comes first */
+      const soon = () => {
+        if (tm || raf) return;
+        raf = requestAnimationFrame(() => { raf = 0; if (tm) { clearTimeout(tm); tm = 0; } check(); });
+        tm = setTimeout(() => { tm = 0; if (raf) { cancelAnimationFrame(raf); raf = 0; } check(); }, 32);
+      };
       const settle = () => { if (!again) again = setTimeout(() => { again = 0; soon(); }, 300); };
-      const burst = () => { soon(); settle(); };
+      /* a change in the page: look now, in the same turn (an observer's callback already follows layout),
+         and once more when the page has settled */
+      let inCheck = false;
+      const burst = () => { if (!inCheck) { inCheck = true; try { check(); } finally { inCheck = false; } } settle(); };
       if (typeof ResizeObserver !== 'undefined') ro = new ResizeObserver(burst);
       let mo = null;
       try { mo = new MutationObserver(burst); mo.observe(document.body, {childList: true, subtree: true}); } catch (e) { mo = null; }
@@ -157,6 +162,7 @@
       return () => {
         clearInterval(slow);
         if (tm) clearTimeout(tm);
+        if (raf) cancelAnimationFrame(raf);
         if (again) clearTimeout(again);
         if (ro) ro.disconnect();
         if (mo) mo.disconnect();
