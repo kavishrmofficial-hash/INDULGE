@@ -43,12 +43,15 @@ RECT = '''s => { const e = document.querySelector(s); if (!e) return null; const
   return {x: r.left, y: r.top, r: r.right, b: r.bottom, w: r.width, h: r.height}; }'''
 
 def stable(p, sel, tries=20):
-    """the element's rect once two reads 150 ms apart agree, or the last read after three seconds"""
+    """the element's rect once three reads 200 ms apart agree, or the last read after four seconds. Under the
+    fixed clock the page's own timers come late, so a settled read waits out one of its looks as well."""
     last = p.evaluate(RECT, sel)
+    same = 0
     for _ in range(tries):
-        p.wait_for_timeout(150)
+        p.wait_for_timeout(200)
         cur = p.evaluate(RECT, sel)
-        if cur == last:
+        same = same + 1 if cur == last else 0
+        if same >= 2:
             return cur
         last = cur
     return last

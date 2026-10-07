@@ -125,7 +125,8 @@
         document.querySelectorAll(AVOID).forEach(el => {
           if (el.closest('#buddy-dock, .agent-panel') || (onPhone && el.classList.contains('tabbar'))) return;
           seen.push(el);
-          if (el.parentElement && seen.indexOf(el.parentElement) < 0) seen.push(el.parentElement);
+          /* what sits beside it moves it too: a chat list growing above its composer */
+          if (el.parentElement) for (const kin of [el.parentElement].concat(Array.from(el.parentElement.children))) if (seen.indexOf(kin) < 0) seen.push(kin);
           const r = el.getBoundingClientRect();
           if (!r.width || !r.height || r.right < x0 || r.left > x1 || r.top < H * 0.35 || r.top > H) return;
           lift = Math.max(lift, H - r.top + 12 - 24);
