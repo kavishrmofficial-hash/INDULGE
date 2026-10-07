@@ -106,7 +106,7 @@
   function useDockPlace(on) {
     useEffect(() => {
       if (!on) return undefined;
-      let tm = 0, ro = null, watched = [];
+      let tm = 0, again = 0, lastLift = -1, ro = null, watched = [];
       const root = document.documentElement;
       const check = () => {
         tm = 0;
@@ -128,6 +128,8 @@
         });
         root.style.setProperty('--dock-lift', Math.max(0, Math.round(lift)) + 'px');
         root.classList.toggle('dock-beside-drawer', beside);
+        /* a page settles after it changes (a list fills, a font or a canvas lands): one more look soon after a move */
+        if (lift !== lastLift) { lastLift = lift; settle(); }
         /* observe a new set only when it changed: observing reports each size once, which would run this again */
         if (ro && (seen.length !== watched.length || seen.some((el, i) => el !== watched[i]))) {
           ro.disconnect(); seen.forEach(el => ro.observe(el)); watched = seen;
@@ -136,10 +138,12 @@
       /* a short timer, never an animation frame: a frame can wait as long as the page is not painting, and
          then nothing would move the dock until the page paints again */
       const soon = () => { if (!tm) tm = setTimeout(check, 16); };
-      if (typeof ResizeObserver !== 'undefined') ro = new ResizeObserver(soon);
+      const settle = () => { if (!again) again = setTimeout(() => { again = 0; soon(); }, 300); };
+      const burst = () => { soon(); settle(); };
+      if (typeof ResizeObserver !== 'undefined') ro = new ResizeObserver(burst);
       let mo = null;
-      try { mo = new MutationObserver(soon); mo.observe(document.body, {childList: true, subtree: true}); } catch (e) { mo = null; }
-      window.addEventListener('resize', soon);
+      try { mo = new MutationObserver(burst); mo.observe(document.body, {childList: true, subtree: true}); } catch (e) { mo = null; }
+      window.addEventListener('resize', burst);
       window.addEventListener('scroll', soon, {passive: true});
       /* a layout shift with no new node and no resize of what it watches (a chat list growing above its
          composer, a font, a page's own grid): a look again, often enough that the dock settles within a moment */
@@ -148,9 +152,10 @@
       return () => {
         clearInterval(slow);
         if (tm) clearTimeout(tm);
+        if (again) clearTimeout(again);
         if (ro) ro.disconnect();
         if (mo) mo.disconnect();
-        window.removeEventListener('resize', soon); window.removeEventListener('scroll', soon);
+        window.removeEventListener('resize', burst); window.removeEventListener('scroll', soon);
         root.style.removeProperty('--dock-lift'); root.classList.remove('dock-beside-drawer');
       };
     }, [on]);
