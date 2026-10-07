@@ -75,7 +75,7 @@ body:has(.breathe, .dayrate, .pal-scrim) .buddy-dock{display:none}
   body:has(.buddy-bubble.agent-pop) .notices{right:calc(24px + min(400px, calc(100vw - 48px)) + 12px)}
   .dock-beside-drawer body:has(.buddy-bubble.agent-pop) .notices{right:calc(min(480px, 100%) + 16px + min(400px, calc(100vw - 48px)) + 12px)}
 }
-@media (max-width:860px){ body:has(.buddy-bubble.agent-pop) .buddy-bubble.agent-pop{z-index:60} }
+@media (max-width:860px){ body:has(.buddy-bubble.agent-pop) .buddy-bubble.agent-pop{z-index:62} }
 body:has(.drawer) .buddy-bubble.agent-pop{z-index:62}
 .buddy-bubble.agent-pop.folded{min-height:0; max-height:none}
 .buddy-bubble.agent-pop.folded .agent-panel > :not(.panel-head):not(.panel-unfold){display:none}
