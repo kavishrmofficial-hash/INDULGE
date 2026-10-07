@@ -229,7 +229,7 @@ async function fakeFetch(url, init) {
   globalThis.__aiReqs = (globalThis.__aiReqs || []).concat([{model: body.model, fallbacks: body.fallbacks || null, beta: (init.headers || {})['anthropic-beta'] || '', effort: body.output_config ? body.output_config.effort : null, tools: (body.tools || []).map(t => t.name), images, system: String(body.system || '').slice(0, 40), max_tokens: body.max_tokens}]).slice(-40);
   const toolNames = (body.tools || []).map(t => t.name);
   const said = text.split('THEY SAID: ').pop();   /* the question itself, not the chat carried in the prompt */
-  let content;
+  let content, cutShort = false;
   /* the m360 COO: drafts reworded as JSON, one per draft given, and the memo's paragraph */
   if (/^COO DRAFTS/.test(body.system || '')) {
     let list = [];
@@ -251,7 +251,14 @@ async function fakeFetch(url, init) {
     {name: 'Arjun Rao', headline: 'Founder & CEO, Dermatouch', company: 'Dermatouch', status: '1st'},
     {name: 'Neha Kapoor', headline: 'Talent Acquisition Partner', company: 'Hirewell', status: '1st'},
     {name: 'Rohit Shah', headline: 'Head of Marketing, QUAFFINE', company: 'Quaffine', status: 'pending'}]})}];
-  else if (/^HANDSHAKE WRITE/.test(said)) content = [{type: 'text', text: JSON.stringify(handshakeWrite(said))}];
+  else if (/^HANDSHAKE WRITE/.test(said)) {
+    /* the first batch of several comes back cut off half way, as a real answer does when it runs out of room,
+       so the desk has to write those people one at a time */
+    const full = JSON.stringify(handshakeWrite(said));
+    const several = (said.match(/\nPERSON \d+: /g) || []).length > 1;
+    if (several && !globalThis.__hsCut) { globalThis.__hsCut = true; content = [{type: 'text', text: full.slice(0, Math.floor(full.length / 2))}]; cutShort = true; }
+    else content = [{type: 'text', text: full}];
+  }
   else if (images.length) content = [{type: 'text', text: 'I see ' + images.length + (images.length === 1 ? ' image' : ' images') + ', ' + images.map(i => i.type).join(', ') + '. Looks like a screenshot of a task list.'}];
   else if (toolNames.includes('act') && /remember that (.+)/i.test(said)) content = [{type: 'tool_use', id: 'tu_rem', name: 'act', input: {action: 'remember', input: {fact: /remember that (.+)/i.exec(said)[1].replace(/[.?!]$/, '')}}}];
   else if (toolNames.includes('act') && /post (?:to the feed|on vibe)[:\s]+(.+)/i.test(said)) content = [{type: 'tool_use', id: 'tu_post', name: 'act', input: {action: 'post_to_feed', input: {kind: 'update', text: /post (?:to the feed|on vibe)[:\s]+(.+)/i.exec(said)[1]}}}];
@@ -274,7 +281,7 @@ async function fakeFetch(url, init) {
   else if (body.tools && body.tools.some(t => t.name === 'create_task') && /add a task/i.test(said))
     content = [{type: 'tool_use', id: 'tu1', name: 'create_task', input: {title: 'Cut the teaser', owner: 'me'}}];
   else content = [{type: 'text', text: 'Here is your day: finish the hero reel script first.'}];
-  const stop = content.some(c => c.type === 'tool_use') ? 'tool_use' : 'end_turn';
+  const stop = cutShort ? 'max_tokens' : content.some(c => c.type === 'tool_use') ? 'tool_use' : 'end_turn';
   globalThis.__aiCalls = (globalThis.__aiCalls || 0) + 1;
   return new Response(JSON.stringify({content, stop_reason: stop}), {status: 200, headers: {'content-type': 'application/json'}});
 }

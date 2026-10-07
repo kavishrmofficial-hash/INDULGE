@@ -158,8 +158,12 @@ def standalone_part():
             reqs = json.load(urllib.request.urlopen(base + '__ai'))
             read = [r for r in reqs if r['images']]
             check(read and read[-1]['images'][0]['type'] == 'image/jpeg', 'the screenshot reached the model: %r' % [r['images'] for r in read][-1:])
-            write = [r for r in reqs if r['model'] == 'claude-opus-5-5' and r['effort'] == 'high']
-            check(len(write) >= 1, 'the writer runs on the complex tier: %r' % [(r['model'], r['effort']) for r in reqs][-4:])
+            # the writer runs at medium effort with room to answer: at high effort with 4096 tokens the thinking
+            # used the room and the JSON came back cut short, so nothing was written
+            write = [r for r in reqs if r['model'] == 'claude-opus-5-5' and r['effort'] == 'medium' and r['max_tokens'] == 8192]
+            check(len(write) >= 2, 'the writer asks with room to answer: %r' % [(r['model'], r['effort'], r['max_tokens']) for r in reqs][-6:])
+            # the first batch came back cut off; those people were written one at a time, so all four are done
+            check(all(x['state'] != 'new' for x in k.evaluate('() => M.handshake.people(M.lastCtx)')), 'a cut off batch still gets everyone written')
             # the same screenshot again: everyone is already in
             k.locator('#hs-file').set_input_files({'name': 'connections.png', 'mimeType': 'image/png', 'buffer': PNG})
             k.wait_for_selector('#hs-intake .ask-thumb img')
