@@ -235,17 +235,24 @@
   }
 
   /* ---------- a follow-up's buttons: Done then "When next?", Snooze, They replied, Open ---------- */
-  function FuActions({fu, fid, pid, onOpen}) {
+  /* onDone fires once the follow-up is closed, so a list can keep the row while "When next?" is open;
+     onSettled once the chips are answered or waved off */
+  function FuActions({fu, fid, pid, onOpen, onDone, onSettled}) {
     const ctx = M.useCtx();
     const [mode, setMode] = useState('');
-    const done = how => P().done(ctx, fid, how).then(() => {
-      if (how === 'replied' && fu.pi && fu.sid && P().setReply) P().setReply(ctx, fu.pi, fu.sid, 'replied').catch(() => {});
-      M.toast(how === 'replied' ? 'Noted, they replied' : 'Done'); setMode('next');
-    }).catch(() => {});
+    const settle = () => { setMode(''); if (onSettled) onSettled(); };
+    /* the row is held before the write lands, since the list drops a closed follow-up on the next snapshot */
+    const done = how => {
+      if (onDone) onDone();
+      P().done(ctx, fid, how).then(() => {
+        if (how === 'replied' && fu.pi && fu.sid && P().setReply) P().setReply(ctx, fu.pi, fu.sid, 'replied').catch(() => {});
+        M.toast(how === 'replied' ? 'Noted, they replied' : 'Done'); setMode('next');
+      }).catch(() => { if (onSettled) onSettled(); });
+    };
     const next = o => {
-      if (o.k === 'none') { setMode(''); return; }
+      if (o.k === 'none') { settle(); return; }
       const w = whenOf(o); if (!w) return;
-      P().setFollow(ctx, {p: pid || '', pi: fu.pi || '', x: fu.x || 'Follow up', d: w.d, t: w.t || '', src: 'form'}).then(() => { M.toast('Next: ' + label(w.d, w.t)); setMode(''); }).catch(() => {});
+      P().setFollow(ctx, {p: pid || '', pi: fu.pi || '', x: fu.x || 'Follow up', d: w.d, t: w.t || '', src: 'form'}).then(() => { M.toast('Next: ' + label(w.d, w.t)); settle(); }).catch(() => {});
     };
     const snooze = o => { const w = whenOf(o); if (!w) return; P().snooze(ctx, fid, w).then(() => { M.toast('Snoozed to ' + label(w.d, w.t)); setMode(''); }).catch(() => {}); };
     if (mode === 'next') return html`<div class="pros-next"><span class="small">When next?</span><${QuickWhen} label="When next" options=${NEXT_OPTS} onPick=${next}/></div>`;
@@ -256,6 +263,17 @@
       ${fu.src === 'sent' || fu.sid ? html`<button type="button" class="btn sm sec fu-replied" onClick=${() => done('replied')}>They replied</button>` : null}
       ${onOpen ? html`<button type="button" class="btn sm ghost fu-open" onClick=${onOpen}>Open</button>` : null}
     </div>`;
+  }
+
+  /* a row whose follow-up was just closed leaves the live list at once; this keeps it in place while its
+     "When next?" chips are open, so the question has somewhere to sit. keyOf names a row. */
+  function useHeld(rows, keyOf) {
+    const [held, setHeld] = useState({});
+    const keys = new Set(rows.map(keyOf));
+    const list = rows.concat(Object.keys(held).filter(k => !keys.has(k)).map(k => held[k]));
+    const hold = r => setHeld(h => ({...h, [keyOf(r)]: r}));
+    const release = r => setHeld(h => { const k = keyOf(r); if (!(k in h)) return h; const o = {...h}; delete o[k]; return o; });
+    return {list, hold, release};
   }
 
   /* ---------- Home: Follow-ups today ---------- */
@@ -280,7 +298,7 @@
     const parts = [due ? due + ' today' : '', late ? late + ' late' : '', meets ? n(meets, 'meeting', 'meetings') : ''].filter(Boolean);
     return {rows, late, due, meets, show: anyOpen || rows.length > 0, open: rows.length > 0, hot: late > 0, summary: parts.length ? parts.join(', ') : 'nothing due today'};
   }
-  function FuRow({r, names}) {
+  function FuRow({r, names, onHold, onRelease}) {
     const ctx = M.useCtx();
     const d = dataOf(ctx);
     const td = today();
@@ -315,11 +333,11 @@
     const when = late ? lateText(fu) : now >= dueAt ? 'since ' + timeOf(fu) : timeOf(fu);
     return html`<div class="fu-row" data-fid=${r.fid} data-late=${late ? '1' : '0'}>
       <div class="fu-line"><span class="dotflame" style=${late ? null : {background: 'var(--ink62)'}}/><span class="grow">
-        <b>Follow up with ${firstOf(live.who)}</b>
-        <span class="small ink62"> ${[live.org, fu.said ? 'You said ' + fu.said + '.' : fu.x].filter(Boolean).join('. ')}</span>
+        ${p ? html`<b>Follow up with ${firstOf(live.who)}</b><span class="small ink62"> ${[live.org, fu.said ? 'You said ' + fu.said + '.' : fu.x].filter(Boolean).join('. ')}</span>`
+          : html`<b>${fu.x || 'A reminder'}</b><span class="small ink62"> A reminder for you.${fu.said ? ' You said ' + fu.said + '.' : ''}</span>`}
         <span class=${'tiny num ' + (late ? 'flame-t' : 'ink62')} style=${{marginLeft: '6px'}}>${when}</span>
       </span></div>
-      <${FuActions} fu=${fu} fid=${r.fid} pid=${r.pid} onOpen=${open} compact=${true}/>
+      <${FuActions} fu=${fu} fid=${r.fid} pid=${r.pid} onOpen=${open} onDone=${onHold ? () => onHold(r) : null} onSettled=${onRelease ? () => onRelease(r) : null}/>
     </div>`;
   }
   function FollowupsToday() {
@@ -327,12 +345,14 @@
     useIndex();
     const t = has() && !ctx.viewAs ? todayRows(ctx) : {rows: []};
     const d = dataOf(ctx);
-    const names = useNames(t.rows.map(r => r.pid && d.people[r.pid] ? d.people[r.pid].cid : ''));
+    const keyOf = r => r.fid || r.mid || ('pitch:' + r.pitch);
+    const {list, hold, release} = useHeld(t.rows.slice(0, 6), keyOf);
+    const names = useNames(list.map(r => r.pid && d.people[r.pid] ? d.people[r.pid].cid : ''));
     const more = Math.max(0, t.rows.length - 6);
     return html`<section class="card" id="followups-card">
       <div class="card-head"><h2 class="card-title">Follow-ups today</h2>
         <button type="button" class="linky small" onClick=${() => M.nav('#prospects')}>Prospects</button></div>
-      ${t.rows.length ? html`<div class="fu-rows">${t.rows.slice(0, 6).map(r => html`<${FuRow} key=${r.fid || r.mid || r.pitch} r=${r} names=${names}/>`)}</div>`
+      ${list.length ? html`<div class="fu-rows">${list.map(r => html`<${FuRow} key=${keyOf(r)} r=${r} names=${names} onHold=${hold} onRelease=${release}/>`)}</div>`
         : html`<div class="small ink62">Nothing due today.</div>`}
       ${more ? html`<div class="small" style=${{marginTop: '8px'}}><button type="button" class="linky" onClick=${() => M.nav('#prospects')}>and ${more} more</button></div>` : null}
       <div class="fu-cap"><${CaptureLine} id="home-capture" compact=${true} placeholder="Spoke to Meera at Swisse, talk after the 16th"/></div>
@@ -342,9 +362,11 @@
   function FollowupsFold() {
     const ctx = M.useCtx();
     useIndex();
-    if (!has() || ctx.viewAs) return null;
-    const t = todayRows(ctx);
-    if (!t.show) return null;
+    const t = has() && !ctx.viewAs ? todayRows(ctx) : {show: false};
+    /* once shown, the fold stays for the page's life: the last Done of the day keeps its "When next?" */
+    const [seen, setSeen] = useState(false);
+    useEffect(() => { if (t.show) setSeen(true); }, [t.show]);
+    if (!has() || ctx.viewAs || !(t.show || seen)) return null;
     return html`<${UI.Fold} title="Follow-ups today" summary=${t.summary} open=${t.open} hot=${t.hot} id="fold-followups"><${FollowupsToday}/><//>`;
   }
 
@@ -459,11 +481,11 @@
         </div>` : null}
         <${UI.Card} title="Next step" id="person-next">
           ${fu ? html`<div class="stack tight">
-            <div class="pros-next-line"><b class=${fu.d < today() ? 'flame-t' : ''}>${label(fu.d, timeOf(fu))}.</b> ${fu.said ? 'You said ' + fu.said + '.' : ''} ${fu.x && fu.x !== fu.said ? html`<span class="ink62">${fu.x}</span>` : null}
+            <div class="pros-next-line"><b class=${fu.d < today() ? 'flame-t' : ''}>${label(fu.d, timeOf(fu))}.</b> ${fu.said ? 'You said ' + fu.said + '.' : ''} ${fu.x && !(fu.said && fu.x.toLowerCase().includes(fu.said.toLowerCase())) ? html`<span class="ink62">${fu.x}</span>` : null}
               ${fu.d < today() ? html`<div class="tiny flame-t">${lateText(fu)}.</div>` : null}</div>
             ${change ? html`<div class="pros-next"><span class="small">Change to</span><${QuickWhen} label="Change to" options=${NEXT_OPTS.filter(o => o.k !== 'none')} onPick=${setNext}/><button type="button" class="linky tiny" onClick=${() => setChange(false)}>Keep it</button></div>`
               : html`<div class="row"><${FuActions} fu=${fu} fid=${fu.fid} pid=${pid}/><button type="button" class="btn sm ghost fu-change" onClick=${() => setChange(true)}>Change</button></div>`}
-            ${mayMirror ? html`<label class="checkline pros-mirror"><input type="checkbox" id="person-mirror" checked=${!!fu.mirror} onChange=${e => P().bridge(ctx, fu.fid, e.target.checked).catch(() => {})}/><span class="small">Also set as the pitch next step. The team sees the date and 'Follow up'.</span></label>` : null}
+            ${mayMirror ? html`<label class="checkline pros-mirror"><input type="checkbox" id="person-mirror" checked=${!!fu.mirror} onChange=${e => { const on = e.target.checked; P().bridge(ctx, fu.fid, on).then(ok => { if (on && !ok) M.toast('The pitch next step stays as typed.'); }).catch(() => {}); }}/><span class="small">Also set as the pitch next step. The team sees the date and 'Follow up'.</span></label>` : null}
             ${fus.length > 1 ? html`<div class="tiny ink62">${fus.length - 1} more set: ${fus.slice(1).map(f => dayLabel(f.d)).join(', ')}</div>` : null}
           </div>` : html`<div class="stack tight">
             <div class="small ink62">No next step. When do you next talk?</div>
@@ -546,7 +568,8 @@
           <div id="pros-seg" data-view=${view}><${UI.Seg} sm options=${[{v: 'week', label: 'This week'}, {v: 'people', label: 'People'}, {v: 'sent', label: 'Sent'}]} value=${view} onChange=${pick} ariaLabel="View"/></div>
         </div>
       <//>
-      ${empty && view !== 'sent' ? html`<${UI.Card}><${UI.Empty} text=${EMPTY_LINE}/><//>`
+      ${!ix.ready ? html`<${UI.Card}><div class="small ink62" id="pros-loading">Loading your people.</div><//>`
+        : empty && view !== 'sent' ? html`<${UI.Card}><${UI.Empty} text=${EMPTY_LINE}/><//>`
         : view === 'people' ? html`<${PeopleView} d=${d} people=${people} names=${names} onOpen=${open}/>`
         : view === 'sent' ? html`<${SentView}/>`
         : html`<${WeekView} d=${d} day=${day} names=${names} onOpen=${open}/>`}
@@ -564,9 +587,12 @@
     const [allQuiet, setAllQuiet] = useState(false);
     const R = x => asRow(d, x);
     const row = (r, o) => { const p = d.people[r.pid]; return p ? html`<${PersonRow} key=${r.fid || r.mid || r.pid} pid=${r.pid} p=${p} live=${liveOf(p, names)} fu=${r.fu} meet=${r.meet} sub=${o && o.sub ? o.sub(r) : undefined} onOpen=${onOpen} chips=${o && o.chips ? o.chips(r) : null}/>` : null; };
-    const ownRow = r => r.fu && !r.pid ? html`<div key=${r.fid} class="pros-row own" data-fid=${r.fid}><div class="pros-open"><span class="pros-av" aria-hidden="true">·</span><span class="pros-main"><span class="pros-who">${r.fu.x || 'Reminder'}</span><span class="small ink62">A reminder for you</span></span><${DateChip} fu=${r.fu}/></div><${FuActions} fu=${r.fu} fid=${r.fid} pid=""/></div>` : null;
-    const late = (day.late || []).map(R).filter(r => r.fu).sort((a, b) => a.fu.d.localeCompare(b.fu.d));
-    const tdy = (day.today || []).map(R).filter(r => r.fu).sort((a, b) => timeOf(a.fu).localeCompare(timeOf(b.fu)));
+    const ownRow = (r, o) => r.fu && !r.pid ? html`<div key=${r.fid} class="pros-row own" data-fid=${r.fid}><div class="pros-open"><span class="pros-av" aria-hidden="true">·</span><span class="pros-main"><span class="pros-who">${r.fu.x || 'Reminder'}</span><span class="small ink62">A reminder for you</span></span><${DateChip} fu=${r.fu}/></div><${FuActions} fu=${r.fu} fid=${r.fid} pid="" onDone=${o && o.hold ? () => o.hold(r) : null} onSettled=${o && o.release ? () => o.release(r) : null}/></div>` : null;
+    /* a due row with Done pressed stays until "When next?" is answered (see useHeld) */
+    const dueKey = r => r.fid;
+    const lateH = useHeld((day.late || []).map(R).filter(r => r.fu).sort((a, b) => a.fu.d.localeCompare(b.fu.d)), dueKey);
+    const tdyH = useHeld((day.today || []).map(R).filter(r => r.fu).sort((a, b) => timeOf(a.fu).localeCompare(timeOf(b.fu))), dueKey);
+    const late = lateH.list, tdy = tdyH.list;
     const meets = (day.meetings || []).map(R).filter(r => r.meet);
     const week = (day.week || []).map(R).filter(r => r.fu);
     const waiting = (day.waiting || []).map(R).filter(r => r.fu);
@@ -576,8 +602,8 @@
     const setLoose = (r, o) => { const w = whenOf(o); if (!w) return; P().setFollow(ctx, {p: r.pid, pi: (d.people[r.pid].pi || [])[0] || '', x: 'Follow up', d: w.d, t: w.t || '', src: 'form'}).then(() => M.toast('Next: ' + label(w.d, w.t))).catch(() => {}); };
     const nothing = !late.length && !tdy.length && !meets.length && !week.length && !waiting.length && !loose.length && !quiet.length;
     return html`<div class="stack pros-week" id="pros-week">
-      <${Group} id="pros-late" title="late" count=${late.length} hot=${true}>${late.map(r => r.pid ? row(r, {sub: x => lateText(x.fu)}) : ownRow(r))}<//>
-      <${Group} id="pros-today" title="today" count=${tdy.length}>${tdy.map(r => r.pid ? row(r) : ownRow(r))}<//>
+      <${Group} id="pros-late" title="late" count=${late.length} hot=${true}>${late.map(r => r.pid ? row(r, {sub: x => lateText(x.fu)}) : ownRow(r, lateH))}<//>
+      <${Group} id="pros-today" title="today" count=${tdy.length}>${tdy.map(r => r.pid ? row(r) : ownRow(r, tdyH))}<//>
       <${Group} id="pros-meet" title="meetings, next 7 days" count=${meets.length}>${meets.map(r => row(r))}<//>
       <${Group} id="pros-thisweek" title="this week" count=${week.length}>${week.map(r => r.pid ? row(r) : ownRow(r))}<//>
       <${Group} id="pros-waiting" title="waiting on them" count=${waiting.length}>${waiting.map(r => row(r, {sub: waitSub}))}<//>
@@ -646,7 +672,8 @@
   }
   function SentView() {
     const ctx = M.useCtx();
-    const [mine, setMine] = useState('mine');
+    /* everyone's sends first: what pitch has gone where is the team's picture */
+    const [mine, setMine] = useState('all');
     const pm = ctx.coll.pitches.map;
     const rows = [];
     for (const id of Object.keys(pm)) { const p = pm[id]; if (!p || p.stage === 'won' || p.stage === 'lost' || !P().sendsOf) continue; for (const s of P().sendsOf(p)) rows.push({...s, pitch: id, brand: p.brand || 'Pitch'}); }
@@ -728,15 +755,19 @@
     const p = pid ? d.people[pid] : null;
     const got = M.base && M.base.useRow ? M.base.useRow('contacts', p && p.cid ? p.cid : null) : {row: null, loading: false};
     const doc = has() && P().useMonth ? P().useMonth(ymOf(today())) : {data: null};
+    /* once Done closes the follow-up the row goes; the question "When next?" stays until answered */
+    const [asked, setAsked] = useState(false);
     if (!p || ctx.viewAs || !has()) return null;
     const live = liveOf(p, {rows: got.row ? {[p.cid]: got.row} : {}, loading: !!got.loading, done: false});
     const t = (doc && doc.data && doc.data.t) || {};
     const touches = Object.keys(t).filter(k => t[k] && t[k].p === pid).map(k => ({id: k, ...t[k]})).sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 3);
     const fu = openFus(d, pid)[0] || null;
+    const askNext = o => { if (o.k === 'none') { setAsked(false); return; } const w = whenOf(o); if (!w) return; P().setFollow(ctx, {p: pid, pi: pitchId, x: 'Follow up', d: w.d, t: w.t || '', src: 'form'}).then(() => { M.toast('Next: ' + label(w.d, w.t)); setAsked(false); }).catch(() => {}); };
     return html`<div class="pros-fold pros-notes" id="pitch-notes">
       <div class="row between"><span class="micro plain">your notes with ${firstOf(live.who)}</span><span class="tiny ink62">Private to you.</span></div>
       ${touches.length ? touches.map(x => html`<div key=${x.id} class="pros-tl row nowrap" data-k=${x.k}><span class="tiny num ink62 pros-tl-at">${U.fmtDay(ist().ymd(x.at || 0))}</span><span class="grow small">${x.x}</span></div>`) : html`<div class="small ink62">Nothing logged yet.</div>`}
-      ${fu ? html`<div class="pros-next-line small"><b class=${fu.d < today() ? 'flame-t' : ''}>${label(fu.d, timeOf(fu))}.</b> ${fu.said ? 'You said ' + fu.said + '.' : fu.x}</div><${FuActions} fu=${fu} fid=${fu.fid} pid=${pid} onOpen=${() => M.nav('#prospects/' + pid)}/>` : null}
+      ${fu ? html`<div class="pros-next-line small"><b class=${fu.d < today() ? 'flame-t' : ''}>${label(fu.d, timeOf(fu))}.</b> ${fu.said ? 'You said ' + fu.said + '.' : fu.x}</div><${FuActions} fu=${fu} fid=${fu.fid} pid=${pid} onOpen=${() => M.nav('#prospects/' + pid)} onDone=${() => setAsked(true)}/>`
+        : asked ? html`<div class="pros-next"><span class="small">When next?</span><${QuickWhen} label="When next" options=${NEXT_OPTS} onPick=${askNext}/></div>` : null}
       <${CaptureLine} id="pitch-capture" compact=${true} preset=${{pitch: pitchId, pid, cid: p.cid || '', who: live.who, org: live.org}} placeholder=${'Spoke to ' + firstOf(live.who) + ', follow up next week'}/>
     </div>`;
   }
@@ -752,7 +783,8 @@
     const [asking, setAsking] = useState(false);
     const [busy, setBusy] = useState(false);
     if (!has() || ctx.viewAs || !cid) return null;
-    const track = () => { setBusy(true); P().addPerson(ctx, {cid, oid: oid || '', who: who || '', org: org || '', role: role || ''}).then(() => { setAsking(true); M.toast('Tracking ' + firstOf(who)); }).catch(() => {}).then(() => setBusy(false)); };
+    /* asking: 'track' right after Track this person, 'next' once Done closes a follow-up */
+    const track = () => { setBusy(true); P().addPerson(ctx, {cid, oid: oid || '', who: who || '', org: org || '', role: role || ''}).then(() => { setAsking('track'); M.toast('Tracking ' + firstOf(who)); }).catch(() => {}).then(() => setBusy(false)); };
     const next = o => {
       if (o.k === 'none') { setAsking(false); return; }
       const w = whenOf(o); if (!w) return;
@@ -763,16 +795,18 @@
     const t = (doc && doc.data && doc.data.t) || {};
     const touches = pid ? Object.keys(t).filter(k => t[k] && t[k].p === pid).map(k => ({id: k, ...t[k]})).sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 3) : [];
     const fu = pid ? openFus(d, pid)[0] || null : null;
+    /* Done closes the follow-up and asks "When next?" through the same chips as Track */
+    const askNext = o => { if (o.k === 'none') { setAsking(false); return; } next(o); };
     return html`<div class="pros-fold pros-notes" id="contact-conversations">
       <div class="row between"><span class="micro plain">your conversations</span><span class="tiny ink62">Private to you.</span></div>
       ${!p ? html`<div class="row"><${UI.Btn} kind="sec" sm id="contact-track" disabled=${busy} onClick=${track}>Track this person<//><span class="tiny ink62">Your notes, follow-ups and reminders stay with you.</span></div>`
         : html`<${React.Fragment}>
           ${touches.length ? touches.map(x => html`<div key=${x.id} class="pros-tl row nowrap" data-k=${x.k}><span class="tiny num ink62 pros-tl-at">${U.fmtDay(ist().ymd(x.at || 0))}</span><span class="grow small">${x.x}</span></div>`) : html`<div class="small ink62">Nothing logged yet.</div>`}
-          ${fu ? html`<div class="pros-next-line small"><b class=${fu.d < today() ? 'flame-t' : ''}>${label(fu.d, timeOf(fu))}.</b> ${fu.said ? 'You said ' + fu.said + '.' : fu.x}</div><${FuActions} fu=${fu} fid=${fu.fid} pid=${pid} onOpen=${() => M.nav('#prospects/' + pid)}/>` : null}
+          ${fu ? html`<div class="pros-next-line small"><b class=${fu.d < today() ? 'flame-t' : ''}>${label(fu.d, timeOf(fu))}.</b> ${fu.said ? 'You said ' + fu.said + '.' : fu.x}</div><${FuActions} fu=${fu} fid=${fu.fid} pid=${pid} onOpen=${() => M.nav('#prospects/' + pid)} onDone=${() => setAsking('next')}/>` : null}
           <${CaptureLine} id="contact-capture" compact=${true} preset=${{pid, cid, who, org}} placeholder=${'Spoke to ' + firstOf(who) + ', follow up next week'}/>
           <div><button type="button" class="linky small" onClick=${() => M.nav('#prospects/' + pid)}>Open on Prospects</button></div>
         <//>`}
-      ${asking ? html`<div class="pros-next"><span class="small">When do you next talk?</span><${QuickWhen} label="When do you next talk" options=${TRACK_OPTS} onPick=${next}/></div>` : null}
+      ${asking && !fu ? html`<div class="pros-next"><span class="small">${asking === 'next' ? 'When next?' : 'When do you next talk?'}</span><${QuickWhen} label="When do you next talk" options=${TRACK_OPTS} onPick=${askNext}/></div>` : null}
       ${client && client.status === 'live' && !client.contact && client.id ? html`<div><button type="button" class="linky small" id="contact-make" onClick=${makeContact}>Make ${firstOf(who)} the ${client.name} contact</button></div>` : null}
     </div>`;
   }
@@ -1114,7 +1148,9 @@
     const withFu = new Set(fus.map(r => r.pid)), withMeet = new Set(meets.map(r => r.pid));
     const people = Object.keys(d.people).filter(k => d.people[k] && !d.people[k].gone && d.people[k].st !== 'done');
     const loose = people.filter(k => !withFu.has(k) && !withMeet.has(k) && now - lastAt(d.people[k]) <= 30 * DAY && lastAt(d.people[k]) > 0).map(pid => ({pid})).sort((a, b) => lastAt(d.people[b.pid]) - lastAt(d.people[a.pid]));
-    const quiet = people.filter(k => !withFu.has(k) && !withMeet.has(k) && now - lastAt(d.people[k]) > 21 * DAY).map(pid => ({pid})).sort((a, b) => lastAt(d.people[b.pid]) - lastAt(d.people[a.pid]));
+    /* a person in no next step (touched within 30 days) is never quiet as well */
+    const looseSet = new Set(loose.map(r => r.pid));
+    const quiet = people.filter(k => !withFu.has(k) && !withMeet.has(k) && !looseSet.has(k) && now - lastAt(d.people[k]) > 21 * DAY).map(pid => ({pid})).sort((a, b) => lastAt(d.people[b.pid]) - lastAt(d.people[a.pid]));
     return {late, today: tdy, meetings, week, waiting, loose, quiet, counts: {late: late.length, today: tdy.length, meetings: meets.filter(r => r.meet.d >= td && r.meet.d <= weekEnd).length}};
   }
   const ringAt = f => W_.ist.at(f.d, f.t || '10:00');

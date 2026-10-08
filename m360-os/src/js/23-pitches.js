@@ -244,9 +244,12 @@
       if (isNew) {
         p = W.set('pitches/' + id, {...body, stage: 'lead', stageAt: now, next: f.next.trim(), nextDate: f.nextDate || '', project: '', lost: '', created: now});
       } else {
+        /* a next step typed or dated by hand is the team's own again: the bridge (M.prospects, nextBy 'fu')
+           never overwrites it from then on */
+        const byHand = pitch.nextBy && (f.next.trim() !== (pitch.next || '') || (f.nextDate || '') !== (pitch.nextDate || ''));
         p = W.update('pitches/' + id, {...body, stage: f.stage,
           stageAt: f.stage !== stageOf(pitch).v ? now : (pitch.stageAt || now),
-          next: f.next.trim(), nextDate: f.nextDate || '', lost: f.lost.trim()});
+          next: f.next.trim(), nextDate: f.nextDate || '', lost: f.lost.trim(), ...(byHand ? {nextBy: ''} : {})});
       }
       if (ctx.isFounder && (fe || f.value !== '' || f.prob !== '')) {
         const probNum = f.prob === '' ? null : Math.max(0, Math.min(100, Number(f.prob) || 0));

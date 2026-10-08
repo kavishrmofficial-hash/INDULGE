@@ -845,7 +845,8 @@
     const client = o && o.client ? ctx.coll.clients.map[o.client] : null;
     const projects = client ? Object.keys(ctx.coll.projects.map).map(k => ({id: k, ...ctx.coll.projects.map[k]})).filter(p => p.client === o.client && !p.archived) : [];
     const pn = norm.name(o ? o.name : f.orgName), cn = client ? norm.name(client.name) : '';
-    const pitches = Object.keys(ctx.coll.pitches.map).map(k => ({id: k, ...ctx.coll.pitches.map[k]})).filter(p => { if (o && p.org === o.id) return true; const b = norm.name(p.brand); return b && (b === pn || (cn && b === cn)); });
+    /* a pitch whose contact is this person counts too (v34: the pipeline links a Base contact by id) */
+    const pitches = Object.keys(ctx.coll.pitches.map).map(k => ({id: k, ...ctx.coll.pitches.map[k]})).filter(p => { if (existing && p.contact === existing.id) return true; if (o && p.org === o.id) return true; const b = norm.name(p.brand); return b && (b === pn || (cn && b === cn)); });
 
     const pickOrg = (v, name) => setF(x => ({...x, org: v, orgName: v ? (name || (ix && ix.oById[v] ? ix.oById[v].name : x.orgName)) : x.orgName}));
     const newOrg = async () => {
