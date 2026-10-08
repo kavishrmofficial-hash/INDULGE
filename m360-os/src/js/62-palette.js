@@ -12,7 +12,7 @@
   const SPARK = '✦';
   const PAGES = [
     ['Home', 'home', 'today'], ['My tasks', 'tasks', 'tasks'], ['Projects', 'projects', 'projects'], ['The week', 'week', 'week'],
-    ['Calendar', 'calendar', 'calendar'], ['Reviews', 'reviews', 'review'], ['Clients', 'clients', 'clients'], ['Pipeline', 'pitches', 'pitches'],
+    ['Calendar', 'calendar', 'calendar'], ['Reviews', 'reviews', 'review'], ['Clients', 'clients', 'clients'], ['Pipeline', 'pitches', 'pitches'], ['Prospects', 'prospects', 'people'],
     ['Feed', 'feed', 'feed'], ['Crew', 'people', 'people'], ['Pulse and ideas', 'voice', 'voice'], ['Leaderboard', 'scores', 'scores'],
     ['Base', 'base', 'database'], ['Companies', 'companies', 'database'], ['Radar', 'radar', 'radar'],
     ['Me', 'me', 'people'], ['Leave', 'leave', 'leave'], ['Handbook', 'handbook', 'handbook'], ['Trophies', 'trophies', 'trophy'],
@@ -20,8 +20,8 @@
     ['The office', 'office', 'desk'], ['The m360 COO', 'coo', 'command'],
     ['What\'s in m360', 'map', 'map'], ['Break', 'break', 'breath'], ['Five, the word of the day', 'play', 'breath'], ['Reset', 'reset', 'breath'], ['Care reminders', 'care', 'bell'], ['Reflect', 'reflect', 'review']
   ];
-  /* the order headings appear in */
-  const ORDER = ['people', 'companies', 'tasks', 'projects', 'clients', 'pitches', 'posts', 'handbook', 'inbox', 'leave', 'radar', 'log', 'go to', 'actions', 'more', 'ask'];
+  /* the order headings appear in: a prospect line typed into the box logs first, with no model call */
+  const ORDER = ['log it', 'people', 'prospects', 'companies', 'tasks', 'projects', 'clients', 'pitches', 'posts', 'handbook', 'inbox', 'leave', 'radar', 'log', 'go to', 'actions', 'more', 'ask'];
 
   const norm = s => String(s || '').toLowerCase();
   /* every word of the query has to appear somewhere in the text */
@@ -47,6 +47,7 @@
     const acts = [
       [checked && !a.out ? 'Check out' : 'Check in', 'today', () => M.intend('#home', 'checkin')],
       ['New task', 'tasks', () => M.intend('#tasks', 'newtask')],
+      ['New follow-up', 'bell', () => M.intend('#prospects', 'capture')],
       ['Post an update', 'feed', () => M.intend('#feed', 'post')],
       ['Give kudos', 'scores', () => M.intend('#feed', 'kudos')],
       ['Request leave', 'leave', () => M.nav('#leave')],
@@ -63,6 +64,15 @@
     /* the agent's registry: what it can run straight away, with nothing to fill in */
     if (M.agent && M.agent.commandsFor) M.agent.commandsFor(ctx).forEach(c => acts.push([c.label, 'send', () => runCommand(ctx, c)]));
     acts.forEach(([label, icon, fn], i) => { if (!q.length ? i < 5 : matches(q, label)) go(fn, 'actions', label, icon, '', 'a' + i); });
+    /* "Spoke to Meera at Swisse, talk after the 16th": the line logs in the viewer's own Prospects, with no model call */
+    if (q.length && M.prospects && M.prospects.read && M.prospects.isCapture && M.agent && M.agent.capture && !ctx.viewAs) {
+      let r = null;
+      try { r = M.prospects.read(query, ctx); } catch (e) { r = null; }
+      if (r && M.prospects.isCapture(r)) go(() => {
+        const live = M.lastCtx && M.lastCtx.uid === ctx.uid ? M.lastCtx : ctx;
+        M.agent.capture(live, query, {}).then(x => M.toast((x && (x.say || x.text)) || 'Logged', !!(x && x.error)));
+      }, 'log it', 'Log it: ' + query.trim(), 'bell', 'private to you', 'logit');
+    }
 
     if (!q.length) {
       PAGES.filter(p => !p[3] || ctx.isFounder).slice(0, 6).forEach(p => go(() => M.nav('#' + p[1]), 'go to', p[0], p[2], '', 'p' + p[1]));

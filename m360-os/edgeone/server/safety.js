@@ -63,10 +63,24 @@ export function safetyActions(h) {
   const owner = async v => { if (!v || v.uid !== (await ownerUid())) throw new HttpError(403, 'invalid_argument'); };
   /* private per-person docs (data/users/<uid>/...) are that person's and the owner's, never another admin's */
   const privateOf = p => { const sg = String(p || '').split('/'); return sg[0] === 'data' && sg[1] === 'users' ? sg[2] || '' : ''; };
+  /* a person's prospects (data/users/<uid>/prospects, the month logs prospects.<YYYY-MM> and their -2 overflow)
+     are that person's alone, the owner included: the history, the versions, the trash and the backup reads leave
+     them out for anyone else. The daily backup still keeps them, so a restore brings them back whole */
+  const PROSPECTS = /^prospects(\.\d{4}-\d{2}(-2)?)?$/;
+  const prospectsOf = p => { const sg = String(p || '').split('/'); return sg[0] === 'data' && sg[1] === 'users' && sg.length === 4 && PROSPECTS.test(sg[3]) ? sg[2] || '' : ''; };
+  const hiddenFrom = (v, p) => { const who = prospectsOf(p); return !!who && who !== v.uid; };
+  /* the docs of one collection, with another person's prospects left out */
+  const dropProspects = (v, coll, docs) => {
+    const who = privateOf(coll);
+    if (!who || who === v.uid || !docs || typeof docs !== 'object') return docs;
+    const out = {};
+    for (const id of Object.keys(docs)) if (!PROSPECTS.test(id)) out[id] = docs[id];
+    return out;
+  };
   /* the books are the owner's alone, whatever the caller's level; so are the m360 COO's ledger, cards and state */
   const OWNER_ONLY = new Set(['books', 'invoices', 'expenses', 'payroll', 'hr', 'coo']);
   const ownerOnly = p => OWNER_ONLY.has(String(p || '').split('/')[0]);
-  const mayPeek = async (v, p) => { if (ownerOnly(p) && v.uid !== (await ownerUid())) return false; const who = privateOf(p); return !who || who === v.uid || v.uid === (await ownerUid()); };
+  const mayPeek = async (v, p) => { if (ownerOnly(p) && v.uid !== (await ownerUid())) return false; if (hiddenFrom(v, p)) return false; const who = privateOf(p); return !who || who === v.uid || v.uid === (await ownerUid()); };
   const peekOrRefuse = async (v, p) => { if (!(await mayPeek(v, p))) throw new HttpError(403, 'invalid_argument', 'private'); };
   const dropPrivate = async (v, colls) => {
     if (v.uid === (await ownerUid())) return colls;
@@ -419,7 +433,7 @@ export function safetyActions(h) {
         if (t) items.push({id: key.slice(2), path: t.path || key.slice(2).split('~').slice(1).join('/'), by: t.by || '', at: t.at || trashMs(key)});
       });
       const isOwner = v.uid === (await ownerUid());
-      return {items: items.filter(it => isOwner || !privateOf(it.path) || privateOf(it.path) === v.uid).sort((a, b) => b.at - a.at)};
+      return {items: items.filter(it => (isOwner || !privateOf(it.path) || privateOf(it.path) === v.uid) && !hiddenFrom(v, it.path)).sort((a, b) => b.at - a.at)};
     },
     /* put one deleted document back where it was */
     async restore(v, body) {
@@ -538,7 +552,7 @@ export function safetyActions(h) {
       if (body.coll) {
         const coll = wantColl(body.coll);
         await peekOrRefuse(v, coll + '/x');
-        const docs = await backupColl(ymd, coll);
+        const docs = dropProspects(v, coll, await backupColl(ymd, coll));
         const out = {ymd, coll, docs};
         if (bigness(out) > RESPONSE_CAP) return {ymd, coll, tooBig: true, limit: RESPONSE_CAP, count: Object.keys(docs).length};
         return out;
@@ -546,7 +560,7 @@ export function safetyActions(h) {
       const m = await dayManifest(ymd);
       if (!m) throw new HttpError(404, 'invalid_argument', 'no backup on ' + ymd);
       const colls = {};
-      for (const coll of Object.keys(await dropPrivate(v, m.colls))) colls[coll] = {docs: await backupColl(ymd, coll).catch(() => ({}))};
+      for (const coll of Object.keys(await dropPrivate(v, m.colls))) colls[coll] = {docs: dropProspects(v, coll, await backupColl(ymd, coll).catch(() => ({})))};
       const out = {ymd, at: m.at, colls};
       if (bigness(out) > RESPONSE_CAP) return {ymd, at: m.at, tooBig: true, limit: RESPONSE_CAP, colls: m.colls};
       return out;
@@ -615,13 +629,14 @@ export function safetyActions(h) {
       if (body.coll) {
         const coll = wantColl(body.coll);
         await peekOrRefuse(v, coll + '/x');
-        const out = {app: 'm360 OS', exported: new Date(at).toISOString(), coll, docs: colls[coll] || {}};
-        if (bigness(out) > RESPONSE_CAP) return {coll, tooBig: true, limit: RESPONSE_CAP, count: Object.keys(colls[coll] || {}).length};
+        const docs = dropProspects(v, coll, colls[coll] || {});
+        const out = {app: 'm360 OS', exported: new Date(at).toISOString(), coll, docs};
+        if (bigness(out) > RESPONSE_CAP) return {coll, tooBig: true, limit: RESPONSE_CAP, count: Object.keys(docs).length};
         return out;
       }
       const wrapped = {};
       const counts = {};
-      for (const coll of Object.keys(colls).sort()) { wrapped[coll] = {docs: colls[coll]}; counts[coll] = Object.keys(colls[coll]).length; }
+      for (const coll of Object.keys(colls).sort()) { const docs = dropProspects(v, coll, colls[coll]); wrapped[coll] = {docs}; counts[coll] = Object.keys(docs).length; }
       const out = {app: 'm360 OS', exported: new Date(at).toISOString(), colls: wrapped, bad};
       if (bigness(out) > RESPONSE_CAP) return {tooBig: true, limit: RESPONSE_CAP, colls: counts, bad};
       return out;
