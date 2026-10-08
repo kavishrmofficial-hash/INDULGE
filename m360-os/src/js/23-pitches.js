@@ -199,12 +199,14 @@
     });
     const [f, setF] = useState(() => pitch ? fromDoc(pitch, fe) : blank());
     const [busy, setBusy] = useState(false);
-    /* a deep link can open the drawer before the pitches have loaded: the form fills once the pitch is here */
+    /* a deep link can open the drawer before the pitches have loaded, and a picked contact is known only once the
+       Base has loaded: the form fills again when either arrives, so "c5" is never read as a typed name */
+    const cidKnown = !!(pitch && isCid(pitch.contact));
     useEffect(() => {
       const p = pitchId ? ctx.coll.pitches.map[pitchId] : null;
       setF(p ? fromDoc(p, pitchId ? financeOf(ctx)[pitchId] : null) : blank());
       setBusy(false);
-    }, [pitchId, finReady, !!pitch]);
+    }, [pitchId, finReady, !!pitch, cidKnown]);
     const set = k => v => setF(x => ({...x, [k]: v}));
 
     const memberIds = useMemo(() => {
@@ -361,6 +363,13 @@
     const route = M.useRoute();
     const routeId = route.page === 'pitches' ? route.id : null;
     useEffect(() => { if (routeId) setOpen(routeId); }, [routeId]);
+    /* the same pitch linked again right after its drawer closed: the close's step back to #pitches and the link
+       can land in one render, so routeId never seems to change; every hash change to a pitch opens it */
+    useEffect(() => {
+      const on = () => { const r = M.parseHash(); if (r.page === 'pitches' && r.id) setOpen(r.id); };
+      window.addEventListener('hashchange', on);
+      return () => window.removeEventListener('hashchange', on);
+    }, []);
     const close = () => { setOpen(null); if (routeId) M.nav('#pitches'); };
     const map = ctx.coll.pitches.map;
     const all = Object.keys(map).map(id => ({id, ...map[id]}));

@@ -212,6 +212,9 @@ def test(h):
     ma.close()
 
     # ---- reduced motion: the now dot stands still ----
+    # the board keeps the day picked above while HQ stays open (only the hash changed), so go back to today
+    p.locator('#quiet-board .qb-days button').first.click()
+    p.wait_for_selector('#qb-u_m1 .qb-now')
     p.emulate_media(reduced_motion='reduce')
     anim = p.evaluate('() => getComputedStyle(document.querySelector("#qb-u_m1 .qb-now"), "::before").animationName')
     check(anim == 'none', 'no pulse under reduced motion: %r' % anim)
