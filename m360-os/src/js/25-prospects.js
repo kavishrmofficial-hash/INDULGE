@@ -15,6 +15,7 @@
   const DEFAULT_T = '10:00';        /* a follow-up with no time rings at ten in the morning, IST */
   const QUIET_FROM = 9 * 60, QUIET_TO = 21 * 60;   /* a default time rings inside this span only */
   const MONTH_MAX = 200000;         /* a month's log past this overflows to prospects.<YYYY-MM>-2 */
+  const INDEX_MAX = 200000;         /* the index past this compacts whatever the age of the settled rows */
   const SENT_MAX = 30;              /* send rows kept on a pitch */
   const PI_MAX = 10;                /* pitches remembered on a person */
   const SNZ_MAX = 5;
@@ -49,7 +50,7 @@
   const ready = ctx => !!(ctx && ctx.priv && ctx.priv.prospects && ctx.priv.prospects.ready);
   const can = ctx => !!(ctx && ctx.uid && !ctx.viewAs && ctx.W);
   /* a chip or a button may hold the context it was made with: the writers read the live one for the same person */
-  const live = ctx => (ctx && M.lastCtx && M.lastCtx.uid === ctx.uid && !M.lastCtx.viewAs === !ctx.viewAs) ? M.lastCtx : ctx;
+  const live = ctx => (ctx && M.lastCtx && (M.lastCtx.viewAs || (M.lastCtx.uid === ctx.uid && !ctx.viewAs))) ? M.lastCtx : ctx;
   const refuse = () => { M.toast(PRIVATE_MSG, true); return Promise.reject(new Error(PRIVATE_MSG)); };
   const mergeIndex = (ctx, patch) => ctx.W.merge(path(ctx.uid), {v: 1, ...patch});
   const pitchOf = (ctx, id) => (id && ctx && ctx.coll && ctx.coll.pitches && ctx.coll.pitches.map[id]) || null;
@@ -95,6 +96,8 @@
 
   /* ---------- the bridge: a date, and only a date, onto the shared pitch ---------- */
   const mayMirror = (ctx, pitch) => !!pitch && !!ctx && (pitch.owner === ctx.uid || !!ctx.isFounder);
+  /* the only text the bridge ever writes; anything else on the pitch was typed by hand */
+  const ownText = s => !s || s === 'Follow up' || /^Follow up on /.test(String(s));
   /* what the bridge would write, or why not. Hand-typed text is never overwritten; the date moves when
      the pitch has none, a past one, one the bridge set, or one later than this follow-up */
   function bridgePlan(ctx, pitch, f, what) {
@@ -103,7 +106,7 @@
     const today = todayOf(Date.now());
     const nd = YMD.test(pitch.nextDate || '') ? pitch.nextDate : '';
     const ours = pitch.nextBy === 'fu';
-    const textFree = !pitch.next || ours;
+    const textFree = !pitch.next || (ours && ownText(pitch.next));
     const dateOk = !nd || nd < today || ours || nd > f.d;
     if (!dateOk) return {ok: false, why: (pitch.brand || 'The pitch') + ' has a next step set by hand, so your date stays with you.'};
     const patch = {nextDate: f.d, nextBy: 'fu', updated: Date.now()};
@@ -126,10 +129,10 @@
   /* ---------- the capture reader: one line in, one structured touch out. No model call ---------- */
   const TALK = /\b(met|meeting with|spoke (?:to|with)|talked (?:to|with)|called|had a call with|on a call with|caught up with|emailed|mailed|whatsapped|messaged|texted|pinged|pitched (?:to)?|dropped (?:in )?(?:on|at))\b/;
   const KIND = [[/\bwhatsapp/, 'wa'], [/\b(emailed|mailed|email)\b/, 'mail'], [/\b(called|call)\b/, 'call'], [/\b(met|meeting|caught up|dropped)\b/, 'meet'], [/\b(spoke|talked|pitched)\b/, 'talk'], [/\b(linkedin|dm)\b/, 'li'], [/\b(texted|messaged|pinged)\b/, 'msg']];
-  const ITEMS = 'deck|proposal|creds|credentials|case studies|case study|quote|estimate|rate card|ratecard|moodboard|treatment|scope|sow|contract|pitch|presentation|follow ?up|reel|showreel|portfolio';
+  const ITEMS = 'deck|proposal|creds|credentials|case studies|case study|quote|estimate|rate card|ratecard|moodboard|treatment|scope|sow|contract|pitch|presentation|follow[ -]?up|reel|showreel|portfolio';
   const WA_ITEM = new RegExp('\\b(?:whatsapped|emailed|mailed|sent) (?!the |our |a |an |over |across )([a-z]+)(?: (?:from|at) ([a-z0-9&]+))? (?:the |our )?(' + ITEMS + ')\\b');
   const SENT = new RegExp("\\b(?:i |we |just |have |has )*(?:sent|shared|mailed|emailed|whatsapped|dropped) (?:over |across )?(?:the |our |a |an |my )?(?:([a-z0-9' ]{2,24}?) )?(" + ITEMS + ")(?: v ?(\\d+))?\\b(?: (?:to|with) ([a-z][a-z.' ]{1,40}?))?(?=$|[,.;]| and | he | she | they | at | from | over | on | via | by | yesterday| today|\\s+said)");
-  const FOLLOW = /\b(remind me|follow up|followup|chase|ping (?:him|her|them)|call (?:him|her|them) back|get back|circle back|revert|talk|speak|call|connect|meet|catch up)\b[^.]*?\b(after|on|by|next|in|tomorrow|day after|end of|this|parso|agle|ke baad|monday|tuesday|wednesday|thursday|friday|saturday|\d{1,2}(?:st|nd|rd|th))\b/;
+  const FOLLOW = /\b(remind me|follow[ -]?up|chase|ping (?:him|her|them)|call (?:him|her|them) back|get back|circle back|revert|talk|speak|call|connect|meet|catch up)\b[^.]*?\b(after|on|by|next|in|tomorrow|day after|end of|this|parso|agle|ke baad|monday|tuesday|wednesday|thursday|friday|saturday|\d{1,2}(?:st|nd|rd|th))\b/;
   const REPLY = /^\s*([a-z][a-z0-9&' ]{1,30}?) (replied|wrote back|came back|said yes|said no|said later|declined|passed|got back)\b/;
   const MEETF = /\b(?:meeting|meet|call|catch ?up|lunch|coffee) (?:with|w\/) (.+?) (?:on|at|tomorrow|next|this|monday|tuesday|wednesday|thursday|friday|saturday)\b/;
   const STOP = /^(the|a|an|him|her|them|us|me|it|our|their|my|client|team|brand|deck|proposal|everyone|all)$/;
@@ -137,7 +140,7 @@
   const QUESTION = /^(who|which|what|when|where|how|why|is|are|am|do|does|did|can|could|should|will|would|has|have)\b/;
   function whoIn(str) {
     let m;
-    if ((m = /\b([a-z][a-z.']{1,20}(?: [a-z][a-z.']{1,20})?) (?:from|at|of|@) ([a-z0-9][a-z0-9&.' ]{1,30}?)(?=$|[,.;]| and | he | she | they | about | today| yesterday| on | for | after | said | sent | to | the )/.exec(str))) return {who: m[1], org: m[2].trim()};
+    if ((m = /\b([a-z][a-z.']{1,20}(?: [a-z][a-z.']{1,20})?) (?:from|at|of|@) ([a-z0-9][a-z0-9&.' ]{1,30}?)(?=$|[,.;]| and | he | she | they | about | today| yesterday| tomorrow| tmrw| on | for | after | said | sent | to | the | in | by | at \d| next | this | till | until | monday| tuesday| wednesday| thursday| friday| saturday| sunday)/.exec(str))) return {who: m[1], org: m[2].trim()};
     if ((m = /\b([a-z0-9&]+)'s ([a-z]+)\b/.exec(str))) return {who: m[2], org: m[1]};
     if ((m = /\b([a-z][a-z.']{1,20}) \(([a-z0-9&.' ]{1,30})\)/.exec(str))) return {who: m[1], org: m[2].trim()};
     return null;
@@ -160,7 +163,7 @@
     const p = out.who ? null : whoIn(t);
     if (p) { out.who = p.who.replace(/^(to|with|met|called|emailed|mailed|whatsapped|texted|messaged|meeting with) /, ''); out.org = out.org || p.org; }
     else if (!out.who) {
-      const n = /\b(?:met|spoke (?:to|with)|talked (?:to|with)|called|emailed|mailed|whatsapped|caught up with|follow up with|chase|remind me to (?:call|ping|chase|mail|email|message|whatsapp)|meeting with) ([a-z][a-z.']{1,20})\b/.exec(t);
+      const n = /\b(?:met|spoke (?:to|with)|talked (?:to|with)|talk (?:to|with)|speak (?:to|with)|called|emailed|mailed|whatsapped|caught up with|follow[ -]?up with|chase|ping|check with|remind me to (?:call|ping|chase|mail|email|message|whatsapp)|meeting with) ([a-z][a-z.']{1,20})\b/.exec(t);
       if (n && !STOP.test(n[1])) out.who = n[1];
     }
     if (out.sent && out.sent.to && !out.who) { const q = whoIn(out.sent.to + ' '); out.who = q ? q.who : out.sent.to.split(' ')[0]; if (q) out.org = out.org || q.org; }
@@ -169,18 +172,18 @@
     if (out.sent && out.org) out.sent.what = out.sent.what.replace(new RegExp('^' + esc(out.org) + ' '), '').replace(new RegExp("^" + esc(out.org) + "'s "), '');
     if (FOLLOW.test(t) || /\b(after|ke baad)\b/.test(t)) {
       /* the date clause follows the follow-up word, so "met Rahul on Monday, talk after the 16th" reads the 16th */
-      const cutAt = /\b(remind me|follow up|followup|chase|call (?:him|her|them) back|get back|circle back|revert|talk|speak|connect|catch up|ping)\b(.*)$/.exec(t);
+      const cutAt = /\b(remind me|follow[ -]?up|chase|call (?:him|her|them) back|get back|circle back|revert|talk|speak|connect|catch up|ping)\b(.*)$/.exec(t);
       const w = (cutAt ? when().parse(cutAt[2], now, isWork) : null) || when().parse(t, now, isWork);
       if (w) { out.when = w; hit = true; if (!out.kind) out.kind = 'note'; }
     }
     if (!out.who && out.kind !== 'reply' && (m = /^([a-z]+) (?:said|says|told me|wants|asked)\b/.exec(t)) && !STOP.test(m[1]) && !/^(i|we|he|she|they|you)$/.test(m[1])) out.who = m[1];
-    const fwd = /\b(follow up|followup|remind me|chase|circle back)\b/.test(t);
+    const fwd = /\b(follow[ -]?up|remind me|chase|circle back)\b/.test(t);
     if (fwd && !out.when && (out.org || out.who) && !out.sent && out.kind !== 'reply') return {...out, kind: '', needDate: true};
     if (/^remind me\b/.test(t) && !out.when) return {...out, kind: '', needDate: true};
     if (!hit) return null;
     return out;
   }
-  const isCapture = r => !!r && (!!r.kind || !!r.needDate || (!!r.who && !!(r.when && r.when.ymd)) || /^(remind me|follow ?up)\b/i.test(String(r.said || '')));
+  const isCapture = r => !!r && (!!r.kind || !!r.needDate || (!!r.who && !!(r.when && r.when.ymd)) || /^(remind me|follow[ -]?up)\b/i.test(String(r.said || '')));
 
   /* ---------- who and which pitch ---------- */
   const OPEN = p => !!p && !p.archived && ['won', 'lost'].indexOf(p.stage) < 0;
@@ -250,12 +253,22 @@
   }
 
   /* ---------- the writers. Every one refuses in preview; every one returns a promise ---------- */
+  /* writers that make rows run one after another, each once the index shows the last one's rows (or 1.6 s):
+     a double tap, or a voice line on the heels of a typed one, still makes one person and one open
+     follow-up. The wait is for the live snapshot, so the first of a pair never waits */
+  let chain = Promise.resolve(), pendingIds = [];
+  const landed = (ctx, ids) => new Promise(res => { let n = 0; const tick = () => { const d = data(live(ctx)); if (ids.every(id => d.people[id] || d.fu[id] || d.meet[id]) || n++ > 40) res(); else setTimeout(tick, 40); }; tick(); });
+  function serial(ctx, fn) {
+    const p = chain.then(async () => { const ids = pendingIds; pendingIds = []; if (ids.length) await landed(ctx, ids); return fn(); });
+    chain = p.catch(() => {});
+    return p;
+  }
   const VIA = {wa: 'whatsapp', mail: 'mail', meet: 'meeting', li: 'linkedin', msg: 'whatsapp', sent: 'mail', talk: 'hand', call: 'hand'};
   const VERB = {meet: 'Met', talk: 'Spoke to', call: 'Called', mail: 'Emailed', wa: 'WhatsApped', msg: 'Messaged', li: 'Messaged'};
   const PROPOSAL = /\b(proposal|quote|estimate|sow)\b/;
   /* the next text kept on a follow-up: the clause from the follow-up word on ("talk after the 16th"), short;
      the month log keeps the whole line */
-  const NEXT_CUT = /\b(remind me(?: to)?|follow ?up(?: with)?|chase|call (?:him|her|them) back|get back|circle back|revert|talk|speak|connect|catch up|ping|meet)\b(.*)$/;
+  const NEXT_CUT = /\b(remind me(?: to)?|follow[ -]?up(?: with)?|chase|call (?:him|her|them) back|get back|circle back|revert|talk|speak|connect|catch up|ping|meet)\b(.*)$/;
   const nextText = line => { const t = String(line || '').trim(); const m = NEXT_CUT.exec(t.toLowerCase()); const s = m ? t.slice(m.index) : t; return cut(s.replace(/^remind me(?: to)?\s*/i, '').replace(/^[,.;\s]+/, ''), 120) || cut(t, 120); };
 
   async function logTouch(ctx, t) {
@@ -331,7 +344,8 @@
     }
   }
   /* {p?, pi?, x, d, t?, after?, said?, src, sid?} gives the fid. The bridge runs unless opts.mirror is false */
-  async function setFollow(ctx, f, opts) {
+  const setFollow = (ctx, f, opts) => serial(ctx, () => setFollowNow(ctx, f, opts));
+  async function setFollowNow(ctx, f, opts) {
     ctx = live(ctx);
     if (!can(ctx)) return refuse();
     if (!YMD.test(f.d || '')) throw new Error('a day is needed');
@@ -352,6 +366,7 @@
       else if (plan.why && opts.out) opts.out.why = plan.why;
     }
     await mergeIndex(ctx, patch);
+    pendingIds = [fid];
     if (bridged) {
       const before = pickFields(pitchOf(ctx, row.pi), bridged.patch);
       await writePitch(ctx, row.pi, bridged.patch);
@@ -486,15 +501,16 @@
     if (!can(ctx)) return false;
     const doc = ctx.priv && ctx.priv.prospects && ctx.priv.prospects.data;
     if (!doc) return false;
-    const now = Date.now(), cut0 = now - SETTLED_DAYS * DAY, today = todayOf(now);
+    const big = JSON.stringify(doc).length > INDEX_MAX;
+    const now = Date.now(), cut0 = big ? now : now - SETTLED_DAYS * DAY, today = todayOf(now);
     const people = doc.people || {}, fu = doc.fu || {}, meet = doc.meet || {};
     const gone = Object.keys(people).filter(id => people[id] && people[id].gone);
     const oldFu = Object.keys(fu).filter(id => fu[id] && fu[id].done && Number(fu[id].done.at || 0) < cut0);
     const oldMeet = Object.keys(meet).filter(id => meet[id] && (meet[id].done || meet[id].d < today) && ist().at(meet[id].d, '00:00') < cut0);
-    if (gone.length <= 100 && oldFu.length + oldMeet.length <= 200) return false;
+    if (!big && gone.length <= 100 && oldFu.length + oldMeet.length <= 200) return false;
     const next = {v: 1, people: {}, fu: {}, meet: {}, prefs: {mirror: true, ...(doc.prefs || {})}};
     const drop = new Set(gone);
-    for (const id of Object.keys(people)) if (!drop.has(id)) next.people[id] = people[id];
+    for (const id of Object.keys(people)) if (!drop.has(id)) next.people[id] = big && (people[id].mo || []).length > 12 ? {...people[id], mo: people[id].mo.slice(-12)} : people[id];
     const dropFu = new Set(oldFu), dropMeet = new Set(oldMeet);
     for (const id of Object.keys(fu)) if (!dropFu.has(id)) next.fu[id] = fu[id];
     for (const id of Object.keys(meet)) if (!dropMeet.has(id)) next.meet[id] = meet[id];
@@ -504,7 +520,8 @@
 
   /* ---------- apply: one capture, one burst of writes, one receipt ---------- */
   const saySent = (r, who) => 'Sent the ' + r.sent.what + (who ? ' to ' + who : '') + '.';
-  async function apply(ctx, r, preset, choices) {
+  const apply = (ctx, r, preset, choices) => serial(ctx, () => applyNow(ctx, r, preset, choices));
+  async function applyNow(ctx, r, preset, choices) {
     ctx = live(ctx);
     if (!can(ctx)) return refuse();
     if (!r) throw new Error('nothing to log');
@@ -590,6 +607,7 @@
     /* the burst: the index, the month log, the pitch */
     for (const key of ['people', 'fu', 'meet']) if (!Object.keys(patch[key]).length) delete patch[key];
     if (Object.keys(patch).length) await mergeIndex(ctx, patch);
+    pendingIds = [pid, fid, mid].filter(Boolean);
     const t = await logTouch(ctx, {p: pid, pi, k, x: r.said, at: now, sid});
     undo.tid = t.tid; undo.month = t.path;
     if (pitch) {
@@ -615,7 +633,7 @@
     else say.push('Logged.');
     if (fuRow && fuRow.src === 'sent') say.push('I will remind you to check on ' + label(fuRow.d) + '.');
     else if (fuRow) say.push('I will remind you on ' + when().readBack({ymd: fuRow.d, t: fuRow.t, rolledFrom: w && w.rolledFrom}) + (fuRow.t ? '.' : ' at ' + DEFAULT_T + '.'));
-    if (bridgePatch) say.push(brand + ' next step: ' + label(fuRow.d) + '.');
+    if (bridgePatch) say.push(brand + ' next step: ' + label(fuRow.d) + (bridgePatch.next ? '.' : '. The text stays as typed.'));
     else if (fuRow && bridgeWhy) say.push(bridgeWhy);
     if (!pitch && r.org && !sendRow && r.kind !== 'reply') hold.push({k: 'pitch', label: 'Add ' + capWords(r.org) + ' to the pipeline?', detail: 'A new pitch, owned by you.',
       run: async () => { const id = U.uid(); await ctx.W.set('pitches/' + id, {brand: capWords(r.org), category: '', contact: person.cid || '', source: '', owner: ctx.uid, updated: Date.now(), stage: 'lead', stageAt: Date.now(), next: '', nextDate: '', project: '', lost: '', created: Date.now()}); if (pid) await mergeIndex(ctx, {people: {[pid]: {pi: uniq(((data(ctx).people[pid] || {}).pi || []).concat([id])).slice(-PI_MAX)}}}); return id; }});
@@ -683,11 +701,13 @@
       if (f.mirror && f.pi) { const moved = clearPlan(pitchOf(ctx, f.pi), f.mirror, u.prev.d); if (moved) { await writePitch(ctx, f.pi, moved); patch.mirror = {...f.mirror, nextDate: u.prev.d}; } }
       await mergeIndex(ctx, {fu: {[u.fid]: patch}});
     } else {
-      /* a done or a drop: open again, and the date back on the pitch where it was mirrored */
+      /* a done or a drop: open again, and the date back on the pitch where it was mirrored. A follow-up set
+         since for the same person or pitch closes as moved, so one stays open */
       const prev = u.prev || f;
-      const patch = {done: null};
-      if (prev.mirror && prev.pi) { const plan = bridgePlan(ctx, pitchOf(ctx, prev.pi), prev, ''); if (plan.ok) { patch.mirror = plan.mirror; await writePitch(ctx, prev.pi, plan.patch); } }
-      await mergeIndex(ctx, {fu: {[u.fid]: patch}});
+      const patch = {fu: {[u.fid]: {done: null}}};
+      await closeOthers(ctx, data(ctx), prev.p, prev.pi, u.fid, patch);
+      if (prev.mirror && prev.pi) { const plan = bridgePlan(ctx, pitchOf(ctx, prev.pi), prev, ''); if (plan.ok) { patch.fu[u.fid].mirror = plan.mirror; await writePitch(ctx, prev.pi, plan.patch); } }
+      await mergeIndex(ctx, patch);
     }
     if (u.tid && u.month) await ctx.W.merge(u.month, {t: {[u.tid]: null}});
     return 'Undone.';
@@ -834,7 +854,6 @@
   function dueNow(ctx, nowMs) {
     const d = data(ctx);
     const today = todayOf(nowMs);
-    const isWork = workOf(ctx);
     const inSpan = minsIst(nowMs) >= QUIET_FROM && minsIst(nowMs) < QUIET_TO;
     const out = [];
     for (const fid of Object.keys(d.fu)) {
@@ -842,8 +861,9 @@
       if (!isOpen(f) || f.d !== today) continue;
       const at = ringAtOf(f);
       if (at === null || nowMs < at) continue;
-      /* a default time keeps to the day's span and to working days; a time the person said is kept as given */
-      if (!f.t && (!inSpan || !isWork(f.d))) continue;
+      /* a default time keeps to the day's span; a time the person said is kept as given. A Sunday or a
+         holiday here was picked on purpose (the reader rolls past them), so it rings like any day */
+      if (!f.t && !inSpan) continue;
       const key = ringKey(fid, f);
       if (f.rang && f.rang.k === key) continue;
       out.push({kind: 'fu', id: fid, key, at, row: rowOf(ctx, d, fid, nowMs)});
@@ -859,18 +879,22 @@
     }
     return out;
   }
-  /* open follow-ups from earlier days that never rang anywhere: the ones missed while m360 was closed */
+  /* open follow-ups from earlier days whose current day and time never rang anywhere, on the day or in a
+     catch-up: the ones missed while m360 was closed. A snooze makes a new key, so a snoozed row missed
+     again counts again */
   function missed(ctx, nowMs) {
     const d = data(ctx);
     const today = todayOf(nowMs);
-    return Object.keys(d.fu).filter(fid => { const f = d.fu[fid]; return isOpen(f) && YMD.test(f.d || '') && f.d < today && !f.rang; }).map(fid => ({kind: 'fu', id: fid, row: rowOf(ctx, d, fid, nowMs)}));
+    const rung = (f, key) => !!f.rang && (f.rang.k === key || f.rang.key === key);
+    return Object.keys(d.fu).filter(fid => { const f = d.fu[fid]; return isOpen(f) && YMD.test(f.d || '') && f.d < today && !rung(f, ringKey(fid, f)); })
+      .map(fid => ({kind: 'fu', id: fid, key: ringKey(fid, d.fu[fid]), row: rowOf(ctx, d, fid, nowMs)}));
   }
   const namesOf = rows => { const ws = rows.map(r => r.who ? r.who + (r.org ? ' at ' + r.org : '') : (r.x || 'a reminder')); return ws.length <= 3 ? ws.slice(0, -1).join(', ') + (ws.length > 1 ? ' and ' : '') + ws[ws.length - 1] : ws.slice(0, 2).join(', ') + ' and ' + (ws.length - 2) + ' more'; };
   function cardFor(items) {
     const one = items[0].row;
     if (items.length === 1) {
       if (items[0].kind === 'mt') return {title: 'Meeting with ' + (one.who || 'them'), body: (one.org ? one.org + ', ' : '') + (one.t ? one.t : 'today') + (one.where ? ', ' + one.where : '') + '.', href: one.pid ? '#prospects/' + one.pid : '#prospects'};
-      return {title: one.who ? 'Follow up with ' + one.who : 'A reminder', body: (one.org ? one.org + '. ' : '') + (one.said ? 'You said ' + one.said + '.' : one.x || ''), href: one.pid ? '#prospects/' + one.pid : '#prospects'};
+      return {title: one.who ? 'Follow up with ' + one.who : 'A reminder', body: (one.org ? one.org + '. ' : '') + (one.said ? 'You said ' + one.said + '.' : one.x ? U.cap(one.x).replace(/[.]*$/, '.') : ''), href: one.pid ? '#prospects/' + one.pid : '#prospects'};
     }
     return {title: items.length + ' follow-ups today', body: namesOf(items.map(x => x.row)) + '.', href: '#prospects'};
   }
@@ -897,16 +921,16 @@
         const catchKey = 'fuCatch.' + uid;
         if (c.priv.prospects.data && M.prefs.get(catchKey, '') !== today) {
           M.prefs.set(catchKey, today);
-          const miss = missed(c, now).filter(x => !marks.has('fu:catch:' + x.id));
+          const miss = missed(c, now).filter(x => !marks.has('fu:catch:' + x.key));
           if (miss.length) {
-            rangMark(uid, miss.map(x => 'fu:catch:' + x.id));
+            rangMark(uid, miss.map(x => 'fu:catch:' + x.key));
             const days = uniq(miss.map(x => when().dayName(x.row.d)));
             const from = days.length === 1 ? 'from ' + days[0] : 'from the last few days';
             M.notices.push({key: 'fu:catch@' + today, title: miss.length === 1 ? 'A follow-up ' + from + ' is waiting' : miss.length + ' follow-ups ' + from + ' are waiting', body: namesOf(miss.map(x => x.row)) + '.',
               href: miss.length === 1 && miss[0].row.pid ? '#prospects/' + miss[0].row.pid : '#prospects', icon: 'bell', life: 60000, hidden: 'Follow-ups are waiting', away: {title: 'Follow-ups are waiting', body: 'Open m360 to see who.'}});
             M.sound.play('soft');
             const fu = {};
-            for (const x of miss) fu[x.id] = {rang: {k: 'catch@' + today, at: now, dev: devId()}};
+            for (const x of miss) fu[x.id] = {rang: {k: 'catch@' + today, key: x.key, at: now, dev: devId()}};
             c.W.merge(path(uid), {v: 1, fu}).catch(() => { /* the next pass, or the next device */ });
           }
         }
@@ -926,19 +950,29 @@
         c.W.merge(path(uid), {v: 1, ...patch}).catch(() => { /* the mark on this device still holds */ });
       };
       try {
-        if (navigator.locks && typeof navigator.locks.request === 'function') await navigator.locks.request('m360-fu-' + uid, {ifAvailable: true}, lock => lock ? run() : null);
+        let got = true;
+        if (navigator.locks && typeof navigator.locks.request === 'function') await navigator.locks.request('m360-fu-' + uid, {ifAvailable: true}, lock => { got = !!lock; return lock ? run() : null; });
         else await run();
+        /* another tab holds the lock (one closing mid-pass keeps it a moment): one more look in a second.
+           The mark and rang make the retry skip whatever that tab rang */
+        if (!got && !retry.current) retry.current = setTimeout(() => { retry.current = null; go(); }, 1000);
       } catch (e) { /* the watcher never breaks the page */ }
     };
-    const busy = useRef(false);
-    const go = () => { if (busy.current) return; busy.current = true; pass().catch(() => {}).then(() => { busy.current = false; }); };
+    /* one pass at a time; a trigger that lands while one runs (a tab brought to the front as the clock
+       moves, the index arriving mid-pass) gets its own pass right after, never a wait for the next tick */
+    const busy = useRef(false), again = useRef(false), retry = useRef(null);
+    const go = () => {
+      if (busy.current) { again.current = true; return; }
+      busy.current = true;
+      pass().catch(() => {}).then(() => { busy.current = false; if (again.current) { again.current = false; go(); } });
+    };
     useEffect(() => {
       const t = setInterval(go, PASS);
       const vis = () => go();
       document.addEventListener('visibilitychange', vis);
       const unFocus = M.focus && M.focus.subscribe ? M.focus.subscribe(() => setTimeout(go, 50)) : null;
       M.prospects._go = go;
-      return () => { clearInterval(t); document.removeEventListener('visibilitychange', vis); if (unFocus) unFocus(); if (M.prospects._go === go) M.prospects._go = null; };
+      return () => { clearInterval(t); document.removeEventListener('visibilitychange', vis); if (unFocus) unFocus(); if (retry.current) clearTimeout(retry.current); if (M.prospects._go === go) M.prospects._go = null; };
     }, []);
     /* a pass on the index arriving or changing */
     useEffect(() => { go(); }, [doc && doc.ready, doc && doc.data, ctx && ctx.uid, ctx && ctx.viewAs]);

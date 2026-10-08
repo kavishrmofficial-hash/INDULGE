@@ -73,9 +73,9 @@
   /* explicit dates: "16 oct", "oct 16", "16/10", "16th of october", "the 16th", "18th" */
   function explicit(today, str) {
     let x;
-    if ((x = new RegExp('\\b' + ORD + '(?: of)? ' + MONS + '\\b').exec(str))) return mk(today, Number(x[1]), MON[x[2]]);
-    if ((x = new RegExp('\\b' + MONS + ' ' + ORD + '\\b').exec(str))) return mk(today, Number(x[2]), MON[x[1]]);
-    if ((x = /\b(\d{1,2})[\/.](\d{1,2})(?:[\/.](\d{2,4}))?\b/.exec(str))) return mk(today, Number(x[1]), Number(x[2]) - 1, x[3]);
+    if ((x = new RegExp('\\b' + ORD + '(?: of)? ' + MONS + '(?:,? (\\d{4}))?\\b').exec(str))) return mk(today, Number(x[1]), MON[x[2]], x[3]);
+    if ((x = new RegExp('\\b' + MONS + ' ' + ORD + '(?:,? (\\d{4}))?\\b').exec(str))) return mk(today, Number(x[2]), MON[x[1]], x[3]);
+    if ((x = /\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/.exec(str))) return mk(today, Number(x[1]), Number(x[2]) - 1, x[3]);
     if ((x = new RegExp('\\b(?:the )' + ORD + '\\b').exec(str)) || (x = /\b(\d{1,2})(?:st|nd|rd|th)\b/.exec(str))) return dayN(today, Number(x[1]), false);
     if ((x = /^\s*(\d{1,2})\s*$/.exec(str))) return dayN(today, Number(x[1]), false);
     return null;
@@ -93,7 +93,8 @@
     if (x[1] === 'next ') {
       const mon0 = ist.add(today, ((1 - tdow + 7) % 7) || 7);
       if (d < mon0) d = ist.add(d, 7);
-      return {ymd: d, next: true, alt: ist.add(today, diff)};
+      const alt = ist.add(today, diff);
+      return {ymd: d, next: true, alt: alt === d ? '' : alt};
     }
     return {ymd: d, next: false};
   }
@@ -101,7 +102,7 @@
   /* a time of day: "at 4" is 16:00, "11am" is 11:00, "at 4:30 pm"; a bare hour of 8 or less is afternoon */
   function time(text) {
     const s = String(text || '').toLowerCase();
-    const m = /\b(?:at|@|around) (\d{1,2})(?::(\d{2}))? ?(am|pm|a\.m\.|p\.m\.)?\b|\b(\d{1,2})(?::(\d{2}))? ?(am|pm|a\.m\.|p\.m\.)/.exec(s);
+    const m = /\b(?:at|@|around) (\d{1,2})(?::(\d{2}))? ?(am|pm|a\.m\.|p\.m\.)?(?!\w)|\b(\d{1,2})(?::(\d{2}))? ?(am|pm|a\.m\.|p\.m\.)/.exec(s);
     if (!m) return '';
     let h = Number(m[1] || m[4]), mm = Number(m[2] || m[5] || 0);
     const ap = (m[3] || m[6] || '').replace(/\./g, '');
@@ -154,7 +155,7 @@
     if ((m = /\bin (\d+|one|two|three|four|five|six|seven|eight|nine|ten|a|an|a couple of|couple of) (day|days|week|weeks|month|months)\b/.exec(s))) {
       const n = /^\d+$/.test(m[1]) ? Number(m[1]) : NUM[m[1].replace(/^a couple of$|^couple of$/, 'couple')];
       const u = m[2][0];
-      if (u === 'm') { const y = Number(today.slice(0, 4)), mo = Number(today.slice(5, 7)) - 1; return out(fromMs0(utc(y, mo + n, dayOf(today)).getTime()), m[0]); }
+      if (u === 'm') { const y = Number(today.slice(0, 4)), mo = Number(today.slice(5, 7)) - 1; const last = utc(y, mo + n + 1, 0).getUTCDate(); return out(fromMs0(utc(y, mo + n, Math.min(dayOf(today), last)).getTime()), m[0]); }
       return out(ist.add(today, u === 'w' ? n * 7 : n), m[0]);
     }
     if (/\bnext week\b|\bagle hafte\b|\bagle week\b/.test(s)) return out(ist.add(today, ((1 - ist.dow(today) + 7) % 7) || 7), 'next week');
@@ -167,7 +168,7 @@
       return {ymd: d, said: 'end of the month', rolledFrom: '', ...(tm ? {t: tm} : {})};
     }
     if (/\bnext month\b|\bagle mahine\b/.test(s)) { const y = Number(today.slice(0, 4)), mo = Number(today.slice(5, 7)) - 1; return out(fromMs0(utc(y, mo + 1, 1).getTime()), 'next month'); }
-    const dated = /\b(on|for) (the )?/.test(s) || /\b\d{1,2}(st|nd|rd|th)\b|\b\d{1,2}[\/.]\d{1,2}\b/.test(s) || new RegExp('\\b' + MONS + '\\b').test(s);
+    const dated = /\b(on|for) (the )?/.test(s) || /\b\d{1,2}(st|nd|rd|th)\b|\b\d{1,2}\/\d{1,2}\b/.test(s) || new RegExp('\\b' + MONS + '\\b').test(s);
     const e = dated ? explicit(today, s) : null;
     if (e) { const x = /\b(?:on|for) (the )?(\d{1,2}(?:st|nd|rd|th)?(?: [a-z]+)?)/.exec(s); return out(e, x ? 'on the ' + x[2].replace(/^(\d{1,2})$/, (q, n) => ordinal(Number(n))) : 'the date'); }
     const w = weekday(today, s);
