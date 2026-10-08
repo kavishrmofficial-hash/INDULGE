@@ -455,7 +455,8 @@
       if (M.prospects && M.prospects.read && M.prospects.isCapture && !ctx.viewAs) {
         let r = null;
         try { r = M.prospects.read(text, ctx); } catch (e) { r = null; }
-        if (r && M.prospects.isCapture(r)) {
+        /* a line that names only a teammate ("Talk to Riya tomorrow") is the team's: it stays a task */
+        if (r && M.prospects.isCapture(r) && !(M.agent && M.agent.stepsAside && M.agent.stepsAside(ctx, text))) {
           /* a follow-up word with a person and no day: ask for the day here, since a toast cannot hold the chips */
           if (!(M.agent && M.agent.capture) && r.needDate && !(r.when && r.when.ymd)) { M.toast('When should I remind you? Add a day, for example: after the 16th.'); return; }
           setBusy(true);

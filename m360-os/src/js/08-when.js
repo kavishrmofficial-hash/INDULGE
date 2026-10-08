@@ -170,7 +170,7 @@
     if (/\bnext month\b|\bagle mahine\b/.test(s)) { const y = Number(today.slice(0, 4)), mo = Number(today.slice(5, 7)) - 1; return out(fromMs0(utc(y, mo + 1, 1).getTime()), 'next month'); }
     const dated = /\b(on|for) (the )?/.test(s) || /\b\d{1,2}(st|nd|rd|th)\b|\b\d{1,2}\/\d{1,2}\b/.test(s) || new RegExp('\\b' + MONS + '\\b').test(s);
     const e = dated ? explicit(today, s) : null;
-    if (e) { const x = /\b(?:on|for) (the )?(\d{1,2}(?:st|nd|rd|th)?(?: [a-z]+)?)/.exec(s); return out(e, x ? 'on the ' + x[2].replace(/^(\d{1,2})$/, (q, n) => ordinal(Number(n))) : 'the date'); }
+    if (e) { const x = new RegExp('\\b(?:on|for) (the )?(\\d{1,2}(?:st|nd|rd|th)?(?: (?:of )?' + MONS + ')?)').exec(s); return out(e, x ? 'on the ' + x[2].replace(/^(\d{1,2})$/, (q, n) => ordinal(Number(n))) : 'the date'); }
     const w = weekday(today, s);
     if (w) return out(w.ymd, (w.next ? 'next ' : '') + DAYS[ist.dow(w.ymd)], w.next ? {next: true, alt: w.alt} : {});
     return null;

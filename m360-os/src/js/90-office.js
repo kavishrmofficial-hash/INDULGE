@@ -336,9 +336,12 @@
      action, else the tray */
   const ACTION_AT = [[/leave|wfh/, 'calendar'], [/review/, 'review'], [/task|owner|assign|due|rebalance|move/, 'board'], [/invoice|books/, 'books'],
     [/pitch|client/, 'clients'], [/mail|draft|send/, 'desk'], [/ask|nudge|chase/, 'mail'], [/holiday|setting|reports|roster|pm_policy/, 'reception']];
+  /* a prospects capture (a talk, a follow-up, a send) is the person's own and private: no station, no walk */
+  const PRIVATE_ACT = /^(log_talk|follow_up|log_send|remind_me)$/;
   function approvedAt(d) {
     if (d.station && STATION_POS[d.station]) return d.station;
     const nm = String(d.name || d.action || d.kind || '').toLowerCase();
+    if (PRIVATE_ACT.test(nm)) return '';
     const hit = nm ? ACTION_AT.find(([re]) => re.test(nm)) : null;
     return hit ? hit[1] : 'tray';
   }
@@ -678,7 +681,7 @@
     /* the founder approved a card the agent made: it goes to the station of that action. Asleep (off,
        paused, the night, a day off) it stays asleep: an off COO is never seen at work */
     useEffect(() => {
-      const f = ev => { const d = E.current.data; if (!d.founder || d.rest.asleep) return; q.current.push({kind: 'go', station: approvedAt((ev && ev.detail) || {})}); pump(); };
+      const f = ev => { const d = E.current.data; if (!d.founder || d.rest.asleep) return; const station = approvedAt((ev && ev.detail) || {}); if (!station) return; q.current.push({kind: 'go', station}); pump(); };
       window.addEventListener('m360:approved', f);
       return () => window.removeEventListener('m360:approved', f);
     }, []);

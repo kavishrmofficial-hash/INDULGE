@@ -1801,13 +1801,27 @@
     let r = null;
     try { r = M.prospects.read(plainLine(raw), ctx); } catch (e) { r = null; }
     if (!r || !M.prospects.isCapture(r)) return null;
-    const team = namedIn(s, ctx, nm);
-    const remind = /\bremind me\b/.test(s);
-    if (team.length && !r.org && !brandIn(ctx, s)) {
-      if (!remind || !r.when || !r.when.ymd) return null;
-      return {action: 'follow_up', input: {note: cut(raw, 200), when: r.when.said || r.when.ymd, ...(r.when.t ? {time: r.when.t} : {})}};
-    }
+    const aside = asideOf(r, raw, s, ctx, nm);
+    if (aside) return aside.own || null;
     return captureAction(r, raw);
+  }
+  /* the teammate step-aside (spec F2): a line that names only teammates, with no org and no brand, is the
+     team's, never a capture. "remind me" about a teammate with a day is the viewer's own follow-up, nobody
+     attached. {aside:true}, {own:{action, input}}, or null when the line is a plain capture */
+  function asideOf(r, raw, s, ctx, nm) {
+    const team = namedIn(s, ctx, nm);
+    if (!team.length || r.org || brandIn(ctx, s)) return null;
+    if (!/\bremind me\b/.test(s) || !r.when || !r.when.ymd) return {aside: true};
+    return {own: {action: 'follow_up', input: {note: cut(raw, 200), when: r.when.said || r.when.ymd, ...(r.when.t ? {time: r.when.t} : {})}}};
+  }
+  /* for a page's quick add: true when the line is a teammate's, so it stays a task */
+  function stepsAside(ctx, text) {
+    if (!prosOn() || !ctx || ctx.viewAs) return false;
+    let r = null;
+    try { r = M.prospects.read(plainLine(String(text || '')), ctx); } catch (e) { r = null; }
+    if (!r || !M.prospects.isCapture(r)) return false;
+    const aside = asideOf(r, String(text || ''), normalise(String(text || '')), ctx, namesNow(ctx));
+    return !!(aside && aside.aside);
   }
 
   function parse(text, ctx, nm) {
@@ -2052,7 +2066,10 @@
     let r = null;
     try { r = M.prospects.read(plainLine(line), ctx); } catch (e) { r = null; }
     if (!r || !M.prospects.isCapture(r)) return {text: NO_READ + '.', error: true};
-    const parsed = captureAction(r, plainLine(line));
+    /* a teammate's line is never a prospect: it stays with the team grammar (a task, a nudge) */
+    const aside = asideOf(r, plainLine(line), normalise(line), ctx, namesNow(ctx));
+    if (aside && aside.aside) return {text: 'That reads as a line for a teammate, so it stays with the team.', error: true, aside: true};
+    const parsed = aside && aside.own ? aside.own : captureAction(r, plainLine(line));
     const input = {...parsed.input, ...(preset && typeof preset === 'object' && Object.keys(preset).length ? {preset} : {}), ...(o.choices ? {choices: o.choices} : {})};
     const turn = {id: U.uid(), via: o.via === 'voice' ? 'voice' : 'typed', tainted: false, said: line};
     try {
@@ -2066,7 +2083,7 @@
   }
 
   M.agent = {OFFLINE, ACTIONS, actionsFor, byName, allowed, parse, normalise, route, peopleWhere, whereLine, runGrammar, exec, isYes, isNo, yesFor, undo, undoable,
-    ledger: ctx => loadLedger(ctx), conf, commandsFor, findScreen, timeFrom, cooUntil, COND, CONDS, NEVER, names, capture, captureAction, fuFor, listLine};
+    ledger: ctx => loadLedger(ctx), conf, commandsFor, findScreen, timeFrom, cooUntil, COND, CONDS, NEVER, names, capture, captureAction, stepsAside, fuFor, listLine};
   M.parts.AgentReceipts = AgentReceipts;
   M.parts.AgentHistory = AgentHistory;
   M.parts.AgentAdminCard = AgentAdminCard;

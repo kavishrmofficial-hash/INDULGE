@@ -132,7 +132,7 @@
   const ITEMS = 'deck|proposal|creds|credentials|case studies|case study|quote|estimate|rate card|ratecard|moodboard|treatment|scope|sow|contract|pitch|presentation|follow[ -]?up|reel|showreel|portfolio';
   const WA_ITEM = new RegExp('\\b(?:whatsapped|emailed|mailed|sent) (?!the |our |a |an |over |across )([a-z]+)(?: (?:from|at) ([a-z0-9&]+))? (?:the |our )?(' + ITEMS + ')\\b');
   const SENT = new RegExp("\\b(?:i |we |just |have |has )*(?:sent|shared|mailed|emailed|whatsapped|dropped) (?:over |across )?(?:the |our |a |an |my )?(?:([a-z0-9' ]{2,24}?) )?(" + ITEMS + ")(?: v ?(\\d+))?\\b(?: (?:to|with) ([a-z][a-z.' ]{1,40}?))?(?=$|[,.;]| and | he | she | they | at | from | over | on | via | by | yesterday| today|\\s+said)");
-  const FOLLOW = /\b(remind me|follow[ -]?up|chase|ping (?:him|her|them)|call (?:him|her|them) back|get back|circle back|revert|talk|speak|call|connect|meet|catch up)\b[^.]*?\b(after|on|by|next|in|tomorrow|day after|end of|this|parso|agle|ke baad|monday|tuesday|wednesday|thursday|friday|saturday|\d{1,2}(?:st|nd|rd|th))\b/;
+  const FOLLOW = /\b(remind me|follow[ -]?up|chase|ping (?:him|her|them)|call (?:him|her|them) back|get back|circle back|revert|talk|speak|call|connect|meet|catch up)\b[^.]*?\b(after|on|by|next|in|today|tonight|tomorrow|day after|end of|this|parso|agle|ke baad|monday|tuesday|wednesday|thursday|friday|saturday|\d{1,2}(?:st|nd|rd|th))\b/;
   const REPLY = /^\s*([a-z][a-z0-9&' ]{1,30}?) (replied|wrote back|came back|said yes|said no|said later|declined|passed|got back)\b/;
   const MEETF = /\b(?:meeting|meet|call|catch ?up|lunch|coffee) (?:with|w\/) (.+?) (?:on|at|tomorrow|next|this|monday|tuesday|wednesday|thursday|friday|saturday)\b/;
   const STOP = /^(the|a|an|him|her|them|us|me|it|our|their|my|client|team|brand|deck|proposal|everyone|all)$/;
@@ -325,6 +325,10 @@
     await maybeCompact(ctx);
     return {pid, undo: () => mergeIndex(ctx, {people: {[pid]: {st: '', gone: null, up: Date.now()}}})};
   }
+  /* the person comes back as they were, with the same id, so Undo after Stop tracking never makes a second row */
+  const restore = (ctx, pid) => can(live(ctx)) ? mergeIndex(live(ctx), {people: {[pid]: {st: '', gone: null, up: Date.now()}}}) : refuse();
+  /* a typed person just added to the Base: the row keeps its id and gains the contact id */
+  const link = (ctx, pid, cid) => can(live(ctx)) && cid ? mergeIndex(live(ctx), {people: {[pid]: {cid, up: Date.now()}}}) : refuse();
   const setMirror = (ctx, on) => can(live(ctx)) ? mergeIndex(live(ctx), {prefs: {mirror: !!on}}) : refuse();
 
   /* the pitch side of a settled follow-up: cleared, or moved to a new date, only while it still holds what was mirrored */
@@ -983,7 +987,7 @@
   M.prospects = {
     PASS, DEFAULT_T, path, month, data, ready,
     read, isCapture, resolve, apply, undo,
-    addPerson, track, stopTracking, setMirror,
+    addPerson, track, stopTracking, restore, link, setMirror,
     setFollow, done, snooze, drop, bridge, redate,
     setMeet, doneMeet, logTouch, addSend, setReply, closeCheckBacks,
     day, personOf, byCid, byPitch, statusOf, useMonth, loadMonths, sendsOf, latestSend, inboxItems, searchRows, exportMine,
