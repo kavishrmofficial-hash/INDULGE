@@ -127,7 +127,7 @@ def test(h):
     c.clock.set_fixed_time(at(10, 0, 5))
     a.evaluate('() => M.prospects.ring()')
     b.evaluate('() => M.prospects.ring()')
-    a.wait_for_function('() => (window.__pushed.length + 0) >= 1 || true')
+    # the lock, the mark and the card settle on whichever tab won; both are read after a moment
     a.wait_for_timeout(1200)
     cards = pushed(a) + pushed(b)
     check(len(cards) == 1, 'one card across two tabs: %r' % cards)

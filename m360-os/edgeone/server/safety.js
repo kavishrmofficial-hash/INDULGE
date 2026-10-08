@@ -65,8 +65,9 @@ export function safetyActions(h) {
   const privateOf = p => { const sg = String(p || '').split('/'); return sg[0] === 'data' && sg[1] === 'users' ? sg[2] || '' : ''; };
   /* a person's prospects (data/users/<uid>/prospects, the month logs prospects.<YYYY-MM> and their -2 overflow)
      are that person's alone, the owner included: the history, the versions, the trash and the backup reads leave
-     them out for anyone else. The daily backup still keeps them, so a restore brings them back whole */
-  const PROSPECTS = /^prospects(\.\d{4}-\d{2}(-2)?)?$/;
+     them out for anyone else. So are the agent's ledger (agent) and the buddy thread (chat), which carry the
+     same words once a line is typed there. The daily backup still keeps them, so a restore brings them back whole */
+  const PROSPECTS = /^(prospects(\.\d{4}-\d{2}(-2)?)?|agent|chat)$/;
   const prospectsOf = p => { const sg = String(p || '').split('/'); return sg[0] === 'data' && sg[1] === 'users' && sg.length === 4 && PROSPECTS.test(sg[3]) ? sg[2] || '' : ''; };
   const hiddenFrom = (v, p) => { const who = prospectsOf(p); return !!who && who !== v.uid; };
   /* the docs of one collection, with another person's prospects left out */

@@ -1064,8 +1064,8 @@
         if (ctx.viewAs) throw new Error('prospects are private to each person');
         const w = M.when && M.when.parse ? M.when.parse(String(input.when || ''), now, s => (typeof ctx.isWorkingDay === 'function' ? ctx.isWorkingDay(s) : true)) : null;
         if (w && w.festival) throw new Error('which day is ' + U.cap(w.festival) + ' this year? Say the date');
-        const due = w && w.ymd ? w.ymd : ymdOk(input.when) ? input.when : today();
         const day = new Date(now + 330 * 60000).toISOString().slice(0, 10);
+        const due = w && w.ymd ? w.ymd : ymdOk(input.when) ? input.when : day;
         const who = cut(String(input.who || '').trim(), 60);
         if (who && M.prospects && M.prospects.apply) {
           const r = {kind: 'note', who, org: cut(String(input.org || '').trim(), 60), sent: null, when: {ymd: due, t: (w && w.t) || '', said: w ? w.said : '', after: (w && w.after) || '', rolledFrom: (w && w.rolledFrom) || ''}, meet: null, reply: '', said: text};

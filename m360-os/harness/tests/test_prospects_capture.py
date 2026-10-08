@@ -10,6 +10,10 @@ the COO holds a drafted Swisse follow-up card. Checks:
   Tata, their payment is overdue", "Called Priya at Nykaa, she went quiet, chase her next Tuesday") are captures;
   a teammate's flag is still an ask, and "remind me" about a teammate is an own follow-up with nobody attached;
 - "send the Swisse follow-up" still goes to coo_decide while "sent the Swisse follow-up" is captured;
+- in the dock (M.assistant.ask) a question is answered by the next short line with no model call ("When should I
+  remind you about Rahul?" then "tomorrow"; "Which Godrej" then "Godrej Properties"), the chips the panel shows are
+  lines the grammar reads back (Tomorrow, Next week, the brands, Undo, Keep the date private, Follow up with Nikhil
+  tomorrow), and a bare "done" closes only the follow-up the agent itself just set, never the one due today;
 - one line end to end: the receipt, the chips (Undo, Keep the date private), the ledger row (via typed or voice)
   and Undo until the end of the IST day; a pitch field changed by hand since is left alone and the receipt says so;
 - a tainted turn holds the shared send for a tap and keeps the private follow-up;
@@ -188,6 +192,41 @@ def test(h):
     ix = doc(IX)
     rahul = [f for f in ix['fu'].values() if f and f['x'] == 'talk after the 16th' and not f.get('done')]
     check(len(rahul) == 1 and rahul[0]['d'] == '2026-10-12' and not rahul[0].get('mirror'), 'Rahul is open again on Monday, private: %r' % rahul)
+
+    # ---- the dock: a question is answered by the next line, and the chips are lines the grammar reads ----
+    h.seed_doc(p, 'pitches/pt_godrej1', {**base, 'brand': 'Godrej Consumer', 'owner': F, 'stage': 'lead'})
+    h.seed_doc(p, 'pitches/pt_godrej2', {**base, 'brand': 'Godrej Properties', 'owner': F, 'stage': 'lead'})
+    p.wait_for_function('() => Object.keys(M.lastCtx.coll.pitches.map).length >= 5')
+    q = p.evaluate('''async () => { const ask = async s => { const r = await M.assistant.ask(M.lastCtx, s, {via: "typed"}); await new Promise(x => setTimeout(x, 350)); return [r.text, r.chips || null, !!r.grammar]; };
+      const fus = f => Object.values((window.__db.get("data/users/u_founder/prospects") || {}).fu || {}).filter(x => x && !x.done && f(x));
+      const out = {};
+      out.ask = await ask("Follow up with Rahul from Tata, their payment is overdue");
+      out.q = await ask("who do I follow up with today");
+      out.ans = await ask("tomorrow");
+      out.fu = fus(x => /payment is overdue/.test(x.x)).map(x => [x.d, x.p ? "p" : "", x.pi]);
+      out.which = await ask("spoke to Nikhil at Godrej, follow up next week");
+      out.pick = await ask("Godrej Properties");
+      out.nik = fus(x => x.pi === "pt_godrej2").map(x => x.d);
+      out.bare1 = M.agent.parse("done", M.lastCtx);
+      out.done = await ask("done with Nikhil");
+      out.bare2 = M.agent.parse("done", M.lastCtx);
+      out.next = await ask(out.done[1] ? out.done[1][0] : "");
+      out.nik2 = fus(x => x.pi === "pt_godrej2").map(x => x.d);
+      await M.assistant.send(M.lastCtx, "Rahul from Tata said talk after the 16th", {via: "typed"});
+      await new Promise(x => setTimeout(x, 350));
+      out.sent = M.assistant.st.chips;
+      M.brain.pending.list.slice().forEach(x => M.brain.drop(x.id));
+      return out; }''')
+    check(q['ask'] == ['When should I remind you about Rahul?', ['Tomorrow', 'Next week'], True], 'a follow-up word with no date asks, with the day chips: %r' % q['ask'])
+    check(q['q'][0] == 'Nothing to follow up today.', 'a question in between is read as itself: %r' % q['q'])
+    check(q['ans'][0].startswith('Noted. I will remind you on Tue 6 Oct at 10:00.') and q['ans'][1] == ['Undo', 'Keep the date private'] and q['fu'] == [['2026-10-06', 'p', 'pt_tata']], 'the next short line answers it, on Rahul and the Tata pitch: %r' % ((q['ans'], q['fu']),))
+    check(q['which'] == ['Which Godrej: Godrej Consumer or Godrej Properties?', ['Godrej Consumer', 'Godrej Properties'], True], 'two pitches ask, with the brands as chips: %r' % q['which'])
+    check(q['pick'][0].startswith('Logged. Spoke to Nikhil at Godrej Properties. I will remind you on Mon 12 Oct at 10:00.') and q['nik'] == ['2026-10-12'], 'the brand picks the pitch: %r' % q['pick'])
+    check(q['bare1'] and q['bare1']['action'] == 'follow_up' and q['bare1']['input'] == {'done': True}, 'a bare done right after the agent set one is that one: %r' % q['bare1'])
+    check(q['done'] == ['Done with Nikhil. When next?', ['Follow up with Nikhil tomorrow', 'Follow up with Nikhil next week'], True], 'done offers the next date on the same person: %r' % q['done'])
+    check(q['bare2'] is None, 'a bare done with nothing of the agent\'s open reads as nothing: %r' % q['bare2'])
+    check(q['next'][0].startswith('Noted. I will remind you on Tue 6 Oct at 10:00.') and q['nik2'] == ['2026-10-06'], 'the chip line lands on Nikhil and his pitch: %r' % q['next'])
+    check(q['sent'] == ['Undo', 'Keep the date private'], 'the panel keeps the chips after a sent line: %r' % q['sent'])
 
     # ---- a tainted turn holds the shared send ----
     tt = p.evaluate('''async () => { const c = M.lastCtx; const turn = {id: "t-taint", via: "typed", tainted: true, from: "the mail"};

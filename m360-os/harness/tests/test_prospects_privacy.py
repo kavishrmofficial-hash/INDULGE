@@ -6,9 +6,9 @@ own index is empty, the read of Durvesh's document is refused, search has no "Yo
 inbox carries no follow-up of Durvesh's, and the activity log line for the write shows the path and its keys with
 no name in it; a preview of Durvesh shows nothing. Durvesh's own page finds Meera in search and the inbox.
 On the team site (edgeone/dev/server.mjs, the real API code): a member writes data/users/<uid>/prospects and
-prospects.<YYYY-MM> (the flat four-segment path, as on the page); the owner is refused history and version on
-both, while the member reads their own history and the owner still reads history on the member's other private
-document; the daily backup, a backup read by day and by collection, a snapshot by collection and the whole
+prospects.<YYYY-MM> (the flat four-segment path, as on the page), and the agent ledger and buddy thread that carry
+the same typed line; the owner is refused history and version on all of them, while the member reads their own
+history and the owner still reads history on the member's other private document; the daily backup, a backup read by day and by collection, a snapshot by collection and the whole
 snapshot leave the two documents out for the owner while the backup blob keeps them; a deleted month log never
 shows in the owner's trash. The COO's state on the page and the server's collection list hold no data/users path
 and no prospects key. window.__sampleCalls stays empty.
@@ -189,7 +189,10 @@ def site_part():
             w2 = api(m, 'write', {'op': 'set', 'path': month, 'data': {'t': {'tt1': {'p': 'pp1', 'pi': '', 'k': 'talk', 'x': 'Spoke to Meera about the deck', 'at': NOW}}}})
             w3 = api(m, 'write', {'op': 'update', 'path': ix, 'data': {'prefs': {'mirror': False}}})
             w4 = api(m, 'write', {'op': 'set', 'path': 'data/users/%s/state' % muid, 'data': {'tab': 'home'}})
-            check(w1['ok'] and w2['ok'] and w3['ok'] and w4['ok'], 'the member writes the index, the month log (a four-segment path with a dot) and a state doc: %r' % [w1, w2, w3, w4])
+            # the agent's ledger and the buddy thread hold the typed line itself, so they close the same way
+            w5 = api(m, 'write', {'op': 'set', 'path': 'data/users/%s/agent' % muid, 'data': {'runs': [{'id': 'r1', 'at': NOW, 'said': 'Spoke to Meera at Swisse, talk after the 16th', 'via': 'typed', 'acts': []}], 'at': NOW}})
+            w6 = api(m, 'write', {'op': 'set', 'path': 'data/users/%s/chat' % muid, 'data': {'turns': [{'role': 'user', 'content': 'Spoke to Meera at Swisse, talk after the 16th', 'at': NOW}], 'at': NOW}})
+            check(w1['ok'] and w2['ok'] and w3['ok'] and w4['ok'] and w5['ok'] and w6['ok'], 'the member writes the index, the month log (a four-segment path with a dot), a state doc, the ledger and the thread: %r' % [w1, w2, w3, w4, w5, w6])
             s = store_all()
             check(('d/' + ix.replace('/', '~')) in s and ('d/' + month.replace('/', '~')) in s, 'both documents sit in the store under their flat keys: %r' % [k for k in s if 'prospects' in k])
             # the page's copy arrives on one of its next sync rounds (the write above went straight to the API)
@@ -211,6 +214,9 @@ def site_part():
             ov = api(f, 'version', {'path': ix, 'id': '1000000000000~' + muid})
             orv = api(f, 'revert', {'path': ix, 'id': '1000000000000~' + muid})
             check(all(not x['ok'] and x['status'] == 403 for x in (oh, om, ov, orv)), 'the owner is refused history, version and revert on a member\'s prospects: %r' % [oh, om, ov, orv])
+            oa = api(f, 'history', {'path': 'data/users/%s/agent' % muid})
+            oc = api(f, 'history', {'path': 'data/users/%s/chat' % muid})
+            check(all(not x['ok'] and x['status'] == 403 for x in (oa, oc)), 'the owner is refused history on a member\'s agent ledger and buddy thread: %r' % [oa, oc])
             ost = api(f, 'history', {'path': 'data/users/%s/state' % muid})
             check(ost['ok'] and isinstance(ost['r'].get('versions'), list), 'the owner still reads history on the member\'s other private document: %r' % ost)
             own = api(f, 'history', {'path': 'data/users/%s/prospects' % f.evaluate('() => window.M360_API("me").then(x => x.uid)')})
@@ -222,8 +228,8 @@ def site_part():
             coll = 'data/users/' + muid
             blob = s = store_all()
             bkeys = [k for k in blob if k.startswith('bk/%s/' % today) and 'users' in k]
-            kept = any('prospects' in blob[k] for k in bkeys)
-            check(bkeys and kept, 'the backup blob keeps the prospects documents: %r' % bkeys)
+            kept = any('prospects' in blob[k] and '"agent"' in blob[k] and '"chat"' in blob[k] for k in bkeys)
+            check(bkeys and kept, 'the backup blob keeps the prospects documents, the ledger and the thread: %r' % bkeys)
             one = api(f, 'backupget', {'ymd': today, 'coll': coll})
             check(one['ok'] and sorted(one['r']['docs']) == ['state'], 'a backup read by collection leaves the prospects out: %r' % sorted(one['r'].get('docs', {})) if one['ok'] else 'backupget by coll: %r' % one)
             day = api(f, 'backupget', {'ymd': today})

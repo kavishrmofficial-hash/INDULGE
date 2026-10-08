@@ -122,7 +122,7 @@
       /* an answer the m360 COO gave carries its face in the thread */
       const coo = /^coo_/.test(route.grammar.action) && !g.error;
       if (coo) cooSaid.add(g.text);
-      return {text: g.text, turn, grammar: true, waiting: !!g.waiting, err: !!g.error, coo};
+      return {text: g.text, turn, grammar: true, waiting: !!g.waiting, err: !!g.error, coo, chips: g.chips || null};
     }
     if (!M.ai.on(ctx)) return {text: '', turn, err: M.ai.errCopy('not_declared') + ' ' + OFFLINE_LINE, chips: offline()};
     const gone = () => { if (o.signal && o.signal.aborted) throw Object.assign(new Error('cancelled'), {code: 'cancelled'}); };
@@ -210,7 +210,7 @@
         return r;
       }
       await M.chat.append(ctx, [{role: 'assistant', content: r.text || 'Done.', ...(acts.length ? {acts} : {})}]);
-      S.set({phase: 'answer', live: '', acts: [], announce: r.text || 'Done.'});
+      S.set({phase: 'answer', live: '', acts: [], chips: r.chips || null, announce: r.text || 'Done.'});
       if (!r.grammar && M.brain) M.brain.compact(ctx).catch(() => {});
       if (!o.dock && M.prefs.get('askAloud', '0') === '1' && M.speech) M.speech.say(r.text, o.lang || 'en').catch(() => {});
       done({text: r.text, via: o.via, dock: o.dock, walk: r.walk, waiting: r.waiting, turn: r.turn});
