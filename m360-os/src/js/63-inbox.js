@@ -19,8 +19,9 @@
   /* the list, worked out once per context: the badge, the drawer and the watcher all read the same one */
   const memo = new WeakMap();
   function items(ctx) {
-    /* the COO's cards live outside the context: their version joins the key */
-    const v = M.cooUi ? M.cooUi.version() : 0;
+    /* the COO's cards live outside the context: their version joins the key. So does the prospects index
+       on a build that reads it outside ctx.priv (the store's version is 0 once ctx.priv.prospects feeds it). */
+    const v = (M.cooUi ? M.cooUi.version() : 0) + ':' + (M.prospects && M.prospects.version ? M.prospects.version() : 0);
     let list = memo.get(ctx);
     if (!list || list.v !== v) { list = build(ctx); list.v = v; memo.set(ctx, list); }
     return list;
@@ -92,6 +93,17 @@
     if (M.pm && M.pm.loaded(ctx)) for (const it of M.pm.inboxItems(ctx)) push(it.id, 'pm', it.at, T`${it.line}`, it.ref, it.actor, it.hot, true, true);
     /* the COO's lines for the founder: an urgent card, the morning brief, undo windows about to close */
     if (M.cooUi && ctx.isFounder) for (const it of M.cooUi.founderItems(ctx)) push(it.id, 'coo', it.at, T`${it.line}`, it.ref, M.coo.UID, it.hot);
+    /* the viewer's own follow-ups, once due: silent here (FollowWatch rings them), hot when late. Nothing is
+       stored. When the COO already holds an open card on the same pitch, the line says so and stays quiet. */
+    if (M.prospects && M.prospects.inboxItems && !ctx.viewAs) {
+      let cards = [];
+      if (ctx.isFounder && M.coo && M.coo.decisions && M.cooUi && M.cooUi.openCards) { try { cards = M.cooUi.openCards({dec: M.coo.decisions(ctx)}); } catch (e) { cards = []; } }
+      const cooHas = pi => !!pi && cards.some(c => c && c.refs && c.refs.pitch === pi);
+      for (const it of M.prospects.inboxItems(ctx)) {
+        const dup = cooHas(it.pi);
+        push(it.id, 'follow', it.at, T`${it.line + (dup ? ' The COO has a draft for this too.' : '')}`, it.ref, null, it.hot && !dup, true);
+      }
+    }
     /* kudos to me */
     const kmap = ctx.coll.kudos.map;
     for (const giver of Object.keys(kmap)) for (const k of (kmap[giver].given || [])) {
@@ -147,7 +159,7 @@
   const seenAt = ctx => Number(((ctx.coll.me.map[ctx.uid] || {}).inboxSeen) || 0);
   const unread = ctx => items(ctx).filter(i => i.at > seenAt(ctx)).length;
 
-  const KIND_ICON = {coo: 'bell', pm: 'bell', tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift', fix: 'fix', chat: 'send', books: 'log', flag: 'shield'};
+  const KIND_ICON = {coo: 'bell', pm: 'bell', follow: 'bell', tasks: 'tasks', review: 'review', feed: 'feed', scores: 'scores', leave: 'leave', people: 'people', gift: 'gift', fix: 'fix', chat: 'send', books: 'log', flag: 'shield'};
 
   function Inbox({onClose}) {
     const ctx = M.useCtx();
@@ -185,7 +197,7 @@
      a backlog never rains down. ---------- */
   /* "Durvesh and Aanya", "Durvesh, Aanya and Ishaan", "Durvesh, Aanya and 4 more" */
   const namesOf = ws => ws.length <= 3 ? ws.slice(0, -1).join(', ') + (ws.length > 1 ? ' and ' : '') + ws[ws.length - 1] : ws.slice(0, 2).join(', ') + ' and ' + (ws.length - 2) + ' more';
-  const TITLE = {coo: 'm360 COO', pm: 'Your bot', tasks: 'Work', review: 'Review', feed: 'Feed', scores: 'Kudos', leave: 'Leave', people: 'Team', gift: 'Today', fix: 'Correction', books: 'Books', flag: 'Flag'};
+  const TITLE = {coo: 'm360 COO', pm: 'Your bot', follow: 'Follow-up', tasks: 'Work', review: 'Review', feed: 'Feed', scores: 'Kudos', leave: 'Leave', people: 'Team', gift: 'Today', fix: 'Correction', books: 'Books', flag: 'Flag'};
   function InboxWatch() {
     const ctx = M.useCtx();
     const uid = ctx.uid;

@@ -133,7 +133,7 @@
   }
 
   /* ---------- Accounts ---------- */
-  function Accounts({tab}) {
+  function Accounts({tab, id}) {
     const ctx = M.useCtx();
     const clients = Object.keys(ctx.coll.clients.map).map(k => ctx.coll.clients.map[k]);
     const live = clients.filter(c => c.status === 'live').length;
@@ -153,7 +153,7 @@
         </div>
       <//>
       <${M.SectionTabs} section="accounts" active=${t}/>
-      ${t === 'pipeline' ? html`<${Embed} page="Pitches"/>` : t === 'crm' && M.parts.CRM ? html`<${M.parts.CRM}/>` : t === 'handshake' ? html`<${Embed} page="Handshake"/>` : html`<${Embed} page="Clients"/>`}
+      ${t === 'pipeline' ? html`<${Embed} page="Pitches"/>` : t === 'prospects' ? html`<${Embed} page="Prospects" id=${id}/>` : t === 'crm' && M.parts.CRM ? html`<${M.parts.CRM}/>` : t === 'handshake' ? html`<${Embed} page="Handshake"/>` : html`<${Embed} page="Clients"/>`}
     </div>`;
   }
 

@@ -84,7 +84,11 @@
     const open = r => {
       if (r.org) M.nav('#companies/' + r.org.id);
       else if (r.client) M.nav('#clients/' + r.client.id);
-      else M.nav('#pitches');
+      else {
+        /* a pitch-only row opens its soonest open pitch */
+        const p = r.pitches.filter(x => x.stage !== 'won' && x.stage !== 'lost').sort((a, b) => (a.nextDate || '9999').localeCompare(b.nextDate || '9999') || (b.stageAt || 0) - (a.stageAt || 0))[0] || r.pitches[0];
+        M.nav(p && p.id ? '#pitches/' + p.id : '#pitches');
+      }
     };
     const nextPill = r => {
       if (!r.next) return null;

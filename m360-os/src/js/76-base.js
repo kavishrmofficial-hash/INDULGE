@@ -845,7 +845,8 @@
     const client = o && o.client ? ctx.coll.clients.map[o.client] : null;
     const projects = client ? Object.keys(ctx.coll.projects.map).map(k => ({id: k, ...ctx.coll.projects.map[k]})).filter(p => p.client === o.client && !p.archived) : [];
     const pn = norm.name(o ? o.name : f.orgName), cn = client ? norm.name(client.name) : '';
-    const pitches = Object.keys(ctx.coll.pitches.map).map(k => ({id: k, ...ctx.coll.pitches.map[k]})).filter(p => { if (o && p.org === o.id) return true; const b = norm.name(p.brand); return b && (b === pn || (cn && b === cn)); });
+    /* a pitch whose contact is this person counts too (v34: the pipeline links a Base contact by id) */
+    const pitches = Object.keys(ctx.coll.pitches.map).map(k => ({id: k, ...ctx.coll.pitches.map[k]})).filter(p => { if (existing && p.contact === existing.id) return true; if (o && p.org === o.id) return true; const b = norm.name(p.brand); return b && (b === pn || (cn && b === cn)); });
 
     const pickOrg = (v, name) => setF(x => ({...x, org: v, orgName: v ? (name || (ix && ix.oById[v] ? ix.oById[v].name : x.orgName)) : x.orgName}));
     const newOrg = async () => {
@@ -941,10 +942,11 @@
             ${client ? html`<div class="row small"><span class="ink62">client</span><button type="button" class="linky" onClick=${() => go('#clients')}>${client.name}</button><${UI.Pill} kind="ink">${client.status || 'live'}<//></div>`
               : html`<div class="small ink62">${o ? 'This company is not mapped to a client.' : 'No company on this person yet.'}</div>`}
             ${projects.map(p => html`<div key=${p.id} class="row small"><span class="ink62">project</span><button type="button" class="linky" onClick=${() => go('#projects/' + p.id)}>${p.name}</button><span class="tiny ink62">${p.status || ''}</span></div>`)}
-            ${pitches.map(p => html`<div key=${p.id} class="row small"><span class="ink62">pitch</span><button type="button" class="linky" onClick=${() => go('#pitches')}>${p.brand}</button><span class="tiny ink62">${p.stage || ''}</span></div>`)}
+            ${pitches.map(p => html`<div key=${p.id} class="row small"><span class="ink62">pitch</span><button type="button" class="linky" onClick=${() => go('#pitches/' + p.id)}>${p.brand}</button><span class="tiny ink62">${p.stage || ''}</span></div>`)}
           </div>
         <//>` : null}
         ${!isNew && M.parts.Connections ? html`<${M.parts.Connections} kind="contact" id=${existing.id}/>` : null}
+        ${!isNew && M.parts.ContactConversations ? html`<${M.parts.ContactConversations} cid=${existing.id} who=${existing.name} org=${o ? o.name : f.orgName} role=${existing.title} oid=${o ? o.id : ''} client=${client && o ? {...client, id: o.client} : null}/>` : null}
         ${!isNew ? html`<${IntroNote} c=${existing} o=${o}/>` : null}
       </div>
     <//>`;
