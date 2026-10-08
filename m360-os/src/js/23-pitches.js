@@ -115,8 +115,11 @@
   /* ---------- board ---------- */
   /* the latest shared send, in one line: "Sent to Meera, 3 days, no reply yet" or "Meera replied" */
   function SendLine({p}) {
+    const ctx = M.useCtx();
     const s = M.prospects && M.prospects.latestSend ? M.prospects.latestSend(p) : null;
-    const cid = s && /^[A-Za-z0-9_-]{1,40}$/.test(String(s.to || '')) ? s.to : null;
+    /* the Base is asked only for a contact id (c_...) or an id the local index knows, never for a typed name */
+    const to = String((s && s.to) || '');
+    const cid = s && (/^c_/.test(to) || (/^[A-Za-z0-9_-]{1,40}$/.test(to) && M.search && M.search.contactById && !!M.search.contactById(ctx, to))) ? to : null;
     const got = M.base && M.base.useRow ? M.base.useRow('contacts', cid) : {row: null};
     if (!s || !M.prospectsUi) return null;
     const who = got.row ? String(got.row.name || got.row.first || 'them').split(' ')[0] : /^c_/.test(String(s.to || '')) ? 'them' : (String(s.to || 'them').split(/[,\s]+/)[0] || 'them');

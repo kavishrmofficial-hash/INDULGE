@@ -456,11 +456,15 @@
         let r = null;
         try { r = M.prospects.read(text, ctx); } catch (e) { r = null; }
         if (r && M.prospects.isCapture(r)) {
+          /* a follow-up word with a person and no day: ask for the day here, since a toast cannot hold the chips */
+          if (!(M.agent && M.agent.capture) && r.needDate && !(r.when && r.when.ymd)) { M.toast('When should I remind you? Add a day, for example: after the 16th.'); return; }
           setBusy(true);
           try {
             const out = M.agent && M.agent.capture ? await M.agent.capture(ctx, text, {}) : await M.prospects.apply(ctx, r, {}, {});
-            M.toast((out && (out.say || out.text || out.ask)) || 'Logged on Prospects');
-            setQ('');
+            const asked = !!(out && (out.ask || out.waiting || /^(When|Which)\b/.test(String(out.say || out.text || ''))));
+            M.toast((out && (out.ask || out.say || out.text)) || 'Logged on Prospects');
+            /* a question keeps the line in the box, so it can be said again with the answer; a log clears it */
+            if (!asked) setQ('');
           } catch (e) { /* toasted by the write layer */ }
           setBusy(false);
           return;

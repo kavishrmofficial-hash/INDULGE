@@ -195,14 +195,21 @@
           r = await P().apply(ctx, rd, preset || {}, {});
         }
         if (r && r.ask) { setOut({text: r.ask, chips: r.chips || []}); setBusy(false); return; }
-        setOut({text: (r && (r.say || r.text)) || 'Logged.', chips: (r && r.chips) || [], hold: (r && r.hold) || [], undo: r && (r.undo || r.undoId)});
+        setOut({text: (r && (r.say || r.text)) || 'Logged.', chips: (r && r.chips) || [], hold: (r && r.hold) || [], undo: r && r.undo, undoId: r && r.undoId});
         setText('');
         M.sound.play('soft');
       } catch (e) { setOut({err: (e && e.message) || 'That did not save. Try again.'}); }
       setBusy(false);
     };
+    /* Undo: a run through the agent sits in its ledger (undoId), so the ledger takes it back; the fallback
+       path holds the store's own undo record */
+    const undoNow = () => {
+      if (out && out.undoId && M.agent && M.agent.undo) return M.agent.undo(ctx, out.undoId).then(r => setOut({text: (r && r.say) || 'Undone.'})).catch(e => setOut({err: (e && e.message) || 'That cannot be undone now.'}));
+      if (out && out.undo && P().undo) return P().undo(ctx, out.undo).then(s => setOut({text: s || 'Undone.'})).catch(() => {});
+      return run('Undo');
+    };
     const chip = c => {
-      if (typeof c === 'string') { if (c === 'Undo' && out && out.undo && P().undo) P().undo(ctx, out.undo).then(s => setOut({text: s || 'Undone.'})).catch(() => {}); else run(c); return; }
+      if (typeof c === 'string') { if (c === 'Undo') undoNow(); else run(c); return; }
       if (c && typeof c.run === 'function') Promise.resolve(c.run(ctx)).then(r => { if (r && (r.say || r.text)) setOut({text: r.say || r.text, chips: r.chips || []}); else if (typeof r === 'string') setOut({text: r}); else setOut(x => x ? {...x, chips: (x.chips || []).filter(y => y !== c)} : x); }).catch(() => {});
     };
     const heard = t => { setText(t); const rd = safe(() => P().read(t, ctx)); if (rd && P().isCapture(rd)) run(t); };
@@ -618,7 +625,10 @@
   /* a recipient: a Base id resolves to its name; typed text shows as typed */
   const idLike = v => /^[A-Za-z0-9_-]{1,40}$/.test(String(v || ''));
   function ToName({to}) {
-    const got = M.base && M.base.useRow ? M.base.useRow('contacts', idLike(to) ? to : null) : {row: null};
+    const ctx = M.useCtx();
+    /* the Base is asked for a contact id (c_...) or an id the local index knows, never for a typed name */
+    const id = isCid(to) || (idLike(to) && M.search && M.search.contactById && !!M.search.contactById(ctx, to)) ? to : null;
+    const got = M.base && M.base.useRow ? M.base.useRow('contacts', id) : {row: null};
     if (got.row) return html`<span>${nameOf(got.row)}</span>`;
     return html`<span>${isCid(to) ? 'a contact' : String(to || 'someone')}</span>`;
   }
@@ -836,7 +846,8 @@
       const t = time(s);
       const dayOf = (d, mon, pre) => {
         let y = ty, mo = mon || tm;
-        if (!mon && d <= tdd) mo = tm + 1;
+        /* "the 16th" on the 16th is today; a day that has passed means next month */
+        if (!mon && d < tdd) mo = tm + 1;
         if (mo > 12) { mo -= 12; y += 1; }
         let i = 0;
         while (d > daysIn(y, mo) && i++ < 12) { mo += 1; if (mo > 12) { mo = 1; y += 1; } }
@@ -853,9 +864,9 @@
         out = {ymd: u.startsWith('day') ? ist.add(td, k) : u.startsWith('week') ? ist.add(td, 7 * k) : mk(ty, tm + k, Math.min(tdd, daysIn(ty, tm + k))), said: m[0].trim()};
       } else if ((m = s.match(/\bend of (the )?month\b/))) { let d = mk(ty, tm, daysIn(ty, tm)); while (ist.dow(d) === 0 || (isWorkingDay && !isWorkingDay(d))) d = ist.add(d, -1); out = {ymd: d, said: 'end of month'}; }
       else if ((m = s.match(/\b(after|on|by)?\s*(the )?(\d{1,2})(st|nd|rd|th)?( of)?\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/))) out = {ymd: dayOf(Number(m[3]), MON.findIndex(x => x.toLowerCase() === m[6]) + 1), said: m[0].trim(), pre: m[1] || ''};
-      else if ((m = s.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2})(st|nd|rd|th)?\b/))) out = {ymd: dayOf(Number(m[2]), MON.findIndex(x => x.toLowerCase() === m[1]) + 1), said: m[0].trim()};
+      else if ((m = s.match(/\b(after|on|by)?\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2})(st|nd|rd|th)?\b/))) out = {ymd: dayOf(Number(m[3]), MON.findIndex(x => x.toLowerCase() === m[2]) + 1), said: m[0].trim(), pre: m[1] || ''};
       else if ((m = s.match(/\b(after|on|by)\s+(the )?(\d{1,2})(st|nd|rd|th)\b/)) || (m = s.match(/\b(after|on|by)\s+(the )(\d{1,2})\b/))) out = {ymd: dayOf(Number(m[3])), said: m[0].trim(), pre: m[1]};
-      else if ((m = s.match(/\b(\d{1,2})\/(\d{1,2})\b/))) out = {ymd: dayOf(Number(m[1]), Number(m[2])), said: m[0]};
+      else if ((m = s.match(/\b(after|on|by)?\s*(\d{1,2})\/(\d{1,2})\b/))) out = {ymd: dayOf(Number(m[2]), Number(m[3])), said: m[0].trim(), pre: m[1] || ''};
       else if ((m = s.match(/\b(next|this|after|on|by)?\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat)\b/))) {
         const dow = DOWS.findIndex(x => x.startsWith(m[2].slice(0, 3)));
         const pre = m[1] || '';
@@ -865,7 +876,8 @@
       }
       if (!out) return null;
       const r = {ymd: out.ymd, t: t || '', after: '', by: '', said: out.said};
-      if (out.pre === 'after' || /\bafter\b/.test(out.said)) { r.after = out.ymd; r.ymd = ist.add(out.ymd, 1); }
+      /* "after" is the word before the date; "day after tomorrow" is a date of its own */
+      if (out.pre === 'after') { r.after = out.ymd; r.ymd = ist.add(out.ymd, 1); }
       if (out.pre === 'by') r.by = out.ymd;
       if (out.alt) r.alt = out.alt;
       if (!r.t) {
@@ -886,6 +898,8 @@
   const month = (uid, ym) => path(uid) + '.' + ym;
   const DAY = 86400000;
   const OPEN_PITCH = p => p && p.stage !== 'won' && p.stage !== 'lost';
+  /* the pitch owner's first name for a receipt, when the page holds it */
+  const ownerName = (ctx, pitch) => { const m = ctx.coll && ctx.coll.me && ctx.coll.me.map ? ctx.coll.me.map[pitch.owner] : null; return U.firstName(m && m.name) || 'Someone else'; };
 
   /* the index, read live for the signed-in person; nothing under a preview */
   let S = {uid: null, ready: false, data: null, ver: 0};
@@ -950,8 +964,9 @@
     if (o.sid) row.sid = o.sid;
     await WM(ctx, ym, {t: {[tid]: row}});
     if (o.p) {
-      const p = data(ctx).people[o.p];
-      if (p) await W(ctx, {people: {[o.p]: {last: {at, k: row.k}, mo: Array.from(new Set((p.mo || []).concat([ym]))).sort(), up: at, ...(o.pi && !(p.pi || []).includes(o.pi) ? {pi: (p.pi || []).concat([o.pi]).slice(0, 10)} : {})}}});
+      /* a person made a moment ago is not in the snapshot yet: the last touch and the month go on regardless */
+      const p = data(ctx).people[o.p] || {};
+      await W(ctx, {people: {[o.p]: {last: {at, k: row.k}, mo: Array.from(new Set((p.mo || []).concat([ym]))).sort(), up: at, ...(o.pi && !(p.pi || []).includes(o.pi) ? {pi: (p.pi || []).concat([o.pi]).slice(0, 10)} : {})}}});
     }
     return tid;
   }
@@ -990,9 +1005,10 @@
   /* ---------- follow-ups and the bridge ---------- */
   const mayMirror = (ctx, pitch) => !!pitch && (pitch.owner === ctx.uid || ctx.isFounder);
   const mirrorText = (ctx, f) => { const p = f.pi ? ctx.coll.pitches.map[f.pi] : null; const s = p && f.sid && p.sent && p.sent[f.sid]; return s && s.what ? 'Follow up on ' + s.what : 'Follow up'; };
-  async function bridge(ctx, fid, on) {
+  /* rec: the follow-up as just written, for a caller whose write has not come back in the snapshot yet */
+  async function bridge(ctx, fid, on, rec) {
     const d = data(ctx);
-    const f = d.fu[fid];
+    const f = rec || d.fu[fid];
     if (!f || !f.pi) return false;
     const pitch = ctx.coll.pitches.map[f.pi];
     if (!pitch) return false;
@@ -1017,23 +1033,30 @@
     if (moveTo) await ctx.W.merge('pitches/' + f.pi, {nextDate: moveTo, updated: Date.now()});
     else await ctx.W.merge('pitches/' + f.pi, {next: '', nextDate: '', nextBy: '', updated: Date.now()});
   }
-  async function setFollow(ctx, o) {
+  /* follow-ups settled a moment ago, which the snapshot may still show open */
+  const settled = new Map();
+  const justSettled = fid => Date.now() - (settled.get(fid) || 0) < 10000;
+  /* writes the follow-up and gives back its record, with mirror set when the bridge ran */
+  async function putFollow(ctx, o) {
     const d = data(ctx);
     const now = Date.now();
     const fid = id('fu');
     const patch = {};
-    for (const k of Object.keys(d.fu)) { const f = d.fu[k]; if (f && !f.done && ((o.p && f.p === o.p) || (o.pi && f.pi === o.pi))) { patch[k] = {done: {at: now, how: 'moved'}}; if (f.mirror) await clearMirror(ctx, f); } }
-    patch[fid] = {p: o.p || '', pi: o.pi || '', x: String(o.x || '').slice(0, 200), d: o.d, t: o.t || '', after: o.after || '', said: String(o.said || '').slice(0, 60), src: o.src || 'form', snz: [], at: now, ...(o.sid ? {sid: o.sid} : {})};
+    for (const k of Object.keys(d.fu)) { const f = d.fu[k]; if (f && !f.done && !justSettled(k) && ((o.p && f.p === o.p) || (o.pi && f.pi === o.pi))) { patch[k] = {done: {at: now, how: 'moved'}}; settled.set(k, now); if (f.mirror) await clearMirror(ctx, f); } }
+    const rec = {p: o.p || '', pi: o.pi || '', x: String(o.x || '').slice(0, 200), d: o.d, t: o.t || '', after: o.after || '', said: String(o.said || '').slice(0, 60), src: o.src || 'form', snz: [], at: now, ...(o.sid ? {sid: o.sid} : {})};
+    patch[fid] = rec;
     await W(ctx, {fu: patch});
     /* the bridge, on by default: the date and "Follow up" onto the pitch the viewer owns, never the note */
-    if (o.pi && d.prefs.mirror !== false && o.mirror !== false) await bridge(ctx, fid, true).catch(() => false);
-    return fid;
+    if (o.pi && d.prefs.mirror !== false && o.mirror !== false && await bridge(ctx, fid, true, rec).catch(() => false)) rec.mirror = {nextDate: rec.d, next: mirrorText(ctx, rec)};
+    return {fid, rec};
   }
+  const setFollow = (ctx, o) => putFollow(ctx, o).then(r => r.fid);
   async function done(ctx, fid, how) {
     const d = data(ctx);
     const f = d.fu[fid];
     if (!f) return;
     const now = Date.now();
+    settled.set(fid, now);
     await W(ctx, {fu: {[fid]: {done: {at: now, how: how || 'done'}}}});
     if (f.mirror) await clearMirror(ctx, f);
     if (f.p) await logTouch(ctx, {p: f.p, pi: f.pi || '', k: how === 'replied' ? 'reply' : 'done', x: how === 'replied' ? 'They replied' : 'Follow-up done' + (f.x ? ': ' + f.x : ''), at: now});
@@ -1254,19 +1277,20 @@
     if (r.kind === 'meet-plan' && r.meet) { undo.mid = await setMeet(ctx, {p: pid, pi: pitchId, d: r.meet.d, t: r.meet.t, where: '', x: ''}); }
     if (r.kind === 'reply' && pitch) { const s = latestSend(pitch); if (s) await setReply(ctx, pitchId, s.sid, r.reply === 'no' ? 'no' : 'replied'); }
     const when = r.when && r.when.ymd ? r.when : null;
+    let f = null;
     if (when) {
-      fid = await setFollow(ctx, {p: pid, pi: pitchId, x: r.sent ? 'Follow up on the ' + (r.sent.what || 'deck') : (r.kind === 'note' ? line.slice(0, 200) : 'Follow up'), d: when.ymd, t: when.t || '', after: when.after || '', said: when.said || '', src: preset.via === 'voice' ? 'voice' : 'typed'});
+      ({fid, rec: f} = await putFollow(ctx, {p: pid, pi: pitchId, x: r.sent ? 'Follow up on the ' + (r.sent.what || 'deck') : (r.kind === 'note' ? line.slice(0, 200) : 'Follow up'), d: when.ymd, t: when.t || '', after: when.after || '', said: when.said || '', src: preset.via === 'voice' ? 'voice' : 'typed'}));
       says.push('I will remind you on ' + W_.readBack(when) + (when.t || when.rolledFrom ? '' : ' at 10:00') + '.');
     } else if (r.kind === 'sent' && pitchId) {
       const k = /proposal|quote/i.test(r.sent.what || '') ? 5 : 3;
-      fid = await setFollow(ctx, {p: pid, pi: pitchId, x: 'Check ' + (first || 'they') + ' saw the ' + (r.sent.what || 'deck'), d: workingDays(ctx, today(), k), t: '', src: 'sent', sid});
+      ({fid, rec: f} = await putFollow(ctx, {p: pid, pi: pitchId, x: 'Check ' + (first || 'they') + ' saw the ' + (r.sent.what || 'deck'), d: workingDays(ctx, today(), k), t: '', src: 'sent', sid}));
       says.push('I will check back with you on ' + W_.label(workingDays(ctx, today(), k)) + '.');
     }
     undo.fid = fid;
-    const f = fid ? data(ctx).fu[fid] : null;
     const chips = [];
     if (fid && f && f.mirror) says.push(pitch.brand + ' next step: ' + W_.label(f.d) + '.');
-    else if (fid && pitch && !mayMirror(ctx, pitch)) says.push('Someone else owns the ' + pitch.brand + ' pitch. Your date stays with you.');
+    else if (fid && pitch && !mayMirror(ctx, pitch)) says.push(ownerName(ctx, pitch) + ' owns the ' + pitch.brand + ' pitch. Your date stays with you.');
+    else if (fid && pitch && pitch.next && !f.mirror) says.push('The ' + pitch.brand + ' next step stays as typed.');
     chips.push('Undo');
     if (fid) chips.push({label: 'Tomorrow', run: x => setFollow(x, {...f, d: W_.ist.add(today(), 1), src: 'form'}).then(() => 'Moved to ' + W_.label(W_.ist.add(today(), 1)) + '.')}, {label: 'Next week', run: x => { let dd = W_.ist.add(today(), 1); while (W_.ist.dow(dd) !== 1) dd = W_.ist.add(dd, 1); return setFollow(x, {...f, d: dd, src: 'form'}).then(() => 'Moved to ' + W_.label(dd) + '.'); }}, {label: 'No follow-up', run: x => drop(x, fid).then(() => 'Dropped the follow-up.')});
     if (fid && f && f.mirror) chips.push({label: 'Keep the date private', run: x => bridge(x, fid, false).then(() => 'Kept private. The pitch next step is cleared.')});
@@ -1324,10 +1348,17 @@
           if (at > now || done.has(key)) continue;
           due.push({key, mid, m, p: m.p ? d.people[m.p] : null});
         }
-        /* a day missed with m360 closed: one card on the first open, once per day per device */
-        let catchKey = '';
-        try { catchKey = localStorage.getItem('fuCatch.' + uid) || ''; } catch (e) { catchKey = ''; }
-        if (late.length && catchKey !== td) {
+        if (!due.length && !late.length) return;
+        /* a hidden tab waits a pass, so a visible device wins; the catch-up card waits the same way */
+        const waits = keys => { const fresh = keys.filter(k => !seenHidden.has(k)); fresh.forEach(k => seenHidden.add(k)); return fresh.length > 0; };
+        const dueWait = due.length > 0 && document.hidden && waits(due.map(x => x.key));
+        const lateWait = late.length > 0 && document.hidden && waits(['catch:' + td]);
+        /* a day missed with m360 closed: one card on the first open, once per day per device. The mark is
+           read again under the lock, so two tabs opened together show it once. */
+        const catchUp = () => {
+          let catchKey = '';
+          try { catchKey = localStorage.getItem('fuCatch.' + uid) || ''; } catch (e) { catchKey = ''; }
+          if (catchKey === td) return;
           try { localStorage.setItem('fuCatch.' + uid, td); } catch (e) { /* private window */ }
           const one = late[0];
           const who = one.p ? one.p.who + (one.p.org ? ' at ' + one.p.org : '') : (one.f.x || 'a reminder');
@@ -1335,28 +1366,33 @@
             body: late.length === 1 ? who : late.map(x => x.p ? x.p.who : (x.f.x || 'a reminder')).slice(0, 2).join(', ') + (late.length > 2 ? ' and ' + (late.length - 2) + ' more' : ''),
             href: '#prospects', icon: 'bell', life: 60000, hidden: 'Open m360 to see who.', away: {title: 'A follow-up is waiting', body: 'Open m360 to see who.'}});
           M.sound.play('soft');
-        }
-        if (!due.length) return;
-        if (document.hidden) { const fresh = due.filter(x => !seenHidden.has(x.key)); fresh.forEach(x => seenHidden.add(x.key)); if (fresh.length) return; }
+        };
+        /* the ring: the mark is read again and written first under the lock, so two tabs that fell due in
+           the same moment ring once between them */
         const ring = () => {
-          const keys = due.map(x => x.key);
+          const marked = new Set(rung(uid));
+          const now2 = due.filter(x => !marked.has(x.key));
+          if (!now2.length) return;
+          const keys = now2.map(x => x.key);
           markRung(uid, keys);
           const whoOf = x => x.p ? x.p.who + (x.p.org ? ' at ' + x.p.org : '') : (x.f ? x.f.x || 'A reminder' : 'A meeting');
-          if (due.length === 1) {
-            const x = due[0];
+          if (now2.length === 1) {
+            const x = now2[0];
             const title = x.m ? 'Meeting with ' + (x.p ? x.p.who : 'them') + (x.m.t ? ' at ' + x.m.t : '') : (x.p ? 'Follow up with ' + x.p.who : (x.f.x || 'A reminder'));
             const body = x.m ? (x.m.where || 'Kept in m360 only.') : [x.p && x.p.org, x.f.said ? 'You said ' + x.f.said + '.' : (x.f.x && x.f.x !== title ? x.f.x : '')].filter(Boolean).join('. ');
             M.notices.push({key: x.key, title, body, href: x.p ? '#prospects/' + (x.f ? x.f.p : x.m.p) : '#prospects', icon: 'bell', life: 60000, hidden: 'Open m360 to see who.', away: {title: 'A follow-up is due', body: 'Open m360 to see who.'}});
           } else {
-            M.notices.push({key: keys.join('|'), title: due.length + ' follow-ups today', body: due.slice(0, 2).map(whoOf).join(', ') + (due.length > 2 ? ' and ' + (due.length - 2) + ' more' : '') + '.', href: '#prospects', icon: 'bell', life: 60000, hidden: 'Open m360 to see who.', away: {title: 'Follow-ups are due', body: 'Open m360 to see who.'}});
+            M.notices.push({key: keys.join('|'), title: now2.length + ' follow-ups today', body: now2.slice(0, 2).map(whoOf).join(', ') + (now2.length > 2 ? ' and ' + (now2.length - 2) + ' more' : '') + '.', href: '#prospects', icon: 'bell', life: 60000, hidden: 'Open m360 to see who.', away: {title: 'Follow-ups are due', body: 'Open m360 to see who.'}});
           }
           M.sound.play('soft');
           const fu = {};
-          due.filter(x => x.fid).forEach(x => { fu[x.fid] = {rang: {k: x.key, at: now, dev: 'page'}}; });
+          now2.filter(x => x.fid).forEach(x => { fu[x.fid] = {rang: {k: x.key, at: now, dev: 'page'}}; });
           if (Object.keys(fu).length) W(ctx, {fu}).catch(() => {});
         };
-        if (navigator.locks && navigator.locks.request) navigator.locks.request('m360-fu-' + uid, {ifAvailable: true}, lock => { if (lock) ring(); return Promise.resolve(); }).catch(() => {});
-        else ring();
+        const go = () => { if (late.length && !lateWait) catchUp(); if (due.length && !dueWait) ring(); };
+        if ((!late.length || lateWait) && (!due.length || dueWait)) return;
+        if (navigator.locks && navigator.locks.request) navigator.locks.request('m360-fu-' + uid, {ifAvailable: true}, lock => { if (lock) go(); return Promise.resolve(); }).catch(() => {});
+        else go();
       };
       pass();
       const t = setInterval(pass, 30000);

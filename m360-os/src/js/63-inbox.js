@@ -19,8 +19,9 @@
   /* the list, worked out once per context: the badge, the drawer and the watcher all read the same one */
   const memo = new WeakMap();
   function items(ctx) {
-    /* the COO's cards live outside the context: their version joins the key */
-    const v = M.cooUi ? M.cooUi.version() : 0;
+    /* the COO's cards live outside the context: their version joins the key. So does the prospects index
+       on a build that reads it outside ctx.priv (the store's version is 0 once ctx.priv.prospects feeds it). */
+    const v = (M.cooUi ? M.cooUi.version() : 0) + ':' + (M.prospects && M.prospects.version ? M.prospects.version() : 0);
     let list = memo.get(ctx);
     if (!list || list.v !== v) { list = build(ctx); list.v = v; memo.set(ctx, list); }
     return list;
