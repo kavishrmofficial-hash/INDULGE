@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The buddy's brain: through look_up and act the buddy and Ask m360 read any area and change things
 the way a hand would. On the claude.ai build (canned model): remember lands in the private memory and
-shows in Prefs with a Forget; a post goes on Vibe; a reminder becomes a task; the calendar is read
+shows in Prefs with a Forget; a post goes on Vibe; a reminder becomes a private follow-up; the calendar is read
 through look_up; approving a task waits on a tap in the bubble; a long chat folds into a summary;
 with images allowed the Ask drawer attaches a picture. On the team site (the dev stand-in): the model
 is the current Opus with the server side fallback, act and look_up ride along, an attached image
@@ -70,11 +70,13 @@ def artifact_part(h):
     out = ask_buddy(p, 'post to the feed: Shipping the Swisse reel today')
     posts = p.evaluate('() => ((window.__db.get("feed/u_founder") || {}).posts || []).map(x => x.text)')
     check('Posted' in out and posts and posts[0] == 'Shipping the Swisse reel today', 'the post should be on Vibe: %r' % posts[:2])
-    # a reminder is a task on that day
+    # a reminder is private (v34): a follow-up in the founder's own prospects on that day, never a task
     ask_buddy(p, 'remind me to call Swisse on 2030-01-15')
-    rem = p.evaluate('() => Object.values(window.__db.all ? window.__db.all("tasks") : {}).length')
-    tasks = h.ctx(p, 'Object.values(ctx.coll.tasks.map).filter(t => /^Reminder: call Swisse/.test(t.title)).map(t => [t.due, t.owner, t.status])')
-    check(tasks == [['2030-01-15', 'u_founder', 'todo']], 'the reminder should be a task on that day: %r (%r)' % (tasks, rem))
+    tasks = h.ctx(p, 'Object.values(ctx.coll.tasks.map).filter(t => /^Reminder: call Swisse/.test(t.title)).length')
+    # the grammar reads the line once Prospects is on the build (a follow-up, typed); with it absent the model's
+    # remind_me writes the same private row (src remind). Either way: that day, open, and never a task
+    fus = p.evaluate('() => { const d = window.__db.get("data/users/u_founder/prospects") || {}; return Object.values(d.fu || {}).filter(f => f && /call Swisse/.test(f.x)).map(f => [f.d, !!f.done]); }')
+    check(tasks == 0 and fus == [['2030-01-15', False]], 'the reminder should be a private follow-up on that day and no task: %r (%r)' % (fus, tasks))
     # the calendar through look_up
     out = ask_buddy(p, 'what is on my calendar this week?')
     check(out.startswith('Your calendar:') or 'Your calendar:' in out, 'the calendar should be read through look_up: ' + out[:160])

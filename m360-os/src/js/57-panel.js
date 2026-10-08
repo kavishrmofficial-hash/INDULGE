@@ -13,8 +13,8 @@
 
   const MEMBER_CHIPS = ['What should I do next?', "What's overdue on me?", 'Summarise my week', 'Add a task for me to follow up with the client tomorrow'];
   const FOUNDER_CHIPS = ["Who's overloaded right now?", "What's slipping this week?", 'Which client needs love?', "Draft Monday's plan meeting agenda", "Who's been late this week?"];
-  const OFFLINE_LINE = 'I can still: open a screen, nudge people by a condition, check you in or out, set a status, start focus.';
-  const OFFLINE_CHIPS = ['Who has not checked out?', 'Nudge everyone who has not checked in', 'Check me out', 'Start focus for 25'];
+  const OFFLINE_LINE = 'I can still: open a screen, nudge people by a condition, check you in or out, set a status, start focus, log who you spoke to and when to follow up.';
+  const OFFLINE_CHIPS = ['Who has not checked out?', 'Spoke to Meera at Swisse, talk after the 16th', 'Nudge everyone who has not checked in', 'Check me out'];
 
   /* ids per size, so tests and the tour can find each control: buddy- for the pop-up, ask- for the
      drawer, orb- for the phone sheet; HQ's inline card keeps the -inline suffix */
@@ -91,6 +91,7 @@
       'When the answer lives on screen, or they ask where or how, call point_at first with the best element id, then answer. If it lives in another section, call go_to, then point_at. ' +
       'When they ask you to do something on screen (open, close, switch, fill, choose), do it with click, type_into, select_option and press_key, step by step, reading the SCREEN each tool returns, then say in one line what you did. ' +
       'When they ask you to make or change something (a task, a note, a post, kudos, a message, an ask to people, leave, check-in, EOD, the week, a pitch, a client, a reminder, mail, a meeting, a setting) use act; when act comes back waiting, say it is ready for their tap or a spoken yes. ' +
+      'People, conversations and follow-ups are private: use log_talk, follow_up and log_send for who they spoke to, a meeting, where a pitch was sent and when to follow up, and pass the date in their own words (after the 16th, next Tuesday); m360 reads it. remind_me is private too. Never create_task for them. ' +
       'When they ask about anything THEIR DATA does not say, call look_up first; never guess a number or a name. ' +
       'When they say remember, act remember; the things you remember are below, use them. ' +
       'When they ask how to do something with more than one step, go_to the right section if needed, then call walk_through with the steps, then answer in one line. ' +
@@ -121,7 +122,7 @@
       /* an answer the m360 COO gave carries its face in the thread */
       const coo = /^coo_/.test(route.grammar.action) && !g.error;
       if (coo) cooSaid.add(g.text);
-      return {text: g.text, turn, grammar: true, waiting: !!g.waiting, err: !!g.error, coo};
+      return {text: g.text, turn, grammar: true, waiting: !!g.waiting, err: !!g.error, coo, chips: g.chips || null};
     }
     if (!M.ai.on(ctx)) return {text: '', turn, err: M.ai.errCopy('not_declared') + ' ' + OFFLINE_LINE, chips: offline()};
     const gone = () => { if (o.signal && o.signal.aborted) throw Object.assign(new Error('cancelled'), {code: 'cancelled'}); };
@@ -209,7 +210,7 @@
         return r;
       }
       await M.chat.append(ctx, [{role: 'assistant', content: r.text || 'Done.', ...(acts.length ? {acts} : {})}]);
-      S.set({phase: 'answer', live: '', acts: [], announce: r.text || 'Done.'});
+      S.set({phase: 'answer', live: '', acts: [], chips: r.chips || null, announce: r.text || 'Done.'});
       if (!r.grammar && M.brain) M.brain.compact(ctx).catch(() => {});
       if (!o.dock && M.prefs.get('askAloud', '0') === '1' && M.speech) M.speech.say(r.text, o.lang || 'en').catch(() => {});
       done({text: r.text, via: o.via, dock: o.dock, walk: r.walk, waiting: r.waiting, turn: r.turn});

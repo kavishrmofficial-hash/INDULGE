@@ -101,10 +101,10 @@
   }
 
   /* ---------- the index ---------- */
-  const GROUPS = ['people', 'companies', 'tasks', 'projects', 'clients', 'pitches', 'posts', 'handbook', 'inbox', 'leave', 'radar', 'log'];
-  const GROUP_LABEL = {people: 'People', companies: 'Companies', tasks: 'Tasks', projects: 'Projects', clients: 'Clients', pitches: 'Pitches',
+  const GROUPS = ['people', 'prospects', 'companies', 'tasks', 'projects', 'clients', 'pitches', 'posts', 'handbook', 'inbox', 'leave', 'radar', 'log'];
+  const GROUP_LABEL = {people: 'People', prospects: 'Your people', companies: 'Companies', tasks: 'Tasks', projects: 'Projects', clients: 'Clients', pitches: 'Pitches',
     posts: 'Posts', handbook: 'Handbook', inbox: 'Inbox', leave: 'Leave', radar: 'Saved links', log: 'Log'};
-  const GROUP_ICON = {people: 'people', companies: 'database', tasks: 'tasks', projects: 'projects', clients: 'clients', pitches: 'pitches',
+  const GROUP_ICON = {people: 'people', prospects: 'people', companies: 'database', tasks: 'tasks', projects: 'projects', clients: 'clients', pitches: 'pitches',
     posts: 'feed', handbook: 'handbook', inbox: 'bell', leave: 'leave', radar: 'radar', log: 'log'};
 
   /* every hit across every group, ranked and capped. opts: {names, cap, log, groups} */
@@ -140,6 +140,14 @@
       team.forEach(x => out.push({...x, group: 'people', icon: 'people'}));
       ranked.slice(0, slots).forEach(x => out.push({...x, group: 'people', icon: 'people'}));
       if (ranked.length > slots) { overflow.people = ranked.length - slots; out.push({key: 'people:more', group: 'people', label: 'Show all in Base', sub: (ranked.length - slots) + ' more', icon: 'search', more: 'people', rank: 0}); }
+    }
+    /* the viewer's own prospects (who, company, the next step): read in the page for the viewer alone, never
+       sent to basesearch, nothing in a preview */
+    if (want('prospects') && M.prospects && M.prospects.searchRows && !ctx.viewAs) {
+      let rows = [];
+      try { rows = M.prospects.searchRows(ctx, qs) || []; } catch (e) { rows = []; }
+      take('prospects', rows.map((r, i) => ({key: 'pr' + r.pid, label: r.who || 'Someone', sub: [r.role, r.org].filter(Boolean).join(', ') + (r.status ? (r.role || r.org ? ', ' : '') + r.status : ''),
+        hash: r.hash || '#prospects/' + r.pid, order: i, rank: Math.max(rk(r.who), Math.min(2, rk((r.who || '') + ' ' + (r.org || '') + ' ' + (r.role || '') + ' ' + (r.next || ''))))})));
     }
     if (want('companies')) take('companies', orgs(ctx).map((o, i) => ({key: 'o' + o.id, label: o.name || 'Company', sub: [o.industry, o.city].filter(Boolean).join(', '), hash: '#companies/' + o.id, order: i,
       rank: Math.max(rk(o.name), Math.min(2, rk((o.name || '') + ' ' + (o.domain || '') + ' ' + (o.industry || '') + ' ' + (o.city || ''))))})), {label: 'Show all companies'});

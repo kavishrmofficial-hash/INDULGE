@@ -5,6 +5,7 @@
    own hand would (tasks, projects, notes, posts, kudos, messages, leave, check-in, EOD, the week,
    pitches, clients, reminders, bookmarks). Anything that leaves the building or decides for someone
    (mail, a meeting invite, a leave decision, a task approval) is prepared and waits for one tap.
+   A reminder is private (v34): it lives in the person's Prospects, never as a task on the shared board.
    It also keeps what the person asked it to remember, says hello once a day, and folds a long chat
    into a short summary so the thread never runs out of room. */
 'use strict';
@@ -215,6 +216,7 @@
     ['day', 'one person\'s day as a timeline: check-in, saves, quiet stretches, tasks moved, EOD, status; q a name and an optional YYYY-MM-DD'],
     ['bot', 'the personal managers: what is waiting on you, the asks you sent and their answers'],
     ['coo', 'the m360 COO: its cards waiting on you and what it did today, with the reasons and checks (founder)'],
+    ['prospects', 'your own people, follow-ups and meetings: who you are speaking to, what is due today, late or waiting; q a name or a company (private to you)'],
     ['action', 'the fields of one act action, q its name'],
     ['help', 'this list']
   ];
@@ -290,6 +292,30 @@
     return L.join('\n');
   }
 
+  /* the viewer's own prospects as data: their follow-ups by group, their meetings, and the people a word
+     matches. Their own words, so never untrusted; never another person's, and nothing in a preview */
+  function prospectsLine(ctx, q) {
+    if (!M.prospects || !M.prospects.day) return 'Prospects are not on this build.';
+    if (ctx.viewAs) return 'Prospects are private to each person.';
+    const P = M.prospects, L = [];
+    const day = P.day(ctx);
+    const lbl = r => M.when.label(r.d, r.t);
+    const who = r => (r.who || r.x || 'a reminder') + (r.org ? ' at ' + r.org : '');
+    L.push('YOUR FOLLOW-UPS: ' + day.counts.today + ' today, ' + day.counts.late + ' late, ' + day.counts.meetings + (day.counts.meetings === 1 ? ' meeting' : ' meetings') + ' in the next 7 days');
+    const sec = (name, rows, f) => { if (rows.length) { L.push(name + ':'); list(rows, 15).forEach(r => L.push('- ' + f(r))); } };
+    sec('LATE', day.late, r => who(r) + ', ' + r.late + (r.late === 1 ? ' day' : ' days') + ' late since ' + lbl(r) + (r.x ? ': ' + cut(r.x, 120) : ''));
+    sec('TODAY', day.today, r => who(r) + ', ' + lbl(r) + (r.x ? ': ' + cut(r.x, 120) : ''));
+    sec('MEETINGS', day.meetings, r => who(r) + ', ' + lbl(r) + (r.where ? ', ' + r.where : ''));
+    sec('THIS WEEK', day.week, r => who(r) + ', ' + lbl(r) + (r.x ? ': ' + cut(r.x, 120) : ''));
+    sec('WAITING ON THEM', day.waiting, r => who(r) + ', ' + lbl(r) + (r.after ? ' (talks after ' + M.when.label(r.after) + ')' : r.src === 'sent' ? ' (a check-back after a send)' : ''));
+    sec('NO NEXT STEP', day.loose, r => who(r));
+    if (q) {
+      const rows = P.searchRows(ctx, q);
+      L.push('PEOPLE MATCHING "' + q + '": ' + rows.length);
+      rows.forEach(r => L.push('- ' + (r.who || 'Someone') + (r.role ? ', ' + r.role : '') + (r.org ? ' at ' + r.org : '') + ', ' + r.status + (r.next ? ', next: ' + cut(r.next, 100) : '')));
+    }
+    return L.join('\n');
+  }
   /* the m360 COO as data, the founder's only: the cards waiting on him and today's rows, in the COO's own
      words, with their reasons and checks. Acting on any of it still goes through the card */
   function cooLine(ctx) {
@@ -657,6 +683,7 @@
       case 'day': case 'timeline': return dayLine(ctx, nm, q);
       case 'bot': case 'asks': case 'pm': return botLine(ctx, nm);
       case 'coo': return cooLine(ctx);
+      case 'prospects': case 'followups': case 'followup': return prospectsLine(ctx, q);
       case 'action': case 'actions': {
         const a = M.agent ? M.agent.byName(norm(q).replace(/[^a-z_]/g, '')) : null;
         if (!a || !M.agent.allowed(ctx, a)) return 'No action called "' + q + '" here. The actions: ' + actionsFor(ctx).map(x => x[0]).join(', ');
@@ -695,7 +722,7 @@
     ['create_pitch', '{brand, category?, contact?, source?, owner?}', 'a pitch in the pipeline'],
     ['move_pitch', '{pitch, stage? lead|qualified|diagnostic|proposal|negotiation|won|lost, next?, nextDate?, lost?}', 'move a pitch or set its next step'],
     ['update_client', '{client, field, value}', 'set a client field: memory, approvals, never, links, website, industry, hq, tone, or a brain key (about, offers, audience, voice, competitors, moves, talking, risks, pitchNext)'],
-    ['remind_me', '{text, when YYYY-MM-DD}', 'a reminder, kept as a task on that day'],
+    ['remind_me', '{text, when YYYY-MM-DD or words, who?}', 'a private reminder on a day, in Prospects'],
     ['remember', '{fact}', 'keep a fact about them in mind for every future chat'],
     ['forget', '{fact}', 'drop a remembered fact (or "everything")'],
     ['save_bookmark', '{url, title?}', 'a bookmark for the team browser'],
@@ -1030,13 +1057,30 @@
         return {ok: true, client: c.name, field};
       }
       case 'remind_me': {
+        /* private to the person: a follow-up in Prospects (nobody attached, or the person named), never a task
+           on the shared board. The day comes from their words first, a YYYY-MM-DD when the words read as nothing */
         const text = cut(String(input.text || '').trim(), 120);
         if (!text) throw new Error('say what to remind');
-        const due = ymdOk(input.when) ? input.when : today();
-        const id = U.uid();
-        await ctx.W.set('tasks/' + id, {title: 'Reminder: ' + text, owner: uid, client: '', project: '', section: '', due, status: 'todo', priority: 'normal', link: '', revisions: 0, shown20: false, subtasks: {}, comments: {}, by: uid, created: now, updated: now, doneAt: null});
+        if (ctx.viewAs) throw new Error('prospects are private to each person');
+        const w = M.when && M.when.parse ? M.when.parse(String(input.when || ''), now, s => (typeof ctx.isWorkingDay === 'function' ? ctx.isWorkingDay(s) : true)) : null;
+        if (w && w.festival) throw new Error('which day is ' + U.cap(w.festival) + ' this year? Say the date');
+        const day = new Date(now + 330 * 60000).toISOString().slice(0, 10);
+        const due = w && w.ymd ? w.ymd : ymdOk(input.when) ? input.when : day;
+        const who = cut(String(input.who || '').trim(), 60);
+        if (who && M.prospects && M.prospects.apply) {
+          const r = {kind: 'note', who, org: cut(String(input.org || '').trim(), 60), sent: null, when: {ymd: due, t: (w && w.t) || '', said: w ? w.said : '', after: (w && w.after) || '', rolledFrom: (w && w.rolledFrom) || ''}, meet: null, reply: '', said: text};
+          const res = await M.prospects.apply(ctx, r, {}, {src: 'remind'});
+          if (res.ask) return {ok: true, ask: res.ask, say: res.say, cands: res.cands || []};
+          say('Reminder set for ' + U.fmtDay(due));
+          return {ok: true, reminder: text, when: due, say: res.say, note: 'a private follow-up in Prospects; it shows on Home under Follow-ups today, in the inbox and as a card on the day', _undo: res.undo ? {k: 'pros', day, ...res.undo} : null};
+        }
+        const row = {p: '', pi: '', x: text, d: due, t: (w && w.t) || '', after: (w && w.after) || '', said: cut(w ? w.said : '', 60), src: 'remind'};
+        let fid;
+        if (M.prospects && M.prospects.setFollow) fid = await M.prospects.setFollow(ctx, row);
+        else { fid = 'fu' + U.uid(); await ctx.W.merge('data/users/' + uid + '/prospects', {v: 1, fu: {[fid]: {...row, at: now}}}); }
         say('Reminder set for ' + U.fmtDay(due));
-        return {ok: true, reminder: text, when: due, note: 'kept as a task on that day; it shows on Home and in the inbox'};
+        return {ok: true, reminder: text, when: due, say: 'I will remind you on ' + (M.when && M.when.readBack ? M.when.readBack({ymd: due, t: row.t, rolledFrom: w && w.rolledFrom}) : U.fmtDay(due)) + (row.t ? '.' : ' at 10:00.'),
+          note: 'a private reminder in Prospects; it shows on Home under Follow-ups today, in the inbox and as a card on the day', _undo: {k: 'pros', day, fid, drop: true}};
       }
       case 'remember': { const t = await remember(ctx, input.fact || input.text); say('Noted: ' + cut(t, 60)); return {ok: true, remembered: t}; }
       case 'forget': { const n = await forget(ctx, input.fact || input.text || 'everything'); say('Forgot ' + n + (n === 1 ? ' thing' : ' things')); return {ok: true, forgot: n}; }

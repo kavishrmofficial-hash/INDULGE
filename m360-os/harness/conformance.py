@@ -148,7 +148,7 @@ for f, s in JS.items():
 
 # ---- section 4: routes ----
 ROUTES = ['command', 'today', 'tasks', 'projects', 'pitches', 'clients', 'feed', 'week', 'scores',
-          'people', 'hiring', 'handbook', 'voice', 'leave', 'desk']
+          'people', 'hiring', 'handbook', 'voice', 'leave', 'desk', 'prospects']
 shell = JS['03-shell.js']
 for r in ROUTES:
     if "'" + r + "'" not in shell:

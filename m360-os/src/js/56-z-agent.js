@@ -8,7 +8,10 @@
    have not checked out and ask them why") into actions with no model call, which keeps voice working
    when the AI is off. Asks to people ride the personal managers' pipes (M.pm), with the same keys,
    caps and quiet hours. Each person's runs land in a private ledger (data/users/<uid>/agent, the
-   last 200), listed under History with Undo where it still applies. */
+   last 200), listed under History with Undo where it still applies. Prospects (v34): who the person spoke
+   to, a meeting, where a pitch was sent and when to follow up are read from one line with no model call
+   (M.prospects.read) and written through M.prospects.apply; the people, the notes and the dates stay
+   private to the person, and only the pitch side is shared. */
 'use strict';
 (function () {
   const {html, React, U, UI} = M;
@@ -549,7 +552,7 @@
     ['create_pitch', 'a pitch in the pipeline', '{brand, category?, contact?, source?, owner?}', ['brand'], 'self', 'now'],
     ['move_pitch', 'move a pitch or set its next step', '{pitch, stage? lead|qualified|diagnostic|proposal|negotiation|won|lost, next?, nextDate?, lost?}', ['pitch'], 'self', 'now'],
     ['update_client', 'set a client field or brain key', '{client, field, value}', ['client', 'field', 'value'], 'self', 'now'],
-    ['remind_me', 'a reminder, kept as a task', '{text, when YYYY-MM-DD}', ['text'], 'self', 'now'],
+    ['remind_me', 'a private reminder on a day', '{text, when YYYY-MM-DD or words, who?}', ['text'], 'self', 'now'],
     ['remember', 'keep a fact in mind', '{fact}', [], 'self', 'now'],
     ['forget', 'drop a remembered fact', '{fact}', [], 'self', 'now'],
     ['save_bookmark', 'a bookmark for the team browser', '{url, title?}', ['url'], 'self', 'now'],
@@ -1203,6 +1206,225 @@
       (ctx.isFounder ? '' : ' Kaavish reads what you send me, and he can undo anything I change.')};
   }, {needs: 'coo', read: true});
 
+  /* wave 5: prospects (M.prospects). Who each person is speaking to, their meetings, their notes and their
+     follow-up dates are private to them: the three actions read one line (or the model's fields) into the
+     same reading M.prospects.read gives and write it through M.prospects.apply, which keeps the private index
+     and the month log on data/users/<uid>/prospects and touches the shared pitch only where the team may see
+     it: a send row, a reply, the mirrored date, a stage move, a new pitch. Those shared parts wait for a tap
+     in a tainted turn. Dates come from M.when in the person's own words; a model's YYYY-MM-DD counts only when
+     the words read as nothing. timeFrom is never used for a day: it reads "on 16" as a time */
+  const prosOn = () => !!(M.prospects && M.prospects.apply && M.prospects.read && M.when && M.when.parse);
+  const needPros = () => { if (!prosOn()) throw new Error('prospects are not on this page yet'); };
+  const PRIVATE_PROS = 'prospects are private to each person';
+  const DATE_HELP = 'I could not read a date there. Try: after the 16th, next Tuesday, in two weeks';
+  const NO_READ = 'I could not read that. Try: Spoke to Meera at Swisse, talk after the 16th';
+  const TALK_KINDS = ['talk', 'call', 'meet', 'mail', 'wa', 'msg', 'li'];
+  const VIA_KIND = {mail: 'sent', email: 'sent', whatsapp: 'wa', wa: 'wa', meeting: 'meet', linkedin: 'li', hand: 'talk'};
+  const VERB_OF = {meet: 'Met', talk: 'Spoke to', call: 'Called', mail: 'Emailed', wa: 'WhatsApped', msg: 'Messaged', li: 'Messaged'};
+  const workOf = ctx => s => ctx && typeof ctx.isWorkingDay === 'function' ? ctx.isWorkingDay(s) : M.when.ist.dow(s) !== 0;
+  const firstWord = s => String(s || '').trim().split(/\s+/)[0].toLowerCase();
+  const capWords = s => String(s || '').trim().split(/\s+/).map(w => w ? w.charAt(0).toUpperCase() + w.slice(1) : '').join(' ');
+  /* a clock time as the model or the person gives it: "16:00", "4 pm", "at 4" */
+  const timeOf = t => { const s = String(t || '').trim(); if (!s) return ''; if (hmOk(s)) { const m = U.minutes(s); return U.pad(Math.floor(m / 60)) + ':' + U.pad(m % 60); } return M.when.time(/^(at|around|@)\b/i.test(s) ? s : 'at ' + s); };
+  /* the person's own words first ("after the 16th"); a YYYY-MM-DD only when the words read as nothing */
+  function dateOf(ctx, phrase, time) {
+    const s = String(phrase == null ? '' : phrase).trim();
+    if (!s) return null;
+    let w = M.when.parse(s, Date.now(), workOf(ctx));
+    if (!w && ymdOk(s)) w = {ymd: s, said: '', rolledFrom: ''};
+    if (w && !w.festival) { const t = timeOf(time); if (t) w.t = t; }
+    return w;
+  }
+  /* the reading apply takes: the line as read, with no model call, or one built from the model's fields */
+  function readingOf(ctx, input, action) {
+    if (input.line) {
+      const r = M.prospects.read(plainLine(String(input.line)), ctx);
+      if (!r || !M.prospects.isCapture(r)) throw new Error(NO_READ);
+      /* a day the reader did not find in the line (a plain 2026-10-17, or the model's own reading) still counts */
+      if (!(r.when && r.when.ymd) && input.when) { const w = dateOf(ctx, input.when, input.time || input.at); if (w && !w.festival && w.ymd) { r.when = w; r.needDate = false; } }
+      return r;
+    }
+    const who = cut(String(input.who || '').trim(), 60);
+    const org = cut(String(input.org || input.pitch || '').trim(), 80);
+    const note = cut(String(input.note || '').trim(), 300);
+    const r = {kind: '', who, org, sent: null, when: null, meet: null, reply: '', said: note};
+    if (action === 'log_send') {
+      if (!org) throw new Error('say which pitch');
+      if (input.reply) {
+        r.kind = 'reply';
+        r.reply = /^(no|declined|passed|not now)$/i.test(String(input.reply)) ? 'no' : /later/i.test(String(input.reply)) ? 'later' : 'replied';
+        r.said = note || org + (r.reply === 'no' ? ' said no' : r.reply === 'later' ? ' said later' : ' replied');
+        return r;
+      }
+      r.kind = VIA_KIND[norm(input.via)] || 'sent';
+      r.sent = {what: cut(String(input.what || 'deck').trim(), 60), to: cut(String(input.to || who).trim(), 80)};
+      if (!r.who && r.sent.to && !/^c_/.test(r.sent.to)) r.who = r.sent.to.split(/[,(]/)[0].trim();
+      r.said = note || 'Sent the ' + r.sent.what + (r.who ? ' to ' + r.who : '') + (org ? ' at ' + org : '');
+    } else if (action === 'log_talk') {
+      const k = norm(input.kind);
+      r.kind = TALK_KINDS.indexOf(k) >= 0 ? k : k === 'whatsapp' ? 'wa' : k === 'message' || k === 'text' ? 'msg' : k === 'meeting' || k === 'met' ? 'meet' : k === 'email' ? 'mail' : 'talk';
+      if (input.meet) {
+        const m = dateOf(ctx, input.meet, input.at);
+        if (!m || m.festival || !m.ymd) throw new Error(DATE_HELP);
+        r.meet = {d: m.ymd, t: m.t || ''};
+        r.kind = 'meet-plan';
+      }
+      r.said = note || (r.kind === 'meet-plan' ? 'Meeting with ' : (VERB_OF[r.kind] || 'Spoke to') + ' ') + (who || 'them') + (org ? ' at ' + org : '');
+    } else {
+      r.kind = 'note';
+      r.said = note || 'Follow up with ' + (who || org || 'them');
+    }
+    if (input.when) {
+      const w = dateOf(ctx, input.when, input.time || input.at);
+      if (!w) throw new Error(DATE_HELP);
+      r.when = w;
+    } else if (action === 'follow_up') r.needDate = true;
+    return r;
+  }
+  /* the last follow-up the agent set or settled in this session: "done", "snooze it", "keep the date private" */
+  let lastFu = '';
+  const brandOf = (ctx, id) => String(((ctx.coll.pitches.map[id] || {}).brand) || '');
+  /* the open follow-up a few words name: a tracked person by first name, a pitch by its brand, "that" for the
+     last one, or the one thing due today. Sync, so the grammar can see whether the words are ours at all */
+  function fuFor(ctx0, words, strict) {
+    if (!prosOn()) return null;
+    const ctx = fresh(ctx0);
+    const d = M.prospects.data(ctx);
+    const open = Object.keys(d.fu).filter(id => d.fu[id] && !d.fu[id].done).sort((a, b) => (d.fu[a].d + (d.fu[a].t || '')).localeCompare(d.fu[b].d + (d.fu[b].t || '')));
+    const q = norm(words).replace(/^(the|my|that|this|it|him|her|them)\s+/, '').replace(/\s+(follow ?up|reminder|one|pitch|call|meeting)$/, '').trim();
+    const row = id => ({fid: id, ...d.fu[id], who: d.fu[id].p && d.people[d.fu[id].p] ? d.people[d.fu[id].p].who : '', org: d.fu[id].p && d.people[d.fu[id].p] ? d.people[d.fu[id].p].org : brandOf(ctx, d.fu[id].pi)});
+    if (!q || /^(that|it|this|the last one|last)$/.test(q)) {
+      if (lastFu && d.fu[lastFu] && !d.fu[lastFu].done) return row(lastFu);
+      /* a bare "done" names nothing: it is ours only when the agent itself just set or settled one */
+      if (strict) return null;
+      const today = istYmd(Date.now());
+      const due = open.filter(id => d.fu[id].d <= today);
+      return due.length === 1 ? row(due[0]) : null;
+    }
+    const byWho = open.filter(id => { const p = d.fu[id].p && d.people[d.fu[id].p]; return p && !p.gone && firstWord(p.who) === firstWord(q); });
+    if (byWho.length) return row(byWho[0]);
+    const byPitch = open.filter(id => d.fu[id].pi && norm(brandOf(ctx, d.fu[id].pi)) === q);
+    if (byPitch.length) return row(byPitch[0]);
+    const byOrg = open.filter(id => { const p = d.fu[id].p && d.people[d.fu[id].p]; return p && !p.gone && norm(p.org) === q; });
+    return byOrg.length ? row(byOrg[0]) : null;
+  }
+  /* the people a follow-up or a meeting names, for a read back */
+  const whoOf = r => (r.who || r.x || 'a reminder') + (r.org ? ' at ' + r.org : '');
+  function listLine(ctx, what) {
+    const day = M.prospects.day(ctx);
+    if (what === 'week' || what === 'meetings') {
+      const ms = day.meetings;
+      if (!ms.length) return 'No meetings in the next 7 days.';
+      return ms.length + (ms.length === 1 ? ' meeting' : ' meetings') + ' this week. ' + andList(ms.map(m => whoOf(m) + ', ' + M.when.label(m.d, m.t))) + '.';
+    }
+    const rows = day.late.concat(day.today);
+    if (!rows.length) return 'Nothing to follow up today.' + (day.week.length ? ' ' + day.week.length + ' later this week.' : '');
+    const names = rows.map(r => r.who ? r.who + (r.org ? ' at ' + r.org : '') : r.org ? 'the ' + r.org + ' pitch' : (r.x || 'a reminder'));
+    return day.today.length + ' today' + (day.late.length ? ', ' + day.late.length + ' late' : '') + '. ' + andList(names.slice(0, 5)) + (names.length > 5 ? ' and ' + (names.length - 5) + ' more' : '') + '.';
+  }
+  /* the chips after a question: the day, the pitch or the person, each re-running the same action with the choice */
+  function askChips(ctx, nm, input, action, res, io) {
+    const again = choices => exec(fresh(ctx), nm, action, {...input, choices: {...(input.choices || {}), ...choices}}, {turn: io.turn, log: io.log});
+    if (res.ask === 'date') {
+      const w = workOf(ctx);
+      const tmr = M.when.parse('tomorrow', Date.now(), w), nw = M.when.parse('next week', Date.now(), w);
+      return [{k: 'tomorrow', label: 'Tomorrow', run: () => again({d: tmr.ymd, said: 'tomorrow'})}, {k: 'nextweek', label: 'Next week', run: () => again({d: nw.ymd, said: 'next week'})},
+        {k: 'pick', label: 'Pick a day', run: to => to && to.d ? again({d: to.d, t: to.t || '', said: to.said || ''}) : Promise.resolve({say: 'Say a day: after the 16th, next Tuesday, in two weeks.'})}];
+    }
+    if (res.ask === 'pitch') return (res.cands || []).map(c => ({k: 'pitch', label: c.brand, run: () => again({pitch: c.id})}));
+    if (res.ask === 'person') return (res.cands || []).map(c => ({k: 'person', label: c.who + (c.role ? ', ' + c.role : c.org ? ' at ' + c.org : ''), run: () => again(c.pid ? {pid: c.pid} : {cid: c.cid})}));
+    return [];
+  }
+  /* the question the last capture left open (which day, which pitch, which person), so the next short line
+     in the dock answers it with no model call: "tomorrow", "Tata Cliq", "Meera Shah". It lives a few minutes,
+     for this person, and goes with the next prospects line */
+  let asked = null;
+  const ASK_MS = 3 * MIN;
+  const askOpen = ctx => asked && asked.uid === ctx.uid && Date.now() - asked.at < ASK_MS ? asked : null;
+  /* the chips the dock shows after a prospects line: plain lines the grammar reads back */
+  function askLines(res) {
+    if (res.ask === 'date') return ['Tomorrow', 'Next week'];
+    if (res.ask === 'pitch') return (res.cands || []).map(c => c.brand).filter(Boolean);
+    if (res.ask === 'person') return (res.cands || []).map(c => c.who + (c.role ? ', ' + c.role : c.org ? ' at ' + c.org : '')).filter(Boolean);
+    return [];
+  }
+  /* one capture: the reading, apply, the receipt, the cards for the shared parts, the chips and the undo */
+  async function prosRun(ctx0, nm, input, io, action) {
+    needPros();
+    /* the page as it is now: a chip tapped after an earlier line reads today's index */
+    const ctx = fresh(ctx0);
+    if (ctx.viewAs) throw new Error(PRIVATE_PROS);
+    asked = null;
+    const r = readingOf(ctx, input, action);
+    let preset = input.preset && typeof input.preset === 'object' ? input.preset : {};
+    /* a Base id as the recipient links the person */
+    if (action === 'log_send' && /^c_/.test(String(input.to || '')) && !preset.cid && !preset.pid) preset = {...preset, cid: String(input.to)};
+    const choices = {...(input.choices && typeof input.choices === 'object' ? input.choices : {})};
+    /* text read from outside this turn (a mail, a chat, a page) never writes the shared pitch on its own */
+    if (io.turn && io.turn.tainted) choices.noShared = true;
+    if (!choices.src) choices.src = io.turn && io.turn.via === 'voice' ? 'voice' : 'typed';
+    const link = action === 'log_send' ? cut(String(input.link || '').trim(), 300) : '';
+    const res = await M.prospects.apply(ctx, r, preset, choices);
+    if (res && res.ask) {
+      asked = {uid: ctx.uid, at: Date.now(), action, input, kind: res.ask, cands: res.cands || []};
+      return {ok: true, ask: res.say, askKind: res.ask, cands: res.cands || [], festival: res.festival || '', say: res.say, chips: askChips(ctx, nm, input, action, res, io), lines: askLines(res)};
+    }
+    const holds = (res.hold || []).map(h => ({label: cut(h.label, 90), detail: cut(h.detail || '', 300), k: h.k,
+      card: tapHold(ctx, io, cut(h.label, 90), cut(h.detail || '', 300) + (io.turn && io.turn.tainted ? ' From what I read in ' + (io.turn.from || 'a message') + '.' : ''),
+        /* a send held for a tap carries its link once the row is there */
+        c => Promise.resolve(h.run(c)).then(sid => h.k === 'send' && link && sid && res.pitch ? c.W.merge('pitches/' + res.pitch, {sent: {[sid]: {link}}}) : null).then(() => ({ok: true, say: h.label.replace(/\?$/, '') + ': done.'})))}));
+    if (res.fid) lastFu = res.fid;
+    const say = res.say + (holds.length === 1 ? ' ' + holds[0].label + ' Tap it, or say yes.' : holds.length > 1 ? ' ' + holds.map(h => h.label).join(' ') + ' Each waits on a tap.' : '');
+    const lines = ['Undo'].concat(res.bridged ? ['Keep the date private'] : []);
+    return {ok: true, say, chips: res.chips || [], lines, hold: holds.map(h => ({label: h.label, detail: h.detail, k: h.k, id: h.card.id, run: () => M.brain.approve(h.card.id)})),
+      fid: res.fid || '', pid: res.pid || '', mid: res.mid || '', sid: res.sid || '', pitch: res.pitch || '', bridged: !!res.bridged,
+      _undo: res.undo ? {k: 'pros', day: istYmd(Date.now()), ...res.undo} : null};
+  }
+  reg('log_talk', 'log a talk or meeting, private', '{who?, org?, pitch?, kind? talk|call|meet|mail|wa|msg, note?, when? the words said, at? HH:MM, meet? a day}', [], 'self', 'now',
+    (ctx, nm, input, io) => prosRun(ctx, nm, input, io, 'log_talk'));
+  reg('follow_up', 'a private follow-up date', '{who?, pitch?, when? the words said, time?, note?, done? true, snooze? a day, private? true, list? today|week}', [], 'self', 'now', async (ctx0, nm, input, io) => {
+    needPros();
+    const ctx = fresh(ctx0);
+    if (ctx.viewAs) throw new Error(PRIVATE_PROS);
+    if (input.list) return {ok: true, read: true, say: listLine(ctx, norm(input.list))};
+    const settle = input.done || input.snooze || input.private;
+    if (settle) {
+      asked = null;
+      const f = fuFor(ctx, input.who || input.pitch || '');
+      if (!f) throw new Error(input.who || input.pitch ? 'no open follow-up with ' + capWords(input.who || input.pitch) : 'say who: done with Rahul, or snooze Rahul to Monday');
+      const name = f.who ? String(f.who).trim().split(/\s+/)[0] : f.org || 'that';
+      if (input.private) {
+        if (!f.pi) return {ok: true, say: 'That one is private already.'};
+        await M.prospects.bridge(ctx, f.fid, false);
+        return {ok: true, say: 'Kept private. ' + (brandOf(ctx, f.pi) || 'The pitch') + ' shows no date from you.'};
+      }
+      if (input.snooze) {
+        const w = dateOf(ctx, input.snooze, input.time);
+        if (!w || w.festival || !w.ymd) throw new Error(DATE_HELP);
+        const r = await M.prospects.snooze(ctx, f.fid, {d: w.ymd, t: w.t || ''});
+        if (!r) throw new Error('that follow-up is settled already');
+        lastFu = f.fid;
+        return {ok: true, say: 'Snoozed. ' + name + ' comes back on ' + M.when.readBack({ymd: w.ymd, t: w.t, rolledFrom: w.rolledFrom}) + '.', _undo: {k: 'pros', day: istYmd(Date.now()), settle: {fid: f.fid, prev: r.prev}}};
+      }
+      const how = /^(spoke|talked|called|replied|dropped)$/.test(norm(input.done)) ? norm(input.done) : 'done';
+      const r = await M.prospects.done(ctx, f.fid, how);
+      if (!r) throw new Error('that follow-up is settled already');
+      lastFu = f.fid;
+      /* the next date lands on the same person: these lines read back to them by first name */
+      const next = f.who ? ['Follow up with ' + name + ' tomorrow', 'Follow up with ' + name + ' next week'] : [];
+      return {ok: true, say: 'Done with ' + name + '. When next?', chips: next, lines: next,
+        _undo: {k: 'pros', day: istYmd(Date.now()), settle: {fid: r.fid, prev: r.prev, tid: r.tid, month: r.month}}};
+    }
+    return prosRun(ctx, nm, input, io, 'follow_up');
+  });
+  reg('log_send', 'where a pitch was sent, or a reply', '{pitch, to?, via? mail|whatsapp|meeting|linkedin|hand, what?, link?, reply? replied|later|no}', [], 'self', 'now', async (ctx, nm, input, io) => {
+    const out = await prosRun(ctx, nm, input, io, 'log_send');
+    /* the link rides on the send row once it is there */
+    const link = cut(String(input.link || '').trim(), 300);
+    if (link && out.sid && out.pitch) await ctx.W.merge('pitches/' + out.pitch, {sent: {[out.sid]: {link}}});
+    return out;
+  });
+
   /* never pressed by the agent: these are pointed at, and the person presses them */
   const NEVER = /^(delete|erase|purge|offboard|restore|sign_?out|signout|lock|unlock|run_payroll|payroll|mark_paid|approve_payroll|issue_letter|sign_letter|letter|approve_own|answer_pulse|pulse|score_candidate|prune|export|change_key|set_key|ai_key|mail_key|voice_key)/;
 
@@ -1286,15 +1508,20 @@
     } else if (typeof r === 'string') row.result = cut(r, 200);
     persist(ctx);
   }
+  /* every act in ledger order, oldest first; n keeps that order where two ran in the same moment */
   const allRows = () => {
     const out = [];
-    (ledger.runs || []).forEach(run => (run.acts || []).forEach(a => out.push({run, a})));
-    (ledger.pendingRuns || []).forEach(x => (x.run.acts || []).forEach(a => out.push({run: x.run, a})));
+    (ledger.runs || []).forEach(run => (run.acts || []).forEach(a => out.push({run, a, n: out.length})));
+    (ledger.pendingRuns || []).forEach(x => (x.run.acts || []).forEach(a => out.push({run: x.run, a, n: out.length})));
     return out;
   };
+  /* the latest act first: by the moment it ran, then by its place in the ledger (a chip tapped right after a
+     line lands in the same millisecond) */
+  const newest = (p, q) => ((q.a.doneAt || q.a.at) - (p.a.doneAt || p.a.at)) || (q.n - p.n);
   const undoable = row => {
     if (!row || !row.undo || row.status !== 'done') return false;
     if (row.undo.k === 'ask') return row.undo.day === today();
+    if (row.undo.k === 'pros') return row.undo.day === istYmd(Date.now());
     return Date.now() - (row.doneAt || row.at || 0) <= UNDO_MS;
   };
 
@@ -1367,15 +1594,23 @@
       case 'unarchive': await ctx.W.update('projects/' + u.id, {archived: false, archivedAt: null, updated: Date.now()}); return 'Back on the list.';
       case 'members': await ctx.W.update('projects/' + u.id, {members: u.prev}); return 'Taken off the project.';
       case 'checkout': await ctx.W.merge('checkin/' + ctx.uid, {days: {[u.ymd]: {out: null, outLoc: null}}}); return 'Checked back in.';
+      case 'pros': {
+        /* a capture, a done or a snooze in Prospects: the private rows come back, the pitch only while it still
+           holds what was written. A reminder set on its own (drop) simply goes */
+        if (u.drop && u.fid) { await ctx.W.merge('data/users/' + ctx.uid + '/prospects', {fu: {[u.fid]: null}}); return 'Undone.'; }
+        if (M.prospects && M.prospects.undo) return M.prospects.undo(fresh(ctx), u.settle || u);
+        if (u.fid) { await ctx.W.merge('data/users/' + ctx.uid + '/prospects', {fu: {[u.fid]: null}}); return 'Undone.'; }
+        throw new Error('prospects are not on this page yet');
+      }
       default: throw new Error('that one cannot be undone');
     }
   }
   async function undo(ctx, id) {
     await loadLedger(ctx);
     const rows = allRows().filter(x => x.a.undo && x.a.status === 'done');
-    const hit = !id || id === 'last' ? rows.filter(x => undoable(x.a)).sort((p, q) => (q.a.doneAt || q.a.at) - (p.a.doneAt || p.a.at))[0] : rows.find(x => x.a.id === id);
+    const hit = !id || id === 'last' ? rows.filter(x => undoable(x.a)).sort(newest)[0] : rows.find(x => x.a.id === id);
     if (!hit) {
-      const late = !id || id === 'last' ? rows.sort((p, q) => (q.a.doneAt || q.a.at) - (p.a.doneAt || p.a.at))[0] : null;
+      const late = !id || id === 'last' ? rows.sort(newest)[0] : null;
       throw new Error(late ? 'too late to undo that one: it ran at ' + U.hhmm(late.a.doneAt || late.a.at) : 'nothing to undo');
     }
     if (!undoable(hit.a)) throw new Error('too late to undo that one: it ran at ' + U.hhmm(hit.a.doneAt || hit.a.at));
@@ -1447,7 +1682,7 @@
   const COO_UNDO_LEAVE = new RegExp('^undo (?:the approval (?:of|for) )?' + PERSON + ' s (leave|wfh)(?: approval)?$');
   const COO_APPROVE = new RegExp('^approve ' + PERSON + ' s (leave|wfh)(?: request| day)?$');
   const COO_SEND = /^(?:please )?send (?:the )?(.+? (?:follow up|followup|reminder|confirm note|draft))$/;
-  function cooParse(s, ctx) {
+  function cooParse(s, ctx, raw) {
     if (!cooOn()) return null;
     const f = !!ctx.isFounder;
     let m;
@@ -1470,13 +1705,109 @@
     /* "undo that" is the COO's row only while one was just discussed; otherwise it is the agent's own undo */
     if (/^(please )?undo (that|it)( please)?$/.test(s) && cooTalk && Date.now() - cooTalk.at < 30 * MIN) return {action: 'coo_undo', input: {act: cooTalk.id}};
     if ((m = COO_APPROVE.exec(s))) return {action: 'coo_decide', input: {person: m[1], kind: m[2], how: 'apply'}};
-    /* "send ... reminder" is the COO's only when one of its drafts answers to those words */
-    if ((m = COO_SEND.exec(s))) {
+    /* "send ... reminder" is the COO's only when one of its drafts answers to those words, and only in the
+       imperative: the fold turns "sent" into "send", and "Sent the Swisse follow-up" is a prospects line */
+    if ((m = COO_SEND.exec(s)) && /^(?:please )?send\b/i.test(String(raw || s).trim())) {
       let hit;
       try { hit = !!cooCard(ctx, {}, {card: m[1], kind: 'mail', how: 'send'}); } catch (e) { hit = true; }
       if (hit) return {action: 'coo_decide', input: {card: m[1], kind: 'mail', how: 'send'}};
     }
     return null;
+  }
+
+  /* the prospects lines, with no model call. Own grammar first (done, snooze, keep it private, what is due),
+     then M.prospects.read on the raw line. A line that names teammates alone is an ask or a nudge, which the
+     lines after this read; "remind me" about a teammate is the person's own follow-up with nobody attached */
+  const PROS_LIST = /^(?:who (?:do|should|must|can) i (?:follow ?up|chase|call|check) (?:with )?(?:today|now)?|(?:what|which) follow ?ups? (?:do i have |are due |is due |for )?(?:today|now)?|(?:my )?follow ?ups? (?:for |due )?today|who is due today|what is due today)$/;
+  const PROS_MEET = /^(?:who am i meeting(?: with)?(?: this week| today| tomorrow)?|(?:what|which) meetings? (?:do i have |are |have i got )?(?:this week|today|tomorrow)?|my meetings(?: this week)?|meetings this week)$/;
+  const PROS_PRIVATE = /^(?:please )?keep (?:the |my |that |it |this )?(?:date |follow ?up |reminder )?private$/;
+  const PROS_DONE = /^(?:please )?(?:done|all done|did it|sorted|finished|mark it done|mark that done|that is done|mark ([a-z]+(?: [a-z]+)?) done)(?: (?:with|for) ([a-z]+(?: [a-z]+)?))?(?: today| now| already| please)?$/;
+  const PROS_SNOOZE = /^(?:please )?(?:snooze|push|delay|postpone|bump|move|shift) (?:the |my |that |it |this |him |her |them )?(.*?) ?(?:to|till|until|for|by) (.+?)(?: please)?$/;
+  const brandIn = (ctx, s) => {
+    const names = Object.keys(ctx.coll.pitches.map).map(id => norm((ctx.coll.pitches.map[id] || {}).brand)).concat(Object.keys(ctx.coll.clients.map).map(id => norm((ctx.coll.clients.map[id] || {}).name)));
+    const hay = ' ' + s + ' ';
+    return names.some(n => n && n.length >= 3 && hay.indexOf(' ' + n + ' ') >= 0);
+  };
+  /* the action and the fields a reading maps to: a send or a reply go to log_send, a talk or a meeting to
+     log_talk, a follow-up word with a date (or none yet) to follow_up. The line rides along as 'line' */
+  function captureAction(r, raw) {
+    const base = {line: cut(raw, 300)};
+    if (r.who) base.who = r.who;
+    if (r.when && r.when.ymd) base.when = r.when.said || r.when.ymd;
+    else if (r.needDate) { const iso = /\b(\d{4}-\d{2}-\d{2})\b/.exec(String(raw)); if (iso) base.when = iso[1]; }
+    if (r.kind === 'reply') return {action: 'log_send', input: {...base, pitch: r.org, reply: r.reply}};
+    if (r.kind === 'sent') return {action: 'log_send', input: {...base, pitch: r.org, to: r.sent.to || r.who, what: r.sent.what}};
+    if (r.org) base.org = r.org;
+    if (TALK_KINDS.indexOf(r.kind) >= 0 || r.kind === 'meet-plan') return {action: 'log_talk', input: {...base, kind: r.kind, ...(r.sent ? {what: r.sent.what} : {}), ...(r.meet ? {meet: r.meet.d, ...(r.meet.t ? {at: r.meet.t} : {})} : {})}};
+    return {action: 'follow_up', input: base};
+  }
+  /* "follow-up" reads as "follow up": the hyphen is the only spelling the reader does not know */
+  const plainLine = raw => String(raw || '').replace(/\bfollow-ups?\b/gi, m => m.replace('-', ' '));
+  /* the next line after a question: a day for "which day", a brand for "which pitch", a name for "which
+     person". A question, or a line that is a capture of its own, is never the answer; "no" drops it */
+  const ANSWER_NO = /^(?:no|nope|skip|skip it|never mind|forget it|cancel|leave it|not now|drop it)$/;
+  const QUESTION_RE = /^(who|which|what|when|where|how|why|is|are|am|do|does|did|can|could|should|will|would|has|have)\b/;
+  function answerOf(a, raw, s, ctx) {
+    if (ANSWER_NO.test(s)) { asked = null; return null; }
+    if (QUESTION_RE.test(s) || /\?\s*$/.test(raw)) return null;
+    const words = s.split(' ').filter(Boolean).length;
+    let r = null;
+    try { r = M.prospects.read(plainLine(raw), ctx); } catch (e) { r = null; }
+    if (r && (r.kind || r.who || r.org)) return null;
+    const again = extra => ({action: a.action, input: {...a.input, ...extra}});
+    const q = norm(raw);
+    if (a.kind === 'date' || a.kind === 'festival') {
+      if (words > 6) return null;
+      const w = M.when.parse(raw, Date.now(), workOf(ctx));
+      if (!w || w.festival || !w.ymd) return null;
+      /* "Diwali is on 20 Oct": the follow-up lands the day after it */
+      const when = a.kind === 'festival' && !w.after ? 'after ' + Number(w.ymd.slice(8, 10)) + ' ' + M.when.MS[Number(w.ymd.slice(5, 7)) - 1] : raw;
+      return again({when, ...(w.t ? {time: w.t} : {})});
+    }
+    const choose = extra => again({choices: {...(a.input.choices || {}), ...extra}});
+    if (a.kind === 'pitch') {
+      const cs = a.cands || [];
+      const hit = cs.filter(c => norm(c.brand) === q);
+      const near = hit.length ? hit : cs.filter(c => q && norm(c.brand).indexOf(q) >= 0);
+      return near.length === 1 ? choose({pitch: near[0].id}) : null;
+    }
+    if (a.kind === 'person') {
+      const cs = a.cands || [];
+      const label = c => norm(c.who + (c.role ? ' ' + c.role : c.org ? ' at ' + c.org : ''));
+      const hit = cs.filter(c => norm(c.who) === q || label(c) === q);
+      const near = hit.length ? hit : cs.filter(c => q && (norm(c.who) + ' ' + norm(c.role) + ' ' + norm(c.org)).indexOf(q) >= 0);
+      return near.length === 1 ? choose(near[0].pid ? {pid: near[0].pid} : {cid: near[0].cid}) : null;
+    }
+    return null;
+  }
+  function prosParse(raw, s, ctx, nm) {
+    if (!prosOn() || ctx.viewAs) return null;
+    let m;
+    if (PROS_LIST.test(s)) return {action: 'follow_up', input: {list: 'today'}};
+    if (PROS_MEET.test(s)) return {action: 'follow_up', input: {list: 'week'}};
+    const open = askOpen(ctx);
+    if (open) { const ans = answerOf(open, raw, s, ctx); if (ans) return ans; }
+    if (PROS_PRIVATE.test(s)) return {action: 'follow_up', input: {private: true}};
+    if ((m = PROS_DONE.exec(s))) {
+      const subj = (m[2] || m[1] || '').trim();
+      /* "done" for a teammate's ask or a task is not ours: only a follow-up these words name, or with no
+         name, the one the agent itself just set or settled */
+      if (fuFor(ctx, subj, !subj)) return {action: 'follow_up', input: {done: true, ...(subj ? {who: subj} : {})}};
+    }
+    if ((m = PROS_SNOOZE.exec(s)) && !namedIn(s, ctx, nm).length && !/\b(task|tasks|work|deadline|due date|all|every|everything)\b/.test(s)) {
+      const subj = (m[1] || '').trim();
+      if (fuFor(ctx, subj)) return {action: 'follow_up', input: {snooze: m[2].trim(), ...(subj ? {who: subj} : {})}};
+    }
+    let r = null;
+    try { r = M.prospects.read(plainLine(raw), ctx); } catch (e) { r = null; }
+    if (!r || !M.prospects.isCapture(r)) return null;
+    const team = namedIn(s, ctx, nm);
+    const remind = /\bremind me\b/.test(s);
+    if (team.length && !r.org && !brandIn(ctx, s)) {
+      if (!remind || !r.when || !r.when.ymd) return null;
+      return {action: 'follow_up', input: {note: cut(raw, 200), when: r.when.said || r.when.ymd, ...(r.when.t ? {time: r.when.t} : {})}};
+    }
+    return captureAction(r, raw);
   }
 
   function parse(text, ctx, nm) {
@@ -1486,7 +1817,7 @@
     const s = normalise(raw);
     if (!s) return null;
     let m;
-    const coo = cooParse(s, ctx);
+    const coo = cooParse(s, ctx, raw);
     if (coo) return coo;
     /* undo and withdraw */
     if (/^(please )?undo( that| it| the last( one| thing)?)?( please)?$/.test(s)) return {action: 'undo', input: {id: 'last'}};
@@ -1510,6 +1841,9 @@
       const t = timeFrom(rest, Date.now());
       return {action: 'answer_ask', input: {...(m[1] ? {about: m[1]} : {}), how: howFrom(rest), ...(t ? {eta: t.ms ? U.hhmm(t.ms) : t.ymd} : {})}};
     }
+    /* prospects: who they spoke to, a send, a reply, a meeting, a follow-up date, done, snooze, what is due */
+    const pros = prosParse(raw, s, ctx, nm);
+    if (pros) return pros;
     const cond = conditionIn(s);
     /* a question: who has not checked out */
     if (cond && /^(who|which people|which of|anyone|anybody|is anyone|is anybody|are there people|show me who|list who|tell me who|list people who|list everyone who)\b/.test(s)) {
@@ -1569,7 +1903,8 @@
     try {
       const r = await exec(ctx, nm, parsed.action, parsed.input, {log, turn: t, rich: !!log});
       const text = (r && (r.say || (r.waiting ? r.label + ' is ready. Tap it, or say yes.' : r.note))) || 'Done.';
-      return {text, result: r, waiting: !!(r && r.waiting), id: r && r.id, undoId: r && r.undoId};
+      const chips = Array.isArray(r && r.lines) ? Array.from(new Set(r.lines.filter(x => typeof x === 'string' && x))) : [];
+      return {text, result: r, waiting: !!(r && r.waiting), id: r && r.id, undoId: r && r.undoId, ...(chips.length ? {chips} : {})};
     } catch (e) {
       return {text: 'I could not: ' + ((e && e.message) || 'that did not go through') + '.', error: true};
     }
@@ -1702,11 +2037,36 @@
 
   /* with the AI off (not granted, rate limited, the day's turns used) the grammar still runs: the panel
      says why in one line (M.ai.errCopy) and offers these */
-  const OFFLINE = {line: 'I can still: open a screen, nudge people by a condition, check you in or out, set a status, start focus.',
-    chips: ['Who has not checked out?', 'Nudge everyone who has not checked in', 'Check me out', 'Start focus for 25', 'Open the pipeline']};
+  const OFFLINE = {line: 'I can still: open a screen, nudge people by a condition, check you in or out, set a status, start focus, log who you spoke to and when to follow up.',
+    chips: ['Who has not checked out?', 'Spoke to Meera at Swisse, talk after the 16th', 'Nudge everyone who has not checked in', 'Check me out', 'Start focus for 25', 'Open the pipeline']};
+
+  /* one capture line from a page (the Prospects page, a person, a pitch, a Base contact, Home quick add, Cmd K),
+     run through the registry so it lands in the ledger with Undo. o: {via 'typed'|'voice', choices, log}.
+     Gives {text, say, chips, hold, undoId, waiting, ask, action}; chips and hold carry run() for the page */
+  async function capture(ctx, text, preset, o) {
+    o = o || {};
+    const line = String(text || '').trim();
+    if (!prosOn()) return {text: 'Prospects are not on this page yet.', error: true};
+    if (ctx && ctx.viewAs) return {text: 'Prospects are private to each person.', error: true};
+    if (!line) return {text: 'Say who you spoke to, and when to follow up.', error: true};
+    let r = null;
+    try { r = M.prospects.read(plainLine(line), ctx); } catch (e) { r = null; }
+    if (!r || !M.prospects.isCapture(r)) return {text: NO_READ + '.', error: true};
+    const parsed = captureAction(r, plainLine(line));
+    const input = {...parsed.input, ...(preset && typeof preset === 'object' && Object.keys(preset).length ? {preset} : {}), ...(o.choices ? {choices: o.choices} : {})};
+    const turn = {id: U.uid(), via: o.via === 'voice' ? 'voice' : 'typed', tainted: false, said: line};
+    try {
+      const res = await exec(ctx, null, parsed.action, input, {turn, log: o.log});
+      const chips = (res.chips || []).map(c => c && c.k === 'undo' && res.undoId ? {...c, run: () => undo(fresh(ctx), res.undoId).then(x => x.say)} : c);
+      return {text: res.say || 'Logged.', say: res.say || 'Logged.', chips, hold: res.hold || [], undoId: res.undoId || null, waiting: false, action: parsed.action,
+        ask: res.ask || '', askKind: res.askKind || '', cands: res.cands || [], fid: res.fid || '', pid: res.pid || '', pitch: res.pitch || '', bridged: !!res.bridged};
+    } catch (e) {
+      return {text: 'I could not: ' + ((e && e.message) || 'that did not save') + '.', error: true};
+    }
+  }
 
   M.agent = {OFFLINE, ACTIONS, actionsFor, byName, allowed, parse, normalise, route, peopleWhere, whereLine, runGrammar, exec, isYes, isNo, yesFor, undo, undoable,
-    ledger: ctx => loadLedger(ctx), conf, commandsFor, findScreen, timeFrom, cooUntil, COND, CONDS, NEVER, names};
+    ledger: ctx => loadLedger(ctx), conf, commandsFor, findScreen, timeFrom, cooUntil, COND, CONDS, NEVER, names, capture, captureAction, fuFor, listLine};
   M.parts.AgentReceipts = AgentReceipts;
   M.parts.AgentHistory = AgentHistory;
   M.parts.AgentAdminCard = AgentAdminCard;
