@@ -138,6 +138,7 @@
   const STOP = /^(the|a|an|him|her|them|us|me|it|our|their|my|client|team|brand|deck|proposal|everyone|all)$/;
   const COO_SEND = /^(?:please )?send (?:the )?(.+? (?:follow up|followup|follow-up|reminder|confirm note|draft))$/;
   const QUESTION = /^(who|which|what|when|where|how|why|is|are|am|do|does|did|can|could|should|will|would|has|have)\b/;
+  const TASKY = /^(?:please |pls |can you |could you )?(?:add|create|make|open|put|start|set up|log)(?: a| an| me| the| one)?(?: new)? (?:task|to-?do|note|project|pitch|room|poll|reminder for the team)\b|^task[: ]|^todo[: ]/;
   function whoIn(str) {
     let m;
     if ((m = /\b([a-z][a-z.']{1,20}(?: [a-z][a-z.']{1,20})?) (?:from|at|of|@) ([a-z0-9][a-z0-9&.' ]{1,30}?)(?=$|[,.;]| and | he | she | they | about | today| yesterday| tomorrow| tmrw| on | for | after | said | sent | to | the | in | by | at \d| next | this | till | until | monday| tuesday| wednesday| thursday| friday| saturday| sunday)/.exec(str))) return {who: m[1], org: m[2].trim()};
@@ -151,6 +152,9 @@
     const s = ' ' + raw.toLowerCase().replace(/[’‘]/g, "'").replace(/\s+/g, ' ').trim() + ' ';
     const t = s.trim();
     if (!t || /^coo\b/.test(t) || COO_SEND.test(t) || QUESTION.test(t) || /\?\s*$/.test(t)) return null;
+    /* an order for a thing of m360's own ("add a task for me to follow up with the client tomorrow") is
+       that thing, never a private follow-up: it goes on to the tools as before */
+    if (TASKY.test(t)) return null;
     const now = Date.now();
     const isWork = workOf(ctx);
     const out = {kind: '', who: '', org: '', sent: null, when: null, meet: null, reply: '', said: raw.trim().slice(0, 300)};
