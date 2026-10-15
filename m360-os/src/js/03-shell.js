@@ -46,6 +46,10 @@
       {k: 'play', label: 'Daily', route: 'play'}, {k: 'reset', label: 'Reset', route: 'reset'}, {k: 'care', label: 'Care', route: 'care'}, {k: 'reflect', label: 'Reflect', route: 'reflect'}]},
     base: {label: 'Base', icon: 'database', page: 'Base', tabs: [
       {k: 'people', label: 'People', route: 'base'}, {k: 'companies', label: 'Companies', route: 'companies'}, {k: 'import', label: 'Import', route: 'import'}]},
+    /* the organic launch playbook: accounts, slideshows, the posting schedule and the six steps */
+    organic: {label: 'Organic', icon: 'up', page: 'Organic', tabs: [
+      {k: 'playbook', label: 'Playbook', route: 'organic'}, {k: 'studio', label: 'Studio', route: 'slides'},
+      {k: 'handles', label: 'Accounts', route: 'handles'}, {k: 'schedule', label: 'Schedule', route: 'posting'}]},
     chat: {label: 'Chat', icon: 'send', page: 'Chat'},
     workspace: {label: 'Workspace', icon: 'mail', page: 'Workspace', tabs: [
       {k: 'mail', label: 'Mail', route: 'mail'}, {k: 'gcal', label: 'Calendar', route: 'gcal'}, {k: 'drive', label: 'Drive', route: 'drive'}]},
@@ -96,6 +100,10 @@
       case 'prospects': case 'followups': case 'follow-ups': return {s: 'accounts', t: 'prospects', id};
       case 'crm': return {s: 'accounts', t: 'crm'};
       case 'handshake': case 'dm': case 'dms': return {s: 'accounts', t: 'handshake', id};
+      case 'organic': case 'playbook': case 'launch': return {s: 'organic', t: 'playbook'};
+      case 'slides': case 'slideshows': return {s: 'organic', t: 'studio'};
+      case 'handles': case 'fleet': return {s: 'organic', t: 'handles'};
+      case 'posting': case 'schedule': return {s: 'organic', t: 'schedule'};
       case 'web': case 'browser': return {s: 'web'};
       case 'chat': case 'dm': return {s: 'chat', id};
       case 'mail': case 'gmail': case 'workspace': return {s: 'workspace', t: 'mail'};
@@ -353,7 +361,7 @@
     }, [loud, loudReady, ctx.uid]);
     const go = k => { setMoreOpen(false); M.nav('#' + k); };
 
-    const mainKeys = ['home', 'chat', 'work', 'accounts', 'workspace', 'base', 'radar', 'web', 'vibe', 'break', 'me'];
+    const mainKeys = ['home', 'chat', 'work', 'accounts', 'organic', 'workspace', 'base', 'radar', 'web', 'vibe', 'break', 'me'];
     const founderKeys = ctx.isFounder ? (ctx.isOwner ? ['hq', 'books', 'admin'] : ['hq', 'admin']) : [];
     const item = k => {
       const s = SECTIONS[k];
@@ -375,7 +383,7 @@
       onTask=${() => setNewTask(true)} onAsk=${() => askAt('')}/>` : null;
 
     const tabKeys = ctx.isFounder ? ['home', 'chat', 'hq', 'work'] : ['home', 'chat', 'work', 'accounts', 'me'];
-    const moreKeys = (ctx.isFounder ? (ctx.isOwner ? ['accounts', 'workspace', 'base', 'radar', 'web', 'vibe', 'break', 'me', 'books', 'admin'] : ['accounts', 'workspace', 'base', 'radar', 'web', 'vibe', 'break', 'me', 'admin']) : ['workspace', 'base', 'radar', 'web', 'break']).concat(['map']);
+    const moreKeys = (ctx.isFounder ? (ctx.isOwner ? ['accounts', 'organic', 'workspace', 'base', 'radar', 'web', 'vibe', 'break', 'me', 'books', 'admin'] : ['accounts', 'organic', 'workspace', 'base', 'radar', 'web', 'vibe', 'break', 'me', 'admin']) : ['organic', 'workspace', 'base', 'radar', 'web', 'break']).concat(['map']);
     const moreBadge = moreKeys.reduce((n, k) => n + (b[k] || 0), 0);
 
     return html`<div class="app">
@@ -431,7 +439,7 @@
       </div>
 
       <main class="main">
-        <div key=${r.s} class=${'content view' + (['work', 'accounts', 'hq'].indexOf(r.s) >= 0 ? ' wide' : '')}>
+        <div key=${r.s} class=${'content view' + (['work', 'accounts', 'organic', 'hq'].indexOf(r.s) >= 0 ? ' wide' : '')}>
           <${PreviewBar}/>
           <${AlertBanner}/>
           <${LockBanner}/>

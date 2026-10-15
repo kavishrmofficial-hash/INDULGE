@@ -28,6 +28,11 @@
       {k: 'pipeline', label: 'Pipeline', route: 'pitches', blurb: 'Every pitch by stage with its next step and date; won ones become clients.', signal: ctx => { const n = Object.values(ctx.coll.pitches.map).filter(p => p && p.stage !== 'won' && p.stage !== 'lost').length; return n ? n + ' in play' : ''; }},
       {k: 'crm', label: 'CRM', route: 'crm', blurb: 'Every account in one table: contacts, pitches, tasks, last touch and next step.'},
       {k: 'handshake', label: 'Handshake', route: 'handshake', blurb: 'The LinkedIn DM desk: screenshots in, verified and written messages out, in five beats.', signal: ctx => { const n = M.handshake ? M.handshake.people(ctx).filter(p => p.state === 'ready').length : 0; return n ? n + ' ready to send' : ''; }}]},
+    {k: 'organic', label: 'Organic', icon: 'up', route: 'organic', blurb: 'The launch playbook for organic growth: faceless accounts, slideshows at volume, and six steps checked live.', tabs: [
+      {k: 'playbook', label: 'Playbook', route: 'organic', blurb: 'The six steps for a campaign, each with a live check: volume, one feature, onboarding, price, the waitlist and the paid ads floor.', signal: ctx => { const c = M.organic ? M.organic.campaigns(ctx)[0] : null; return c ? M.organic.progress(ctx, c).done + ' of 6 steps' : ''; }},
+      {k: 'studio', label: 'Studio', route: 'slides', blurb: 'Slideshows drafted from a topic, variants in one tap, each slide downloaded as a 1080 by 1920 image.'},
+      {k: 'handles', label: 'Accounts', route: 'handles', blurb: 'The fleet: every account, who posts on it, its daily target and what it earned.'},
+      {k: 'schedule', label: 'Schedule', route: 'posting', blurb: 'The week by account, what to post today, and views, likes, comments and shares per post.', signal: ctx => { const c = M.organic ? M.organic.campaigns(ctx)[0] : null; const n = c ? M.organic.stats(ctx, c).dueToday.length : 0; return n ? n + ' to post today' : ''; }}]},
     {k: 'vibe', label: 'Vibe', icon: 'feed', route: 'vibe', blurb: 'The team side: the feed, the crew, the pulse, the leaderboard and music.', tabs: [
       {k: 'feed', label: 'Feed', route: 'feed', blurb: 'Updates, wins, questions, polls, kudos and the founder\'s announcements.', signal: ctx => { const w = week(ctx); const n = (M.feed ? M.feed.stream(ctx) : []).filter(it => U.ymd(new Date(it.at)) >= w.from).length; return n ? n + ' this week' : ''; }},
       {k: 'crew', label: 'Crew', route: 'people', blurb: 'Everyone on the team, their profiles, pods and who is in today.', signal: ctx => ctx.activeMembers.length + ' people'},
@@ -112,7 +117,7 @@
   const sig = (ctx, x) => { try { return x.signal ? String(x.signal(ctx) || '') : ''; } catch (e) { return ''; } };
 
   /* each section is introduced by its own bot (bot-avatars), one body per place */
-  const BOT_OF = {home: 'brief', work: 'sections', accounts: 'clients', vibe: 'buddy', break: 'care', base: 'base', chat: 'handshake',
+  const BOT_OF = {home: 'brief', work: 'sections', accounts: 'clients', organic: 'writer', vibe: 'buddy', break: 'care', base: 'base', chat: 'handshake',
     workspace: 'writer', web: 'search', radar: 'radar', me: 'notes', hq: 'hq', admin: 'hiring', books: 'books', office: 'buddy'};
   const Mark = ({s}) => M.fx ? html`<${M.fx.Bot} feature=${BOT_OF[s.k] || 'ask'} size=${30} seed=${(s.label.length % 7) / 7} label=${'m360, ' + s.label}/>` : html`<${icons[s.icon] || icons.today}/>`;
   function Section({s, ctx, open}) {

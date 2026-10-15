@@ -367,6 +367,9 @@
     if (/Break this brief/.test(text)) return [{title: 'Write ten Diwali reel scripts', owner: 'Durvesh', due: tomorrow, section: 'Strategy', why: 'Strategist owns scripts'},
       {title: 'Book the studio day', owner: 'Ishaan', due: tomorrow, section: '', why: 'Producer runs logistics'}];
     if (/Turn this note into one task/.test(text)) return {title: 'Cut the teaser', owner: 'Aanya', due: tomorrow, priority: 'high'};
+    if (/social slideshow for a faceless account/.test(text)) return {title: 'Golf habits, set 1', slides: ['5 weird golf habits that actually work',
+      '1. Practise your short game first.', '2. Walk the course once a week.', '3. Film one swing a day.', '4. Play the hole backwards in your head.',
+      '5. End every round with a putt you make.', 'Follow for part 2.']};
     return {};
   }
   const sample = function (input, opts) {
