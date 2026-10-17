@@ -1,0 +1,363 @@
+{
+ "body": {
+  "background": "rgb(255, 255, 255)",
+  "color": "rgb(0, 0, 0)"
+ },
+ "type": [
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "80px",
+   "fontWeight": "500",
+   "lineHeight": "72px",
+   "letterSpacing": "-2.4px",
+   "textTransform": "uppercase",
+   "color": "rgba(255, 255, 255, 0.6)",
+   "count": 6,
+   "samples": [
+    "Create",
+    "Your",
+    "Next",
+    "Website"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "64px",
+   "fontWeight": "500",
+   "lineHeight": "64px",
+   "letterSpacing": "-1.92px",
+   "textTransform": "uppercase",
+   "color": "rgba(18, 18, 18, 0.6)",
+   "count": 16,
+   "samples": [
+    "R",
+    "e",
+    "l",
+    "a"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "48px",
+   "fontWeight": "500",
+   "lineHeight": "48px",
+   "letterSpacing": "-1.44px",
+   "textTransform": "uppercase",
+   "color": "rgb(255, 255, 255)",
+   "count": 38,
+   "samples": [
+    "C",
+    "r",
+    "e",
+    "a"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "34px",
+   "fontWeight": "500",
+   "lineHeight": "40.8px",
+   "letterSpacing": "-0.68px",
+   "textTransform": "none",
+   "color": "rgb(18, 18, 18)",
+   "count": 29,
+   "samples": [
+    "A",
+    "smooth",
+    "website",
+    "project"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\"",
+   "fontSize": "32px",
+   "fontWeight": "500",
+   "lineHeight": "32px",
+   "letterSpacing": "-1px",
+   "textTransform": "uppercase",
+   "color": "rgb(255, 255, 255)",
+   "count": 2,
+   "samples": [
+    "ahoj@hanza.cz",
+    "ahoj@hanza.cz"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "28px",
+   "fontWeight": "500",
+   "lineHeight": "30.8px",
+   "letterSpacing": "-0.84px",
+   "textTransform": "uppercase",
+   "color": "rgb(18, 18, 18)",
+   "count": 2,
+   "samples": [
+    "WeeklyDesign Notes.",
+    "Weekly"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "26px",
+   "fontWeight": "500",
+   "lineHeight": "33.8px",
+   "letterSpacing": "-0.5px",
+   "textTransform": "none",
+   "color": "rgb(18, 18, 18)",
+   "count": 2,
+   "samples": [
+    "Designing A Simple Path",
+    "Creating Consistency Across Every Detail"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "20px",
+   "fontWeight": "500",
+   "lineHeight": "26px",
+   "letterSpacing": "-0.2px",
+   "textTransform": "none",
+   "color": "rgb(18, 18, 18)",
+   "count": 4,
+   "samples": [
+    "What Makes A Website Project Run Smoothly",
+    "How Visual Direction Shapes A Stronger Website",
+    "Building Better Websites In Framer",
+    "Small Details That Make Websites Feel Premium"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "17px",
+   "fontWeight": "400",
+   "lineHeight": "27.2px",
+   "letterSpacing": "normal",
+   "textTransform": "none",
+   "color": "rgba(18, 18, 18, 0.6)",
+   "count": 9,
+   "samples": [
+    "A clear digital presence starts with knowing what the brand needs to communicate. Before d",
+    "When a website tries to say too many things at once, the experience becomes harder to foll",
+    "This does not mean the website has to feel plain or predictable. A strong digital presence",
+    "Clarity also comes from structure. A website should guide visitors through the right infor"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "16px",
+   "fontWeight": "500",
+   "lineHeight": "20.8px",
+   "letterSpacing": "-0.32px",
+   "textTransform": "uppercase",
+   "color": "rgba(255, 255, 255, 0.6)",
+   "count": 201,
+   "samples": [
+    "H",
+    "o",
+    "w",
+    "s"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "15px",
+   "fontWeight": "400",
+   "lineHeight": "24px",
+   "letterSpacing": "-0.15px",
+   "textTransform": "none",
+   "color": "rgba(18, 18, 18, 0.6)",
+   "count": 7,
+   "samples": [
+    "I\u2019m a designer and Framer developer based in Prague, creating clean websites with strong s",
+    "Get short thoughts on design, Framer, process, and building websites that feel clear, poli",
+    "A simple look at how clear structure, focused feedback, and the right process.",
+    "Why typography, imagery, spacing, and color direction matter."
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "14px",
+   "fontWeight": "500",
+   "lineHeight": "14px",
+   "letterSpacing": "-0.5px",
+   "textTransform": "uppercase",
+   "color": "rgb(255, 255, 255)",
+   "count": 1,
+   "samples": [
+    "Menu"
+   ]
+  },
+  {
+   "fontFamily": "\"Geist Mono\", monospace",
+   "fontSize": "14px",
+   "fontWeight": "500",
+   "lineHeight": "15.4px",
+   "letterSpacing": "normal",
+   "textTransform": "uppercase",
+   "color": "rgb(255, 255, 255)",
+   "count": 4,
+   "samples": [
+    "Start Project",
+    "Sign Up",
+    "Get in Touch",
+    "Form incomplete"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "14px",
+   "fontWeight": "500",
+   "lineHeight": "16.8px",
+   "letterSpacing": "normal",
+   "textTransform": "uppercase",
+   "color": "rgb(255, 255, 255)",
+   "count": 6,
+   "samples": [
+    "Home",
+    "Portfolio",
+    "About",
+    "Contact"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "13px",
+   "fontWeight": "400",
+   "lineHeight": "19.5px",
+   "letterSpacing": "normal",
+   "textTransform": "none",
+   "color": "rgba(18, 18, 18, 0.6)",
+   "count": 6,
+   "samples": [
+    "By subscribing, you agree to the Terms and Privacy Policy.",
+    "Terms",
+    "Privacy Policy",
+    "By submitting, you agree to our Terms and Privacy Policy."
+   ]
+  },
+  {
+   "fontFamily": "Geist, \"Geist Placeholder\", sans-serif",
+   "fontSize": "13px",
+   "fontWeight": "600",
+   "lineHeight": "15.6px",
+   "letterSpacing": "normal",
+   "textTransform": "none",
+   "color": "rgb(255, 255, 255)",
+   "count": 4,
+   "samples": [
+    "More Templates",
+    "More Templates",
+    "Buy for $99",
+    "Buy for $99"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "12px",
+   "fontWeight": "500",
+   "lineHeight": "13.2px",
+   "letterSpacing": "-0.25px",
+   "textTransform": "uppercase",
+   "color": "rgb(255, 255, 255)",
+   "count": 16,
+   "samples": [
+    "All Articles",
+    "All Articles",
+    "Read Article",
+    "Read Article"
+   ]
+  },
+  {
+   "fontFamily": "\"Geist Mono\", monospace",
+   "fontSize": "12px",
+   "fontWeight": "500",
+   "lineHeight": "14.4px",
+   "letterSpacing": "normal",
+   "textTransform": "uppercase",
+   "color": "rgba(255, 255, 255, 0.6)",
+   "count": 21,
+   "samples": [
+    "/Hanza",
+    "Read",
+    "Date",
+    "Category"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "12px",
+   "fontWeight": "500",
+   "lineHeight": "14.4px",
+   "letterSpacing": "normal",
+   "textTransform": "uppercase",
+   "color": "rgb(255, 255, 255)",
+   "count": 13,
+   "samples": [
+    "12 Min",
+    "Branding",
+    "Newsletter",
+    "Designer & Framer Expert"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "12px",
+   "fontWeight": "500",
+   "lineHeight": "15.6px",
+   "letterSpacing": "normal",
+   "textTransform": "none",
+   "color": "rgba(255, 255, 255, 0.6)",
+   "count": 1,
+   "samples": [
+    "\u00a9 2026 HANZA\u00ae"
+   ]
+  },
+  {
+   "fontFamily": "sans-serif",
+   "fontSize": "12px",
+   "fontWeight": "400",
+   "lineHeight": "normal",
+   "letterSpacing": "normal",
+   "textTransform": "none",
+   "color": "rgb(0, 0, 238)",
+   "count": 1,
+   "samples": [
+    "Create a free website with Framer, the website builder loved by startups, designers and ag"
+   ]
+  }
+ ],
+ "backgrounds": [
+  [
+   "rgb(255, 255, 255)",
+   10071
+  ],
+  [
+   "rgb(18, 18, 18)",
+   3707
+  ],
+  [
+   "rgb(252, 252, 252)",
+   1751
+  ],
+  [
+   "rgba(0, 0, 0, 0.2)",
+   1296
+  ],
+  [
+   "rgb(250, 250, 250)",
+   250
+  ],
+  [
+   "rgb(25, 25, 25)",
+   215
+  ]
+ ],
+ "fonts": [
+  "Geist 600 normal",
+  "Zalando Sans 400 normal",
+  "Zalando Sans 500 normal",
+  "Geist Mono 500 normal",
+  "Inter 400 normal"
+ ],
+ "height": 6330
+}

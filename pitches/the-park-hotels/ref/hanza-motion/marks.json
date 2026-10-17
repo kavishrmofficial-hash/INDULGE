@@ -1,0 +1,112 @@
+[
+ {
+  "name": "load",
+  "video_s": 0.711,
+  "perf_ms": 793
+ },
+ {
+  "name": "wheel-one-tick",
+  "video_s": 4.318,
+  "perf_ms": 4312
+ },
+ {
+  "name": "wheel-burst",
+  "video_s": 6.171,
+  "perf_ms": 6174
+ },
+ {
+  "name": "cruise",
+  "video_s": 9.922,
+  "perf_ms": 9917
+ },
+ {
+  "name": "cruise-end",
+  "video_s": 49.374,
+  "perf_ms": 49367
+ },
+ {
+  "name": "top",
+  "video_s": 53.384,
+  "perf_ms": 53378
+ },
+ {
+  "name": "hover-cta",
+  "video_s": 55.03,
+  "perf_ms": 55034
+ },
+ {
+  "name": "unhover-cta",
+  "video_s": 56.33,
+  "perf_ms": 56326
+ },
+ {
+  "name": "hover-menu",
+  "video_s": 59.147,
+  "perf_ms": 59151
+ },
+ {
+  "name": "unhover-menu",
+  "video_s": 60.443,
+  "perf_ms": 60438
+ },
+ {
+  "name": "menu-open",
+  "video_s": 61.725,
+  "perf_ms": 61720
+ },
+ {
+  "name": "menu-close",
+  "video_s": 63.538,
+  "perf_ms": 63531
+ },
+ {
+  "name": "hover-view-project",
+  "video_s": 66.681,
+  "perf_ms": 66687
+ },
+ {
+  "name": "unhover-view-project",
+  "video_s": 67.966,
+  "perf_ms": 67963
+ },
+ {
+  "name": "hover-all-projects",
+  "video_s": 70.797,
+  "perf_ms": 70792
+ },
+ {
+  "name": "unhover-all-projects",
+  "video_s": 72.064,
+  "perf_ms": 72060
+ },
+ {
+  "name": "hover-book-call",
+  "video_s": 74.897,
+  "perf_ms": 74908
+ },
+ {
+  "name": "unhover-book-call",
+  "video_s": 76.223,
+  "perf_ms": 76227
+ },
+ {
+  "name": "hover-blog-card",
+  "video_s": 79.099,
+  "perf_ms": 79098
+ },
+ {
+  "name": "unhover-blog-card",
+  "video_s": 80.381,
+  "perf_ms": 80389
+ },
+ {
+  "name": "hover-accordion",
+  "video_s": 83.27,
+  "perf_ms": 83267
+ },
+ {
+  "name": "unhover-accordion",
+  "video_s": 84.55,
+  "perf_ms": 84545
+ }
+]
