@@ -1,0 +1,34 @@
+# Primary sources for the Westside proposal, fetched by .github/workflows/westside-sources.yml (16 Oct 2026)
+bse 500251 20251001 20261016
+https://nsearchives.nseindia.com/corporate/TRENT_06082026134112_InvestorPresentation06082026Q1FY27.pdf nse_q1fy27_investor_presentation
+https://nsearchives.nseindia.com/corporate/TRENT_06042026081829_PressreleaseQ4FY26.pdf nse_q4fy26_update
+https://indianretailer.com/brandlicense/archives/news/westside-introduces-front-row-80-seasonal-looks-and-new-talent-initiatives.n6017 indianretailer_front_row
+https://www.retail-insight-network.com/news/trent-q2-standalone-revenue-rises-23/ rin_trent_q2fy27
+https://upstox.com/news/market-news/stocks/trent-shares-in-focus-after-q2-revenue-jumps-23-yo-y-zudio-crosses-1-000-store-milestone/article-201309/ upstox_trent_q2fy27
+https://www.westside.com/ westside_home
+https://www.westside.com/pages/brands westside_brands
+https://www.youtube.com/@westsidestores/videos westside_youtube_videos
+https://www.instagram.com/westsidestores/ westside_instagram
+https://nsearchives.nseindia.com/corporate/TRENT_22042026161803_InvestorPresentation22042026.pdf nse_q4fy26_investor_presentation
+https://nsearchives.nseindia.com/corporate/TRENT_22042026161303_PressRelease22042026.pdf nse_fy26_results_press_release
+https://nsearchives.nseindia.com/corporate/TRENT_07112025182053_InvestorPresentationQ2FY26.pdf nse_q2fy26_investor_presentation
+https://nsearchives.nseindia.com/corporate/TRENT_06102025150802_PressReleaseQ2Update061025.pdf nse_q2fy26_update
+https://bsmedia.business-standard.com/_media/bs/data/announcements/bse/04022026/68858a99-5104-419c-98b3-eeba2400b28c.pdf bse_20260204_announcement
+https://bsmedia.business-standard.com/_media/bs/data/announcements/bse/05012026/2564c963-4b08-4eb5-b124-238da2f8457b.pdf bse_20260105_announcement
+https://vling.net/en/channel/UCY45nc-PW6DNIHB2oVTitLw/channel-info vling_channel_a
+https://vling.net/en/channel/UC09eO7-kWaZFvCmGuGf0A8A/channel-info vling_channel_b
+https://nsearchives.nseindia.com/corporate/SHOPERSTOP_22072026172011_SEPressreleaseinvtpresentatn.pdf shoppersstop_q1fy27_release
+https://www.angelone.in/news/stocks/trent-share-price-gains-over-11-as-q2-fy27-revenue-jumps-23-to-5-788-crore angelone_trent_q2fy27
+https://www.socialsamosa.com/industry-updates/aneet-padda-trends-as-brand-ambassador-10895650 socialsamosa_trends_aneet_padda
+https://www.passionateinmarketing.com/trends-announces-this-holiday-trend-it-campaign-shoppers-stand-a-chance-to-win-a-vacation/ pim_trends_this_holiday
+https://www.socialsamosa.com/industry-updates/pantaloons-samantha-ruth-prabhu-brand-ambassador-10533295 socialsamosa_pantaloons
+https://www.exchange4media.com/advertising-news/max-fashion-launches-new-campaign-featuring-brand-ambassador-siddhant-chaturvedi-146493.html e4m_max_fashion
+https://fashionunited.in/news/culture/h-m-india-partners-with-hybe-india-for-talent-search-campaign/2026043054260 fashionunited_hm_hybe
+https://www.alchempro.com/news/fashion-news/h-m-india-unveils-official-lollapalooza-india-2026-collection-307629-newsdetails.htm alchempro_hm_lollapalooza
+https://indianretailer.com/brandlicense/archives/news/uniqlo-india-showcases-fleece-collection-kriti-sanon-and-jasprit-bumrah.n6056 indianretailer_uniqlo_fleece
+https://www.franchiseindia.com/insights/en/news/uniqlo-strengthens-karnataka-footprint-with-new-store-at-phoenix-marketcity-bengaluru.59048 franchiseindia_uniqlo_bengaluru
+https://retail4growth.com/news/uniqlo-announces-new-stores-in-pune-and-bengaluru-7909 r4g_uniqlo_pune
+https://indiantelevision.com/mam/myntra-offers-creators-3x-earning-opportunities-ahead-of-festive-season/ itv_myntra_creators
+https://www.medianews4u.com/myntra-launches-myntra-creator-school-to-upskill-and-empower-indias-growing-creator-community/ mn4u_myntra_creator_school
+https://www.socialsamosa.com/report/creator-led-promotions-rs-250-crore-indian-film-marketing-2025-10960867 socialsamosa_qoruz_meme_pages
+https://upgrowth.in/instagram-ads-pricing-india-2026/ upgrowth_instagram_cpm_2026

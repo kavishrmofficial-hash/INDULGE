@@ -1,0 +1,92 @@
+name: deploy-westside
+# Builds the Westside pitch (pitches/westside) and deploys it to EdgeOne Pages as the project "mask360westside".
+#  - With the repository secret EDGEONE_API_TOKEN set, every push updates that project and keeps its link.
+#  - Without it, a run started by hand or a commit whose message contains [deploy] makes an anonymous
+#    deployment, which must be claimed within an hour from the link in the run summary (claim it into the
+#    same EdgeOne account as mask360os). Other pushes skip the deploy, so no stray projects pile up.
+on:
+  push:
+    branches: [claude/wizardly-bardeen-2oc2qq]
+    paths: ['pitches/westside/**', '.github/workflows/deploy-westside.yml']
+  workflow_dispatch:
+concurrency:
+  group: deploy-westside
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      EDGEONE_API_TOKEN: ${{ secrets.EDGEONE_API_TOKEN }}
+      PROJECT: mask360westside
+      ANON_OK: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[deploy]') }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build
+        run: |
+          STRICT=1 python3 pitches/westside/v4/build.py
+          python3 pitches/westside/web.py "$RUNNER_TEMP/$PROJECT"
+      - name: Deploy
+        run: |
+          set -o pipefail
+          if [ -z "$EDGEONE_API_TOKEN" ] && [ "$ANON_OK" != "true" ]; then
+            echo "No EDGEONE_API_TOKEN secret and no [deploy] in the commit message: skipping deploy." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # the CLI names an anonymous project after the folder it runs in, so it runs inside mask360westside/
+          cd "$RUNNER_TEMP/$PROJECT"
+          ok=""
+          if [ -n "$EDGEONE_API_TOKEN" ]; then
+            for i in 1 2 3 4; do
+              rm -f ./*.zip   # a failed attempt leaves its package here, and the next one would upload it too
+              npx --yes edgeone@1.6.41 makers deploy -n "$PROJECT" -t "$EDGEONE_API_TOKEN" --json 2>&1 | tee "$RUNNER_TEMP/deploy.log" || true
+              if grep -q '"status":"success"' "$RUNNER_TEMP/deploy.log"; then ok=1; break; fi
+              sleep 8
+            done
+          else
+            # anonymous deploys take the folder name (mask360westside); the explicit name is the fallback
+            # EdgeOne's anonymous-credentials call sometimes times out (30 s); retry with growing waits
+            for NAME in "" "$PROJECT"; do
+              for i in 1 2 3; do
+                rm -f ./*.zip   # a failed attempt leaves its package here, and the next one would upload it too
+                if [ -n "$NAME" ]; then
+                  npx --yes edgeone@1.6.41 makers deploy -n "$NAME" --anonymous --site global --json 2>&1 | tee "$RUNNER_TEMP/deploy.log" || true
+                else
+                  npx --yes edgeone@1.6.41 makers deploy --anonymous --site global --json 2>&1 | tee "$RUNNER_TEMP/deploy.log" || true
+                fi
+                if grep -q '"status":"success"' "$RUNNER_TEMP/deploy.log"; then ok=1; break 2; fi
+                grep -q 'Project name' "$RUNNER_TEMP/deploy.log" && break
+                sleep $((i * 20))
+              done
+            done
+          fi
+          [ -n "$ok" ] || { echo "Deploy failed" | tee -a "$GITHUB_STEP_SUMMARY"; exit 1; }
+          RESULT=$(grep '"status":"success"' "$RUNNER_TEMP/deploy.log" | tail -1)
+          URL=$(echo "$RESULT" | grep -o '"url":"[^"]*"' | cut -d'"' -f4)
+          CLAIM=$(echo "$RESULT" | grep -o '"claimUrl":"[^"]*"' | cut -d'"' -f4)
+          EXPIRES=$(echo "$RESULT" | grep -o '"expiresAt":"[^"]*"' | cut -d'"' -f4)
+          {
+            echo "## The Westside proposal is live"
+            echo ""
+            echo "Open: ${URL%%\?*}"
+            echo ""
+            echo "Full link: $URL"
+            if [ -n "$CLAIM" ]; then
+              echo ""
+              echo "Anonymous deployment. Claim it before $EXPIRES or EdgeOne removes it: $CLAIM"
+            fi
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "$RESULT"
+          echo "$URL" > "$RUNNER_TEMP/url.txt"
+      - name: Check the page
+        run: |
+          [ -f "$RUNNER_TEMP/url.txt" ] || exit 0
+          URL=$(cat "$RUNNER_TEMP/url.txt")
+          sleep 5
+          for i in 1 2 3 4 5; do
+            if curl -sS -m 60 "$URL" -o page.html && grep -q 'Mask360</title>' page.html; then echo "Serving the proposal: $(wc -c < page.html) bytes"; exit 0; fi
+            sleep 6
+          done
+          echo "The page did not serve the proposal" && exit 1
