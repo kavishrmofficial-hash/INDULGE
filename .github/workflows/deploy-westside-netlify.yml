@@ -1,0 +1,70 @@
+name: deploy-westside-netlify
+# Builds the Westside pitch (pitches/westside) and deploys it to the Netlify project "m360westsidepitch"
+# (https://m360westsidepitch.netlify.app). Pitch sites are always named m360<client>pitch.
+# Needs the repository secret NETLIFY_AUTH_TOKEN (a Netlify personal access token); without it the run only
+# builds. Every push that changes the pitch updates the same project, so the link never changes.
+on:
+  push:
+    branches: [claude/wizardly-bardeen-2oc2qq]
+    paths: ['pitches/westside/**', '.github/workflows/deploy-westside-netlify.yml']
+  workflow_dispatch:
+concurrency:
+  group: deploy-westside-netlify
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      SITE_NAME: m360westsidepitch
+      CLI: netlify-cli@27.10.2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Find or create the project
+        if: env.NETLIFY_AUTH_TOKEN != ''
+        run: |
+          api() { curl -sS -m 60 -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" -H 'Content-Type: application/json' "$@"; }
+          pick() { python3 -c 'import json,sys; d=json.load(sys.stdin); d=d if isinstance(d,list) else [d]; m=[s for s in d if s.get("name")==sys.argv[1]]; print(m[0]["id"]+" "+(m[0].get("ssl_url") or m[0]["url"]).replace("http://","https://") if m else "")' "$SITE_NAME"; }
+          SITE=$(api "https://api.netlify.com/api/v1/sites?name=$SITE_NAME&filter=all" | pick || true)
+          [ -n "$SITE" ] || SITE=$(api -X POST https://api.netlify.com/api/v1/sites -d "{\"name\":\"$SITE_NAME\"}" | pick || true)
+          [ -n "$SITE" ] || { echo "Could not find or create the Netlify project $SITE_NAME" | tee -a "$GITHUB_STEP_SUMMARY"; exit 1; }
+          echo "SITE_ID=${SITE%% *}" >> "$GITHUB_ENV"
+          echo "SITE_URL=${SITE#* }" >> "$GITHUB_ENV"
+          echo "Project: ${SITE#* }"
+      - name: Build
+        run: |
+          STRICT=1 python3 pitches/westside/v4/build.py
+          python3 pitches/westside/web.py "$RUNNER_TEMP/site" "${SITE_URL:-https://$SITE_NAME.netlify.app}"
+      - name: Deploy
+        run: |
+          set -o pipefail
+          if [ -z "$NETLIFY_AUTH_TOKEN" ]; then
+            echo "No NETLIFY_AUTH_TOKEN secret: built the site, skipped the deploy." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          cd "$RUNNER_TEMP"   # away from the repository, so the CLI finds no project config to build
+          for i in 1 2 3; do
+            npx --yes "$CLI" deploy --dir site --prod --no-build --site "$SITE_ID" --auth "$NETLIFY_AUTH_TOKEN" \
+              --message "${GITHUB_SHA::7}" --json 2>&1 | tee deploy.log && break
+            sleep $((i * 15))
+          done
+          grep -q '"deploy_id"' deploy.log || { echo "Deploy failed" | tee -a "$GITHUB_STEP_SUMMARY"; exit 1; }
+          { echo "## The Westside proposal is live"; echo ""; echo "Open: $SITE_URL"; } | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "$SITE_URL" > url.txt
+      - name: Check the page
+        run: |
+          URL=$(cat "$RUNNER_TEMP/url.txt" 2>/dev/null || echo "https://$SITE_NAME.netlify.app")   # the live site, even without a deploy
+          sleep 5
+          for i in 1 2 3 4 5; do
+            if curl -sSL -m 60 "$URL" -o page.html && grep -q 'Mask360</title>' page.html; then
+              echo "Serving the proposal: $(wc -c < page.html) bytes"
+              CLIP=$(grep -o 'media/[A-Za-z0-9._-]*\.mp4' page.html | head -1)
+              [ -z "$CLIP" ] || curl -sSL -m 60 -o /dev/null -w "$CLIP: %{http_code} %{content_type} %{size_download} bytes\n" "${URL%/}/$CLIP"
+              exit 0
+            fi
+            sleep 6
+          done
+          echo "The page did not serve the proposal" && exit 1
