@@ -1,0 +1,5 @@
+Zalando Sans (zalandosans.woff2, the latin subset served by Google Fonts, variable weight 200 to 900)
+Copyright 2025 The Zalando Sans Project Authors (https://github.com/zalando/sans)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+The license text is available with a FAQ at: https://openfontlicense.org

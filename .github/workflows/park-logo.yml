@@ -1,0 +1,34 @@
+name: park-logo
+# Fetches The Park Hotels' logo files into pitches/the-park-hotels/brand/ for the proposal deck,
+# because the coding sandbox cannot reach theparkhotels.com.
+on:
+  push:
+    branches: [claude/loving-heisenberg-cvms3i]
+    paths: ['pitches/the-park-hotels/fetch_logo.py', '.github/workflows/park-logo.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: park-logo
+  cancel-in-progress: true
+jobs:
+  fetch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - name: Fetch
+        run: python3 pitches/the-park-hotels/fetch_logo.py pitches/the-park-hotels/brand
+      - name: Commit the files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pitches/the-park-hotels/brand
+          git commit -m "The Park deck: logo candidates fetched from theparkhotels.com" || exit 0
+          for i in 1 2 3 4 5; do
+            git pull --rebase -q origin "${{ github.ref_name }}" && git push origin "HEAD:${{ github.ref_name }}" && exit 0
+            sleep $((i * 5))
+          done
+          exit 1

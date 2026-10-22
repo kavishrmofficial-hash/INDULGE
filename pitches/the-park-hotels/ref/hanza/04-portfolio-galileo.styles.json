@@ -1,0 +1,310 @@
+{
+ "body": {
+  "background": "rgb(255, 255, 255)",
+  "color": "rgb(0, 0, 0)"
+ },
+ "type": [
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "80px",
+   "fontWeight": "500",
+   "lineHeight": "72px",
+   "letterSpacing": "-2.4px",
+   "textTransform": "uppercase",
+   "color": "rgb(255, 255, 255)",
+   "count": 25,
+   "samples": [
+    "G",
+    "a",
+    "l",
+    "i"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "64px",
+   "fontWeight": "500",
+   "lineHeight": "64px",
+   "letterSpacing": "-1.92px",
+   "textTransform": "none",
+   "color": "rgb(0, 0, 0)",
+   "count": 4,
+   "samples": [
+    "41%",
+    "41%",
+    "18k",
+    "18k"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "34px",
+   "fontWeight": "500",
+   "lineHeight": "40.8px",
+   "letterSpacing": "-0.68px",
+   "textTransform": "none",
+   "color": "rgb(18, 18, 18)",
+   "count": 1,
+   "samples": [
+    "A bold portfolio website designed to give the studio\u2019s work a sharper and more memorable d"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "32px",
+   "fontWeight": "500",
+   "lineHeight": "38.4px",
+   "letterSpacing": "-0.64px",
+   "textTransform": "none",
+   "color": "rgb(18, 18, 18)",
+   "count": 3,
+   "samples": [
+    "Galileo needed a website that could showcase expressive visuals without making the experie",
+    "I built a flexible Framer system with strong image moments, clean layouts, and a simple pr",
+    "The new website made the studio feel more focused, professional, and easier to explore fro"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\"",
+   "fontSize": "32px",
+   "fontWeight": "500",
+   "lineHeight": "32px",
+   "letterSpacing": "-1px",
+   "textTransform": "uppercase",
+   "color": "rgb(255, 255, 255)",
+   "count": 2,
+   "samples": [
+    "ahoj@hanza.cz",
+    "ahoj@hanza.cz"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "24px",
+   "fontWeight": "500",
+   "lineHeight": "31.2px",
+   "letterSpacing": "-1px",
+   "textTransform": "none",
+   "color": "rgb(18, 18, 18)",
+   "count": 26,
+   "samples": [
+    "\u201cHanza",
+    "turned",
+    "our",
+    "ideas"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "16px",
+   "fontWeight": "500",
+   "lineHeight": "20.8px",
+   "letterSpacing": "-0.32px",
+   "textTransform": "uppercase",
+   "color": "rgba(255, 255, 255, 0.6)",
+   "count": 223,
+   "samples": [
+    "a",
+    "s",
+    "h",
+    "a"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "15px",
+   "fontWeight": "400",
+   "lineHeight": "24px",
+   "letterSpacing": "-0.15px",
+   "textTransform": "none",
+   "color": "rgba(18, 18, 18, 0.6)",
+   "count": 10,
+   "samples": [
+    "Galileo needed a sharp digital presence that reflected the energy of a modern creative stu",
+    "I designed the website around strong image moments, clean typography, and a simple structu",
+    "The studio had strong creative work, but the old presentation lacked focus. Projects felt ",
+    "The challenge was to create a system that could support bold visuals without overwhelming "
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "14px",
+   "fontWeight": "500",
+   "lineHeight": "14px",
+   "letterSpacing": "-0.5px",
+   "textTransform": "uppercase",
+   "color": "rgb(255, 255, 255)",
+   "count": 1,
+   "samples": [
+    "Menu"
+   ]
+  },
+  {
+   "fontFamily": "\"Geist Mono\", monospace",
+   "fontSize": "14px",
+   "fontWeight": "500",
+   "lineHeight": "15.4px",
+   "letterSpacing": "normal",
+   "textTransform": "uppercase",
+   "color": "rgb(255, 255, 255)",
+   "count": 4,
+   "samples": [
+    "Start Project",
+    "View Project",
+    "Get in Touch",
+    "Form incomplete"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "14px",
+   "fontWeight": "500",
+   "lineHeight": "16.8px",
+   "letterSpacing": "normal",
+   "textTransform": "uppercase",
+   "color": "rgb(255, 255, 255)",
+   "count": 6,
+   "samples": [
+    "Home",
+    "Portfolio",
+    "About",
+    "Contact"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "13px",
+   "fontWeight": "400",
+   "lineHeight": "19.5px",
+   "letterSpacing": "normal",
+   "textTransform": "none",
+   "color": "rgba(255, 255, 255, 0.6)",
+   "count": 3,
+   "samples": [
+    "By submitting, you agree to our Terms and Privacy Policy.",
+    "Terms",
+    "Privacy Policy"
+   ]
+  },
+  {
+   "fontFamily": "Geist, \"Geist Placeholder\", sans-serif",
+   "fontSize": "13px",
+   "fontWeight": "600",
+   "lineHeight": "15.6px",
+   "letterSpacing": "normal",
+   "textTransform": "none",
+   "color": "rgb(255, 255, 255)",
+   "count": 4,
+   "samples": [
+    "More Templates",
+    "More Templates",
+    "Buy for $99",
+    "Buy for $99"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "12px",
+   "fontWeight": "500",
+   "lineHeight": "13.2px",
+   "letterSpacing": "-0.25px",
+   "textTransform": "uppercase",
+   "color": "rgb(255, 255, 255)",
+   "count": 10,
+   "samples": [
+    "All Projects",
+    "All Projects",
+    "Explore Project",
+    "Explore Project"
+   ]
+  },
+  {
+   "fontFamily": "\"Geist Mono\", monospace",
+   "fontSize": "12px",
+   "fontWeight": "500",
+   "lineHeight": "14.4px",
+   "letterSpacing": "normal",
+   "textTransform": "uppercase",
+   "color": "rgba(255, 255, 255, 0.6)",
+   "count": 19,
+   "samples": [
+    "/Hanza",
+    "Year",
+    "Client",
+    "Timeline"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "12px",
+   "fontWeight": "500",
+   "lineHeight": "14.4px",
+   "letterSpacing": "normal",
+   "textTransform": "uppercase",
+   "color": "rgb(255, 255, 255)",
+   "count": 20,
+   "samples": [
+    "2026",
+    "Galileo",
+    "2 Weeks",
+    "Design"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "12px",
+   "fontWeight": "500",
+   "lineHeight": "15.6px",
+   "letterSpacing": "normal",
+   "textTransform": "none",
+   "color": "rgba(255, 255, 255, 0.6)",
+   "count": 1,
+   "samples": [
+    "\u00a9 2026 HANZA\u00ae"
+   ]
+  },
+  {
+   "fontFamily": "sans-serif",
+   "fontSize": "12px",
+   "fontWeight": "400",
+   "lineHeight": "normal",
+   "letterSpacing": "normal",
+   "textTransform": "none",
+   "color": "rgb(0, 0, 238)",
+   "count": 1,
+   "samples": [
+    "Create a free website with Framer, the website builder loved by startups, designers and ag"
+   ]
+  }
+ ],
+ "backgrounds": [
+  [
+   "rgb(255, 255, 255)",
+   17244
+  ],
+  [
+   "rgb(18, 18, 18)",
+   5003
+  ],
+  [
+   "rgba(0, 0, 0, 0.2)",
+   2592
+  ],
+  [
+   "rgb(250, 250, 250)",
+   613
+  ],
+  [
+   "rgb(25, 25, 25)",
+   215
+  ]
+ ],
+ "fonts": [
+  "Geist 600 normal",
+  "Zalando Sans 400 normal",
+  "Zalando Sans 500 normal",
+  "Geist Mono 500 normal",
+  "Inter 400 normal"
+ ],
+ "height": 11975
+}

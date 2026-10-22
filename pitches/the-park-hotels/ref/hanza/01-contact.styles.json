@@ -1,0 +1,260 @@
+{
+ "body": {
+  "background": "rgb(255, 255, 255)",
+  "color": "rgb(0, 0, 0)"
+ },
+ "type": [
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "80px",
+   "fontWeight": "500",
+   "lineHeight": "72px",
+   "letterSpacing": "-2.4px",
+   "textTransform": "uppercase",
+   "color": "rgba(255, 255, 255, 0.6)",
+   "count": 6,
+   "samples": [
+    "Create",
+    "Your",
+    "Next",
+    "Website"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "64px",
+   "fontWeight": "500",
+   "lineHeight": "64px",
+   "letterSpacing": "-1.92px",
+   "textTransform": "uppercase",
+   "color": "rgba(18, 18, 18, 0.6)",
+   "count": 35,
+   "samples": [
+    "L",
+    "e",
+    "t",
+    "'"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\"",
+   "fontSize": "32px",
+   "fontWeight": "500",
+   "lineHeight": "32px",
+   "letterSpacing": "-1px",
+   "textTransform": "uppercase",
+   "color": "rgb(255, 255, 255)",
+   "count": 2,
+   "samples": [
+    "ahoj@hanza.cz",
+    "ahoj@hanza.cz"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "16px",
+   "fontWeight": "500",
+   "lineHeight": "20.8px",
+   "letterSpacing": "-0.32px",
+   "textTransform": "uppercase",
+   "color": "rgb(18, 18, 18)",
+   "count": 232,
+   "samples": [
+    "Hanza Nov\u00e1k",
+    "S",
+    "h",
+    "a"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "15px",
+   "fontWeight": "400",
+   "lineHeight": "24px",
+   "letterSpacing": "-0.15px",
+   "textTransform": "none",
+   "color": "rgb(18, 18, 18)",
+   "count": 3,
+   "samples": [
+    "I design and build custom websites in Framer for founders, studios, and modern brands. My ",
+    "The goal is to create a website that looks sharp, feels easy to use, and can be managed wi",
+    "Vinohradsk\u00e1 102120 00 PragueCzech Republic"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "14px",
+   "fontWeight": "500",
+   "lineHeight": "14px",
+   "letterSpacing": "-0.5px",
+   "textTransform": "uppercase",
+   "color": "rgb(18, 18, 18)",
+   "count": 1,
+   "samples": [
+    "Menu"
+   ]
+  },
+  {
+   "fontFamily": "\"Geist Mono\", monospace",
+   "fontSize": "14px",
+   "fontWeight": "500",
+   "lineHeight": "15.4px",
+   "letterSpacing": "normal",
+   "textTransform": "uppercase",
+   "color": "rgba(255, 255, 255, 0.6)",
+   "count": 15,
+   "samples": [
+    "Form incomplete",
+    "01",
+    "01",
+    "02"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "14px",
+   "fontWeight": "500",
+   "lineHeight": "16.8px",
+   "letterSpacing": "normal",
+   "textTransform": "uppercase",
+   "color": "rgb(18, 18, 18)",
+   "count": 12,
+   "samples": [
+    "What do you offeR?",
+    "Do you only work with Framer?",
+    "How long does a project take?",
+    "Can you redesign my existing website?"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "13px",
+   "fontWeight": "400",
+   "lineHeight": "19.5px",
+   "letterSpacing": "normal",
+   "textTransform": "none",
+   "color": "rgba(18, 18, 18, 0.6)",
+   "count": 6,
+   "samples": [
+    "By submitting, you agree to our Terms and Privacy Policy.",
+    "Terms",
+    "Privacy Policy",
+    "By submitting, you agree to our Terms and Privacy Policy."
+   ]
+  },
+  {
+   "fontFamily": "Geist, \"Geist Placeholder\", sans-serif",
+   "fontSize": "13px",
+   "fontWeight": "600",
+   "lineHeight": "15.6px",
+   "letterSpacing": "normal",
+   "textTransform": "none",
+   "color": "rgb(255, 255, 255)",
+   "count": 4,
+   "samples": [
+    "More Templates",
+    "More Templates",
+    "Buy for $99",
+    "Buy for $99"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "12px",
+   "fontWeight": "500",
+   "lineHeight": "14.4px",
+   "letterSpacing": "normal",
+   "textTransform": "uppercase",
+   "color": "rgb(18, 18, 18)",
+   "count": 17,
+   "samples": [
+    "Contact",
+    "Designer & Framer Expert",
+    "Prague, Czechia",
+    "2"
+   ]
+  },
+  {
+   "fontFamily": "\"Geist Mono\", monospace",
+   "fontSize": "12px",
+   "fontWeight": "500",
+   "lineHeight": "14.4px",
+   "letterSpacing": "normal",
+   "textTransform": "uppercase",
+   "color": "rgba(18, 18, 18, 0.6)",
+   "count": 14,
+   "samples": [
+    "Profession",
+    "Location",
+    "June 2026",
+    "Your Name"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "12px",
+   "fontWeight": "500",
+   "lineHeight": "13.2px",
+   "letterSpacing": "-0.25px",
+   "textTransform": "uppercase",
+   "color": "rgb(255, 255, 255)",
+   "count": 2,
+   "samples": [
+    "Contact Me",
+    "Contact Me"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "12px",
+   "fontWeight": "500",
+   "lineHeight": "15.6px",
+   "letterSpacing": "normal",
+   "textTransform": "none",
+   "color": "rgba(255, 255, 255, 0.6)",
+   "count": 1,
+   "samples": [
+    "\u00a9 2026 HANZA\u00ae"
+   ]
+  },
+  {
+   "fontFamily": "sans-serif",
+   "fontSize": "12px",
+   "fontWeight": "400",
+   "lineHeight": "normal",
+   "letterSpacing": "normal",
+   "textTransform": "none",
+   "color": "rgb(0, 0, 238)",
+   "count": 1,
+   "samples": [
+    "Create a free website with Framer, the website builder loved by startups, designers and ag"
+   ]
+  }
+ ],
+ "backgrounds": [
+  [
+   "rgb(255, 255, 255)",
+   5887
+  ],
+  [
+   "rgb(18, 18, 18)",
+   2411
+  ],
+  [
+   "rgb(252, 252, 252)",
+   1485
+  ],
+  [
+   "rgb(25, 25, 25)",
+   215
+  ]
+ ],
+ "fonts": [
+  "Geist 600 normal",
+  "Zalando Sans 400 normal",
+  "Zalando Sans 500 normal",
+  "Geist Mono 500 normal",
+  "Inter 400 normal"
+ ],
+ "height": 3750
+}
