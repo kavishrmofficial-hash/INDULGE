@@ -169,9 +169,11 @@
     const c = colls[coll] || (colls[coll] = {v: '', docs: {}, tags: {}, complete: !LAZY.has(coll)});
     const before = c.docs[id];
     if (op === 'update' && before === undefined) throw {code: 'invalid_argument', message: 'update on missing document'};
+    /* merge (v38): update, or create when missing, in one step on the server, so two pages creating the same
+       document at once both land */
     /* optimistic: the page sees its own write at once */
     if (op === 'delete') delete c.docs[id];
-    else c.docs[id] = op === 'update' ? merge(before, clone(data)) : clone(data);
+    else c.docs[id] = op === 'update' || op === 'merge' ? merge(before === undefined ? {} : before, clone(data)) : clone(data);
     notifyColl(coll);
     inflight[coll] = (inflight[coll] || 0) + 1;
     try {
@@ -196,6 +198,7 @@
       get: () => whenLoaded().then(() => snapDoc(path)),
       set: d => write('set', path, d),
       update: d => write('update', path, d),
+      merge: d => write('merge', path, d),
       delete: () => write('delete', path),
       onSnapshot(fn, onErr) {
         if (!docSubs.has(path)) docSubs.set(path, new Set());

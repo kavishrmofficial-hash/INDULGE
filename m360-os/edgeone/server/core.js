@@ -272,6 +272,40 @@ export function createApp({store, env = {}}) {
   const putJ = (key, v) => store.set(key, JSON.stringify(v));
   const listAll = async prefix => ((await store.list({prefix, consistency: 'strong'})) || {}).blobs || [];
 
+  /* ---------- one save at a time per document (v38) ----------
+     A save is read, merge, write. Two at once (admins letting joiners in together, the office on one task)
+     let the later one write over the earlier. Saves to one key now queue inside this function instance, and
+     across instances a short lock key (l/<key>) is taken with a create-only write. A lock older than
+     LOCK_STALE_MS is broken, and a save never waits more than about LOCK_TRIES turns: it goes ahead rather
+     than hang. A store that cannot do create-only writes still gets the in-instance queue. */
+  const LOCK_TRIES = 80, LOCK_STALE_MS = 10000;
+  const localLocks = new Map();
+  const lockTaken = e => !!e && (e.code === 'PRECONDITION_FAILED' || e.status === 412 || e.statusCode === 412);
+  async function crossLock(key) {
+    const lk = 'l/' + key;
+    for (let i = 0; i < LOCK_TRIES; i++) {
+      try { await store.set(lk, String(Date.now()), {onlyIfNew: true}); return lk; } catch (e) { if (!lockTaken(e)) return null; }
+      const held = Number(await store.get(lk).catch(() => 0)) || 0;
+      if (held && Date.now() - held > LOCK_STALE_MS) { await store.delete(lk).catch(() => {}); continue; }
+      await new Promise(r => setTimeout(r, 20 + Math.random() * 40));
+    }
+    return null;
+  }
+  async function withLock(key, fn) {
+    const prev = localLocks.get(key) || Promise.resolve();
+    let release;
+    const mine = new Promise(r => { release = r; });
+    const chain = prev.then(() => mine);
+    localLocks.set(key, chain);
+    await prev;
+    const lk = await crossLock(key).catch(() => null);
+    try { return await fn(); } finally {
+      if (lk) await store.delete(lk).catch(() => {});
+      release();
+      if (localLocks.get(key) === chain) localLocks.delete(key);
+    }
+  }
+
   /* ---------- who is asking ---------- */
   function cookieOf(req, name) {
     const c = req.headers.get('cookie') || '';
@@ -443,17 +477,42 @@ export function createApp({store, env = {}}) {
      correct it: a fresh write shows at once, a deleted id is dropped, and a stale etag never wins. */
   const markerKey = coll => 'x/v/' + coll;
   const GONE_MS = 86400000;
-  async function bumpMarker(coll, id, tag) {
+  /* a collection's marker is one document every save in that collection touches, so it takes the lock too.
+     Saves that land while a bump is running wait for the next one, which carries all of them in one
+     read and write: a whole office checking in at nine is a few marker writes, not a hundred in a row (v38) */
+  const pendingBumps = new Map();
+  function bumpMarker(coll, id, tag) {
+    let p = pendingBumps.get(coll);
+    if (!p) { p = {ids: new Map(), waiters: [], running: false}; pendingBumps.set(coll, p); }
+    p.ids.set(id, tag);
+    return new Promise(resolve => {
+      p.waiters.push(resolve);
+      if (!p.running) runBumps(coll, p);
+    });
+  }
+  async function runBumps(coll, p) {
+    p.running = true;
+    while (p.ids.size) {
+      const batch = p.ids, waiters = p.waiters;
+      p.ids = new Map(); p.waiters = [];
+      await withLock(markerKey(coll), () => bumpMarkerNow(coll, batch)).catch(() => {});
+      waiters.forEach(r => r());
+    }
+    p.running = false;
+    if (pendingBumps.get(coll) === p) pendingBumps.delete(coll);
+  }
+  async function bumpMarkerNow(coll, batch) {
+    const landed = m => !!m && isObj(m.ids) && Array.from(batch).every(([id, tag]) => tag == null ? !(id in m.ids) : m.ids[id] === tag);
     for (let i = 0; i < 3; i++) {
       const m = (await getJ(markerKey(coll)).catch(() => null)) || {ids: {}, gone: {}};
       const ids = {...(m.ids || {})}, gone = {};
       const now = Date.now();
       for (const g of Object.keys(m.gone || {})) if (now - m.gone[g] < GONE_MS) gone[g] = m.gone[g];
-      if (tag == null) { delete ids[id]; gone[id] = now; } else { ids[id] = tag; delete gone[id]; }
+      for (const [id, tag] of batch) {
+        if (tag == null) { delete ids[id]; gone[id] = now; } else { ids[id] = tag; delete gone[id]; }
+      }
       await putJ(markerKey(coll), {ids, gone, v: now});
-      const chk = await getJ(markerKey(coll)).catch(() => null);
-      const ok = chk && chk.ids && (tag == null ? !(id in chk.ids) : chk.ids[id] === tag);
-      if (ok) return;
+      if (landed(await getJ(markerKey(coll)).catch(() => null))) return;
     }
   }
   /* for the safety module: a document written or removed outside write() stamps its marker too */
@@ -757,7 +816,8 @@ export function createApp({store, env = {}}) {
       const {op, path, data} = body;
       const s = segs(path);
       if (!s.length || s.length % 2 !== 0 || s.some(x => !SEG_OK.test(x) || x === '.' || x === '..')) throw new HttpError(400, 'invalid_argument', 'bad path');
-      if (op !== 'set' && op !== 'update' && op !== 'delete') throw new HttpError(400, 'invalid_argument', 'bad op');
+      /* merge: update, or create from the patch when the document is not there yet, in one locked step (v38) */
+      if (op !== 'set' && op !== 'update' && op !== 'merge' && op !== 'delete') throw new HttpError(400, 'invalid_argument', 'bad op');
       if (op !== 'delete' && !isObj(data)) throw new HttpError(400, 'invalid_argument', 'body must be an object');
       /* the server writes the log itself; a page never does */
       if (s[0] === 'log') throw new HttpError(403, 'invalid_argument', 'the log is written by the server');
@@ -769,44 +829,47 @@ export function createApp({store, env = {}}) {
         if (!own) throw new HttpError(423, 'locked', 'm360 is locked for changes right now');
       }
       const key = docKey(path);
-      if (op === 'delete') {
-        /* nothing is erased outright: safety.js keeps a copy in the trash first */
-        if (hooks.beforeDelete) await hooks.beforeDelete(key, path, v.uid).catch(() => {});
-        await store.delete(key).catch(() => {});
-        await bumpMarker(s.slice(0, -1).join('/'), s[s.length - 1], null).catch(() => {});
-        await log(v.uid, 'delete', path, '');
-        return {ok: true, doc: null};
-      }
-      /* a page's activity stamp (me/<self>.act, times only, see M.stamp) and its personal manager's told
-         marks (me/<self>.pm.told) are bookkeeping: they keep no backup version and write no log line, so
-         the history and the log stay about real changes. The pulse mark keeps neither too, so nothing
-         dated sits next to an anonymous answer */
-      const ownMe = op === 'update' && s.length === 2 && s[0] === 'me' && s[1] === v.uid;
-      const stampOnly = ownMe && (isActOnly(data, Date.now()) || isPmToldOnly(data));
-      const quietWrite = stampOnly || isPulseMark(path, data);
-      let next = data, cur = null;
-      if (op === 'update' || path === 'roster/team') cur = await getJ(key);
-      if (op === 'update') {
-        if (cur == null) throw new HttpError(400, 'invalid_argument', 'update on missing document');
-        next = merge(cur, data);
-      }
-      const str = JSON.stringify(next);
-      if (str.length > MAX_DOC) throw new HttpError(400, 'invalid_argument', 'document over 256 KiB');
-      /* every move is backed up: safety.js keeps the version being replaced */
-      if (hooks.beforeWrite && !quietWrite) await hooks.beforeWrite(key, path, v.uid, cur).catch(() => {});
-      await store.set(key, str);
-      await bumpMarker(s.slice(0, -1).join('/'), s[s.length - 1], digest([str])).catch(() => {});
-      if (!quietWrite) await log(v.uid, op, path, summarize(path, data));
-      /* someone taken off the roster is signed out of every device at once */
-      if (path === 'roster/team') {
-        const was = (cur && cur.members) || {}, now = (next && next.members) || {};
-        for (const uid of Object.keys(now)) {
-          if (uid === v.uid || !now[uid] || now[uid].active !== false || !was[uid] || was[uid].active === false) continue;
-          const n = await endSessions(uid, null);
-          await log(v.uid, 'signoutall', '', uid + ': ' + n + (n === 1 ? ' device' : ' devices') + ', deactivated');
+      return withLock(key, async () => {
+        if (op === 'delete') {
+          /* nothing is erased outright: safety.js keeps a copy in the trash first */
+          if (hooks.beforeDelete) await hooks.beforeDelete(key, path, v.uid).catch(() => {});
+          await store.delete(key).catch(() => {});
+          await bumpMarker(s.slice(0, -1).join('/'), s[s.length - 1], null).catch(() => {});
+          await log(v.uid, 'delete', path, '');
+          return {ok: true, doc: null};
         }
-      }
-      return {ok: true, doc: next};
+        /* a page's activity stamp (me/<self>.act, times only, see M.stamp) and its personal manager's told
+           marks (me/<self>.pm.told) are bookkeeping: they keep no backup version and write no log line, so
+           the history and the log stay about real changes. The pulse mark keeps neither too, so nothing
+           dated sits next to an anonymous answer */
+        const ownMe = (op === 'update' || op === 'merge') && s.length === 2 && s[0] === 'me' && s[1] === v.uid;
+        const stampOnly = ownMe && (isActOnly(data, Date.now()) || isPmToldOnly(data));
+        const quietWrite = stampOnly || isPulseMark(path, data);
+        let next = data, cur = null;
+        if (op === 'update' || op === 'merge' || path === 'roster/team') cur = await getJ(key);
+        if (op === 'update' || op === 'merge') {
+          if (cur == null && op === 'update') throw new HttpError(400, 'invalid_argument', 'update on missing document');
+          next = merge(cur == null ? {} : cur, data);
+        }
+        const done = op === 'merge' ? (cur == null ? 'set' : 'update') : op;
+        const str = JSON.stringify(next);
+        if (str.length > MAX_DOC) throw new HttpError(400, 'invalid_argument', 'document over 256 KiB');
+        /* every move is backed up: safety.js keeps the version being replaced */
+        if (hooks.beforeWrite && !quietWrite) await hooks.beforeWrite(key, path, v.uid, cur).catch(() => {});
+        await store.set(key, str);
+        await bumpMarker(s.slice(0, -1).join('/'), s[s.length - 1], digest([str])).catch(() => {});
+        if (!quietWrite) await log(v.uid, done, path, summarize(path, data));
+        /* someone taken off the roster is signed out of every device at once */
+        if (path === 'roster/team') {
+          const was = (cur && cur.members) || {}, now = (next && next.members) || {};
+          for (const uid of Object.keys(now)) {
+            if (uid === v.uid || !now[uid] || now[uid].active !== false || !was[uid] || was[uid].active === false) continue;
+            const n = await endSessions(uid, null);
+            await log(v.uid, 'signoutall', '', uid + ': ' + n + (n === 1 ? ' device' : ' devices') + ', deactivated');
+          }
+        }
+        return {ok: true, doc: next};
+      });
     },
 
     /* the activity log between two days (inclusive, at most 31), one document per person per day */
@@ -1307,6 +1370,8 @@ export function createApp({store, env = {}}) {
       if (out && out.__cookie) { extra['set-cookie'] = out.__cookie; delete out.__cookie; }
       return json(out || {}, 200, extra);
     } catch (e) {
+      /* an unplanned failure is written to the platform's function log, so a 500 can be traced */
+      if (!(e instanceof HttpError)) console.error('m360 action ' + a + ' failed:', (e && e.stack) || e);
       const status = e instanceof HttpError ? e.status : 500;
       const code = e instanceof HttpError ? e.code : 'unavailable';
       return json({error: {code, message: e instanceof HttpError ? e.message : 'server error'}}, status);

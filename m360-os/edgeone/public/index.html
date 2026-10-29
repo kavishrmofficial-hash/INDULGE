@@ -3445,6 +3445,10 @@ body:has(.drawer) .buddy-bubble.agent-pop{z-index:62}
   .gate .btn:active:not(:disabled){transform:scale(.97)}
   .gate .input{transition:border-color .25s ease, box-shadow .25s ease}
 }
+/* v38: the card a page shows when it could not draw (M.Crash in 03-shell.js) */
+.crash-card{background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card); padding:var(--pad-card); max-width:520px; margin:24px auto}
+.crash-card h2{margin:0 0 6px}
+.crash-card p{margin:0 0 14px}
 
 /* ==== 99-office-live.css ==== */
 /* office live (v35, src/js/93-office-live.js): Kaavish's composer under the scene, and Arrange over it.
@@ -3920,7 +3924,7 @@ body:has(.drawer) .buddy-bubble.agent-pop{z-index:62}
 @media (prefers-reduced-motion:no-preference){ .o3-layer > .o3-emote{animation:o3-emote-in .35s var(--ease) both} }
 @keyframes o3-emote-in{from{scale:.7} to{scale:1}}
 </style>
-<script>window.M360_BUILD = "0e174df+.261028-1429"; window.M360_3D_SRC = "vendor/three.92287d45.js"; window.M360_3D_SRI = "sha384-9CmMVqgd6no+mymMnUEosvNELUQCik7EBJNeBNZTkeerVlw0wzE9SGjUQswxiS20";</script><script>
+<script>window.M360_BUILD = "15df08b+.261029-1134"; window.M360_3D_SRC = "vendor/three.92287d45.js"; window.M360_3D_SRI = "sha384-9CmMVqgd6no+mymMnUEosvNELUQCik7EBJNeBNZTkeerVlw0wzE9SGjUQswxiS20";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -4092,9 +4096,11 @@ body:has(.drawer) .buddy-bubble.agent-pop{z-index:62}
     const c = colls[coll] || (colls[coll] = {v: '', docs: {}, tags: {}, complete: !LAZY.has(coll)});
     const before = c.docs[id];
     if (op === 'update' && before === undefined) throw {code: 'invalid_argument', message: 'update on missing document'};
+    /* merge (v38): update, or create when missing, in one step on the server, so two pages creating the same
+       document at once both land */
     /* optimistic: the page sees its own write at once */
     if (op === 'delete') delete c.docs[id];
-    else c.docs[id] = op === 'update' ? merge(before, clone(data)) : clone(data);
+    else c.docs[id] = op === 'update' || op === 'merge' ? merge(before === undefined ? {} : before, clone(data)) : clone(data);
     notifyColl(coll);
     inflight[coll] = (inflight[coll] || 0) + 1;
     try {
@@ -4119,6 +4125,7 @@ body:has(.drawer) .buddy-bubble.agent-pop{z-index:62}
       get: () => whenLoaded().then(() => snapDoc(path)),
       set: d => write('set', path, d),
       update: d => write('update', path, d),
+      merge: d => write('merge', path, d),
       delete: () => write('delete', path),
       onSnapshot(fn, onErr) {
         if (!docSubs.has(path)) docSubs.set(path, new Set());
@@ -5947,8 +5954,9 @@ M.makeWrites = (db, uidGetter) => {
   const writer = log => ({
     set: (p, d) => check('set', p, d) || queued(p, () => db.doc(p).set(d).then(r => { log('set', p, d); return r; })).catch(fail),
     update: (p, d) => check('update', p, d) || queued(p, () => db.doc(p).update(d).then(r => { log('update', p, d); return r; })).catch(fail),
-    /* merge-or-create: update first, set when the document is missing */
-    merge: (p, d) => check('merge', p, d) || queued(p, () => db.doc(p).update(d).then(r => { log('update', p, d); return r; }).catch(e => {
+    /* merge-or-create. The server does it in one locked step where it can (v38: two people creating the same
+       document at once used to overwrite each other); elsewhere update first, set when the document is missing */
+    merge: (p, d) => check('merge', p, d) || queued(p, () => (typeof db.doc(p).merge === 'function' ? db.doc(p).merge(d).then(r => { log('update', p, d); return r; }) : db.doc(p).update(d).then(r => { log('update', p, d); return r; })).catch(e => {
       /* only a missing document is created; any other refusal (too large, malformed) is never turned into an overwrite */
       if (e && (e.code === 'not_found' || (e.code === 'invalid_argument' && /missing/i.test(String(e.message || ''))))) return db.doc(p).set(d).then(r => { log('set', p, d); return r; });
       throw e;
@@ -7137,8 +7145,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
          is never leave, and a 'swap' is leave only before M.COO_SINCE, a WFH day from it on */
       const leaveMap = {}, wfhMap = {};
       for (const lu of Object.keys(coll.leave.map)) {
-        const reqs = (coll.leave.map[lu] || {}).reqs || [];
-        const dec = (coll.leavedec.map[lu] || {}).d || {};
+        /* a request list in any other shape (an old version, a bad import) is skipped, never thrown on (v38) */
+        const r0 = (coll.leave.map[lu] || {}).reqs;
+        const reqs = Array.isArray(r0) ? r0 : [];
+        const d0 = (coll.leavedec.map[lu] || {}).d;
+        const dec = d0 && typeof d0 === 'object' ? d0 : {};
         const set = new Set(), wfh = new Set();
         for (const r of reqs) {
           if (!r || !r.id) continue;
@@ -7245,6 +7256,23 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       ${children ? html`<div class="g-act">${children}</div>` : null}
     </div></div>`;
   };
+  /* v38: a page that throws while it draws shows this card, with the menu still there, never a white screen.
+     One odd document from anyone must not take the app down for everyone. Moving to another page resets it */
+  class Crash extends React.Component {
+    constructor(p) { super(p); this.state = {bad: false}; }
+    static getDerivedStateFromError() { return {bad: true}; }
+    componentDidCatch(e) { try { console.error('m360 page stopped:', e && e.message ? e.message : e); } catch (x) { /* quiet */ } }
+    render() {
+      if (!this.state.bad) return this.props.children;
+      const card = html`<div class="crash-card" role="alert" id="page-crash">
+        <h2>This page did not load</h2>
+        <p>Your work is saved. Reload to try again, or open another page.</p>
+        <button type="button" class="btn" onClick=${() => location.reload()}>Reload</button>
+      </div>`;
+      return this.props.whole ? html`<${M.Gate} title="m360 did not load" line="Your work is saved. Reload to try again."><button type="button" class="btn" onClick=${() => location.reload()}>Reload</button><//>` : card;
+    }
+  }
+  M.Crash = Crash;
   const GATES = {
     boot: {t: 'Signing you in', l: 'One moment.'},
     nohost: {t: 'Open this inside Claude', l: 'm360 OS runs on claude.ai. Open the shared link there.'},
@@ -7671,7 +7699,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           <${PreviewBar}/>
           <${AlertBanner}/>
           <${LockBanner}/>
-          ${Page ? html`<${Page} tab=${r.t} id=${r.id}/>` : html`<${UI.Card} title="Loading"><${UI.Empty} text="One moment."/><//>`}
+          ${Page ? html`<${Crash} key=${r.s + '/' + (r.t || '') + '/' + (r.id || '')}><${Page} tab=${r.t} id=${r.id}/><//>` : html`<${UI.Card} title="Loading"><${UI.Empty} text="One moment."/><//>`}
         </div>
       </main>
 
@@ -52441,7 +52469,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     }, []);
     if (!boot) return M.GateFor('boot');
     if (boot.mode !== 'ok') return M.GateFor(boot.mode);
-    return html`<${M.AppState} boot=${boot}><${RosterGate}/><//>`;
+    /* the whole app sits inside the crash card too, so a slip outside any page still offers a reload */
+    return html`<${M.Crash} whole=${true}><${M.AppState} boot=${boot}><${RosterGate}/><//><//>`;
   }
 
   const rootEl = document.getElementById('root');

@@ -268,8 +268,9 @@ M.makeWrites = (db, uidGetter) => {
   const writer = log => ({
     set: (p, d) => check('set', p, d) || queued(p, () => db.doc(p).set(d).then(r => { log('set', p, d); return r; })).catch(fail),
     update: (p, d) => check('update', p, d) || queued(p, () => db.doc(p).update(d).then(r => { log('update', p, d); return r; })).catch(fail),
-    /* merge-or-create: update first, set when the document is missing */
-    merge: (p, d) => check('merge', p, d) || queued(p, () => db.doc(p).update(d).then(r => { log('update', p, d); return r; }).catch(e => {
+    /* merge-or-create. The server does it in one locked step where it can (v38: two people creating the same
+       document at once used to overwrite each other); elsewhere update first, set when the document is missing */
+    merge: (p, d) => check('merge', p, d) || queued(p, () => (typeof db.doc(p).merge === 'function' ? db.doc(p).merge(d).then(r => { log('update', p, d); return r; }) : db.doc(p).update(d).then(r => { log('update', p, d); return r; })).catch(e => {
       /* only a missing document is created; any other refusal (too large, malformed) is never turned into an overwrite */
       if (e && (e.code === 'not_found' || (e.code === 'invalid_argument' && /missing/i.test(String(e.message || ''))))) return db.doc(p).set(d).then(r => { log('set', p, d); return r; });
       throw e;

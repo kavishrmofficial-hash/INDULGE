@@ -20,7 +20,8 @@
     }, []);
     if (!boot) return M.GateFor('boot');
     if (boot.mode !== 'ok') return M.GateFor(boot.mode);
-    return html`<${M.AppState} boot=${boot}><${RosterGate}/><//>`;
+    /* the whole app sits inside the crash card too, so a slip outside any page still offers a reload */
+    return html`<${M.Crash} whole=${true}><${M.AppState} boot=${boot}><${RosterGate}/><//><//>`;
   }
 
   const rootEl = document.getElementById('root');

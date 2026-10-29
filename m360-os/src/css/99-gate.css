@@ -28,3 +28,7 @@
   .gate .btn:active:not(:disabled){transform:scale(.97)}
   .gate .input{transition:border-color .25s ease, box-shadow .25s ease}
 }
+/* v38: the card a page shows when it could not draw (M.Crash in 03-shell.js) */
+.crash-card{background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card); padding:var(--pad-card); max-width:520px; margin:24px auto}
+.crash-card h2{margin:0 0 6px}
+.crash-card p{margin:0 0 14px}
