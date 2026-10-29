@@ -203,8 +203,11 @@
          is never leave, and a 'swap' is leave only before M.COO_SINCE, a WFH day from it on */
       const leaveMap = {}, wfhMap = {};
       for (const lu of Object.keys(coll.leave.map)) {
-        const reqs = (coll.leave.map[lu] || {}).reqs || [];
-        const dec = (coll.leavedec.map[lu] || {}).d || {};
+        /* a request list in any other shape (an old version, a bad import) is skipped, never thrown on (v38) */
+        const r0 = (coll.leave.map[lu] || {}).reqs;
+        const reqs = Array.isArray(r0) ? r0 : [];
+        const d0 = (coll.leavedec.map[lu] || {}).d;
+        const dec = d0 && typeof d0 === 'object' ? d0 : {};
         const set = new Set(), wfh = new Set();
         for (const r of reqs) {
           if (!r || !r.id) continue;

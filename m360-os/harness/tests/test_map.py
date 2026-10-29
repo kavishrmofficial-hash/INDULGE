@@ -28,7 +28,8 @@ def part(h):
     p.click('#side-map')
     p.wait_for_selector('#map')
     check(p.locator('#map-work').count() == 1 and p.locator('#map-books').count() == 1 and p.locator('#map-hq').count() == 1, 'the founder sees Work, Books and HQ on the map')
-    check('Handshake' in p.inner_text('#map-accounts') and 'LinkedIn' in p.inner_text('#map-accounts'), 'Accounts lists Handshake with its line')
+    # v37: Accounts is People, Pipeline and Clients
+    check(all(w in p.inner_text('#map-accounts') for w in ('People', 'Pipeline', 'Clients')), 'Accounts lists People, Pipeline and Clients')
     check(p.locator('#map-always .map-tab').count() == 8, 'the always-around list: %d' % p.locator('#map-always .map-tab').count())
     check(p.locator('#map .map-tab').count() >= 40, 'every tab has a line: %d' % p.locator('#map .map-tab').count())
     check(p.locator('#map-day-one').count() == 0, 'no day-one list for someone long in')
@@ -70,7 +71,7 @@ def part(h):
     p.wait_for_selector('#map')
     check(p.locator('#map-day-one').count() == 1 and p.locator('#map-day-one .map-tab').count() == 7, 'the day-one list for a new joiner')
     check(p.locator('#map-hq').count() == 0 and p.locator('#map-books').count() == 0 and p.locator('#map-admin').count() == 0, 'no founder places for a member')
-    check('Handshake' in p.inner_text('#map-accounts'), 'Handshake is on the member map too')
+    check('People' in p.inner_text('#map-accounts'), 'People is on the member map too')
     check('Hiring' in p.inner_text('#map-me'), 'a member sees Hiring under Me')
     h.go(p, 'm1', hash='#home', width=1280)
     p.wait_for_selector('#find-your-way')

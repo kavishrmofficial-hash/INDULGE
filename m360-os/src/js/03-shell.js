@@ -12,6 +12,23 @@
       ${children ? html`<div class="g-act">${children}</div>` : null}
     </div></div>`;
   };
+  /* v38: a page that throws while it draws shows this card, with the menu still there, never a white screen.
+     One odd document from anyone must not take the app down for everyone. Moving to another page resets it */
+  class Crash extends React.Component {
+    constructor(p) { super(p); this.state = {bad: false}; }
+    static getDerivedStateFromError() { return {bad: true}; }
+    componentDidCatch(e) { try { console.error('m360 page stopped:', e && e.message ? e.message : e); } catch (x) { /* quiet */ } }
+    render() {
+      if (!this.state.bad) return this.props.children;
+      const card = html`<div class="crash-card" role="alert" id="page-crash">
+        <h2>This page did not load</h2>
+        <p>Your work is saved. Reload to try again, or open another page.</p>
+        <button type="button" class="btn" onClick=${() => location.reload()}>Reload</button>
+      </div>`;
+      return this.props.whole ? html`<${M.Gate} title="m360 did not load" line="Your work is saved. Reload to try again."><button type="button" class="btn" onClick=${() => location.reload()}>Reload</button><//>` : card;
+    }
+  }
+  M.Crash = Crash;
   const GATES = {
     boot: {t: 'Signing you in', l: 'One moment.'},
     nohost: {t: 'Open this inside Claude', l: 'm360 OS runs on claude.ai. Open the shared link there.'},
@@ -438,7 +455,7 @@
           <${PreviewBar}/>
           <${AlertBanner}/>
           <${LockBanner}/>
-          ${Page ? html`<${Page} tab=${r.t} id=${r.id}/>` : html`<${UI.Card} title="Loading"><${UI.Empty} text="One moment."/><//>`}
+          ${Page ? html`<${Crash} key=${r.s + '/' + (r.t || '') + '/' + (r.id || '')}><${Page} tab=${r.t} id=${r.id}/><//>` : html`<${UI.Card} title="Loading"><${UI.Empty} text="One moment."/><//>`}
         </div>
       </main>
 

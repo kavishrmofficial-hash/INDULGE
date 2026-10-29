@@ -21,19 +21,32 @@ const port = Number(process.argv[2] || 8788);
 const file = process.argv[3] || path.join(here, '.store.json');
 
 let data = {};
-try { data = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) { data = {}; }
+try { data = file === ':memory:' ? {} : JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) { data = {}; }
 const views = [];   /* listing snapshots, for LIST_LAG_MS */
-const save = () => { fs.writeFileSync(file, JSON.stringify(data)); if (process.env.LIST_LAG_MS) { views.push({at: Date.now(), data: {...data}}); if (views.length > 400) views.shift(); } };
+/* a store file of ':memory:' keeps everything in memory (the 100-person office simulation) */
+const MEM = file === ':memory:';
+const save = () => { if (!MEM) fs.writeFileSync(file, JSON.stringify(data)); if (process.env.LIST_LAG_MS) { views.push({at: Date.now(), data: {...data}}); if (views.length > 400) views.shift(); } };
 const md5 = s => crypto.createHash('md5').update(s).digest('hex');
+/* env STORE_LAG_MS: every store call waits about that long (a list one wait per thousand keys), the way the
+   edge's blob store answers over the network. The simulation uses it so races open the way they do live */
+const LAG = Number(process.env.STORE_LAG_MS) || 0;
+const storeWait = (n = 1) => LAG ? new Promise(r => setTimeout(r, LAG * n * (0.5 + Math.random()))) : null;
 const store = {
   async get(key, opts) {
+    await storeWait();
     if (!(key in data)) return null;
     return opts && opts.type === 'json' ? JSON.parse(data[key]) : data[key];
   },
-  async set(key, value) { data[key] = String(value); save(); },
-  async delete(key) { delete data[key]; save(); },
+  /* {onlyIfNew} is the edge store's create-only write: a key already there refuses with PRECONDITION_FAILED */
+  async set(key, value, opts) {
+    await storeWait();
+    if (opts && opts.onlyIfNew && key in data) { const e = new Error('conditional write failed (key already exists)'); e.code = 'PRECONDITION_FAILED'; throw e; }
+    data[key] = String(value); save();
+  },
+  async delete(key) { await storeWait(); delete data[key]; save(); },
   async list(opts) {
     const p = (opts && opts.prefix) || '';
+    if (LAG) await storeWait(Math.max(1, Math.ceil(Object.keys(data).filter(k => k.startsWith(p)).length / 1000)));
     /* LIST_LAG_MS: the listing answers from a copy that old, the way an edge listing can lag a write */
     const lag = Number(process.env.LIST_LAG_MS) || 0;
     let view = data;
@@ -408,6 +421,13 @@ http.createServer(async (req, res) => {
     res.writeHead(out.status, headers);
     res.end(Buffer.from(await out.arrayBuffer()));
     return;
+  }
+  /* tests: the raw documents under a prefix, read past every cache and marker (the simulation's ground truth) */
+  if (url.pathname === '/__dump') {
+    const p = url.searchParams.get('prefix') || 'd/';
+    const out = {};
+    for (const k of Object.keys(data)) if (k.startsWith(p)) out[k] = data[k];
+    res.writeHead(200, {'content-type': 'application/json'}); res.end(JSON.stringify(out)); return;
   }
   if (url.pathname === '/__reset') { data = {}; save(); res.end('ok'); return; }
   if (url.pathname === '/__clock') {

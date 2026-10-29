@@ -47,7 +47,8 @@ def artifact_part(h):
     seed(h, p)
     h.go(p, 'founder', hash='#handshake', width=1280)
     p.wait_for_selector('#hs-intake')
-    check(p.locator('.section-tabs .tab:has-text("Handshake")').count() == 1, 'the Accounts tab for the founder')
+    # v37: Accounts has three tabs; the desk opens from the "More tools" line under them
+    check(p.locator('#accounts-older button:has-text("LinkedIn desk")').count() == 1, 'the LinkedIn desk under More tools for the founder')
     check(p.locator('#hs-file').count() == 0, 'no screenshot control without image support')
     # the copy rules, checked by code
     bad = p.evaluate('() => M.handshake.check("Hi Priya — loved the work. We do content rather than ads, see www.mask360.agency!")')
@@ -97,7 +98,7 @@ def artifact_part(h):
     # a member has the desk too, sees the founder's batch, and writes as themselves without the founder's own line
     h.go(p, 'm1', hash='#handshake', width=1280)
     p.wait_for_selector('#hs-intake')
-    check(p.locator('.section-tabs .tab:has-text("Handshake")').count() == 1 and 'Priya Mehta' in p.inner_text('#handshake'), 'a member reaches the shared desk')
+    check(p.locator('#accounts-older button:has-text("LinkedIn desk")').count() == 1 and 'Priya Mehta' in p.inner_text('#handshake'), 'a member reaches the shared desk')
     check(p.locator('#hs-setup').count() == 0 and p.locator('#handshake input[type="number"]').count() == 0, 'the proof bank is the founder\'s to edit')
     p.fill('#hs-lines', 'Sana Iyer | Social Lead, KLAW | Klaw | 1st')
     p.click('#hs-run')
