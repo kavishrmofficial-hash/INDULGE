@@ -1,0 +1,61 @@
+name: westside-media
+# Fetches the reference videos for the Westside pitch from the Google Drive folder named in
+# pitches/westside/media/source.txt, makes the web versions with pitches/westside/media.py
+# (AV1 + H.264, at most 4K and 30 fps, plus poster frames) and commits only those to this branch.
+on:
+  push:
+    branches: [claude/wizardly-bardeen-2oc2qq]
+    paths: ['pitches/westside/media/source.txt', '.github/workflows/westside-media.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: westside-media
+  cancel-in-progress: true
+jobs:
+  media:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - name: Install ffmpeg and gdown
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg unzip
+          pip install -q gdown
+          ffmpeg -hide_banner -encoders | grep -E 'libx264|libsvtav1|libwebp'
+      - name: Download the Drive folder
+        run: |
+          URL=$(grep -m1 -o 'https://drive.google.com[^ ]*' pitches/westside/media/source.txt)
+          mkdir -p "$RUNNER_TEMP/src"
+          gdown --folder "$URL" -O "$RUNNER_TEMP/src"
+          cd "$RUNNER_TEMP/src"
+          find . -iname '*.zip' -print0 | while IFS= read -r -d '' z; do unzip -o -q "$z" -d "${z%.zip}" -x '__MACOSX/*'; done
+          echo "== files"; find . -type f -printf '%s\t%p\n' | sort -k2
+          find . -type f \( -iname '*.mp4' -o -iname '*.mov' -o -iname '*.m4v' -o -iname '*.webm' -o -iname '*.mkv' \) -not -name '._*' -print0 |
+            while IFS= read -r -d '' f; do
+              echo "== $f"; ffprobe -v error -show_entries format=duration:stream=codec_name,width,height,avg_frame_rate -of compact "$f"
+            done
+      - name: Make the web versions
+        run: python3 pitches/westside/media.py "$RUNNER_TEMP/src" pitches/westside/media/out
+      - name: Keep a copy as a run artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: westside-media
+          path: pitches/westside/media/out
+          retention-days: 14
+      - name: Commit them
+        run: |
+          du -ah pitches/westside/media/out | sort -h | tail -40
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pitches/westside/media/out
+          git commit -m "Westside pitch: web versions of the reference videos from the Drive folder" || echo "nothing to commit"
+          # other pushes can land while the videos encode, so rebase onto the branch tip before pushing
+          for i in 1 2 3 4 5; do
+            git pull --rebase -q origin "${{ github.ref_name }}" && git push origin "HEAD:${{ github.ref_name }}" && exit 0
+            sleep $((i * 5))
+          done
+          exit 1
