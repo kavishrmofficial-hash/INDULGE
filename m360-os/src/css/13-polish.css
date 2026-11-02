@@ -1,0 +1,21 @@
+/* v42 polish, from a walk through the live site */
+
+/* a total row is ink on paper; at night an ink row turns into a cream slab, so it sits one step above the
+   ground instead, with the light ink on it */
+:root[data-theme="dark"] .c-ct.tot{background:#222220; color:var(--ink)}
+:root[data-theme="dark"] :is(.fo,.content:has(.fo-desk)) .tbl tr.dark td,
+:root[data-theme="dark"] :is(.fo,.content:has(.fo-desk)) .tbl tr.tot td{background:#222220; color:var(--ink)}
+
+/* Base: a person with no name shows their address, quieter than a name */
+.bs-name.bs-noname{color:var(--g64); font-weight:400}
+
+/* the sidebar on a short screen: every place fits without scrolling under the fade */
+@media (min-width: 901px) and (max-height: 940px){
+  .app .side .nv{height:32px}
+  .app .sgl{height:24px; padding-bottom:4px}
+}
+@media (min-width: 901px) and (max-height: 820px){
+  .app .side .nv{height:30px}
+  .app .side .nv+.nv{margin-top:1px}
+  .app .sgl{height:18px; padding-bottom:2px}
+}

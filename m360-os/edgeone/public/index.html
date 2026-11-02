@@ -2847,6 +2847,29 @@ button.card.cl-c,button.card.pj{display:flex}
 #doors-mark .lmk{display:block; width:100%; height:auto}
 @media (prefers-reduced-motion: reduce){ #doors-mark{display:none} }
 
+/* ==== 13-polish.css ==== */
+/* v42 polish, from a walk through the live site */
+
+/* a total row is ink on paper; at night an ink row turns into a cream slab, so it sits one step above the
+   ground instead, with the light ink on it */
+:root[data-theme="dark"] .c-ct.tot{background:#222220; color:var(--ink)}
+:root[data-theme="dark"] :is(.fo,.content:has(.fo-desk)) .tbl tr.dark td,
+:root[data-theme="dark"] :is(.fo,.content:has(.fo-desk)) .tbl tr.tot td{background:#222220; color:var(--ink)}
+
+/* Base: a person with no name shows their address, quieter than a name */
+.bs-name.bs-noname{color:var(--g64); font-weight:400}
+
+/* the sidebar on a short screen: every place fits without scrolling under the fade */
+@media (min-width: 901px) and (max-height: 940px){
+  .app .side .nv{height:32px}
+  .app .sgl{height:24px; padding-bottom:4px}
+}
+@media (min-width: 901px) and (max-height: 820px){
+  .app .side .nv{height:30px}
+  .app .side .nv+.nv{margin-top:1px}
+  .app .sgl{height:18px; padding-bottom:2px}
+}
+
 /* ==== 71-profile.css ==== */
 /* ---------- profile: your photo and details on Me, and what teammates see ---------- */
 .prof-preview{display:flex; align-items:center; gap:14px; padding:14px 16px; border-radius:16px; background:var(--warm); min-width:0}
@@ -5734,7 +5757,7 @@ html.gs-open.ai-behind .buddy-bubble.agent-pop{z-index:59}
 @media (prefers-reduced-motion:no-preference){ .o3-layer > .o3-emote{animation:o3-emote-in .35s var(--ease) both} }
 @keyframes o3-emote-in{from{scale:.7} to{scale:1}}
 </style>
-<script>window.M360_BUILD = "cf2811f+.261102-2138"; window.M360_3D_SRC = "vendor/three.92287d45.js"; window.M360_3D_SRI = "sha384-9CmMVqgd6no+mymMnUEosvNELUQCik7EBJNeBNZTkeerVlw0wzE9SGjUQswxiS20";</script><script>
+<script>window.M360_BUILD = "90a79c1+.261102-2205"; window.M360_3D_SRC = "vendor/three.92287d45.js"; window.M360_3D_SRI = "sha384-9CmMVqgd6no+mymMnUEosvNELUQCik7EBJNeBNZTkeerVlw0wzE9SGjUQswxiS20";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -7547,7 +7570,7 @@ const U = M.U = (() => {
     const d = Math.round(h / 24); if (d < 30) return d + 'd ago';
     return Math.round(d / 30) + 'mo ago';
   };
-  const inr = n => '₹' + Math.round(Number(n) || 0).toLocaleString('en-IN');
+  const inr = n => { const v = Math.round(Number(n) || 0); return (v < 0 ? '-' : '') + '₹' + Math.abs(v).toLocaleString('en-IN'); };
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const clone = x => x == null ? x : JSON.parse(JSON.stringify(x));
   const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
@@ -7597,7 +7620,7 @@ const U = M.U = (() => {
     const mon = mondayOf(d);
     return {from: ymd(mon), to: ymd(addDays(mon, 5))};
   };
-  const greeting = d => { const h = (d || new Date()).getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; };
+  const greeting = d => { const h = (d || new Date()).getHours(); return h < 5 ? 'Up late' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; };
   /* "tuesday 22 september, week 39" */
   const dateLabel = d => { d = d || new Date(); return DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ', week ' + Number(isoWeek(d).split('-W')[1]); };
   const firstName = n => String(n || '').trim().split(/\s+/)[0] || '';
@@ -7934,7 +7957,7 @@ M.parseHash = () => {
   return {page: page || '', id: id ? decodeURIComponent(id) : null};
 };
 M.nav = h => { location.hash = h; };
-M.isMac = /Mac|iPhone|iPad/.test((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '');
+M.isMac = /mac|iphone|ipad/i.test((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '');
 /* intents: open a page and ask it to do one thing (open the kudos drawer, start a new project) */
 let pendingIntent = null;
 M.intend = (hash, what) => {
@@ -28687,7 +28710,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
             <${Head} n="05" t="leaderboard, this week"><button class="c-pl" type="button" onClick=${() => nav('#scores')}>scores</button><//>
             ${board.length ? board.map((r, i) => html`<button type="button" class=${cls('c-lbr c-row c-lnk', i === 0 && 'first')} key=${r.uid} onClick=${person(r.uid)}>
               <span class="rk c-dsoft tn">${i + 1}</span>
-              <span class="whom"><span class="c-nm">${nm(r.uid)}</span><i class="ln" style=${{'--w': Math.max(4, Math.round(100 * Math.max(0, r.total) / lbMax)) + '%'}}></i></span>
+              <span class="whom"><span class="c-nm">${nm(r.uid)}</span>${r.total > 0 ? html`<i class="ln" style=${{'--w': Math.max(4, Math.round(100 * r.total / lbMax)) + '%'}}></i>` : null}</span>
               <${CountUp} to=${r.total} className="c-pts"/><${Go}/>
             </button>`) : html`<p class="c-empty">No points yet.</p>`}
           </div>
@@ -28698,7 +28721,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
             ${stages.map((s, i) => {
               const b = (k.pm.byStage || {})[s.v] || {count: 0, value: 0};
               return html`<button type="button" class="c-ppr c-row c-lnk" key=${s.v} style=${{'--j': i}} onClick=${() => nav('#pitches')}>
-                <span class="c-ppt"><span>${s.label}</span><b>${b.count}${money && b.value ? ', ' + U.inrV(b.value) : ''}</b></span>
+                <span class="c-ppt"><span>${s.label}</span><b>${b.count}${money && b.value ? html`<span class="c-dsoft"> · </span>${U.inrV(b.value)}` : ''}</b></span>
                 <span class="c-ppb"><i style=${{'--w': Math.round(100 * stW(s) / stMax) + '%', '--a': (0.3 + 0.65 * (s.prob || 10) / 75).toFixed(2), '--j': i}}></i></span><${Go}/>
               </button>`;
             })}
@@ -40607,7 +40630,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       {k: 'handbook', label: 'Handbook', route: 'handbook', blurb: 'How we work, section by section; the founder edits, everyone reads.', signal: ctx => { const n = M.handbook ? M.handbook.unread(ctx, ctx.uid).length : 0; return n ? n + ' unread' : ''; }},
       {k: 'hiring', label: 'Hiring', route: 'hiring', member: true, blurb: 'Candidates you were asked to evaluate, with the scorecard.'},
       {k: 'coo', label: 'COO', route: 'coo', member: true, blurb: 'What the m360 COO does on its own, what it only drafts, what it never does, and how to ask Kaavish to undo.'}]},
-    {k: 'hq', label: 'HQ', icon: 'command', route: 'hq', founder: true, blurb: 'The founder\'s desk: what needs you, the numbers, the COO, the office and hiring.', tabs: [
+    {k: 'hq', label: 'Command', icon: 'command', route: 'hq', founder: true, blurb: 'The founder\'s desk: what needs you, the numbers, the COO, the office and hiring.', tabs: [
       {k: 'brief', label: 'Command', route: 'hq', blurb: 'What needs you, the numbers, attendance, flags, the business, the team and clients; the brief and Ask HQ under more from HQ.'},
       {k: 'coo', label: 'COO', route: 'coo', blurb: 'The m360 COO: what needs you, what it did today with Undo, what it watches next, and its on, pause and off.'},
       {k: 'office', label: 'Office', route: 'office', blurb: 'The office, live: every desk, the COO at work, and today\'s run with Undo.'},
@@ -45727,7 +45750,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       <button type="button" class="rowbtn bs-main" onClick=${() => onOpen(c.id)}>
         <${Initials} name=${c.name} size=${36}/>
         <span class="grow" style=${{minWidth: 0}}>
-          <span class="bs-name">${c.name || c['email'] || 'Someone new'}</span>
+          <span class=${'bs-name' + (c.name ? '' : ' bs-noname')}>${c.name || c['email'] || 'Someone new'}</span>
           <span class="bs-sub small ink62">${[c.title, !c.org && c._on ? 'at ' + c._on : '', c.city].filter(Boolean).join(' · ')}</span>
         </span>
       </button>
@@ -46037,7 +46060,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     /* v40: the design's page head (a label, the title with its flame stop, the lede with the live numbers) */
     return html`<div class="sect">
       <${M.SectionHero} micro="the database" title="Base" sub="Everyone we know, who we know them through, and what we do with them.">
-        <p class="lede"><span class="lede-n"><b class="num">${st.people}</b> people, <b class="num">${st.companies}</b> companies, <b class="num">${st.mapped}</b> mapped to clients.</span></p>
+        <p class="lede"><span class="lede-n">${st.loading ? 'Counting the database.' : html`<b class="num">${st.people}</b> people, <b class="num">${st.companies}</b> companies, <b class="num">${st.mapped}</b> mapped to clients.`}</span></p>
       <//>
       <${M.SectionTabs} section="base" active=${t}/>
       <div class="sect-body">
@@ -47039,7 +47062,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
 
     const rail = html`<aside class="web-rail" id="web-rail">
       <div class="web-address">
-        <input ref=${urlRef} id="web-url" class="input" placeholder="Search or type an address" value=${typed} onInput=${e => setTyped(e.target.value)}
+        <input ref=${urlRef} id="web-url" class="input" placeholder="Search or address" value=${typed} onInput=${e => setTyped(e.target.value)}
           onKeyDown=${e => { if (e.key === 'Enter') go(typed); }} onFocus=${e => e.target.select()} aria-label="Address" inputMode="url" autoCapitalize="off" autoCorrect="off" spellCheck="false"/>
         <${UI.Btn} sm=${true} id="web-go" onClick=${() => go(typed)}>Go<//>
       </div>
@@ -47073,7 +47096,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       <button type="button" class="iconbtn" id="web-fwd" aria-label="Forward" title="Forward" disabled=${!canFwd} onClick=${fwd}><${icons.down}/></button>
       <button type="button" class="iconbtn" id="web-reload" aria-label="Reload" title="Reload" disabled=${!tab || !tab.url} onClick=${reload}><${icons.clock}/></button>
       <div class="web-pill grow" title=${tab && tab.url || ''} onClick=${() => { if (urlRef.current) { urlRef.current.focus(); urlRef.current.select(); } }}>
-        ${tab && tab.url ? html`<${Favicon} url=${tab.url} title=${tab.title}/><span class="web-pill-host">${hostOf(tab.url)}</span><span class="web-pill-path">${pathOf(tab.url)}</span>` : html`<span class="ink62">Search or type an address (Cmd L)</span>`}
+        ${tab && tab.url ? html`<${Favicon} url=${tab.url} title=${tab.title}/><span class="web-pill-host">${hostOf(tab.url)}</span><span class="web-pill-path">${pathOf(tab.url)}</span>` : html`<span class="ink62">Search or type an address (${M.isMac ? '⌘L' : 'Ctrl L'})</span>`}
         ${tab && tab.loading ? html`<span class="web-spin" aria-hidden="true"/>` : null}
       </div>
       <button type="button" class="iconbtn" id="web-focus" aria-label=${focus ? 'Leave full screen' : 'Full screen'} title=${focus ? 'Leave full screen (Escape)' : 'Full screen inside m360'} onClick=${() => setFocus(f => !f)}><${focus ? icons.x : icons.more}/></button>
@@ -56033,8 +56056,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     return html`<${UI.Card} id="ai-key" title="m360 AI"
       action=${on ? html`<span class="pill ink">on</span>` : html`<span class="pill flame-o">off</span>`}>
       <p class="small ink62" style=${{marginTop: 0}}>${on
-        ? 'Brief me, Ask m360, the cursor buddy and every AI button run on your Anthropic key. The key stays on the server and never reaches a page.'
-        : 'Paste an Anthropic API key to switch on Brief me, Ask m360, the cursor buddy and every AI button. It stays on the server and never reaches a page.'}</p>
+        ? 'Brief me, m360 AI and every AI button run on your Anthropic key. The key stays on the server and never reaches a page.'
+        : 'Paste an Anthropic API key to switch on Brief me, m360 AI and every AI button. It stays on the server and never reaches a page.'}</p>
       <div class="row">
         <input class="input" type="password" autocomplete="off" style=${{maxWidth: '360px'}} placeholder="sk-ant-..."
           aria-label="Anthropic API key" value=${key} onInput=${e => setKey(e.target.value)}/>

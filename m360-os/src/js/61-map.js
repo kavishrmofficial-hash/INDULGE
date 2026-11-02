@@ -62,7 +62,7 @@
       {k: 'handbook', label: 'Handbook', route: 'handbook', blurb: 'How we work, section by section; the founder edits, everyone reads.', signal: ctx => { const n = M.handbook ? M.handbook.unread(ctx, ctx.uid).length : 0; return n ? n + ' unread' : ''; }},
       {k: 'hiring', label: 'Hiring', route: 'hiring', member: true, blurb: 'Candidates you were asked to evaluate, with the scorecard.'},
       {k: 'coo', label: 'COO', route: 'coo', member: true, blurb: 'What the m360 COO does on its own, what it only drafts, what it never does, and how to ask Kaavish to undo.'}]},
-    {k: 'hq', label: 'HQ', icon: 'command', route: 'hq', founder: true, blurb: 'The founder\'s desk: what needs you, the numbers, the COO, the office and hiring.', tabs: [
+    {k: 'hq', label: 'Command', icon: 'command', route: 'hq', founder: true, blurb: 'The founder\'s desk: what needs you, the numbers, the COO, the office and hiring.', tabs: [
       {k: 'brief', label: 'Command', route: 'hq', blurb: 'What needs you, the numbers, attendance, flags, the business, the team and clients; the brief and Ask HQ under more from HQ.'},
       {k: 'coo', label: 'COO', route: 'coo', blurb: 'The m360 COO: what needs you, what it did today with Undo, what it watches next, and its on, pause and off.'},
       {k: 'office', label: 'Office', route: 'office', blurb: 'The office, live: every desk, the COO at work, and today\'s run with Undo.'},

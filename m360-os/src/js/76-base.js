@@ -1084,7 +1084,7 @@
       <button type="button" class="rowbtn bs-main" onClick=${() => onOpen(c.id)}>
         <${Initials} name=${c.name} size=${36}/>
         <span class="grow" style=${{minWidth: 0}}>
-          <span class="bs-name">${c.name || c['email'] || 'Someone new'}</span>
+          <span class=${'bs-name' + (c.name ? '' : ' bs-noname')}>${c.name || c['email'] || 'Someone new'}</span>
           <span class="bs-sub small ink62">${[c.title, !c.org && c._on ? 'at ' + c._on : '', c.city].filter(Boolean).join(' · ')}</span>
         </span>
       </button>
@@ -1394,7 +1394,7 @@
     /* v40: the design's page head (a label, the title with its flame stop, the lede with the live numbers) */
     return html`<div class="sect">
       <${M.SectionHero} micro="the database" title="Base" sub="Everyone we know, who we know them through, and what we do with them.">
-        <p class="lede"><span class="lede-n"><b class="num">${st.people}</b> people, <b class="num">${st.companies}</b> companies, <b class="num">${st.mapped}</b> mapped to clients.</span></p>
+        <p class="lede"><span class="lede-n">${st.loading ? 'Counting the database.' : html`<b class="num">${st.people}</b> people, <b class="num">${st.companies}</b> companies, <b class="num">${st.mapped}</b> mapped to clients.`}</span></p>
       <//>
       <${M.SectionTabs} section="base" active=${t}/>
       <div class="sect-body">

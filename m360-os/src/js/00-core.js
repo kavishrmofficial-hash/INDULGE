@@ -51,7 +51,7 @@ const U = M.U = (() => {
     const d = Math.round(h / 24); if (d < 30) return d + 'd ago';
     return Math.round(d / 30) + 'mo ago';
   };
-  const inr = n => '₹' + Math.round(Number(n) || 0).toLocaleString('en-IN');
+  const inr = n => { const v = Math.round(Number(n) || 0); return (v < 0 ? '-' : '') + '₹' + Math.abs(v).toLocaleString('en-IN'); };
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const clone = x => x == null ? x : JSON.parse(JSON.stringify(x));
   const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
@@ -101,7 +101,7 @@ const U = M.U = (() => {
     const mon = mondayOf(d);
     return {from: ymd(mon), to: ymd(addDays(mon, 5))};
   };
-  const greeting = d => { const h = (d || new Date()).getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; };
+  const greeting = d => { const h = (d || new Date()).getHours(); return h < 5 ? 'Up late' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; };
   /* "tuesday 22 september, week 39" */
   const dateLabel = d => { d = d || new Date(); return DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ', week ' + Number(isoWeek(d).split('-W')[1]); };
   const firstName = n => String(n || '').trim().split(/\s+/)[0] || '';
@@ -438,7 +438,7 @@ M.parseHash = () => {
   return {page: page || '', id: id ? decodeURIComponent(id) : null};
 };
 M.nav = h => { location.hash = h; };
-M.isMac = /Mac|iPhone|iPad/.test((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '');
+M.isMac = /mac|iphone|ipad/i.test((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '');
 /* intents: open a page and ask it to do one thing (open the kudos drawer, start a new project) */
 let pendingIntent = null;
 M.intend = (hash, what) => {

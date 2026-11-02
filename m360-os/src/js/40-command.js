@@ -654,7 +654,7 @@
             <${Head} n="05" t="leaderboard, this week"><button class="c-pl" type="button" onClick=${() => nav('#scores')}>scores</button><//>
             ${board.length ? board.map((r, i) => html`<button type="button" class=${cls('c-lbr c-row c-lnk', i === 0 && 'first')} key=${r.uid} onClick=${person(r.uid)}>
               <span class="rk c-dsoft tn">${i + 1}</span>
-              <span class="whom"><span class="c-nm">${nm(r.uid)}</span><i class="ln" style=${{'--w': Math.max(4, Math.round(100 * Math.max(0, r.total) / lbMax)) + '%'}}></i></span>
+              <span class="whom"><span class="c-nm">${nm(r.uid)}</span>${r.total > 0 ? html`<i class="ln" style=${{'--w': Math.max(4, Math.round(100 * r.total / lbMax)) + '%'}}></i>` : null}</span>
               <${CountUp} to=${r.total} className="c-pts"/><${Go}/>
             </button>`) : html`<p class="c-empty">No points yet.</p>`}
           </div>
@@ -665,7 +665,7 @@
             ${stages.map((s, i) => {
               const b = (k.pm.byStage || {})[s.v] || {count: 0, value: 0};
               return html`<button type="button" class="c-ppr c-row c-lnk" key=${s.v} style=${{'--j': i}} onClick=${() => nav('#pitches')}>
-                <span class="c-ppt"><span>${s.label}</span><b>${b.count}${money && b.value ? ', ' + U.inrV(b.value) : ''}</b></span>
+                <span class="c-ppt"><span>${s.label}</span><b>${b.count}${money && b.value ? html`<span class="c-dsoft"> · </span>${U.inrV(b.value)}` : ''}</b></span>
                 <span class="c-ppb"><i style=${{'--w': Math.round(100 * stW(s) / stMax) + '%', '--a': (0.3 + 0.65 * (s.prob || 10) / 75).toFixed(2), '--j': i}}></i></span><${Go}/>
               </button>`;
             })}

@@ -263,7 +263,7 @@
 
     const rail = html`<aside class="web-rail" id="web-rail">
       <div class="web-address">
-        <input ref=${urlRef} id="web-url" class="input" placeholder="Search or type an address" value=${typed} onInput=${e => setTyped(e.target.value)}
+        <input ref=${urlRef} id="web-url" class="input" placeholder="Search or address" value=${typed} onInput=${e => setTyped(e.target.value)}
           onKeyDown=${e => { if (e.key === 'Enter') go(typed); }} onFocus=${e => e.target.select()} aria-label="Address" inputMode="url" autoCapitalize="off" autoCorrect="off" spellCheck="false"/>
         <${UI.Btn} sm=${true} id="web-go" onClick=${() => go(typed)}>Go<//>
       </div>
@@ -297,7 +297,7 @@
       <button type="button" class="iconbtn" id="web-fwd" aria-label="Forward" title="Forward" disabled=${!canFwd} onClick=${fwd}><${icons.down}/></button>
       <button type="button" class="iconbtn" id="web-reload" aria-label="Reload" title="Reload" disabled=${!tab || !tab.url} onClick=${reload}><${icons.clock}/></button>
       <div class="web-pill grow" title=${tab && tab.url || ''} onClick=${() => { if (urlRef.current) { urlRef.current.focus(); urlRef.current.select(); } }}>
-        ${tab && tab.url ? html`<${Favicon} url=${tab.url} title=${tab.title}/><span class="web-pill-host">${hostOf(tab.url)}</span><span class="web-pill-path">${pathOf(tab.url)}</span>` : html`<span class="ink62">Search or type an address (Cmd L)</span>`}
+        ${tab && tab.url ? html`<${Favicon} url=${tab.url} title=${tab.title}/><span class="web-pill-host">${hostOf(tab.url)}</span><span class="web-pill-path">${pathOf(tab.url)}</span>` : html`<span class="ink62">Search or type an address (${M.isMac ? '⌘L' : 'Ctrl L'})</span>`}
         ${tab && tab.loading ? html`<span class="web-spin" aria-hidden="true"/>` : null}
       </div>
       <button type="button" class="iconbtn" id="web-focus" aria-label=${focus ? 'Leave full screen' : 'Full screen'} title=${focus ? 'Leave full screen (Escape)' : 'Full screen inside m360'} onClick=${() => setFocus(f => !f)}><${focus ? icons.x : icons.more}/></button>

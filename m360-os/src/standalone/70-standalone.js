@@ -532,8 +532,8 @@
     return html`<${UI.Card} id="ai-key" title="m360 AI"
       action=${on ? html`<span class="pill ink">on</span>` : html`<span class="pill flame-o">off</span>`}>
       <p class="small ink62" style=${{marginTop: 0}}>${on
-        ? 'Brief me, Ask m360, the cursor buddy and every AI button run on your Anthropic key. The key stays on the server and never reaches a page.'
-        : 'Paste an Anthropic API key to switch on Brief me, Ask m360, the cursor buddy and every AI button. It stays on the server and never reaches a page.'}</p>
+        ? 'Brief me, m360 AI and every AI button run on your Anthropic key. The key stays on the server and never reaches a page.'
+        : 'Paste an Anthropic API key to switch on Brief me, m360 AI and every AI button. It stays on the server and never reaches a page.'}</p>
       <div class="row">
         <input class="input" type="password" autocomplete="off" style=${{maxWidth: '360px'}} placeholder="sk-ant-..."
           aria-label="Anthropic API key" value=${key} onInput=${e => setKey(e.target.value)}/>
