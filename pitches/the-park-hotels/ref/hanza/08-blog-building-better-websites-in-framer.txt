@@ -1,0 +1,216 @@
+MENU
+
+ALL ARTICLES
+
+ALL ARTICLES
+
+START PROJECT
+
+/HANZA
+
+READ
+
+15 MIN
+
+DATE
+
+APR 7, 2026
+
+CATEGORY
+
+DEVELOPMENT
+
+BUILDING BETTER WEBSITES IN FRAMER
+
+A PRACTICAL LOOK AT RESPONSIVE LAYOUTS, CLEAN COMPONENTS & THE CMS STRUCTURE.
+
+READ ARTICLE
+
+READ ARTICLE
+
+HANZA NOVÁK
+
+DESIGNER & FRAMER EXPERT
+
+I’m a designer and Framer developer based in Prague, creating clean websites with strong structure.
+
+A smooth website project is not only about good design. It is shaped by clear decisions, focused communication, and a process that keeps everyone moving in the same direction.
+
+Building better websites in Framer starts before the first frame is published. A strong Framer website is not just a design that gets recreated inside a tool. It is a design system, a content structure, and a responsive experience that are all planned together from the beginning.
+
+When design and development are separated too much, small details can get lost. Spacing changes, interactions feel different, and responsive layouts may not behave the way the original concept intended. Framer works best when the design is already thinking about how it will move, scale, and adapt across different screens.
+
+This makes the process more direct and more flexible. Instead of handing off static designs and rebuilding everything from scratch, the website can grow inside the same environment where it will eventually go live. That helps keep the final result closer to the original idea and makes the whole project feel more connected.
+
+
+
+Creating Clean And Flexible Systems
+
+A better Framer website needs more than good-looking sections. It needs clean structure, reusable components, organized styles, and pages that are easy to update later. When the build is messy, even simple changes can become frustrating after launch.
+
+Components are especially important because they keep the website consistent. Buttons, navigation elements, cards, forms, and repeated sections should follow the same visual logic. This makes the website easier to maintain and helps every page feel like part of the same system.
+
+A flexible structure also gives clients more control. Text, images, links, and CMS items should be easy to edit without breaking the layout. The goal is to create a website that feels polished for visitors and practical for the people managing it behind the scenes.
+
+
+
+NEWSLETTER
+
+WEEKLY
+DESIGN NOTES.
+
+Get short thoughts on design, Framer, process, and building websites that feel clear, polished, and easy to use.
+
+SIGN UP
+
+By subscribing, you agree to the Terms and Privacy Policy.
+
+Making The Experience Feel Smooth
+
+Framer makes it easy to add motion, transitions, and interactions, but better websites use these details with intention. Motion should support the experience, not distract from it. A subtle hover state, a smooth page transition, or a carefully timed reveal can make the website feel more refined without making it feel heavy.
+
+Performance is also part of the experience. A website can look beautiful, but if it loads slowly or feels awkward on mobile, the first impression becomes weaker. Clean layouts, optimized assets, and responsive behavior all help the website feel faster and more reliable.
+
+In the end, building better websites in Framer is about balance. The design needs to be sharp, the structure needs to be clear, and the build needs to stay flexible after launch. When all of these parts work together, the website feels more professional, easier to use, and much stronger as a digital presence.
+
+I SHARE IDEAS, LESSONS, AND PRACTICAL INSIGHTS FROM MY WORK.
+
+RELATED 
+ARTICLES.
+
+ALL ARTICLES
+
+ALL ARTICLES
+
+JUN 24, 2026
+
+DESIGN
+
+What Makes A Website Project Run Smoothly
+
+A simple look at how clear structure, focused feedback, and the right process.
+
+READ ARTICLE
+
+READ ARTICLE
+
+MAY 30, 2026
+
+DESIGN
+
+How Visual Direction Shapes A Stronger Website
+
+Why typography, imagery, spacing, and color direction matter.
+
+READ ARTICLE
+
+READ ARTICLE
+
+MAR 23, 2026
+
+BRANDING
+
+Creating A Digital Presence That Feels Clear
+
+How strong messaging, consistent visuals, and a focused website experience.
+
+READ ARTICLE
+
+READ ARTICLE
+
+FEB 20, 2026
+
+DESIGN
+
+Small Details That Make Websites Feel Premium
+
+Why spacing, rhythm, motion, and interface details are imrportant.
+
+READ ARTICLE
+
+READ ARTICLE
+
+GET IN TOUCH
+
+/HANZA
+
+HANZA NOVÁK 
+
+PROFESSION
+
+DESIGNER & FRAMER EXPERT
+
+LOCATION
+
+PRAGUE, CZECHIA
+
+CONTACT
+
+CREATE YOUR NEXT WEBSITE
+WITH ME.
+
+FROM FIRST CONCEPT TO FINAL BUILD, I CREATE WEBSITES WITH CLEAR STRUCTURE & SMOOTH INTERACTIONS.
+
+2
+
+SLOTS
+
+AVAILABLE
+
+JUNE 2026
+
+YOUR NAME
+
+EMAIL ADDRESS
+
+HOW CAN I HELP?
+
+FORM INCOMPLETE
+
+By submitting, you agree to our Terms and Privacy Policy.
+
+HOME
+
+PORTFOLIO
+
+ABOUT
+
+CONTACT
+
+BLOG
+
+404
+
+Vinohradská 102
+120 00 Prague
+Czech Republic
+
+AHOJ@HANZA.CZ
+
+AHOJ@HANZA.CZ
+
+CONTACT ME
+
+CONTACT ME
+
+CRAFTED BY
+
+GOLA TEMPLATES
+
+© 2026 HANZA®
+
+ALL RIGHT RESERVED.
+
+TERMS
+
+PRIVACY POLICY
+
+More Templates
+
+More Templates
+
+Buy for $99
+
+Buy for $99
+
+Create a free website with Framer, the website builder loved by startups, designers and agencies.

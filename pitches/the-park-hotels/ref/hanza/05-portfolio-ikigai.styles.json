@@ -1,0 +1,310 @@
+{
+ "body": {
+  "background": "rgb(255, 255, 255)",
+  "color": "rgb(0, 0, 0)"
+ },
+ "type": [
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "80px",
+   "fontWeight": "500",
+   "lineHeight": "72px",
+   "letterSpacing": "-2.4px",
+   "textTransform": "uppercase",
+   "color": "rgb(255, 255, 255)",
+   "count": 24,
+   "samples": [
+    "I",
+    "k",
+    "i",
+    "g"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "64px",
+   "fontWeight": "500",
+   "lineHeight": "64px",
+   "letterSpacing": "-1.92px",
+   "textTransform": "none",
+   "color": "rgb(0, 0, 0)",
+   "count": 4,
+   "samples": [
+    "34%",
+    "34%",
+    "23k",
+    "23k"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "34px",
+   "fontWeight": "500",
+   "lineHeight": "40.8px",
+   "letterSpacing": "-0.68px",
+   "textTransform": "none",
+   "color": "rgb(18, 18, 18)",
+   "count": 1,
+   "samples": [
+    "A clear and modern website created to turn a complex technology product into a more unders"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "32px",
+   "fontWeight": "500",
+   "lineHeight": "38.4px",
+   "letterSpacing": "-0.64px",
+   "textTransform": "none",
+   "color": "rgb(18, 18, 18)",
+   "count": 3,
+   "samples": [
+    "The product story needed to feel simple and approachable without losing depth, credibility",
+    "I developed a structured website with focused messaging, strong hierarchy, and smooth Fram",
+    "The website gave Flora & Fauna a stronger visual presence and a more polished way to prese"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\"",
+   "fontSize": "32px",
+   "fontWeight": "500",
+   "lineHeight": "32px",
+   "letterSpacing": "-1px",
+   "textTransform": "uppercase",
+   "color": "rgb(255, 255, 255)",
+   "count": 2,
+   "samples": [
+    "ahoj@hanza.cz",
+    "ahoj@hanza.cz"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "24px",
+   "fontWeight": "500",
+   "lineHeight": "31.2px",
+   "letterSpacing": "-1px",
+   "textTransform": "none",
+   "color": "rgb(18, 18, 18)",
+   "count": 22,
+   "samples": [
+    "\u201cThe",
+    "website",
+    "finally",
+    "reflects"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "16px",
+   "fontWeight": "500",
+   "lineHeight": "20.8px",
+   "letterSpacing": "-0.32px",
+   "textTransform": "uppercase",
+   "color": "rgba(255, 255, 255, 0.6)",
+   "count": 215,
+   "samples": [
+    "a",
+    "r",
+    "e",
+    "f"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "15px",
+   "fontWeight": "400",
+   "lineHeight": "24px",
+   "letterSpacing": "-0.15px",
+   "textTransform": "none",
+   "color": "rgba(18, 18, 18, 0.6)",
+   "count": 10,
+   "samples": [
+    "Ikigai Labs needed a website that could turn a complex technology product into a clear, tr",
+    "I focused on clarity, hierarchy, and smooth Framer development to make the product easier ",
+    "The product had depth, but the website needed a stronger way to explain it. Visitors had t",
+    "The challenge was reducing complexity without losing substance. The website had to feel si"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "14px",
+   "fontWeight": "500",
+   "lineHeight": "14px",
+   "letterSpacing": "-0.5px",
+   "textTransform": "uppercase",
+   "color": "rgb(255, 255, 255)",
+   "count": 1,
+   "samples": [
+    "Menu"
+   ]
+  },
+  {
+   "fontFamily": "\"Geist Mono\", monospace",
+   "fontSize": "14px",
+   "fontWeight": "500",
+   "lineHeight": "15.4px",
+   "letterSpacing": "normal",
+   "textTransform": "uppercase",
+   "color": "rgb(255, 255, 255)",
+   "count": 4,
+   "samples": [
+    "Start Project",
+    "View Project",
+    "Get in Touch",
+    "Form incomplete"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "14px",
+   "fontWeight": "500",
+   "lineHeight": "16.8px",
+   "letterSpacing": "normal",
+   "textTransform": "uppercase",
+   "color": "rgb(255, 255, 255)",
+   "count": 6,
+   "samples": [
+    "Home",
+    "Portfolio",
+    "About",
+    "Contact"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "13px",
+   "fontWeight": "400",
+   "lineHeight": "19.5px",
+   "letterSpacing": "normal",
+   "textTransform": "none",
+   "color": "rgba(255, 255, 255, 0.6)",
+   "count": 3,
+   "samples": [
+    "By submitting, you agree to our Terms and Privacy Policy.",
+    "Terms",
+    "Privacy Policy"
+   ]
+  },
+  {
+   "fontFamily": "Geist, \"Geist Placeholder\", sans-serif",
+   "fontSize": "13px",
+   "fontWeight": "600",
+   "lineHeight": "15.6px",
+   "letterSpacing": "normal",
+   "textTransform": "none",
+   "color": "rgb(255, 255, 255)",
+   "count": 4,
+   "samples": [
+    "More Templates",
+    "More Templates",
+    "Buy for $99",
+    "Buy for $99"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "12px",
+   "fontWeight": "500",
+   "lineHeight": "13.2px",
+   "letterSpacing": "-0.25px",
+   "textTransform": "uppercase",
+   "color": "rgb(255, 255, 255)",
+   "count": 10,
+   "samples": [
+    "All Projects",
+    "All Projects",
+    "Explore Project",
+    "Explore Project"
+   ]
+  },
+  {
+   "fontFamily": "\"Geist Mono\", monospace",
+   "fontSize": "12px",
+   "fontWeight": "500",
+   "lineHeight": "14.4px",
+   "letterSpacing": "normal",
+   "textTransform": "uppercase",
+   "color": "rgba(255, 255, 255, 0.6)",
+   "count": 19,
+   "samples": [
+    "/Hanza",
+    "Year",
+    "Client",
+    "Timeline"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "12px",
+   "fontWeight": "500",
+   "lineHeight": "14.4px",
+   "letterSpacing": "normal",
+   "textTransform": "uppercase",
+   "color": "rgb(255, 255, 255)",
+   "count": 20,
+   "samples": [
+    "2026",
+    "Ikigai Labs",
+    "3 Months",
+    "Branding"
+   ]
+  },
+  {
+   "fontFamily": "\"Zalando Sans\", \"Zalando Sans Placeholder\", sans-serif",
+   "fontSize": "12px",
+   "fontWeight": "500",
+   "lineHeight": "15.6px",
+   "letterSpacing": "normal",
+   "textTransform": "none",
+   "color": "rgba(255, 255, 255, 0.6)",
+   "count": 1,
+   "samples": [
+    "\u00a9 2026 HANZA\u00ae"
+   ]
+  },
+  {
+   "fontFamily": "sans-serif",
+   "fontSize": "12px",
+   "fontWeight": "400",
+   "lineHeight": "normal",
+   "letterSpacing": "normal",
+   "textTransform": "none",
+   "color": "rgb(0, 0, 238)",
+   "count": 1,
+   "samples": [
+    "Create a free website with Framer, the website builder loved by startups, designers and ag"
+   ]
+  }
+ ],
+ "backgrounds": [
+  [
+   "rgb(255, 255, 255)",
+   17244
+  ],
+  [
+   "rgb(18, 18, 18)",
+   5003
+  ],
+  [
+   "rgba(0, 0, 0, 0.2)",
+   2592
+  ],
+  [
+   "rgb(250, 250, 250)",
+   613
+  ],
+  [
+   "rgb(25, 25, 25)",
+   215
+  ]
+ ],
+ "fonts": [
+  "Geist 600 normal",
+  "Zalando Sans 400 normal",
+  "Zalando Sans 500 normal",
+  "Geist Mono 500 normal",
+  "Inter 400 normal"
+ ],
+ "height": 11975
+}

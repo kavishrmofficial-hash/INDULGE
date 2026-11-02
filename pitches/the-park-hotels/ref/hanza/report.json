@@ -1,0 +1,84 @@
+{
+ "pages": [
+  {
+   "url": "https://hanza-template.framer.website/",
+   "file": "00-home",
+   "height": 16340
+  },
+  {
+   "url": "https://hanza-template.framer.website/contact",
+   "file": "01-contact",
+   "height": 3750
+  },
+  {
+   "url": "https://hanza-template.framer.website/portfolio",
+   "file": "02-portfolio",
+   "height": 5814
+  },
+  {
+   "url": "https://hanza-template.framer.website/portfolio/goodwell",
+   "file": "03-portfolio-goodwell",
+   "height": 12014
+  },
+  {
+   "url": "https://hanza-template.framer.website/portfolio/galileo",
+   "file": "04-portfolio-galileo",
+   "height": 11975
+  },
+  {
+   "url": "https://hanza-template.framer.website/portfolio/ikigai",
+   "file": "05-portfolio-ikigai",
+   "height": 11975
+  },
+  {
+   "url": "https://hanza-template.framer.website/blog/what-makes-a-website-project-run-smoothly",
+   "file": "06-blog-what-makes-a-website-project-run-smoothly",
+   "height": 6420
+  },
+  {
+   "url": "https://hanza-template.framer.website/blog/how-visual-direction-shapes-a-stronger-website",
+   "file": "07-blog-how-visual-direction-shapes-a-stronger-website",
+   "height": 6339
+  },
+  {
+   "url": "https://hanza-template.framer.website/blog/building-better-websites-in-framer",
+   "file": "08-blog-building-better-websites-in-framer",
+   "height": 6366
+  },
+  {
+   "url": "https://hanza-template.framer.website/blog/creating-a-digital-presence-that-feels-clear",
+   "file": "09-blog-creating-a-digital-presence-that-feels-clear",
+   "height": 6330
+  }
+ ],
+ "links": [
+  "https://hanza-template.framer.website/",
+  "https://hanza-template.framer.website/contact",
+  "https://hanza-template.framer.website/portfolio",
+  "https://hanza-template.framer.website/portfolio/goodwell",
+  "https://hanza-template.framer.website/portfolio/galileo",
+  "https://hanza-template.framer.website/portfolio/ikigai",
+  "https://hanza-template.framer.website/blog/what-makes-a-website-project-run-smoothly",
+  "https://hanza-template.framer.website/blog/how-visual-direction-shapes-a-stronger-website",
+  "https://hanza-template.framer.website/blog/building-better-websites-in-framer",
+  "https://hanza-template.framer.website/blog/creating-a-digital-presence-that-feels-clear",
+  "https://hanza-template.framer.website/terms",
+  "https://hanza-template.framer.website/privacy",
+  "https://hanza-template.framer.website/about",
+  "https://hanza-template.framer.website/blog",
+  "https://hanza-template.framer.website/404"
+ ],
+ "not_captured": [
+  "https://hanza-template.framer.website/terms",
+  "https://hanza-template.framer.website/privacy",
+  "https://hanza-template.framer.website/about",
+  "https://hanza-template.framer.website/blog",
+  "https://hanza-template.framer.website/404"
+ ],
+ "fonts": {
+  "https://fonts.gstatic.com/s/geistmono/v6/or3nQ6H-1_WfwkMZI_qYFrcdmg.woff2": "or3nq6h-1-wfwkmzi-qyfrcdmg.woff2",
+  "https://fonts.gstatic.com/s/zalandosans/v3/FwZJ7-Asy1Em_lq_aK3hpr-RrktWHD54lnesO2lsfPbPdw.woff2": "fwzj7-asy1em-lq-ak3hpr-rrktwhd54lneso2lsfpbpdw.woff2",
+  "https://fonts.gstatic.com/s/geist/v5/gyByhwUxId8gMEwcGFU.woff2": "gybyhwuxid8gmewcgfu.woff2",
+  "https://framerusercontent.com/assets/GrgcKwrN6d3Uz8EwcLHZxwEfC4.woff2": "grgckwrn6d3uz8ewclhzxwefc4.woff2"
+ }
+}

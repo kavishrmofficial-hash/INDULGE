@@ -1,0 +1,58 @@
+name: park-refs
+# Fetches the references for The Park deck, because the coding sandbox cannot reach framer.website or Google Drive:
+# the Hanza template's design (screenshots, type and fonts) into pitches/the-park-hotels/ref/hanza/, and the shared
+# video references, re-encoded small, into pitches/the-park-hotels/deck/media/.
+on:
+  push:
+    branches: [claude/loving-heisenberg-cvms3i]
+    paths: ['pitches/the-park-hotels/fetch_refs.py', '.github/workflows/park-refs.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: park-refs
+  cancel-in-progress: true
+jobs:
+  fetch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: |
+          pip install -q playwright==1.56.0 gdown
+          python -m playwright install --with-deps chromium
+          command -v ffmpeg || (sudo apt-get update -q && sudo apt-get install -yq ffmpeg)
+      - name: Capture the Hanza template
+        continue-on-error: true
+        run: |
+          # captured once already; delete ref/hanza to capture again
+          if [ -f pitches/the-park-hotels/ref/hanza/report.json ]; then cp pitches/the-park-hotels/ref/site.log site.log; exit 0; fi
+          python3 pitches/the-park-hotels/fetch_refs.py site pitches/the-park-hotels/ref/hanza 2>&1 | tee site.log
+      - name: Download and encode the videos
+        continue-on-error: true
+        run: |
+          # fetched once already; empty deck/media/manifest.json's files to fetch again
+          if python3 -c "import json,sys;sys.exit(0 if json.load(open('pitches/the-park-hotels/deck/media/manifest.json')).get('files') else 1)"; then cp pitches/the-park-hotels/ref/videos.log videos.log; exit 0; fi
+          python3 pitches/the-park-hotels/fetch_refs.py videos pitches/the-park-hotels/deck/media 2>&1 | tee videos.log
+      - name: Record how the Hanza template moves
+        continue-on-error: true
+        run: python3 pitches/the-park-hotels/fetch_refs.py motion pitches/the-park-hotels/ref/hanza-motion 2>&1 | tee motion.log
+      - name: Commit the files
+        run: |
+          mkdir -p pitches/the-park-hotels/ref
+          cp site.log videos.log motion.log pitches/the-park-hotels/ref/ 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pitches/the-park-hotels/ref pitches/the-park-hotels/deck/media
+          git commit -m "The Park deck: Hanza template capture, motion and the video references" || exit 0
+          for i in 1 2 3 4 5; do
+            git pull --rebase -q origin "${{ github.ref_name }}" && git push origin "HEAD:${{ github.ref_name }}" && exit 0
+            sleep $((i * 5))
+          done
+          exit 1
