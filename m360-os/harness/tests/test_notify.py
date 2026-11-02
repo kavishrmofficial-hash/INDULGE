@@ -24,7 +24,7 @@ class FakeNotification {
 FakeNotification.permission = (function () { try { return localStorage.getItem('__fakeperm') || 'default'; } catch (e) { return 'default'; } })();
 window.Notification = FakeNotification;
 document.hasFocus = () => false;
-window.M360_WELCOME_OFF = true;
+window.M360_WELCOME_OFF = true; window.M360_MONEY_LOCK_OFF = true;
 '''
 
 

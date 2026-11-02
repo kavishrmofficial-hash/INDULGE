@@ -743,9 +743,9 @@
               <span class=${'num' + (comp.filled < comp.total ? ' flt' : '')}>${comp.filled} of ${comp.total} fields</span>
             </div>
             ${s && s.kind === 'project' ? html`<div class="cl-line">
-              <b class="num">${U.inr(s.fee)}</b><span>project fee${projEnd(ctx, id)}</span>
+              <b class="num">${U.inrV(s.fee)}</b><span>project fee${projEnd(ctx, id)}</span>
             </div>` : s ? html`<div class="cl-line">
-              <b class="num">${U.inr(s.monthly)}</b>
+              <b class="num">${U.inrV(s.monthly)}</b>
               <span class="num">${s.share}% of monthly revenue</span>
             </div>` : null}
             <div class="cl-line"><span class="soft">updated ${c.updated ? U.timeAgo(c.updated) : 'never'}</span></div>

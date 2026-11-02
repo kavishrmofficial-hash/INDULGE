@@ -2065,7 +2065,7 @@ html:not(.sbx) .app .sfoot .focus-pill .iconbtn{width:28px;height:28px}
 .v7h .focus .ft{font-size:14.5px; line-height:20px; font-weight:500}
 .v7h .focus .rowbtn{min-width:0}
 .v7h .tk-m{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px}
-.v7h .tk-m .pill{height:22px; padding:0 8px; font-size:11.5px; border-radius:11px}
+.v7h .tk-m .pill{height:auto; min-height:22px; padding:3px 8px; font-size:11.5px; line-height:16px; border-radius:11px; white-space:normal; max-width:100%; text-align:left}
 .v7h .tick{width:20px; height:20px; flex:0 0 20px; border-radius:50%; display:inline-grid; place-items:center; box-shadow:inset 0 0 0 1px var(--line2); background:transparent; color:var(--on-ink)}
 .v7h .tick.done{background:var(--ink); box-shadow:none}
 .v7h .tick svg{width:12px; height:12px}
@@ -2248,7 +2248,11 @@ html:not(.sbx) .app .sfoot .focus-pill .iconbtn{width:28px;height:28px}
 .tk:active{scale:.98}
 .tk-t{font-size:14.5px;line-height:20px;font-weight:500}
 .tk-m{display:flex;flex-wrap:wrap;gap:6px}
-.tk-m .pill{height:22px;padding:0 8px;font-size:11.5px;border-radius:11px}
+.tk-m .pill{height:auto;min-height:22px;padding:3px 8px;font-size:11.5px;line-height:16px;border-radius:11px;white-space:normal;max-width:100%;text-align:left}
+/* a column head keeps its name on one line; the count and value drop under it when the column is narrow */
+.col-head.col-h{flex-wrap:wrap;gap:2px 8px}
+.col-head.col-h > span:first-child{white-space:nowrap}
+.col-head.col-h > span:last-child{white-space:nowrap}
 .tk-o{display:flex;align-items:center;gap:8px}
 /* the app's board names on the design's values: the wrap is the board itself, a column is .col, a card is .tk */
 .board-wrap.board{margin:0; padding:0 0 8px; min-width:0; align-items:stretch}
@@ -2807,6 +2811,41 @@ button.card.cl-c,button.card.pj{display:flex}
 }
 :root[data-theme="dark"] :is(.fo,.content:has(.fo-desk)) .band.warm .card{background:var(--paper)}
 :root[data-theme="dark"] .fo .clear .ok{color:var(--paper);background:var(--ink)}
+
+/* ==== 11-moneylock.css ==== */
+/* money lock: the Books section's card while amounts are hidden (01-z-moneylock.js) */
+.mlock-gate{max-width:560px; padding:8px 0 48px}
+.mlock-gate .lede{margin:8px 0 24px}
+.mlock-gate .btn{display:inline-flex; align-items:center; gap:8px}
+.mlock-gate .mlock-ic{width:18px; height:18px}
+
+/* ==== 12-doors.css ==== */
+/* the doors: signing in walks you into the OS (03-z-doors.js). The scene is the same in both themes:
+   a dark room, light through the doorway */
+#doors{position:fixed; inset:0; z-index:2147483000; display:grid; place-items:center; overflow:hidden; pointer-events:none; contain:strict}
+#doors .dr-stage{position:relative; display:flex; flex-direction:column; align-items:center; will-change:transform}
+#doors .dr-door{position:relative; width:128px; height:256px; perspective:620px}
+#doors .dr-light{position:absolute; inset:0; border-radius:64px 64px 0 0; background:#FFFFFF; opacity:0}
+#doors .dr-leaf{position:absolute; top:0; bottom:0; width:50%; background:#181817; opacity:0; backface-visibility:visible;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+#doors .dr-l{left:0; border-radius:64px 0 0 0; transform-origin:0 50%}
+#doors .dr-r{right:0; border-radius:0 64px 0 0; transform-origin:100% 50%; background:#222220}
+#doors .dr-seam{position:absolute; left:50%; top:26%; bottom:0; width:2px; border-radius:2px; background:#FFFFFF; opacity:0;
+  transform-origin:50% 100%; box-shadow:0 0 14px 2px rgba(255,255,255,.55)}
+#doors .dr-frame{position:absolute; inset:0; width:100%; height:100%; overflow:visible}
+#doors .dr-frame path{fill:none; stroke:rgba(255,255,255,.78); stroke-width:1.5; stroke-linecap:round}
+#doors .dr-floor{width:min(320px, 80vw); height:1px; background:rgba(255,255,255,.42); transform:scaleX(0)}
+#doors .dr-spill{position:absolute; top:256px; left:50%; width:420px; height:180px; opacity:0; transform-origin:50% 0;
+  clip-path:polygon(35% 0, 65% 0, 100% 100%, 0 100%); background:linear-gradient(to bottom, rgba(255,255,255,.30), rgba(255,255,255,0))}
+#doors .dr-say{margin:28px 0 0; font-size:13px; letter-spacing:.04em; color:rgba(255,255,255,.64); opacity:0}
+@media (prefers-reduced-motion: reduce){ #doors{display:none} }
+/* the mark on the white: it rises from behind a line, then glides to its place in the shell */
+#doors-mark{position:fixed; left:50%; top:50%; z-index:2147483001; width:min(220px, 52vw); margin:0; pointer-events:none;
+  transform-origin:0 0; translate:-50% -50%; color:#0A0A0A}
+#doors-mark .dm-clip{display:block; overflow:hidden; padding:6px 0}
+#doors-mark .dm-in{display:block; will-change:transform}
+#doors-mark .lmk{display:block; width:100%; height:auto}
+@media (prefers-reduced-motion: reduce){ #doors-mark{display:none} }
 
 /* ==== 71-profile.css ==== */
 /* ---------- profile: your photo and details on Me, and what teammates see ---------- */
@@ -5188,8 +5227,9 @@ body:has(.drawer) .buddy-bubble.agent-pop{z-index:62}
   .buddy-bubble.tour,.buddy-bubble.tour.hang-up,.buddy-bubble.tour.at-dock{bottom:calc(86px + env(safe-area-inset-bottom,0px)); right:12px; width:auto; max-width:none; max-height:46vh}
 }
 
-/* another sheet open: the m360 AI panel steps behind it (and its scrim), so that sheet's buttons stay in reach */
-html.gs-open .buddy-bubble.agent-pop{z-index:59}
+/* a sheet opened after the m360 AI panel: the panel steps behind it (and its scrim), so that sheet's buttons stay
+   in reach. Opened after the sheet, the panel stays on top (58-buddy.js sets and clears ai-behind) */
+html.gs-open.ai-behind .buddy-bubble.agent-pop{z-index:59}
 
 /* ==== 99-gate.css ==== */
 /* v36.2: the gate moves the way Apple's sign-in does. This CSS half runs on the static boot screen from its
@@ -5694,7 +5734,7 @@ html.gs-open .buddy-bubble.agent-pop{z-index:59}
 @media (prefers-reduced-motion:no-preference){ .o3-layer > .o3-emote{animation:o3-emote-in .35s var(--ease) both} }
 @keyframes o3-emote-in{from{scale:.7} to{scale:1}}
 </style>
-<script>window.M360_BUILD = "5335b2c+.261102-1403"; window.M360_3D_SRC = "vendor/three.92287d45.js"; window.M360_3D_SRI = "sha384-9CmMVqgd6no+mymMnUEosvNELUQCik7EBJNeBNZTkeerVlw0wzE9SGjUQswxiS20";</script><script>
+<script>window.M360_BUILD = "cf2811f+.261102-2138"; window.M360_3D_SRC = "vendor/three.92287d45.js"; window.M360_3D_SRI = "sha384-9CmMVqgd6no+mymMnUEosvNELUQCik7EBJNeBNZTkeerVlw0wzE9SGjUQswxiS20";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -8867,6 +8907,155 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   M.fx = {...(M.fx || {}), Orb, Beam, BeamFx, Metal, MetalText, MetalBadge, Voice, VoicePill, Bot, Bell, BOTS, FLAME, has: () => !!window.FX, useSettled, useHushed};
 })();
 
+/* ==== 01-z-moneylock.js ==== */
+/* module: money lock. On the owner's and the founders' screens every amount stays hidden ("₹ ••••") until a
+   fingerprint says it is them: Touch ID on a Mac, the sensor or face on a phone, or the device's own screen
+   lock where it has no sensor. It is a privacy screen for a room the team shares: the numbers are already
+   theirs to see, and this keeps them off the screen until they ask.
+
+   Shown, the amounts stay until 5 minutes pass without a touch, the tab is left for a minute, or Hide.
+   The Books section shows one lock card in place of its pages while hidden.
+
+     M.moneyLock.hidden()     true while amounts are masked for this viewer
+     M.moneyLock.mask(str)    the same text with every amount masked while hidden (island, inbox, AI replies)
+     M.moneyLock.unlock()     asks for the fingerprint; resolves true once shown
+     M.moneyLock.hide()       masks again now
+     M.moneyLock.setOn(bool)  the Me, Prefs switch (turning it off asks for the fingerprint first)
+     M.moneyLock.use()        a hook: the component draws again when the lock opens or closes
+     U.inrV(n)                U.inr for the screen: the amount, or the mask while hidden
+
+   The fingerprint check is the browser's own (WebAuthn, user verification required). The key it makes is
+   kept on this device only, so nothing about it reaches the server or the repo. */
+(function () {
+  const M = window.M, U = M.U, {html, React} = M;
+  const DOTS = '••••';
+  const MASK = '₹ ' + DOTS;
+  const IDLE_MS = 5 * 60000, AWAY_MS = 60000;
+  const subs = new Set();
+  let viewer = false, open = false, lastTouch = 0, leftAt = 0, busy = false, fails = 0;
+
+  /* test runs set M360_MONEY_LOCK_OFF so older tests read real figures; test_money_lock turns it on */
+  const on = () => !window.M360_MONEY_LOCK_OFF && M.prefs.get('moneyLock', '1') !== '0';
+  const active = () => viewer && on();
+  const hidden = () => active() && !open;
+  function paint() { try { document.documentElement.classList.toggle('money-hidden', hidden()); } catch (e) { /* no document */ } }
+  function tell() { paint(); subs.forEach(f => { try { f(); } catch (e) { /* listener */ } }); }
+
+  /* who is looking: the lock covers the people who see company money. Set during the shell's render, so the
+     first frame is already masked; it only repaints the class, the shell's own render does the rest */
+  function setViewer(ctx) {
+    const v = !!(ctx && (ctx.isOwner || ctx.isFounder));
+    if (v !== viewer) { viewer = v; paint(); }
+  }
+
+  /* any amount in a line of text: ₹, $, €, £, AED, SAR, USD, then the figure */
+  const AMOUNT = /(?:₹|\$|€|£|\bAED|\bSAR|\bUSD|\bINR|\bRs\.?)\s?-?\d(?:[\d,]*\d)?(?:\.\d+)?(?:\s?(?:L|lakh|lakhs|Cr|crore|crores|k|K)\b)?/g;
+  const mask = s => (hidden() && typeof s === 'string') ? s.replace(AMOUNT, MASK) : s;
+  const inrV = n => hidden() ? MASK : U.inr(n);
+
+  /* ---------- the fingerprint ---------- */
+  const can = () => !!(window.PublicKeyCredential && navigator.credentials && window.isSecureContext);
+  const rnd = n => { const a = new Uint8Array(n); crypto.getRandomValues(a); return a; };
+  const b64 = buf => { let s = ''; new Uint8Array(buf).forEach(c => { s += String.fromCharCode(c); }); return btoa(s); };
+  const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  let me = '';
+
+  async function platform() {
+    try { return !!(PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); }
+    catch (e) { return false; }
+  }
+
+  async function check() {
+    const base = {challenge: rnd(32), timeout: 60000, userVerification: 'required'};
+    const id = M.prefs.get('moneyLockKey', '');
+    if (id) {
+      await navigator.credentials.get({publicKey: Object.assign({}, base, {rpId: location.hostname, allowCredentials: [{type: 'public-key', id: unb64(id)}]})});
+      return true;
+    }
+    /* the first time on this device: making the key asks for the fingerprint too, and counts as the check */
+    const sel = {userVerification: 'required', residentKey: 'discouraged'};
+    if (await platform()) sel.authenticatorAttachment = 'platform';
+    const cred = await navigator.credentials.create({publicKey: Object.assign({}, base, {
+      rp: {name: 'm360 OS', id: location.hostname},
+      user: {id: rnd(16), name: me || 'm360', displayName: me || 'm360'},
+      pubKeyCredParams: [{type: 'public-key', alg: -7}, {type: 'public-key', alg: -257}],
+      authenticatorSelection: sel, attestation: 'none'})});
+    if (!cred) return false;
+    M.prefs.set('moneyLockKey', b64(cred.rawId));
+    return true;
+  }
+
+  const say = (t, err) => { if (M.toast) M.toast(t, !!err); };
+  async function unlock() {
+    if (!hidden()) return true;
+    if (busy) return false;
+    if (!can()) { say('This browser cannot check a fingerprint. The money lock can be turned off in Me, Prefs', true); return false; }
+    busy = true;
+    try {
+      const ok = await check();
+      if (!ok) return false;
+      fails = 0; open = true; lastTouch = Date.now(); tell();
+      say('Money shown. It hides again after 5 minutes away');
+      return true;
+    } catch (e) {
+      /* two misses in a row: the key may be gone from this device, so the next tap makes a new one */
+      fails += 1;
+      if (fails >= 2) M.prefs.set('moneyLockKey', '');
+      say('Fingerprint not taken. Tap an amount to try again', true);
+      return false;
+    } finally { busy = false; }
+  }
+  function hide() { if (open) { open = false; tell(); } }
+  async function setOn(v) {
+    if (!v && hidden() && can()) { const ok = await unlock(); if (!ok) return false; }
+    M.prefs.set('moneyLock', v ? '1' : '0');
+    if (v) open = false;
+    tell();
+    return true;
+  }
+
+  /* ---------- it hides again on its own ---------- */
+  const touch = () => { lastTouch = Date.now(); };
+  try {
+    ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(k => addEventListener(k, touch, {passive: true, capture: true}));
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { leftAt = Date.now(); return; }
+      if (open && leftAt && Date.now() - leftAt > AWAY_MS) hide();
+      leftAt = 0;
+    });
+    setInterval(() => { if (open && Date.now() - lastTouch > IDLE_MS) hide(); }, 15000);
+    /* a tap on a masked amount asks for the fingerprint, and does nothing else */
+    addEventListener('click', e => {
+      if (!hidden()) return;
+      const t = e.target;
+      const hit = t && t.closest && (t.closest('[data-money-unlock]') || (t.textContent && t.textContent.length < 160 && t.textContent.indexOf(DOTS) >= 0 ? t : null));
+      if (!hit) return;
+      e.preventDefault(); e.stopPropagation();
+      unlock();
+    }, true);
+  } catch (e) { /* no window */ }
+
+  function use() {
+    const [, bump] = React.useState(0);
+    React.useEffect(() => { const f = () => bump(x => x + 1); subs.add(f); return () => { subs.delete(f); }; }, []);
+    return hidden();
+  }
+
+  M.moneyLock = {hidden, active, on, mask, unlock, hide, setOn, use, setViewer, can, DOTS, MASK,
+    who(name) { me = String(name || ''); }};
+  U.inrV = inrV;
+
+  /* the Books section while hidden: one card in place of its pages */
+  M.UI.MoneyGate = function MoneyGate() {
+    const Lock = M.icons && M.icons.lock;
+    return html`<div class="mlock-gate" id="money-gate">
+      <${M.UI.PageHead} micro="private" title="The books are hidden"/>
+      <p class="lede">Your fingerprint shows every number. They hide again after 5 minutes away.</p>
+      <button type="button" class="btn" id="money-unlock" data-money-unlock="1">${Lock ? html`<${Lock} className="mlock-ic"/>` : null}Show with fingerprint</button>
+    </div>`;
+  };
+})();
+
 /* ==== 02-state.js ==== */
 /* m360 OS app state: boot context, subscriptions, derived data. */
 'use strict';
@@ -9455,7 +9644,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       if (d.open && d.el && d.el.getBoundingClientRect) setTimeout(() => MK.lookAt(d.el, 1400), 120);
       else if (!d.open) setTimeout(flush, 420);
     });
-    const TX = (b, e, wrap) => '<span class="is-t' + (wrap ? ' wrap' : '') + '"><b>' + esc(b) + '</b>' + (e ? '<em>' + esc(e) + '</em>' : '') + '</span>';
+    const ML = s => (M.moneyLock ? M.moneyLock.mask(s) : s);   /* amounts stay masked in the island while hidden */
+    const TX = (b, e, wrap) => '<span class="is-t' + (wrap ? ' wrap' : '') + '"><b>' + esc(ML(b)) + '</b>' + (e ? '<em>' + esc(ML(e)) + '</em>' : '') + '</span>';
     const EV = '<span class="is-ev"></span>';
     const CK = '<span class="is-ck"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7"/></svg></span>';
     const BAD = '<span class="is-ck bad"><svg viewBox="0 0 24 24"><path d="M12 6.5v7M12 17v.5"/></svg></span>';
@@ -10125,6 +10315,10 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   M.Shell = function Shell() {
     const ctx = M.useCtx();
     const route = M.useRoute();
+    /* money lock: who is looking is known before anything draws, and the whole page draws again when it opens */
+    M.moneyLock.setViewer(ctx);
+    M.moneyLock.who((ctx.member && ctx.member.name) || (ctx.me && ctx.me.name));
+    const moneyHidden = M.moneyLock.use();
     const [menuOpen, setMenuOpen] = React.useState(false);
     const [jumpOpen, setJumpOpen] = React.useState(false);
     /* Command's sections as the page scrolls: which are drawn, and the one under the reading line */
@@ -10336,7 +10530,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           <${PreviewBar}/>
           <${AlertBanner}/>
           <${LockBanner}/>
-          ${Page ? html`<${Crash} key=${r.s + '/' + (r.t || '') + '/' + (r.id || '')}><${Page} tab=${r.t} id=${r.id}/><//>` : html`<${UI.Card} title="Loading"><${UI.Empty} text="One moment."/><//>`}
+          ${r.s === 'books' && moneyHidden ? html`<${UI.MoneyGate}/>` : Page ? html`<${Crash} key=${r.s + '/' + (r.t || '') + '/' + (r.id || '')}><${Page} tab=${r.t} id=${r.id}/><//>` : html`<${UI.Card} title="Loading"><${UI.Empty} text="One moment."/><//>`}
         </div>
       </main>
 
@@ -10408,6 +10602,148 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       ${children ? html`<div style=${{marginTop: '16px'}}>${children}</div>` : null}
     </header>`;
   };
+})();
+
+/* ==== 03-z-doors.js ==== */
+/* module: the doors. Signing in walks you into the OS: the room dims, a doorway draws itself in one line, two
+   doors fill it with a thread of light at the seam, they swing open away from you, light spills onto the floor,
+   and the view walks through into the light, which is the white of the page. "Opening the doors to
+   opportunity" sits under the threshold while it happens.
+
+   About 2.8 seconds with the mark, on one clock, transforms and opacity only. It plays on sign in, and on opening the OS at most
+   once every 4 hours on a device. Reduced motion never sees it. A browser driven by a test skips it unless the
+   test sets window.M360_DOORS = true (test_doors).
+
+     M.doors.should(signedIn)   whether this arrival gets the doors
+     M.doors.play({onReveal})   plays them over the page; onReveal runs as the light gives way to the page */
+(function () {
+  const M = window.M;
+  const SAY = 'Opening the doors to opportunity';
+  const KEY = 'm360.doorsAt', GAP_MS = 4 * 3600000;
+  /* Apple's curves: `apple` is the sheet curve (a quick start that settles softly), `inout` draws lines,
+     `push` carries the walk through the doorway, slow to start and slow to land */
+  const EASE = {apple: 'cubic-bezier(.32,.72,0,1)', out: 'cubic-bezier(.22,1,.36,1)', inout: 'cubic-bezier(.65,0,.35,1)', push: 'cubic-bezier(.7,0,.3,1)'};
+  const ROOM = '#0A0A0A', LIGHT = '#FFFFFF';
+  const still = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
+  let playing = false;
+
+  function should(signedIn) {
+    if (playing || still() || window.M360_DOORS === false) return false;
+    if (navigator.webdriver && !window.M360_DOORS) return false;
+    if (signedIn) return true;
+    let at = 0;
+    try { at = Number(localStorage.getItem(KEY)) || 0; } catch (e) { /* private window: play */ }
+    return Date.now() - at > GAP_MS;
+  }
+
+  function play(o) {
+    o = o || {};
+    playing = true;
+    try { localStorage.setItem(KEY, String(Date.now())); } catch (e) { /* private window */ }
+    /* it starts from the screen that was there, so the dimming is the first thing that moves */
+    let from = LIGHT;
+    try { from = getComputedStyle(document.body).backgroundColor || LIGHT; } catch (e) { /* keep white */ }
+    const root = document.createElement('div');
+    root.id = 'doors';
+    root.setAttribute('aria-hidden', 'true');
+    root.innerHTML = '<div class="dr-stage"><div class="dr-spill"></div><div class="dr-door"><div class="dr-light"></div>' +
+      '<div class="dr-leaf dr-l"></div><div class="dr-leaf dr-r"></div><div class="dr-seam"></div>' +
+      '<svg class="dr-frame" viewBox="0 0 128 256"><path d="M0 256V64A64 64 0 0 1 128 64V256"/></svg></div>' +
+      '<div class="dr-floor"></div><p class="dr-say"></p></div>';
+    root.querySelector('.dr-say').textContent = SAY;
+    root.style.backgroundColor = from;
+    document.body.appendChild(root);
+
+    const q = s => root.querySelector(s);
+    const all = [];
+    const A = (el, kf, delay, duration, easing) => { const a = el.animate(kf, {delay, duration, easing: easing || 'linear', fill: 'both'}); all.push(a); return a; };
+    const stage = q('.dr-stage'), door = q('.dr-door'), path = q('.dr-frame path');
+    const len = path.getTotalLength ? path.getTotalLength() : 520;
+    path.style.strokeDasharray = String(len);
+
+    /* the walk through: the view scales about the middle of the doorway's straight part until the light covers
+       the screen with room to spare */
+    const vw = innerWidth, vh = innerHeight;
+    const r = door.getBoundingClientRect(), s0 = stage.getBoundingClientRect();
+    const w = r.width || 128, h = r.height || 256;
+    const cx = r.left + w / 2, cy = r.top + w / 2 + (h - w / 2) / 2;
+    const S = 1.35 * Math.max(2 * Math.max(cx, vw - cx) / w, 2 * Math.max(cy, vh - cy) / (h - w / 2));
+    stage.style.transformOrigin = (cx - s0.left) + 'px ' + (cy - s0.top) + 'px';
+
+    A(root, [{backgroundColor: from}, {backgroundColor: ROOM}], 0, 240, EASE.apple);
+    A(q('.dr-floor'), [{transform: 'scaleX(0)'}, {transform: 'scaleX(1)'}], 100, 420, EASE.apple);
+    A(path, [{strokeDashoffset: len}, {strokeDashoffset: 0}], 200, 560, EASE.inout);
+    A(q('.dr-say'), [{opacity: 0, transform: 'translateY(10px)', filter: 'blur(6px)'}, {opacity: 1, transform: 'none', filter: 'blur(0px)'}], 280, 520, EASE.apple);
+    A(q('.dr-l'), [{opacity: 0}, {opacity: 1}], 560, 260, EASE.out);
+    A(q('.dr-r'), [{opacity: 0}, {opacity: 1}], 560, 260, EASE.out);
+    const seam = q('.dr-seam');
+    A(seam, [{opacity: 0, transform: 'translateX(-50%) scaleY(.2)'}, {opacity: 1, transform: 'translateX(-50%) scaleY(1)'}], 740, 260, EASE.apple);
+    A(q('.dr-light'), [{opacity: 0}, {opacity: 1}], 940, 80);
+    /* the doors swing away from you, into the light */
+    A(q('.dr-l'), [{transform: 'rotateY(0deg)'}, {transform: 'rotateY(100deg)'}], 960, 600, EASE.apple);
+    A(q('.dr-r'), [{transform: 'rotateY(0deg)'}, {transform: 'rotateY(-100deg)'}], 960, 600, EASE.apple);
+    seam.animate([{opacity: 1}, {opacity: 0}], {delay: 990, duration: 180, fill: 'forwards'});
+    A(q('.dr-spill'), [{opacity: 0, transform: 'translateX(-50%) scaleY(.4)'}, {opacity: 1, transform: 'translateX(-50%) scaleY(1)'}], 1020, 480, EASE.apple);
+    q('.dr-say').animate([{opacity: 1, filter: 'blur(0px)'}, {opacity: 0, filter: 'blur(6px)'}], {delay: 1120, duration: 260, fill: 'forwards'});
+    A(stage, [{transform: 'scale(1)'}, {transform: 'scale(' + S.toFixed(2) + ')'}], 1180, 620, EASE.push);
+
+    /* the mark: once the light fills the screen it rises onto the white from behind a line, holds a beat, then
+       glides into its own place in the sidebar (or the phone's capsule) as the page arrives, and hands over to
+       the live mark there. Black, and moved by transforms only */
+    const SVG = M.chrome && M.chrome.LIVE;
+    let mark = null, home = null;
+    if (SVG) {
+      mark = document.createElement('div');
+      mark.id = 'doors-mark';
+      mark.setAttribute('aria-hidden', 'true');
+      mark.innerHTML = '<span class="dm-clip"><span class="dm-in">' + SVG + '</span></span>';
+      document.body.appendChild(mark);
+      A(mark.querySelector('.dm-in'), [{transform: 'translateY(108%) scale(.96)'}, {transform: 'none'}], 1620, 520, EASE.apple);
+    }
+    const HAND = 2240;
+    const fade = A(root, [{opacity: 1}, {opacity: 0}], HAND, 420, EASE.out);
+    const timers = [];
+    timers.push(setTimeout(() => { if (o.onReveal) try { o.onReveal(); } catch (e) { /* page motion is extra */ } }, HAND));
+    let flight = null;
+    if (mark) timers.push(setTimeout(() => {
+      const spots = ['#lmS .lmk', '#lmP .lmk'].map(sel => document.querySelector(sel)).filter(el => el && el.getClientRects().length && el.getBoundingClientRect().width > 0);
+      const t = spots[0];
+      const m = mark.querySelector('.lmk');
+      if (!t || !m) { flight = A(mark, [{transform: 'none'}, {transform: 'translateY(-12px)', opacity: 0}], 0, 320, EASE.apple); return; }
+      home = t.closest('.lm') || t;
+      home.style.visibility = 'hidden';
+      mark.querySelector('.dm-clip').style.overflow = 'visible';
+      /* the mark's svg lands on the live mark's: with the origin at the box's corner, a point p inside moves to
+         box + d + k p, so d = target - box - k (svg - box) */
+      const a = m.getBoundingClientRect(), z = t.getBoundingClientRect(), b0 = mark.getBoundingClientRect();
+      const k = z.width / a.width;
+      const dx = z.left - b0.left - k * (a.left - b0.left), dy = z.top - b0.top - k * (a.top - b0.top);
+      flight = mark.animate([{transform: 'none'}, {transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + k + ')'}],
+        {duration: 560, easing: EASE.apple, fill: 'forwards'});
+      all.push(flight);
+    }, HAND));
+
+    return new Promise(done => {
+      let over = false;
+      const end = () => {
+        if (over) return;
+        over = true;
+        timers.forEach(clearTimeout);
+        if (home) home.style.visibility = '';
+        all.forEach(a => { try { a.cancel(); } catch (e) { /* gone */ } });
+        root.remove(); if (mark) mark.remove();
+        playing = false; done();
+      };
+      /* it ends when the light has gone and the mark has landed */
+      const landed = () => (!flight || flight.playState === 'finished') && fade.playState === 'finished';
+      const tick = () => { if (over) return; if (landed()) end(); else setTimeout(tick, 40); };
+      timers.push(setTimeout(tick, HAND + 420));
+      /* a hidden tab may never finish the animation: the page is never kept behind it */
+      setTimeout(end, 6000);
+    });
+  }
+
+  M.doors = {should, play, SAY};
 })();
 
 /* ==== 03-z-gate.js ==== */
@@ -10617,9 +10953,18 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   let entered = 0;
   try { entered = Number(sessionStorage.getItem(ENTERED)) || 0; } catch (e) { /* keep going */ }
   function arrive(root) {
-    if (!entered) return;
     const app = root.querySelector(':scope > .app');
     if (!app) return;
+    /* the doors (03-z-doors.js): on sign in, and on opening at most once every 4 hours; the page rises in as
+       the light gives way to it */
+    const signedIn = !!entered && Date.now() - entered < 15000;
+    if (M.doors && M.doors.should(signedIn)) {
+      entered = 0;
+      try { sessionStorage.removeItem(ENTERED); } catch (e) { /* keep going */ }
+      M.doors.play({onReveal: () => { if (app.animate) app.animate(ENTER_KF, {duration: 680, easing: EASE}); }});
+      return;
+    }
+    if (!entered) return;
     const fresh15 = Date.now() - entered < 15000;
     entered = 0;
     try { sessionStorage.removeItem(ENTERED); } catch (e) { /* keep going */ }
@@ -19178,7 +19523,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const od = m.overdue.length;
     return html`<${React.Fragment}>
       <div class="kpi-rail">
-        ${m.money ? html`<${Tile} id="kpi-weighted" v=${U.inr(m.weighted)} l="weighted pipeline"/>` : null}
+        ${m.money ? html`<${Tile} id="kpi-weighted" v=${U.inrV(m.weighted)} l="weighted pipeline"/>` : null}
         <${Tile} id="kpi-open" v=${inPlay} l=${inPlay === 1 ? 'pitch in play' : 'pitches in play'}/>
         <${Tile} id="kpi-win" v=${m.winRate90 == null ? null : m.winRate90 + '%'} l="win rate, 90 days"/>
         <${Tile} id="kpi-overdue" v=${od} l=${od === 1 ? 'next step overdue' : 'next steps overdue'} flame=${od > 0}/>
@@ -19216,7 +19561,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       ${p.category || won || value > 0 ? html`<span class="tk-m">
         ${won ? html`<${UI.Pill} kind="ink">won<//>` : null}
         ${p.category ? html`<${UI.Pill} kind="warm">${p.category}<//>` : null}
-        ${value > 0 ? html`<${UI.Pill}>${U.inr(value)}<//>` : null}
+        ${value > 0 ? html`<${UI.Pill}>${U.inrV(value)}<//>` : null}
       </span>` : null}
       ${(p.next || p.nextDate) ? html`<span class="tk-o">
         <span class="grow tk-n">${p.next || 'Next step'}</span>
@@ -20231,9 +20576,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
               <span class=${'num' + (comp.filled < comp.total ? ' flt' : '')}>${comp.filled} of ${comp.total} fields</span>
             </div>
             ${s && s.kind === 'project' ? html`<div class="cl-line">
-              <b class="num">${U.inr(s.fee)}</b><span>project fee${projEnd(ctx, id)}</span>
+              <b class="num">${U.inrV(s.fee)}</b><span>project fee${projEnd(ctx, id)}</span>
             </div>` : s ? html`<div class="cl-line">
-              <b class="num">${U.inr(s.monthly)}</b>
+              <b class="num">${U.inrV(s.monthly)}</b>
               <span class="num">${s.share}% of monthly revenue</span>
             </div>` : null}
             <div class="cl-line"><span class="soft">updated ${c.updated ? U.timeAgo(c.updated) : 'never'}</span></div>
@@ -22269,7 +22614,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
             <td data-label="tasks" class="num">${r.tasks}</td>
             <td data-label="next step">${nextPill(r)}${r.nextText ? html` <span class="small">${r.nextText}</span>` : null}</td>
             <td data-label="last touch" class="small ink62">${r.last ? U.timeAgo(r.last) : 'never'}</td>
-            ${ctx.isFounder ? html`<td data-label="in play" class="num">${value(r) ? U.inr(value(r)) : ''}</td>` : null}
+            ${ctx.isFounder ? html`<td data-label="in play" class="num">${value(r) ? U.inrV(value(r)) : ''}</td>` : null}
           </tr>`;
         })}</tbody></table></div>` : html`<${UI.Empty} text="Nothing here yet. Add a client, a pitch, or import the Apollo CSV into Base."/>`}
     </${UI.Card}>`;
@@ -22342,7 +22687,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       <button type="button" class="prop-open" onClick=${() => onOpen(p.id)} aria-label=${'Open ' + (p.brand || 'pitch')}>
         <span class="t tk-t">${p.brand || 'Untitled'}</span>
         ${p.next || value ? html`<span class="tk-m">
-          ${value ? html`<${UI.Pill}>${U.inr(value)}<//>` : null}
+          ${value ? html`<${UI.Pill}>${U.inrV(value)}<//>` : null}
           ${p.next ? html`<${UI.Pill} kind="warm">${p.next}<//>` : null}
         </span>` : null}
         <span class="tk-o">
@@ -22350,7 +22695,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           ${p.nextDate ? html`<span class=${'tn' + (od ? ' flt' : '')}>${U.fmtDay(p.nextDate)}</span>` : null}
         </span>
       </button>
-      ${nx || c.v !== 'lost' ? html`<div class="row nowrap prop-moves">
+      ${nx || c.v !== 'lost' ? html`<div class="row prop-moves">
         ${nx ? html`<button type="button" class="btn ghost sm" data-move=${nx} onClick=${() => move(ctx, p, nx)}>${MOVE_LABEL[nx]}</button>` : null}
         ${c.v !== 'lost' && c.v !== 'won' ? html`<button type="button" class="btn ghost sm" data-move="lost" onClick=${() => move(ctx, p, 'lost')}>Lost</button>` : null}
       </div>` : null}
@@ -22390,7 +22735,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     </div>`;
     if (view === 'stages' && M.pages.Pitches) return html`<div class="stack" style=${{gap: '24px'}} id="pipeline-stages">${Toggle}<${M.pages.Pitches}/></div>`;
     return html`<div class="stack" style=${{gap: '24px'}}>
-      <${UI.PageHead} micro=${inPlay + ' in play' + (m && m.weighted ? ', ' + U.inr(m.weighted) + ' weighted' : '')} title="Pipeline">
+      <${UI.PageHead} micro=${inPlay + ' in play' + (m && m.weighted ? ', ' + U.inrV(m.weighted) + ' weighted' : '')} title="Pipeline">
         ${Toggle}
         <${UI.Btn} kind="sec" onClick=${() => setOpen('new')}>Full form<//>
       <//>
@@ -22404,7 +22749,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           const list = shown.filter(p => colOf(p).v === c.v).sort((a, b) => (b.stageAt || 0) - (a.stageAt || 0));
           const total = ctx.isFounder ? list.reduce((n, p) => n + valueOf(fin[p.id]), 0) : 0;
           return html`<div class=${'colm col' + (list.length ? '' : ' empty')} key=${c.v} data-col=${c.v}>
-            <div class="col-head col-h"><span>${c.label}</span><span class="num">${list.length}${total ? ' · ' + U.inr(total) : ''}</span></div>
+            <div class="col-head col-h"><span>${c.label}</span><span class="num">${list.length}${total ? ' · ' + U.inrV(total) : ''}</span></div>
             ${list.map(p => html`<${Card} key=${p.id} ctx=${ctx} p=${p} fe=${fin[p.id]} today=${today} onOpen=${setOpen}/>`)}
             ${!list.length ? html`<div class="col-e">${ws.length ? 'No match' : 'Nothing here'}</div>` : null}
           </div>`;
@@ -27766,7 +28111,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       if (ref.current) io.observe(ref.current);
       return () => { io.disconnect(); cancelAnimationFrame(s.raf); };
     }, [to]);
-    const txt = fmt === 'inr' ? U.inr(v) : Math.round(v);
+    const txt = fmt === 'inr' ? U.inrV(v) : Math.round(v);
     return block ? html`<div ref=${ref} class=${className || null}>${txt}</div>` : html`<span ref=${ref} class=${className || null}>${txt}</span>`;
   }
 
@@ -28209,7 +28554,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       {g: 'work', k: 'hf', l: 'high flags', v: [String(high.length), html`<b>${high.length}</b>`], viz: vb(flagsAll.map(f => f.severity === 'high' ? 'f' : f.severity === 'low' ? 'g' : ''), true),
         c: plural(flagsAll.length, 'flag') + ' in total', hot: high.length > 0, go: () => { setSev(high.length ? 'high' : ''); glideTo('c-flg', '#c-flg .c-fl'); }}
     ].concat(money ? [
-      {g: 'money', k: 'pipe', l: 'weighted pipeline', v: [U.inr(k.pm.weighted), html`<b>${U.inr(k.pm.weighted)}</b>`], long: true, viz: pipeViz,
+      {g: 'money', k: 'pipe', l: 'weighted pipeline', v: [U.inrV(k.pm.weighted), html`<b>${U.inrV(k.pm.weighted)}</b>`], long: true, viz: pipeViz,
         c: plural(openN, 'open deal') + ', a month', hot: false, go: () => glideTo('c-ppl', '#c-ppl .c-ppr')},
       {g: 'money', k: 'cl', l: 'largest client', v: topPct != null ? [String(topPct), html`<b>${topPct}</b><span>%</span>`] : ['none', 'none yet'], word: topPct == null,
         viz: meter(topPct || 0, topPct != null && topPct > 25), c: topPct != null ? (cmap[k.top.id] ? cmap[k.top.id].name : 'Client') + ', share of revenue' : 'No revenue set',
@@ -28353,7 +28698,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
             ${stages.map((s, i) => {
               const b = (k.pm.byStage || {})[s.v] || {count: 0, value: 0};
               return html`<button type="button" class="c-ppr c-row c-lnk" key=${s.v} style=${{'--j': i}} onClick=${() => nav('#pitches')}>
-                <span class="c-ppt"><span>${s.label}</span><b>${b.count}${money && b.value ? ', ' + U.inr(b.value) : ''}</b></span>
+                <span class="c-ppt"><span>${s.label}</span><b>${b.count}${money && b.value ? ', ' + U.inrV(b.value) : ''}</b></span>
                 <span class="c-ppb"><i style=${{'--w': Math.round(100 * stW(s) / stMax) + '%', '--a': (0.3 + 0.65 * (s.prob || 10) / 75).toFixed(2), '--j': i}}></i></span><${Go}/>
               </button>`;
             })}
@@ -28427,11 +28772,11 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
               return html`<div class=${cls('c-ct c-rw c-lnk', !money && 'nomoney', hl === id && 'hl')} key=${id} data-id=${id} role="button" tabIndex="0"
                 onPointerEnter=${hlOn(id)} onPointerLeave=${hlOff} onClick=${() => nav('#clients/' + id)} onKeyDown=${ev => { if (ev.key === 'Enter') nav('#clients/' + id); }}>
                 <span><span class="c-nm">${c.name || 'Client'}</span></span>
-                ${money ? html`<span class="rvn">${r.kind === 'project' ? (r.fee ? U.inr(r.fee) : 'project') : U.inr(r.monthly || 0)}</span><span class=${cls('tn', p > 25 && 'c-al')}>${p}%</span>` : null}
+                ${money ? html`<span class="rvn">${r.kind === 'project' ? (r.fee ? U.inrV(r.fee) : 'project') : U.inrV(r.monthly || 0)}</span><span class=${cls('tn', p > 25 && 'c-al')}>${p}%</span>` : null}
                 <span class="tn c-op">${o}</span><span class=${cls('tn c-br', br < 2 && 'c-al')}>${br}/3</span><${Go}/>
               </div>`;
             })}
-            <div class=${cls('c-ct tot', !money && 'nomoney')}><span class="cap">${money ? 'TOTAL, A MONTH' : 'TOTAL'}</span>${money ? html`<span class="rvn">${U.inr(k.total)}</span><span class="tn">${k.total ? '100%' : '0%'}</span>` : null}<span class="tn c-op">${cids.reduce((n, id) => n + openOf(id), 0)}</span><span class="c-br"></span></div>`
+            <div class=${cls('c-ct tot', !money && 'nomoney')}><span class="cap">${money ? 'TOTAL, A MONTH' : 'TOTAL'}</span>${money ? html`<span class="rvn">${U.inrV(k.total)}</span><span class="tn">${k.total ? '100%' : '0%'}</span>` : null}<span class="tn c-op">${cids.reduce((n, id) => n + openOf(id), 0)}</span><span class="c-br"></span></div>`
             : html`<p class="c-empty">No clients yet.</p>`}
         </div>
       </section>
@@ -33959,8 +34304,8 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     /* the older views still open by their hash; they sit behind one quiet line under the tabs */
     const older = [{h: '#prospects', l: 'Prospects'}, {h: '#crm', l: 'CRM table'}, {h: '#handshake', l: 'LinkedIn desk'}, {h: '#base', l: 'Database'}];
     const parts = [{v: live, l: live === 1 ? 'live client' : 'live clients'}, {v: inPlay, l: inPlay === 1 ? 'pitch in play' : 'pitches in play'}]
-      .concat(pm ? [{v: U.inr(pm.weighted), l: 'weighted pipeline'}] : [])
-      .concat(ctx.isOwner ? [{v: U.inr(mrr), l: 'monthly revenue'}] : []);
+      .concat(pm ? [{v: U.inrV(pm.weighted), l: 'weighted pipeline'}] : [])
+      .concat(ctx.isOwner ? [{v: U.inrV(mrr), l: 'monthly revenue'}] : []);
     return html`<div class="sect">
       <${M.SectionHero} micro=${today()} title="Accounts">
         <${Lede} parts=${parts}/>
@@ -34079,6 +34424,20 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
   }
 
   /* ---------- Me: how the OS behaves for you ---------- */
+
+  /* the money lock's switch: hide amounts until a fingerprint (01-z-moneylock.js). Turning it off asks first */
+  function MoneyPref() {
+    const hidden = M.moneyLock.use();
+    const on = M.moneyLock.on();
+    return html`<div class="row between" id="prefs-money">
+      <span class="stack"><span>Hide money until fingerprint</span><span class="tiny ink62">${on ? (hidden ? 'Hidden now. Tap any amount to show it' : 'Shown now. Hides again after 5 minutes away') : 'Amounts show for everyone looking at this screen'}</span></span>
+      <span class="row nowrap" style=${{gap: '8px'}}>
+        ${on && !hidden ? html`<${UI.Btn} kind="sec" sm=${true} id="prefs-money-hide" onClick=${() => M.moneyLock.hide()}>Hide now<//>` : null}
+        <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${on ? 'on' : 'off'} ariaLabel="Hide money" onChange=${v => { M.moneyLock.setOn(v === 'on'); }}/>
+      </span>
+    </div>`;
+  }
+
   function Prefs() {
     const theme = M.useTheme();
     const [sound, setSound] = useState(M.sound.on());
@@ -34115,6 +34474,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${sound ? 'on' : 'off'} ariaLabel="Sounds"
             onChange=${v => { M.sound.set(v === 'on'); setSound(v === 'on'); if (v === 'on') M.sound.play('chime'); }}/>
         </div>
+        ${ctx.isOwner || ctx.isFounder ? html`<${MoneyPref}/>` : null}
         <div class="row between"><span>Deep work this week</span><span class="num" style=${{fontWeight: 600}}>${Math.round(deep / 6) / 10}h</span></div>
         <div class="row between">
           <span>m360 AI speaks its answers</span>
@@ -38364,7 +38724,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         else rows.push(html`<div key=${'u' + i} class="bubble me msg">${t.img ? html`<span class="tiny panel-img">[image] </span>` : null}${t.content}${t.via === 'voice' ? html`<span class="panel-via" title="said out loud"><${Mic}/></span>` : null}</div>`);
         return;
       }
-      if (t.content) rows.push(html`<${Answer} key=${'a' + i} text=${t.content} coo=${cooSaid.has(t.content)} id=${i === lastAi && !busy ? id('answer') : undefined}/>`);
+      if (t.content) rows.push(html`<${Answer} key=${'a' + i} text=${M.moneyLock.mask(t.content)} coo=${cooSaid.has(t.content)} id=${i === lastAi && !busy ? id('answer') : undefined}/>`);
       if (t.acts && t.acts.length) rows.push(html`<${Receipts} key=${'k' + i} acts=${t.acts}/>`);
     });
     const empty = !turns.length && !busy && !st.err;
@@ -39056,6 +39416,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     /* ---------- open and close ---------- */
     const openPanel = useCallback((text, o) => {
       o = o || {};
+      document.documentElement.classList.remove('ai-behind');   /* opened last, so it sits on top */
       if (stepRef.current >= 0) { tourRun.current++; setStep(-1); setTourText(''); target.current = null; setRing(null); }
       clearTimeout(closeT.current);
       setClosing(false); closingRef.current = false;
@@ -39172,6 +39533,13 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       }, 1800);
       return () => clearTimeout(t);
     }, [ctx.ready, ctx.member, M.tour.ready(ctx), open, step]);
+
+    /* a sheet opened after the m360 AI panel goes on top of it; the panel steps behind (99-dock.css) */
+    useEffect(() => {
+      const on = e => { if (e.detail && e.detail.open) document.documentElement.classList.add('ai-behind'); };
+      window.addEventListener('m360:sheet', on);
+      return () => window.removeEventListener('m360:sheet', on);
+    }, []);
 
     /* ---------- listening ---------- */
     /* kind: 'push' (held), 'tap' (Talk, tap again to send), 'follow' (after a spoken answer), 'conv' */
@@ -40591,6 +40959,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       ['Show me around', 'send', () => window.dispatchEvent(new CustomEvent('m360:tour')), 'a-tour'],
       ['Keyboard shortcuts', 'cmd', () => window.dispatchEvent(new CustomEvent('m360:keys')), 'a-keys'],
       [M.theme.resolved() === 'dark' ? 'Switch to light mode' : 'Switch to dark mode', M.theme.resolved() === 'dark' ? 'sun' : 'moon', () => M.theme.set(M.theme.resolved() === 'dark' ? 'light' : 'dark'), 'a-theme'],
+      M.moneyLock.active() ? (M.moneyLock.hidden() ? ['Show money', 'lock', () => M.moneyLock.unlock(), 'a-money', 'with your fingerprint'] : ['Hide money now', 'lock', () => M.moneyLock.hide(), 'a-money', 'masks every amount']) : null,
       [M.sound.on() ? 'Turn sounds off' : 'Turn sounds on', 'play', () => M.sound.set(!M.sound.on()), 'a-sound'],
       [M.haptic.on() ? 'Turn phone nudges off' : 'Turn phone nudges on', 'play', () => M.haptic.set(!M.haptic.on()), 'a-haptic']
     ].filter(Boolean);
@@ -40687,14 +41056,14 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const n = open.reduce((x, k) => x + m.byStage[k].count, 0);
       const top = open.slice().sort((a, b) => m.byStage[b].value - m.byStage[a].value)[0];
       const st = (M.pitches.STAGES.find(x => x.v === top) || {}).label || '';
-      return {ic: 'pitches', t: n ? U.inr(m.weighted) + ' weighted, across ' + plural(n, 'open pitch', 'open pitches') + '.' : 'No open pitches yet.',
+      return {ic: 'pitches', t: n ? U.inrV(m.weighted) + ' weighted, across ' + plural(n, 'open pitch', 'open pitches') + '.' : 'No open pitches yet.',
         s: n && st ? 'Most of it in ' + st.toLowerCase() : 'Pipeline', run: showAt('#pitches', '.main .card')};
     }},
     {re: /client|revenue|biggest|largest|account/, f: 1, a(ctx) {
       const rows = M.clients.shares(ctx).filter(r => r.monthly > 0).sort((a, b) => b.monthly - a.monthly);
       if (!rows.length) return {ic: 'clients', t: 'No client revenue set yet.', s: 'Set a monthly figure on each client', run: () => M.nav('#clients')};
       const r = rows[0];
-      return {ic: 'clients', t: (r.name || 'Client') + ', ' + U.inr(r.monthly) + ' a month.', s: r.share + '% of revenue' + (r.share > 25 ? ', above the 25% line' : ''), run: () => M.nav('#clients/' + r.id)};
+      return {ic: 'clients', t: (r.name || 'Client') + ', ' + U.inrV(r.monthly) + ' a month.', s: r.share + '% of revenue' + (r.share > 25 ? ', above the 25% line' : ''), run: () => M.nav('#clients/' + r.id)};
     }},
     {re: /leader|scores?\b|points?\b|\btop\b|best|winning|podium/, a(ctx, nm) {
       const rows = M.points.leaderboard(ctx, 'week');
@@ -41128,7 +41497,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           ${i.bot ? html`<span class=${'inbox-kind inbox-bot' + (i.hot ? ' hot' : '')} aria-label="the bot"><${icons[KIND_ICON[i.kind]] || icons.feed}/></span>`
             : i.actor ? html`<${UI.Avatar} id=${i.actor} size=${34}/>` : html`<span class=${'inbox-kind' + (i.hot ? ' hot' : '')}><${icons[KIND_ICON[i.kind]] || icons.feed}/></span>`}
           <span class="grow">
-            <div class="t">${i.text}</div>
+            <div class="t">${M.moneyLock.mask(i.text)}</div>
             <div class="tiny ink62">${U.timeAgo(i.at)}</div>
           </span>
           ${i.at > was ? html`<span class="dotflame"/>` : null}

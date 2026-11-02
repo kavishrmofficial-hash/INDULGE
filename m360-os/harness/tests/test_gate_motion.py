@@ -57,7 +57,7 @@ def main():
             k.set_default_timeout(30000)
             k.on('pageerror', lambda e: errs.append(str(e)))
             k.on('console', lambda m: m.type == 'error' and errs.append(m.text))
-            k.add_init_script('window.M360_WELCOME_OFF = true')
+            k.add_init_script('window.M360_WELCOME_OFF = true; window.M360_MONEY_LOCK_OFF = true')
             k.add_init_script(INSTRUMENT)
             k.goto(base)
             k.wait_for_selector('#signin-name')

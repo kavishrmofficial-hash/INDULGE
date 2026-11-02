@@ -101,7 +101,7 @@
     const od = m.overdue.length;
     return html`<${React.Fragment}>
       <div class="kpi-rail">
-        ${m.money ? html`<${Tile} id="kpi-weighted" v=${U.inr(m.weighted)} l="weighted pipeline"/>` : null}
+        ${m.money ? html`<${Tile} id="kpi-weighted" v=${U.inrV(m.weighted)} l="weighted pipeline"/>` : null}
         <${Tile} id="kpi-open" v=${inPlay} l=${inPlay === 1 ? 'pitch in play' : 'pitches in play'}/>
         <${Tile} id="kpi-win" v=${m.winRate90 == null ? null : m.winRate90 + '%'} l="win rate, 90 days"/>
         <${Tile} id="kpi-overdue" v=${od} l=${od === 1 ? 'next step overdue' : 'next steps overdue'} flame=${od > 0}/>
@@ -139,7 +139,7 @@
       ${p.category || won || value > 0 ? html`<span class="tk-m">
         ${won ? html`<${UI.Pill} kind="ink">won<//>` : null}
         ${p.category ? html`<${UI.Pill} kind="warm">${p.category}<//>` : null}
-        ${value > 0 ? html`<${UI.Pill}>${U.inr(value)}<//>` : null}
+        ${value > 0 ? html`<${UI.Pill}>${U.inrV(value)}<//>` : null}
       </span>` : null}
       ${(p.next || p.nextDate) ? html`<span class="tk-o">
         <span class="grow tk-n">${p.next || 'Next step'}</span>

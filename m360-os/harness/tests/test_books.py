@@ -287,7 +287,7 @@ def standalone_part():
             exe = os.environ.get('PW_CHROMIUM')
             browser = pw.chromium.launch(executable_path=exe) if exe else pw.chromium.launch()
             k = browser.new_context(viewport={'width': 1280, 'height': 900}, timezone_id='Asia/Kolkata').new_page(); k.set_default_timeout(20000)
-            k.add_init_script('window.M360_WELCOME_OFF = true')
+            k.add_init_script('window.M360_WELCOME_OFF = true; window.M360_MONEY_LOCK_OFF = true')
             k.goto(base); k.wait_for_selector('#signin-name')
             k.fill('#signin-name', 'Kaavish Ramchandani'); k.fill('#signin-email', 'kaavish@mask360.agency'); k.fill('#signin-pw', 'books-test-pw-2026')
             k.get_by_role('button', name='Set up the workspace').click(); k.wait_for_selector('.sidebar'); k.wait_for_timeout(600)

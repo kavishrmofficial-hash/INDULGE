@@ -1,0 +1,5 @@
+/* money lock: the Books section's card while amounts are hidden (01-z-moneylock.js) */
+.mlock-gate{max-width:560px; padding:8px 0 48px}
+.mlock-gate .lede{margin:8px 0 24px}
+.mlock-gate .btn{display:inline-flex; align-items:center; gap:8px}
+.mlock-gate .mlock-ic{width:18px; height:18px}

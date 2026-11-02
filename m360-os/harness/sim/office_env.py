@@ -124,7 +124,7 @@ class Office:
         return st, out
 
     # ---------- the browser ----------
-    def page(self, who, width=1280, height=None, mobile=None):
+    def page(self, who, width=1280, height=None, mobile=None, money_lock=False):
         from playwright.sync_api import sync_playwright
         if not self._pw:
             self._pw = sync_playwright().start()
@@ -135,6 +135,8 @@ class Office:
             opts.update(is_mobile=True, has_touch=True)
         ctx = self._browser.new_context(**opts)
         ctx.add_cookies([{'name': 'm360s', 'value': self.cookies[who], 'url': self.base}])
+        if not money_lock:   # the money lock masks amounts; only test_money_lock asks for it
+            ctx.add_init_script('window.M360_MONEY_LOCK_OFF = true')
         self._ctxs.append(ctx)
         pg = ctx.new_page()
         pg._errs = []

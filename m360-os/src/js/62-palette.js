@@ -74,6 +74,7 @@
       ['Show me around', 'send', () => window.dispatchEvent(new CustomEvent('m360:tour')), 'a-tour'],
       ['Keyboard shortcuts', 'cmd', () => window.dispatchEvent(new CustomEvent('m360:keys')), 'a-keys'],
       [M.theme.resolved() === 'dark' ? 'Switch to light mode' : 'Switch to dark mode', M.theme.resolved() === 'dark' ? 'sun' : 'moon', () => M.theme.set(M.theme.resolved() === 'dark' ? 'light' : 'dark'), 'a-theme'],
+      M.moneyLock.active() ? (M.moneyLock.hidden() ? ['Show money', 'lock', () => M.moneyLock.unlock(), 'a-money', 'with your fingerprint'] : ['Hide money now', 'lock', () => M.moneyLock.hide(), 'a-money', 'masks every amount']) : null,
       [M.sound.on() ? 'Turn sounds off' : 'Turn sounds on', 'play', () => M.sound.set(!M.sound.on()), 'a-sound'],
       [M.haptic.on() ? 'Turn phone nudges off' : 'Turn phone nudges on', 'play', () => M.haptic.set(!M.haptic.on()), 'a-haptic']
     ].filter(Boolean);
@@ -170,14 +171,14 @@
       const n = open.reduce((x, k) => x + m.byStage[k].count, 0);
       const top = open.slice().sort((a, b) => m.byStage[b].value - m.byStage[a].value)[0];
       const st = (M.pitches.STAGES.find(x => x.v === top) || {}).label || '';
-      return {ic: 'pitches', t: n ? U.inr(m.weighted) + ' weighted, across ' + plural(n, 'open pitch', 'open pitches') + '.' : 'No open pitches yet.',
+      return {ic: 'pitches', t: n ? U.inrV(m.weighted) + ' weighted, across ' + plural(n, 'open pitch', 'open pitches') + '.' : 'No open pitches yet.',
         s: n && st ? 'Most of it in ' + st.toLowerCase() : 'Pipeline', run: showAt('#pitches', '.main .card')};
     }},
     {re: /client|revenue|biggest|largest|account/, f: 1, a(ctx) {
       const rows = M.clients.shares(ctx).filter(r => r.monthly > 0).sort((a, b) => b.monthly - a.monthly);
       if (!rows.length) return {ic: 'clients', t: 'No client revenue set yet.', s: 'Set a monthly figure on each client', run: () => M.nav('#clients')};
       const r = rows[0];
-      return {ic: 'clients', t: (r.name || 'Client') + ', ' + U.inr(r.monthly) + ' a month.', s: r.share + '% of revenue' + (r.share > 25 ? ', above the 25% line' : ''), run: () => M.nav('#clients/' + r.id)};
+      return {ic: 'clients', t: (r.name || 'Client') + ', ' + U.inrV(r.monthly) + ' a month.', s: r.share + '% of revenue' + (r.share > 25 ? ', above the 25% line' : ''), run: () => M.nav('#clients/' + r.id)};
     }},
     {re: /leader|scores?\b|points?\b|\btop\b|best|winning|podium/, a(ctx, nm) {
       const rows = M.points.leaderboard(ctx, 'week');

@@ -78,7 +78,7 @@
       if (ref.current) io.observe(ref.current);
       return () => { io.disconnect(); cancelAnimationFrame(s.raf); };
     }, [to]);
-    const txt = fmt === 'inr' ? U.inr(v) : Math.round(v);
+    const txt = fmt === 'inr' ? U.inrV(v) : Math.round(v);
     return block ? html`<div ref=${ref} class=${className || null}>${txt}</div>` : html`<span ref=${ref} class=${className || null}>${txt}</span>`;
   }
 
@@ -521,7 +521,7 @@
       {g: 'work', k: 'hf', l: 'high flags', v: [String(high.length), html`<b>${high.length}</b>`], viz: vb(flagsAll.map(f => f.severity === 'high' ? 'f' : f.severity === 'low' ? 'g' : ''), true),
         c: plural(flagsAll.length, 'flag') + ' in total', hot: high.length > 0, go: () => { setSev(high.length ? 'high' : ''); glideTo('c-flg', '#c-flg .c-fl'); }}
     ].concat(money ? [
-      {g: 'money', k: 'pipe', l: 'weighted pipeline', v: [U.inr(k.pm.weighted), html`<b>${U.inr(k.pm.weighted)}</b>`], long: true, viz: pipeViz,
+      {g: 'money', k: 'pipe', l: 'weighted pipeline', v: [U.inrV(k.pm.weighted), html`<b>${U.inrV(k.pm.weighted)}</b>`], long: true, viz: pipeViz,
         c: plural(openN, 'open deal') + ', a month', hot: false, go: () => glideTo('c-ppl', '#c-ppl .c-ppr')},
       {g: 'money', k: 'cl', l: 'largest client', v: topPct != null ? [String(topPct), html`<b>${topPct}</b><span>%</span>`] : ['none', 'none yet'], word: topPct == null,
         viz: meter(topPct || 0, topPct != null && topPct > 25), c: topPct != null ? (cmap[k.top.id] ? cmap[k.top.id].name : 'Client') + ', share of revenue' : 'No revenue set',
@@ -665,7 +665,7 @@
             ${stages.map((s, i) => {
               const b = (k.pm.byStage || {})[s.v] || {count: 0, value: 0};
               return html`<button type="button" class="c-ppr c-row c-lnk" key=${s.v} style=${{'--j': i}} onClick=${() => nav('#pitches')}>
-                <span class="c-ppt"><span>${s.label}</span><b>${b.count}${money && b.value ? ', ' + U.inr(b.value) : ''}</b></span>
+                <span class="c-ppt"><span>${s.label}</span><b>${b.count}${money && b.value ? ', ' + U.inrV(b.value) : ''}</b></span>
                 <span class="c-ppb"><i style=${{'--w': Math.round(100 * stW(s) / stMax) + '%', '--a': (0.3 + 0.65 * (s.prob || 10) / 75).toFixed(2), '--j': i}}></i></span><${Go}/>
               </button>`;
             })}
@@ -739,11 +739,11 @@
               return html`<div class=${cls('c-ct c-rw c-lnk', !money && 'nomoney', hl === id && 'hl')} key=${id} data-id=${id} role="button" tabIndex="0"
                 onPointerEnter=${hlOn(id)} onPointerLeave=${hlOff} onClick=${() => nav('#clients/' + id)} onKeyDown=${ev => { if (ev.key === 'Enter') nav('#clients/' + id); }}>
                 <span><span class="c-nm">${c.name || 'Client'}</span></span>
-                ${money ? html`<span class="rvn">${r.kind === 'project' ? (r.fee ? U.inr(r.fee) : 'project') : U.inr(r.monthly || 0)}</span><span class=${cls('tn', p > 25 && 'c-al')}>${p}%</span>` : null}
+                ${money ? html`<span class="rvn">${r.kind === 'project' ? (r.fee ? U.inrV(r.fee) : 'project') : U.inrV(r.monthly || 0)}</span><span class=${cls('tn', p > 25 && 'c-al')}>${p}%</span>` : null}
                 <span class="tn c-op">${o}</span><span class=${cls('tn c-br', br < 2 && 'c-al')}>${br}/3</span><${Go}/>
               </div>`;
             })}
-            <div class=${cls('c-ct tot', !money && 'nomoney')}><span class="cap">${money ? 'TOTAL, A MONTH' : 'TOTAL'}</span>${money ? html`<span class="rvn">${U.inr(k.total)}</span><span class="tn">${k.total ? '100%' : '0%'}</span>` : null}<span class="tn c-op">${cids.reduce((n, id) => n + openOf(id), 0)}</span><span class="c-br"></span></div>`
+            <div class=${cls('c-ct tot', !money && 'nomoney')}><span class="cap">${money ? 'TOTAL, A MONTH' : 'TOTAL'}</span>${money ? html`<span class="rvn">${U.inrV(k.total)}</span><span class="tn">${k.total ? '100%' : '0%'}</span>` : null}<span class="tn c-op">${cids.reduce((n, id) => n + openOf(id), 0)}</span><span class="c-br"></span></div>`
             : html`<p class="c-empty">No clients yet.</p>`}
         </div>
       </section>

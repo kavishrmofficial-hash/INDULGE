@@ -496,6 +496,7 @@
     /* ---------- open and close ---------- */
     const openPanel = useCallback((text, o) => {
       o = o || {};
+      document.documentElement.classList.remove('ai-behind');   /* opened last, so it sits on top */
       if (stepRef.current >= 0) { tourRun.current++; setStep(-1); setTourText(''); target.current = null; setRing(null); }
       clearTimeout(closeT.current);
       setClosing(false); closingRef.current = false;
@@ -612,6 +613,13 @@
       }, 1800);
       return () => clearTimeout(t);
     }, [ctx.ready, ctx.member, M.tour.ready(ctx), open, step]);
+
+    /* a sheet opened after the m360 AI panel goes on top of it; the panel steps behind (99-dock.css) */
+    useEffect(() => {
+      const on = e => { if (e.detail && e.detail.open) document.documentElement.classList.add('ai-behind'); };
+      window.addEventListener('m360:sheet', on);
+      return () => window.removeEventListener('m360:sheet', on);
+    }, []);
 
     /* ---------- listening ---------- */
     /* kind: 'push' (held), 'tap' (Talk, tap again to send), 'follow' (after a spoken answer), 'conv' */

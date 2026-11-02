@@ -81,7 +81,7 @@ def edge():
             exe = os.environ.get('PW_CHROMIUM')
             browser = pw.chromium.launch(executable_path=exe) if exe else pw.chromium.launch()
             c = browser.new_context(viewport={'width': 1280, 'height': 900}, locale='en-IN', timezone_id='Asia/Kolkata')
-            c.add_init_script('window.M360_WELCOME_OFF = true')
+            c.add_init_script('window.M360_WELCOME_OFF = true; window.M360_MONEY_LOCK_OFF = true')
             f = c.new_page()
             f.set_default_timeout(15000)
             f.on('pageerror', lambda e: errors.append(str(e)))

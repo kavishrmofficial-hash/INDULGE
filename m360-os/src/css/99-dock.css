@@ -251,5 +251,6 @@ body:has(.drawer) .buddy-bubble.agent-pop{z-index:62}
   .buddy-bubble.tour,.buddy-bubble.tour.hang-up,.buddy-bubble.tour.at-dock{bottom:calc(86px + env(safe-area-inset-bottom,0px)); right:12px; width:auto; max-width:none; max-height:46vh}
 }
 
-/* another sheet open: the m360 AI panel steps behind it (and its scrim), so that sheet's buttons stay in reach */
-html.gs-open .buddy-bubble.agent-pop{z-index:59}
+/* a sheet opened after the m360 AI panel: the panel steps behind it (and its scrim), so that sheet's buttons stay
+   in reach. Opened after the sheet, the panel stays on top (58-buddy.js sets and clears ai-behind) */
+html.gs-open.ai-behind .buddy-bubble.agent-pop{z-index:59}

@@ -118,7 +118,7 @@
             <td data-label="tasks" class="num">${r.tasks}</td>
             <td data-label="next step">${nextPill(r)}${r.nextText ? html` <span class="small">${r.nextText}</span>` : null}</td>
             <td data-label="last touch" class="small ink62">${r.last ? U.timeAgo(r.last) : 'never'}</td>
-            ${ctx.isFounder ? html`<td data-label="in play" class="num">${value(r) ? U.inr(value(r)) : ''}</td>` : null}
+            ${ctx.isFounder ? html`<td data-label="in play" class="num">${value(r) ? U.inrV(value(r)) : ''}</td>` : null}
           </tr>`;
         })}</tbody></table></div>` : html`<${UI.Empty} text="Nothing here yet. Add a client, a pitch, or import the Apollo CSV into Base."/>`}
     </${UI.Card}>`;

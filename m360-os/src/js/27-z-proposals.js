@@ -60,7 +60,7 @@
       <button type="button" class="prop-open" onClick=${() => onOpen(p.id)} aria-label=${'Open ' + (p.brand || 'pitch')}>
         <span class="t tk-t">${p.brand || 'Untitled'}</span>
         ${p.next || value ? html`<span class="tk-m">
-          ${value ? html`<${UI.Pill}>${U.inr(value)}<//>` : null}
+          ${value ? html`<${UI.Pill}>${U.inrV(value)}<//>` : null}
           ${p.next ? html`<${UI.Pill} kind="warm">${p.next}<//>` : null}
         </span>` : null}
         <span class="tk-o">
@@ -68,7 +68,7 @@
           ${p.nextDate ? html`<span class=${'tn' + (od ? ' flt' : '')}>${U.fmtDay(p.nextDate)}</span>` : null}
         </span>
       </button>
-      ${nx || c.v !== 'lost' ? html`<div class="row nowrap prop-moves">
+      ${nx || c.v !== 'lost' ? html`<div class="row prop-moves">
         ${nx ? html`<button type="button" class="btn ghost sm" data-move=${nx} onClick=${() => move(ctx, p, nx)}>${MOVE_LABEL[nx]}</button>` : null}
         ${c.v !== 'lost' && c.v !== 'won' ? html`<button type="button" class="btn ghost sm" data-move="lost" onClick=${() => move(ctx, p, 'lost')}>Lost</button>` : null}
       </div>` : null}
@@ -108,7 +108,7 @@
     </div>`;
     if (view === 'stages' && M.pages.Pitches) return html`<div class="stack" style=${{gap: '24px'}} id="pipeline-stages">${Toggle}<${M.pages.Pitches}/></div>`;
     return html`<div class="stack" style=${{gap: '24px'}}>
-      <${UI.PageHead} micro=${inPlay + ' in play' + (m && m.weighted ? ', ' + U.inr(m.weighted) + ' weighted' : '')} title="Pipeline">
+      <${UI.PageHead} micro=${inPlay + ' in play' + (m && m.weighted ? ', ' + U.inrV(m.weighted) + ' weighted' : '')} title="Pipeline">
         ${Toggle}
         <${UI.Btn} kind="sec" onClick=${() => setOpen('new')}>Full form<//>
       <//>
@@ -122,7 +122,7 @@
           const list = shown.filter(p => colOf(p).v === c.v).sort((a, b) => (b.stageAt || 0) - (a.stageAt || 0));
           const total = ctx.isFounder ? list.reduce((n, p) => n + valueOf(fin[p.id]), 0) : 0;
           return html`<div class=${'colm col' + (list.length ? '' : ' empty')} key=${c.v} data-col=${c.v}>
-            <div class="col-head col-h"><span>${c.label}</span><span class="num">${list.length}${total ? ' · ' + U.inr(total) : ''}</span></div>
+            <div class="col-head col-h"><span>${c.label}</span><span class="num">${list.length}${total ? ' · ' + U.inrV(total) : ''}</span></div>
             ${list.map(p => html`<${Card} key=${p.id} ctx=${ctx} p=${p} fe=${fin[p.id]} today=${today} onOpen=${setOpen}/>`)}
             ${!list.length ? html`<div class="col-e">${ws.length ? 'No match' : 'Nothing here'}</div>` : null}
           </div>`;

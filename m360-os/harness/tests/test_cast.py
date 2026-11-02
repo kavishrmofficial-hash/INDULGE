@@ -454,7 +454,7 @@ def site_part():
 
             def device(width=1280):
                 c = browser.new_context(viewport={'width': width, 'height': 900}, locale='en-IN', timezone_id='Asia/Kolkata')
-                c.add_init_script('window.M360_WELCOME_OFF = true')
+                c.add_init_script('window.M360_WELCOME_OFF = true; window.M360_MONEY_LOCK_OFF = true')
                 pg = c.new_page()
                 pg.set_default_timeout(30000)
                 pg.on('pageerror', lambda e: errors.append(str(e)))

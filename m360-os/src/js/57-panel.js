@@ -459,7 +459,7 @@
         else rows.push(html`<div key=${'u' + i} class="bubble me msg">${t.img ? html`<span class="tiny panel-img">[image] </span>` : null}${t.content}${t.via === 'voice' ? html`<span class="panel-via" title="said out loud"><${Mic}/></span>` : null}</div>`);
         return;
       }
-      if (t.content) rows.push(html`<${Answer} key=${'a' + i} text=${t.content} coo=${cooSaid.has(t.content)} id=${i === lastAi && !busy ? id('answer') : undefined}/>`);
+      if (t.content) rows.push(html`<${Answer} key=${'a' + i} text=${M.moneyLock.mask(t.content)} coo=${cooSaid.has(t.content)} id=${i === lastAi && !busy ? id('answer') : undefined}/>`);
       if (t.acts && t.acts.length) rows.push(html`<${Receipts} key=${'k' + i} acts=${t.acts}/>`);
     });
     const empty = !turns.length && !busy && !st.err;

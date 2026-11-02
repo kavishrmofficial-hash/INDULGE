@@ -202,7 +202,7 @@
           ${i.bot ? html`<span class=${'inbox-kind inbox-bot' + (i.hot ? ' hot' : '')} aria-label="the bot"><${icons[KIND_ICON[i.kind]] || icons.feed}/></span>`
             : i.actor ? html`<${UI.Avatar} id=${i.actor} size=${34}/>` : html`<span class=${'inbox-kind' + (i.hot ? ' hot' : '')}><${icons[KIND_ICON[i.kind]] || icons.feed}/></span>`}
           <span class="grow">
-            <div class="t">${i.text}</div>
+            <div class="t">${M.moneyLock.mask(i.text)}</div>
             <div class="tiny ink62">${U.timeAgo(i.at)}</div>
           </span>
           ${i.at > was ? html`<span class="dotflame"/>` : null}

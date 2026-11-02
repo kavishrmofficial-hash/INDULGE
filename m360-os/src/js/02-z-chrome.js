@@ -281,7 +281,8 @@
       if (d.open && d.el && d.el.getBoundingClientRect) setTimeout(() => MK.lookAt(d.el, 1400), 120);
       else if (!d.open) setTimeout(flush, 420);
     });
-    const TX = (b, e, wrap) => '<span class="is-t' + (wrap ? ' wrap' : '') + '"><b>' + esc(b) + '</b>' + (e ? '<em>' + esc(e) + '</em>' : '') + '</span>';
+    const ML = s => (M.moneyLock ? M.moneyLock.mask(s) : s);   /* amounts stay masked in the island while hidden */
+    const TX = (b, e, wrap) => '<span class="is-t' + (wrap ? ' wrap' : '') + '"><b>' + esc(ML(b)) + '</b>' + (e ? '<em>' + esc(ML(e)) + '</em>' : '') + '</span>';
     const EV = '<span class="is-ev"></span>';
     const CK = '<span class="is-ck"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7"/></svg></span>';
     const BAD = '<span class="is-ck bad"><svg viewBox="0 0 24 24"><path d="M12 6.5v7M12 17v.5"/></svg></span>';

@@ -56,7 +56,11 @@
 .tk:active{scale:.98}
 .tk-t{font-size:14.5px;line-height:20px;font-weight:500}
 .tk-m{display:flex;flex-wrap:wrap;gap:6px}
-.tk-m .pill{height:22px;padding:0 8px;font-size:11.5px;border-radius:11px}
+.tk-m .pill{height:auto;min-height:22px;padding:3px 8px;font-size:11.5px;line-height:16px;border-radius:11px;white-space:normal;max-width:100%;text-align:left}
+/* a column head keeps its name on one line; the count and value drop under it when the column is narrow */
+.col-head.col-h{flex-wrap:wrap;gap:2px 8px}
+.col-head.col-h > span:first-child{white-space:nowrap}
+.col-head.col-h > span:last-child{white-space:nowrap}
 .tk-o{display:flex;align-items:center;gap:8px}
 /* the app's board names on the design's values: the wrap is the board itself, a column is .col, a card is .tk */
 .board-wrap.board{margin:0; padding:0 0 8px; min-width:0; align-items:stretch}

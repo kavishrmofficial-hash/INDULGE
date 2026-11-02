@@ -340,6 +340,10 @@
   M.Shell = function Shell() {
     const ctx = M.useCtx();
     const route = M.useRoute();
+    /* money lock: who is looking is known before anything draws, and the whole page draws again when it opens */
+    M.moneyLock.setViewer(ctx);
+    M.moneyLock.who((ctx.member && ctx.member.name) || (ctx.me && ctx.me.name));
+    const moneyHidden = M.moneyLock.use();
     const [menuOpen, setMenuOpen] = React.useState(false);
     const [jumpOpen, setJumpOpen] = React.useState(false);
     /* Command's sections as the page scrolls: which are drawn, and the one under the reading line */
@@ -551,7 +555,7 @@
           <${PreviewBar}/>
           <${AlertBanner}/>
           <${LockBanner}/>
-          ${Page ? html`<${Crash} key=${r.s + '/' + (r.t || '') + '/' + (r.id || '')}><${Page} tab=${r.t} id=${r.id}/><//>` : html`<${UI.Card} title="Loading"><${UI.Empty} text="One moment."/><//>`}
+          ${r.s === 'books' && moneyHidden ? html`<${UI.MoneyGate}/>` : Page ? html`<${Crash} key=${r.s + '/' + (r.t || '') + '/' + (r.id || '')}><${Page} tab=${r.t} id=${r.id}/><//>` : html`<${UI.Card} title="Loading"><${UI.Empty} text="One moment."/><//>`}
         </div>
       </main>
 

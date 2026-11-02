@@ -325,6 +325,7 @@
   /* ---------------- sample: canned Claude answers, shaped like the real thing ---------------- */
   window.__sampleCalls = [];
   window.M360_WELCOME_OFF = true;   /* tests ask for the welcome bubble explicitly */
+  window.M360_MONEY_LOCK_OFF = true;   /* and for the money lock (test_money_lock) */
   const tomorrow = (() => { const d = new Date(Date.now() + 86400000); const p = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); })();
   const flat = input => typeof input === 'string' ? input : input.map(t => t.content).join('\n');
   const sampleErr = q.get('aierr');

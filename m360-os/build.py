@@ -34,7 +34,7 @@ def integrity(url):
 def script_tag(url):
     return '<script src="%s" integrity="%s" crossorigin="anonymous"></script>' % (url, integrity(url))
 
-CORE_FILES = ('00-core.js', '01-ui.js', '02-state.js', '02-z-chrome.js', '03-shell.js', '04-ai.js', '99-app.js')
+CORE_FILES = ('00-core.js', '01-ui.js', '01-z-moneylock.js', '02-state.js', '02-z-chrome.js', '03-shell.js', '04-ai.js', '99-app.js')
 
 LATIN_RANGE = ('U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, '
                'U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD')

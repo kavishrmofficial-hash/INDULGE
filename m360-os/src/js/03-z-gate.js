@@ -204,9 +204,18 @@
   let entered = 0;
   try { entered = Number(sessionStorage.getItem(ENTERED)) || 0; } catch (e) { /* keep going */ }
   function arrive(root) {
-    if (!entered) return;
     const app = root.querySelector(':scope > .app');
     if (!app) return;
+    /* the doors (03-z-doors.js): on sign in, and on opening at most once every 4 hours; the page rises in as
+       the light gives way to it */
+    const signedIn = !!entered && Date.now() - entered < 15000;
+    if (M.doors && M.doors.should(signedIn)) {
+      entered = 0;
+      try { sessionStorage.removeItem(ENTERED); } catch (e) { /* keep going */ }
+      M.doors.play({onReveal: () => { if (app.animate) app.animate(ENTER_KF, {duration: 680, easing: EASE}); }});
+      return;
+    }
+    if (!entered) return;
     const fresh15 = Date.now() - entered < 15000;
     entered = 0;
     try { sessionStorage.removeItem(ENTERED); } catch (e) { /* keep going */ }

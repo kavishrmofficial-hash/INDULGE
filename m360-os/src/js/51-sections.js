@@ -162,8 +162,8 @@
     /* the older views still open by their hash; they sit behind one quiet line under the tabs */
     const older = [{h: '#prospects', l: 'Prospects'}, {h: '#crm', l: 'CRM table'}, {h: '#handshake', l: 'LinkedIn desk'}, {h: '#base', l: 'Database'}];
     const parts = [{v: live, l: live === 1 ? 'live client' : 'live clients'}, {v: inPlay, l: inPlay === 1 ? 'pitch in play' : 'pitches in play'}]
-      .concat(pm ? [{v: U.inr(pm.weighted), l: 'weighted pipeline'}] : [])
-      .concat(ctx.isOwner ? [{v: U.inr(mrr), l: 'monthly revenue'}] : []);
+      .concat(pm ? [{v: U.inrV(pm.weighted), l: 'weighted pipeline'}] : [])
+      .concat(ctx.isOwner ? [{v: U.inrV(mrr), l: 'monthly revenue'}] : []);
     return html`<div class="sect">
       <${M.SectionHero} micro=${today()} title="Accounts">
         <${Lede} parts=${parts}/>
@@ -282,6 +282,20 @@
   }
 
   /* ---------- Me: how the OS behaves for you ---------- */
+
+  /* the money lock's switch: hide amounts until a fingerprint (01-z-moneylock.js). Turning it off asks first */
+  function MoneyPref() {
+    const hidden = M.moneyLock.use();
+    const on = M.moneyLock.on();
+    return html`<div class="row between" id="prefs-money">
+      <span class="stack"><span>Hide money until fingerprint</span><span class="tiny ink62">${on ? (hidden ? 'Hidden now. Tap any amount to show it' : 'Shown now. Hides again after 5 minutes away') : 'Amounts show for everyone looking at this screen'}</span></span>
+      <span class="row nowrap" style=${{gap: '8px'}}>
+        ${on && !hidden ? html`<${UI.Btn} kind="sec" sm=${true} id="prefs-money-hide" onClick=${() => M.moneyLock.hide()}>Hide now<//>` : null}
+        <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${on ? 'on' : 'off'} ariaLabel="Hide money" onChange=${v => { M.moneyLock.setOn(v === 'on'); }}/>
+      </span>
+    </div>`;
+  }
+
   function Prefs() {
     const theme = M.useTheme();
     const [sound, setSound] = useState(M.sound.on());
@@ -318,6 +332,7 @@
           <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${sound ? 'on' : 'off'} ariaLabel="Sounds"
             onChange=${v => { M.sound.set(v === 'on'); setSound(v === 'on'); if (v === 'on') M.sound.play('chime'); }}/>
         </div>
+        ${ctx.isOwner || ctx.isFounder ? html`<${MoneyPref}/>` : null}
         <div class="row between"><span>Deep work this week</span><span class="num" style=${{fontWeight: 600}}>${Math.round(deep / 6) / 10}h</span></div>
         <div class="row between">
           <span>m360 AI speaks its answers</span>
