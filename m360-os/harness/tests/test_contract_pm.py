@@ -30,8 +30,8 @@ bots are on. The clock is a working Tuesday next week in Asia/Kolkata.
    silently); ringNow only for the founder; withdraw;
    m1 (m2's manager) sees the founder's ask as a line on Your team.
 5. Design: dark and 390x844 at dsf 3: the card has no overflow, no text under 11 px, its chips' text colour
-   differs from their background, phone buttons are at least 44 px tall, and the bot canvas is drawn at
-   CSS size times the device pixel ratio. The radar save keeps pm (code check: no W.set on me/<uid>).
+   differs from their background, phone buttons are at least 44 px tall, and (v40, the robot retired) no bot
+   face is drawn on the card. The radar save keeps pm (code check: no W.set on me/<uid>).
 
 Expected to fail until builder 1's 09-pm.js and 88-pm.js are merged; every gap is listed by name.
 
@@ -446,8 +446,7 @@ def test(h):
             check(not st, '%s: no text under 11 px: %r' % (name, st[:3]))
             cols = p.evaluate('''() => [...document.querySelectorAll('#pm-card button[data-how], .pm-chip')].map(b => { const cs = getComputedStyle(b); return [cs.color, cs.backgroundColor]; })''')
             check(cols and all(a != b for a, b in cols), '%s: chip text differs from its background: %r' % (name, cols[:3]))
-            cv = p.evaluate('''() => { const c = document.querySelector('#pm-card canvas'); if (!c) return null; const r = c.getBoundingClientRect(); return [c.width, r.width, devicePixelRatio]; }''')
-            check(cv and abs(cv[0] - round(cv[1] * cv[2])) <= 2, '%s: the bot canvas is drawn at CSS size times DPR: %r' % (name, cv))
+            check(p.locator('#pm-card canvas').count() == 0, '%s: v40, no robot face on the card' % name)
             if '390' in name:
                 small = p.evaluate('''() => [...document.querySelectorAll('#pm-card button')].filter(b => b.offsetParent).map(b => [b.getBoundingClientRect().height, b.className, b.textContent.trim().slice(0, 24)]).filter(x => x[0] < 44)''')
                 check(not small, '%s: phone buttons are at least 44 px tall: %r' % (name, small[:4]))
@@ -457,9 +456,8 @@ def test(h):
             c.close()
         c = new_ctx(at(11, 0), viewport={'width': 3840, 'height': 2160})
         p = world(c, 'm3', '#home')
-        p.wait_for_selector('#pm-card canvas', timeout=15000)
-        cv = p.evaluate('''() => { const c = document.querySelector('#pm-card canvas'); const r = c.getBoundingClientRect(); return [c.width, r.width, devicePixelRatio]; }''')
-        check(abs(cv[0] - round(cv[1] * cv[2])) <= 2, 'at 3840 wide the bot canvas stays sharp: %r' % cv)
+        p.wait_for_selector('#pm-card', timeout=15000)
+        check(p.locator('#pm-card canvas').count() == 0 and h.overflow(p) <= 0, 'at 3840 wide the card draws no robot and fits')
         c.close()
         radar = open(os.path.join(ROOT, 'src', 'js', '75-radar.js'), encoding='utf-8').read()
         check("W.set('me/'" not in radar and 'W.set("me/' not in radar, 'the radar save never rewrites me/<uid> whole, so pm survives it')

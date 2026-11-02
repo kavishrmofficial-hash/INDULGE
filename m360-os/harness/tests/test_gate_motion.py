@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """v36.2 test: the sign-in moves the way Apple's does (src/js/03-z-gate.js, src/css/99-gate.css).
 
-On the team site build: the static boot screen's mark writes itself in by CSS from its first paint; every
+On the team site build: the mark is drawn by a pen (v39, 03-z-gate.js) the way the Subject 360 film closes; every
 gate React mounts after it (the boot gate, the setup and sign-in gates) joins that motion on the same clock
 (its animations share one start time, so nothing starts over); a wrong sign-in shakes the box; Forgot it?
 rises in fresh; the first screen after signing in settles in; the watch stops once the app is up; reduced
@@ -61,16 +61,17 @@ def main():
             k.add_init_script(INSTRUMENT)
             k.goto(base)
             k.wait_for_selector('#signin-name')
-            check(k.evaluate('() => getComputedStyle(document.querySelector(".gate .mark svg")).maskImage') != 'none', 'the mark carries its pen mask')
+            # v39: the pen draws the mark the way the Subject 360 film closes (an SVG mask of brush strokes, a tracer, a nib)
+            check(k.evaluate('() => !!document.querySelector(".gate .mark svg.pen mask") && !!document.querySelector(".gate .mark svg.pen path[mask]")'), 'the pen is drawing the mark')
             calls = k.evaluate(CALLS)
             gate = [c for c in calls if c['el'] in ('svg.svg', 'H1.', 'P.', 'DIV.g-act')]
             synced = [c for c in gate if c['delay'] is not None]
             starts = sorted(set(round(c['start'] or 0) for c in synced))
             check(len(starts) <= 1, 'every gate React mounts inside the opening joins one start: %r' % starts)
-            check(set(c['delay'] for c in synced) <= {120, 520, 620, 720}, 'each joins at its own beat (mark 120, title 520, line 620, form 720): %r' % sorted(set(c['delay'] for c in synced)))
-            check(not [c for c in gate if c['el'] == 'svg.svg' and c['delay'] is None], 'the mark is never written twice (a gate after the opening shows it written)')
+            check(set(c['delay'] for c in synced) <= {520, 620, 720}, 'each joins at its own beat (title 520, line 620, form 720): %r' % sorted(set(c['delay'] for c in synced)))
             check(len(gate) >= 3, 'React\'s gates take part (%d joined or rose in)' % len(gate))
-            k.wait_for_timeout(2200)
+            k.wait_for_timeout(3600)
+            check(k.evaluate('() => !document.querySelector(".gate .mark svg.pen") && !document.querySelector(".gate .mark mask") && document.querySelectorAll(".gate .mark svg path").length === 1'), 'the pen finishes and leaves the plain mark')
             vis = k.evaluate('() => [...document.querySelectorAll(".gate > div > h1, .gate > div > p, .gate > div > .g-act")].map(e => getComputedStyle(e).opacity)')
             check(vis and all(v == '1' for v in vis), 'after the opening everything stands fully in view: %r' % vis)
             k.fill('#signin-name', 'Kaavish Ramchandani'); k.fill('#signin-email', 'kaavish@mask360.agency'); k.fill('#signin-pw', 'gate-motion-test-2026')

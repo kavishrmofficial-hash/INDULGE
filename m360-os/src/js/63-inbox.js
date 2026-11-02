@@ -195,12 +195,11 @@
     const loading = !ctx.ready;
     const head = M.fx ? html`<span class="row nowrap fx-inbox-head" id="inbox-fx">
       ${fresh ? html`<${M.fx.MetalBadge}>${fresh + ' new'}<//>` : null}
-      <${M.fx.Bot} feature="brief" state=${loading ? 'working' : fresh ? 'default' : 'sleeping'} size=${30} label="m360 inbox"/>
     </span>` : null;
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Inbox" head=${head}>
       ${loading && !list.length ? html`<${UI.Empty} text="Loading your inbox"/>` : list.length ? html`<div class="stack" style=${{gap: 0}}>
         ${list.map(i => html`<button type="button" key=${i.id} class=${'inbox-item' + (i.at > was ? ' unread' : '')} onClick=${() => { onClose(); M.nav(i.ref); }}>
-          ${i.bot && M.fx && M.fx.Bot ? html`<span class="inbox-kind inbox-bot"><${M.fx.Bot} type="pill" size=${34} state=${i.hot ? 'default' : 'sleeping'} paused=${true} label="the bot"/></span>`
+          ${i.bot ? html`<span class=${'inbox-kind inbox-bot' + (i.hot ? ' hot' : '')} aria-label="the bot"><${icons[KIND_ICON[i.kind]] || icons.feed}/></span>`
             : i.actor ? html`<${UI.Avatar} id=${i.actor} size=${34}/>` : html`<span class=${'inbox-kind' + (i.hot ? ' hot' : '')}><${icons[KIND_ICON[i.kind]] || icons.feed}/></span>`}
           <span class="grow">
             <div class="t">${i.text}</div>

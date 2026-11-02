@@ -14,9 +14,9 @@ has not checked in (step 2 reached m2 at 11:45), has overdue work and work m2 se
 - The person page's bot log for the chain, never for someone outside it.
 - Admin: the founder's card with the switch, the kinds, the ladder strip and the audit.
 - Me: the manager's "Your bot" (held on, kinds, wait, voice with a live preview), the report's view.
-- A bot notice carries the pill face.
-- Effects and design: chip text differs from its ground in both themes; the bot canvas is the CSS size
-  times the device pixel ratio at dsf 3 and at 3840 wide; on a phone the chips wrap at 44px targets.
+- A bot notice lands in the island.
+- Effects and design: chip text differs from its ground in both themes; v40 retires the robot, so no bot
+  face is drawn anywhere (the 3840 wide check reads Admin with no canvas); on a phone the chips wrap at 44px targets.
 - Light 1280 and dark 390@3x: no sideways scroll, no text under 11px, no console errors.
 
 Screenshots of each view go to SHOTS (light and dark, 1280 and 390@3x).
@@ -140,8 +140,7 @@ def test(h):
         card = pg.inner_text('#pm-card')
         check("From Aanya's bot" in card and 'Aanya can see this on Your team.' in card and 'was told at' not in card and 'If there is no answer' not in card, '%s: the ladder lines: %r' % (label, card[:400]))  # RELIEF R12
         check('The Swisse reel cutdown was due ' in card and "Aanya sent the Nykaa carousel back at 11:20 and it has not moved since. Is it on today's list?" in card, '%s: the lines: %r' % (label, card[:600]))
-        canv = pg.evaluate('() => { const c = document.querySelector("#pm-card .pm-bot canvas"); if (!c) return null; const r = c.getBoundingClientRect(); return [c.width, r.width, devicePixelRatio]; }')
-        check(canv and abs(canv[0] - round(canv[1] * canv[2])) <= 1, '%s: the bot canvas is its CSS size times the DPR: %r' % (label, canv))
+        check(pg.locator('#pm-card canvas').count() == 0, '%s: v40, no robot face on the card' % label)
         row = '#pm-card .pm-row[data-k="u_m3:overdue:t_sw:%s"]' % today
         tap(row + ' .pm-whybtn')
         check('Due ' in pg.inner_text(row + ' .pm-why'), '%s: Why this opens the fact' % label)
@@ -205,7 +204,7 @@ def test(h):
         pg.wait_for_function('k => !document.querySelector(".pm-menu") && document.activeElement && document.activeElement.getAttribute("data-k") === k', arg=kn)
         check(True, '%s: the menu takes the focus and Escape gives it back to the chip' % label)
         # the inbox: the bot's lines with the pill face, nothing of it bubbles on its own
-        tap('.bellbtn:visible')
+        pg.keyboard.press('Control+k'); tap('.pal-item[data-k="a-inbox"]')
         pg.wait_for_selector('.drawer .inbox-item')
         check(pg.locator('.drawer .inbox-bot').count() >= 1, '%s: the inbox carries the bot\'s lines' % label)
         silent = ev('M.inbox.items(ctx).filter(i => i.kind === "pm" || i.id.startsWith("team:")).every(i => i.silent)')
@@ -255,21 +254,20 @@ def test(h):
         # a bot notice
         be('m3')
         pg.evaluate('() => M.notices.push({key: "pm:demo", title: "Aanya\'s bot", body: "3 things from Aanya\'s bot", bot: true, life: 60000})')
-        pg.wait_for_selector('.notice.is-bot .notice-bot')
+        pg.wait_for_selector('#island[data-key="pm:demo"] .news')
         shot('pm-notice')
 
     scene('light-1280', 1280, 900, False, 1)
     scene('dark-390', 390, 844, True, 3)
 
-    # ---- at 3840 wide the bot canvas stays its own size ----
+    # ---- at 3840 wide: Admin's personal manager card, with no robot face (v40) ----
     bctx = h.browser.new_context(viewport={'width': 3840, 'height': 2160}, locale='en-IN', timezone_id='Asia/Kolkata')
     h.contexts.append(bctx)
     pg = bctx.new_page()
     pg.goto(h.url('founder', '#admin', reset=True, seed=True))
     h.ready(pg)
-    pg.wait_for_selector('#pm-admin canvas')
-    canv = pg.evaluate('() => { const c = document.querySelector("#pm-admin canvas"); const r = c.getBoundingClientRect(); return [c.width, r.width, devicePixelRatio]; }')
-    check(abs(canv[0] - round(canv[1] * canv[2])) <= 1, 'at 3840 wide the canvas is its CSS size: %r' % canv)
+    pg.wait_for_selector('#pm-admin')
+    check(pg.locator('#pm-admin canvas').count() == 0 and h.overflow(pg) <= 0, 'at 3840 wide the card draws no robot and fits')
 
     errs = h.errors()
     check(not errs, 'console errors: %r' % errs[:3])

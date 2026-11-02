@@ -111,7 +111,7 @@ def t(h):
     check('Viewing as Durvesh Patil' in bar and 'Preview only, nothing saves.' in bar, 'preview bar: ' + bar)
     p.wait_for_function('() => location.hash === "#home"')
     p.wait_for_function('() => /Durvesh Patil/.test(document.querySelector(".side-foot .nm").textContent)')
-    check(p.locator('.side-item', has_text='HQ').count() == 0 and p.locator('.side-item', has_text='Admin').count() == 0, 'founder sections visible in preview')
+    check(p.locator('.side-item', has_text='Command').count() == 0 and p.locator('.side-item', has_text='Admin').count() == 0, 'founder sections visible in preview')
     check(h.ctx(p, 'ctx.uid') == 'u_m1' and h.ctx(p, 'ctx.isFounder') is False and h.ctx(p, 'ctx.realUid') == 'u_founder', 'preview context wrong')
     p.evaluate('M.nav("#tasks/t3")')
     p.wait_for_selector('.drawer #task-title')

@@ -1,34 +1,57 @@
-/* module: notices. Small cards in the top right corner, the way a phone shows a message: who, and a line
-   of what, unless previews are off (Me, Prefs), in which case only who. A tap opens the thing. They stack,
-   they slide away after a few seconds, and when the tab is hidden the same notice goes out of the page:
-   in the m360 desktop app as its own card over every other window (black, the flame logo, our type; see
-   desktop/notice.html), in a browser through the system's notification with the flame logo as its icon
-   (the system draws that one, so its look is the system's). Both honour the same preview setting. */
+/* module: notices. Live news in the island at the top of the canvas (v40, design/m360-os-v7.html): the line,
+   with who sent it under it, unless previews are off (Me, Prefs), in which case only who. A tap opens the
+   thing. They queue one at a time behind whatever the island is saying, and when the tab is hidden the same
+   notice goes out of the page: in the m360 desktop app as its own card over every other window (black, the
+   flame logo, our type; see desktop/notice.html), in a browser through the system's notification with the
+   flame logo as its icon (the system draws that one, so its look is the system's). Both honour the same
+   preview setting. */
 'use strict';
 (function () {
   const {html, React, UI} = M;
   const {useState, useEffect} = React;
 
-  const LIFE = 6500;
-  const MAX = 4;
+  /* how long a notice stays in the island, unless it says */
+  const LIFE = 4200;
   let seq = 0;
   const subs = new Set();
+  /* what is showing or waiting in the island: the API keeps its list for anything that reads it */
   let list = [];
   const emit = () => subs.forEach(f => { try { f(list); } catch (e) { /* page handler */ } });
+  const isl = () => (M.island && M.island.notify ? M.island : null);
+  /* the island's line for a notice: a person's line with their name under it, the OS's title with its line */
+  function lineOf(n, previews) {
+    const body = previews ? String(n.body || '') : (n.hidden || 'New message');
+    if (n.who || n.bot) return {b: body || String(n.title), cap: body ? String(n.title) : ''};
+    return {b: String(n.title), cap: body};
+  }
 
   M.notices = {
     previews: () => M.prefs.get('noticePreview', '1') !== '0',
     setPreviews: v => M.prefs.set('noticePreview', v ? '1' : '0'),
-    /* {key, who (uid), title, body, href, icon, bot (the personal manager's pill face), away {title, body}}.
-       away is what goes out of the page (the system's notification, the service worker's, the desktop
-       card) in place of title and body, so a lock screen never shows a name */
+    /* {key, who (uid), title, body, href, icon, bot, life, away {title, body}}. v40: the notice is live news in
+       the island, queued behind whatever the island is saying; a tap opens href. away is what goes out of the
+       page (the system's notification, the service worker's, the desktop card) in place of title and body, so
+       a lock screen never shows a name */
     push(n) {
       if (!n || !n.title) return;
       if (n.key && list.some(x => x.key === n.key)) return;
       const item = {...n, id: ++seq, at: Date.now()};
-      list = list.filter(x => x.key !== n.key).concat([item]).slice(-MAX);
+      const key = n.key ? String(n.key) : 'n' + item.id;
+      item.nkey = key;
+      list = list.concat([item]);
       emit();
-      setTimeout(() => { list = list.filter(x => x.id !== item.id); emit(); }, n.life || LIFE);
+      const I = isl();
+      if (I) {
+        const l = lineOf(n, M.notices.previews());
+        I.notify(l.b, l.cap, n.href ? () => M.nav(n.href) : null, null, {key, ms: n.life || LIFE});
+      }
+      /* the list keeps the notice while the island could still be telling it */
+      const forget = () => {
+        const J = isl();
+        if (J && (J.showing() === key || J.waiting().indexOf(key) >= 0)) { setTimeout(forget, 600); return; }
+        list = list.filter(x => x.id !== item.id); emit();
+      };
+      setTimeout(forget, (n.life || LIFE) + 600);
       /* the tab is away: the notice goes out of the page too */
       try {
         if (document.hidden || !document.hasFocus()) {
@@ -52,8 +75,13 @@
         }
       } catch (e) { /* no notices here */ }
     },
-    dismiss(id) { list = list.filter(x => x.id !== id); emit(); },
-    clear() { list = []; emit(); },
+    dismiss(id) {
+      const it = list.find(x => x.id === id);
+      if (it && isl()) isl().drop(it.nkey);
+      list = list.filter(x => x.id !== id); emit();
+    },
+    clear() { const I = isl(); if (I) list.forEach(x => I.drop(x.nkey)); list = []; emit(); },
+    list: () => list.slice(),
     ask: () => { try { if (window.Notification && Notification.permission === 'default') return Notification.requestPermission(); } catch (e) { /* none */ } return Promise.resolve(window.Notification ? Notification.permission : 'denied'); },
     /* 'default' (never asked), 'granted', 'denied', or 'none' when this browser has no notifications */
     state: () => { try { return window.Notification ? Notification.permission : 'none'; } catch (e) { return 'none'; } },
@@ -70,31 +98,6 @@
     }
   } catch (e) { /* no service worker here */ }
 
-  function Notices() {
-    const [items, setItems] = useState(list);
-    useEffect(() => { const un = M.notices.on(setItems); setItems(list); return un; }, []);
-    if (!items.length) return null;
-    const previews = M.notices.previews();
-    /* black in both themes, the flame logo in a circle (the person's face tucked on it when a person sent
-       it), the title and the line; a thin flame line runs down the notice's life. As compact as a phone's
-       banner, so it covers as little of the page under it as it can */
-    return html`<div class="notices" id="notices" aria-live="polite">
-      ${items.map(n => html`<div key=${n.id} class=${'notice' + (n.bot ? ' is-bot' : '')} data-key=${n.key || ''} role="status" style=${{'--life': (n.life || LIFE) + 'ms'}}>
-        <button type="button" class="notice-body" onClick=${() => { M.notices.dismiss(n.id); if (n.href) M.nav(n.href); }}>
-          ${n.bot && M.fx && M.fx.Bot ? html`<span class="notice-logo notice-bot" aria-hidden="true"><${M.fx.Bot} type="pill" size=${30} label="bot"/></span>`
-            : html`<span class="notice-logo" aria-hidden="true"><${M.Mark} width="23px"/>${n.who ? html`<span class="notice-who"><${UI.Avatar} id=${n.who} size=${16}/></span>` : null}</span>`}
-          <span class="grow" style=${{minWidth: 0}}>
-            <span class="notice-title">${n.title}</span>
-            <span class="notice-text">${previews ? (n.body || '') : (n.hidden || 'New message')}</span>
-          </span>
-        </button>
-        <button type="button" class="notice-x" aria-label="Dismiss" onClick=${() => M.notices.dismiss(n.id)}><${M.icons.x}/></button>
-        <span class="notice-life" aria-hidden="true"/>
-      </div>`)}
-    </div>`;
-  }
-
-  M.parts.Notices = Notices;
 
   /* the desktop app's own card was tapped: bring the page to what it was about */
   try {

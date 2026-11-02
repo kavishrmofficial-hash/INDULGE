@@ -1,37 +1,44 @@
 /* v37 accounts: the people we are talking to, the five column pipeline, the client search */
-.talk-add-grid{display:grid; grid-template-columns:1fr 1fr 1.6fr 152px 152px auto; gap:10px; align-items:start}
-.talk-add-grid .talk-save{padding-top:22px}
+.talk-add-grid{display:grid; grid-template-columns:1fr 1fr 1.6fr 152px 152px auto; gap:12px; align-items:start}
+.talk-add-grid .talk-save{padding-top:24px}
 .talk-who-wrap{position:relative; min-width:0}
-.talk-sug{position:absolute; left:0; right:-120px; top:100%; margin-top:4px; z-index:30; background:var(--paper); border:1px solid var(--line2); border-radius:var(--r-sm); box-shadow:0 10px 28px var(--shadow); padding:4px; display:flex; flex-direction:column}
-.talk-sug-row{display:flex; align-items:center; gap:10px; text-align:left; background:transparent; border:0; border-radius:8px; padding:8px 10px; font:inherit; color:inherit; cursor:pointer; min-width:0}
+.talk-sug{position:absolute; left:0; right:-120px; top:100%; margin-top:4px; z-index:30; background:var(--paper); border:0; box-shadow:0 0 0 1px var(--line),0 26px 50px -30px rgba(14,14,14,.32); border-radius:14px; padding:4px; display:flex; flex-direction:column}
+.talk-sug-row{display:flex; align-items:center; gap:10px; text-align:left; background:transparent; border:0; border-radius:10px; padding:8px 10px; font:inherit; color:inherit; cursor:pointer; min-width:0}
 .talk-sug-row:hover,.talk-sug-row.on{background:var(--warm)}
 .talk-search{display:flex; align-items:center; gap:8px; position:relative; min-width:200px}
-.talk-search svg{position:absolute; left:12px; width:18px; height:18px; color:var(--micro); pointer-events:none}
-.talk-search .input{padding-left:38px}
-.talk-list{display:flex; flex-direction:column; gap:8px}
-.talk-row{display:flex; align-items:center; gap:10px; background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:12px 14px; min-width:0}
-.talk-row.due{border-color:var(--flame)}
-.talk-row.done{opacity:.72}
-.talk-main{flex:1; min-width:0}
-.talk-name{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.talk-line{margin-top:4px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical}
-.talk-acts{gap:4px; flex:none}
-.talk-log-row{padding:8px 0; border-bottom:1px solid var(--line)}
-.talk-log-row:last-child{border-bottom:0}
-.prop-add{display:grid; grid-template-columns:1fr 1fr 1.6fr auto; gap:10px; align-items:start}
-.prop-add .prop-add-btn{padding-top:22px}
-.prop-board .colm{width:236px}
-.prop-card{cursor:default; gap:6px}
-.prop-open{display:flex; flex-direction:column; gap:6px; background:transparent; border:0; padding:0; text-align:left; font:inherit; color:inherit; cursor:pointer; width:100%; min-width:0}
-.prop-moves{gap:4px; margin:0 -6px -4px}
+.talk-search svg{position:absolute; left:14px; width:18px; height:18px; color:var(--g45); pointer-events:none}
+.talk-search .input{padding-left:40px}
+/* v40: the people are the design's list (B1 .card with rows on an 8 percent hairline). A follow-up due carries
+   the design's flame dot (B1 .hi) before the name */
+.talk-list{display:flex; flex-direction:column; padding:4px 24px}
+.talk-row{display:flex; align-items:center; gap:12px; min-height:56px; padding:14px 0; min-width:0; flex-wrap:wrap; box-shadow:0 1px 0 var(--g08)}
+.talk-row:last-child{box-shadow:none}
+.talk-row.due .talk-name::before{content:""; display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--flame); margin-right:8px; vertical-align:middle}
+.talk-row.done .talk-name b{color:var(--g45)}
+.talk-main{flex:1 1 320px; min-width:0; border-radius:0}
+.talk-main:hover{background:transparent}
+.talk-main:hover .talk-name b{color:var(--flame)}
+.talk-name{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14.5px; line-height:20px}
+.talk-name b{font-weight:500; transition:color .3s var(--ease)}
+.talk-line{margin-top:4px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; font-size:14px; line-height:20px; color:var(--g64)}
+.talk-row .row.tiny{color:var(--g45); align-items:center}
+.talk-acts{gap:8px; flex:none}
+.talk-log-row{padding:12px 0; box-shadow:0 1px 0 var(--g08)}
+.talk-log-row:last-child{box-shadow:none}
+.prop-add{display:grid; grid-template-columns:1fr 1fr 1.6fr auto; gap:12px; align-items:start}
+.prop-add .prop-add-btn{padding-top:24px}
+.prop-card{cursor:default}
+.prop-open{display:flex; flex-direction:column; gap:10px; background:transparent; border:0; padding:0; text-align:left; font:inherit; color:inherit; cursor:pointer; width:100%; min-width:0}
+.prop-open:hover .tk-t{color:var(--flame)}
+.prop-moves{gap:6px; flex-wrap:wrap}
 @media (max-width:900px){
   .talk-add-grid{grid-template-columns:1fr 1fr}
   .talk-add-grid .talk-note{grid-column:1 / -1}
   .talk-add-grid .talk-save{padding-top:0; grid-column:1 / -1}
-  .talk-sug{right:0}
+  /* v39: the name sits in the first of two columns; the suggestions span both, and scroll inside a short box */
+  .talk-sug{right:auto; width:calc(200% + 10px); max-height:min(300px, 45vh); overflow-y:auto}
   .prop-add{grid-template-columns:1fr 1fr}
   .prop-add .prop-add-btn{padding-top:0}
-  .talk-row{flex-wrap:wrap}
+  .talk-list{padding:4px 20px}
   .talk-acts{width:100%; justify-content:flex-end}
 }
-.board-wrap.prop-wrap{margin:0; padding:0}

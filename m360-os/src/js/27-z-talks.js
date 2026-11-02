@@ -48,35 +48,54 @@
   const patch = (ctx, id, p) => ctx.W.update('talks/' + id, {...p, updated: Date.now()});
   function logTalk(ctx, t, x, d, next) {
     const lid = U.uid();
-    const log = {...(t.log || {}), [lid]: {d: YMD.test(d || '') ? d : U.todayStr(), x: cut(x, NOTE_MAX), by: ctx.uid, at: Date.now()}};
-    const keep = Object.keys(log).sort((a, b) => (log[b].at || 0) - (log[a].at || 0)).slice(0, LOG_MAX);
-    const trimmed = {};
-    keep.forEach(k => { trimmed[k] = log[k]; });
-    return ctx.W.update('talks/' + t.id, {log: trimmed, next: next === undefined ? (t.next || '') : next, done: false, updated: Date.now()});
+    const entry = {d: YMD.test(d || '') ? d : U.todayStr(), x: cut(x, NOTE_MAX), by: ctx.uid, at: Date.now()};
+    const log = {...(t.log || {}), [lid]: entry};
+    /* v39: the update merges, so only the new entry is sent and every entry past the newest 40 goes as null,
+       which the store removes */
+    const out = {[lid]: entry};
+    Object.keys(log).sort((a, b) => (log[b].at || 0) - (log[a].at || 0)).slice(LOG_MAX).forEach(k => { out[k] = null; });
+    return ctx.W.update('talks/' + t.id, {log: out, next: next === undefined ? (t.next || '') : next, done: false, updated: Date.now()});
   }
-  /* a pitch on the shared pipeline, in Building, linked both ways */
+  /* a pitch on the shared pipeline, in Building, linked both ways. v39: its id comes from the person, so two people
+     tapping at once write the one pitch */
   function toPipeline(ctx, t, what) {
-    if (t.pitch && ctx.coll.pitches.map[t.pitch]) { M.nav('#pitches/' + t.pitch); return Promise.resolve(t.pitch); }
-    const pid = U.uid(), now = Date.now();
+    const pid = 'tk' + t.id;
+    const pm = ctx.coll.pitches.map, lm = (M.lastCtx && M.lastCtx.coll.pitches.map) || {};
+    const have = (t.pitch && (pm[t.pitch] || lm[t.pitch])) ? t.pitch : (pm[pid] || lm[pid]) ? pid : '';
+    if (have) { if (t.pitch !== have) patch(ctx, t.id, {pitch: have}).catch(() => {}); M.nav('#pitches/' + have); return Promise.resolve(have); }
+    const now = Date.now();
     const brand = t.org || t.who || 'New pitch';
     return ctx.W.set('pitches/' + pid, {brand, category: '', contact: t.cid || t.who || '', source: 'talk', owner: t.owner || ctx.uid,
       stage: 'lead', stageAt: now, next: cut(what || t.nextWhat || 'Build the proposal', 120), nextDate: t.next || '', project: '', lost: '', created: now, updated: now, talk: t.id})
       .then(() => patch(ctx, t.id, {pitch: pid}))
       .then(() => { M.toast(brand + ' is in the pipeline'); return pid; });
   }
-  /* the viewer's private prospects, copied once into the shared list; the same name at the same company is skipped */
-  function bringProspects(ctx) {
+  /* the viewer's private prospects not yet in the shared list: the same name at the same company counts once.
+     v39: the line under the list counts these, so a dropped prospect or one already here is never counted */
+  function prospectsToBring(ctx) {
     const P = M.prospects;
-    if (!P || !P.data) return Promise.resolve(0);
-    const d = P.data(ctx);
+    if (!P || !P.data) return [];
+    const d = P.data(ctx) || {};
     const have = new Set(all(ctx).map(t => norm(t.who) + '|' + norm(t.org)));
-    const jobs = [];
+    const out = [];
     for (const pid of Object.keys(d.people || {})) {
       const p = d.people[pid];
       if (!p || p.gone || !p.who) continue;
       const k = norm(p.who) + '|' + norm(p.org);
       if (have.has(k)) continue;
       have.add(k);
+      out.push(pid);
+    }
+    return out;
+  }
+  /* the viewer's private prospects, copied once into the shared list */
+  function bringProspects(ctx) {
+    const P = M.prospects;
+    if (!P || !P.data) return Promise.resolve(0);
+    const d = P.data(ctx);
+    const jobs = [];
+    for (const pid of prospectsToBring(ctx)) {
+      const p = d.people[pid];
       const fid = Object.keys(d.fu || {}).filter(id => d.fu[id] && !d.fu[id].done && d.fu[id].p === pid).sort((a, b) => String(d.fu[a].d).localeCompare(String(d.fu[b].d)))[0];
       const f = fid ? d.fu[fid] : null;
       const met = p.last && p.last.at ? U.ymd(new Date(p.last.at)) : (p.at ? U.ymd(new Date(p.at)) : U.todayStr());
@@ -123,8 +142,11 @@
     const set = k => v => setF(x => ({...x, [k]: v}));
     const pick = s => {
       if (s.talk) { onOpen(s.talk); setF(blank()); return; }
-      setF(x => ({...x, who: s.who || x.who, org: s.org || x.org, cid: s.cid || '', client: s.client || (s.org ? clientFor(ctx, s.org) : '') || x.client}));
+      /* v39: a client pick fills the company and empties the name, so the typed letters never become a person */
+      const isClient = !!s.client && !s.who;
+      setF(x => ({...x, who: isClient ? '' : (s.who || x.who), org: s.org || x.org, cid: s.cid || '', client: s.client || (s.org ? clientFor(ctx, s.org) : '') || x.client}));
       setFocus(false);
+      if (isClient && whoRef.current) setTimeout(() => { if (whoRef.current) whoRef.current.focus(); }, 0);
     };
     const save = () => {
       if (busy || !f.who.trim()) { if (!f.who.trim()) M.toast('Add a name first', true); return; }
@@ -156,7 +178,7 @@
           ${focus && sug.length ? html`<div class="talk-sug" role="listbox" id="talk-sug">
             ${sug.map((s, i) => html`<button key=${s.k} type="button" role="option" aria-selected=${i === hi} class=${'talk-sug-row' + (i === hi ? ' on' : '')}
               onMouseDown=${e => { e.preventDefault(); pick(s); }}>
-              <span class="grow"><b>${s.who || s.org}</b>${s.who && s.org ? html`<span class="sub"> at ${s.org}</span>` : null}${s.title ? html`<span class="sub">, ${s.title}</span>` : null}</span>
+              <span class="grow"><b><bdi>${s.who || s.org}</bdi></b>${s.who && s.org ? html`<span class="sub"> at <bdi>${s.org}</bdi></span>` : null}${s.title ? html`<span class="sub">, ${s.title}</span>` : null}</span>
               <span class="tiny sub">${s.kind}</span>
             </button>`)}
           </div>` : null}
@@ -186,7 +208,7 @@
     return html`<div class=${'talk-row' + (st === 'due' ? ' due' : '') + (t.done ? ' done' : '')} data-talk=${t.id}>
       <button type="button" class="talk-main rowbtn" onClick=${() => onOpen(t.id)} aria-label=${'Open ' + (t.who || 'person')}>
         <div class="row between nowrap">
-          <span class="talk-name"><b>${t.who || 'Someone'}</b>${t.org ? html`<span class="sub"> ${t.org}</span>` : null}</span>
+          <span class="talk-name"><b><bdi>${t.who || 'Someone'}</bdi></b>${t.org ? html`<span class="sub"> <bdi>${t.org}</bdi></span>` : null}</span>
           ${st === 'due' ? html`<span class="pill flame">follow up ${t.next === today ? 'today' : U.fmtDay(t.next)}</span>`
             : st === 'soon' ? html`<span class="pill">follow up ${U.fmtDay(t.next)}</span>`
             : st === 'done' ? html`<span class="pill ink">done</span>` : null}
@@ -212,10 +234,13 @@
   function LogDrawer({ctx, t, onClose}) {
     const [x, setX] = useState('');
     const [d, setD] = useState(U.todayStr());
-    const [next, setNext] = useState(t.next || '');
+    const [next, setNextS] = useState(t.next || '');
     const [busy, setBusy] = useState(false);
+    /* v39: a date read from what was said moves the follow-up, until the person picks one by hand */
+    const byHand = useRef(false);
+    const setNext = v => { byHand.current = true; setNextS(v); };
     const read = readDate(ctx, x, d);
-    useEffect(() => { if (read && (!next || next <= U.todayStr())) setNext(read.ymd); }, [read && read.ymd]);
+    useEffect(() => { if (!byHand.current) setNextS(read ? read.ymd : (t.next || '')); }, [read && read.ymd]);
     const save = () => {
       if (busy || !x.trim()) return;
       setBusy(true);
@@ -234,18 +259,25 @@
   /* ---------- the person drawer ---------- */
   function TalkDrawer({ctx, id, onClose}) {
     const t0 = ctx.coll.talks.map[id];
-    const [f, setF] = useState(() => t0 ? {who: t0.who || '', org: t0.org || '', note: t0.note || '', met: t0.met || '', next: t0.next || '', nextWhat: t0.nextWhat || '', owner: t0.owner || ctx.uid} : null);
+    /* v39: the copy the form opened on; save sends only what this person changed against it */
+    const opened = useRef(null);
+    const [f, setF] = useState(() => (opened.current = t0 ? {who: t0.who || '', org: t0.org || '', note: t0.note || '', met: t0.met || '', next: t0.next || '', nextWhat: t0.nextWhat || '', owner: t0.owner || ctx.uid} : null));
     const [busy, setBusy] = useState(false);
     const owners = ctx.activeMembers.map(m => m.uid);
     if (owners.indexOf(ctx.uid) < 0) owners.unshift(ctx.uid);
+    /* v39: whoever owns the conversation is always an option, the owner off the active list included */
+    if (t0 && t0.owner && owners.indexOf(t0.owner) < 0) owners.push(t0.owner);
     const profs = M.useProfiles(owners);
     if (!t0 || !f) return html`<${UI.Drawer} open=${true} onClose=${onClose} title="Person"><${UI.Empty} text="This person is not on the list any more."/><//>`;
     const t = {id, ...t0};
     const set = k => v => setF(x => ({...x, [k]: v}));
+    const clean = x => ({who: cut(x.who, NAME_MAX), org: cut(x.org, NAME_MAX), note: cut(x.note, NOTE_MAX), met: x.met, next: x.next, nextWhat: cut(x.nextWhat, 160), owner: x.owner});
     const save = () => {
       setBusy(true);
-      patch(ctx, id, {who: cut(f.who, NAME_MAX), org: cut(f.org, NAME_MAX), note: cut(f.note, NOTE_MAX), met: f.met, next: f.next, nextWhat: cut(f.nextWhat, 160), owner: f.owner,
-        client: t.client || clientFor(ctx, f.org)})
+      const ch = U.changes(clean(opened.current || f), clean(f));
+      const client = t.client || clientFor(ctx, f.org);
+      if (client && client !== t.client) ch.client = client;
+      patch(ctx, id, ch)
         .then(() => { M.toast('Saved'); onClose(); }, () => setBusy(false));
     };
     const toBase = () => {
@@ -319,7 +351,7 @@
       const ka = a.next || '9999', kb = b.next || '9999';
       return f === 'done' ? (b.updated || 0) - (a.updated || 0) : ka.localeCompare(kb) || (b.updated || 0) - (a.updated || 0);
     });
-    const pros = M.prospects && M.prospects.data ? Object.keys(M.prospects.data(ctx).people || {}).length : 0;
+    const pros = prospectsToBring(ctx).length;
     const bring = () => { setBusy(true); bringProspects(ctx).then(k => { M.toast(k ? k + ' brought in' : 'Everyone is already here'); setBusy(false); }, () => setBusy(false)); };
     const close = () => { setOpen(null); if (routeId) M.nav('#talks'); };
     const logT = logFor ? {id: logFor, ...ctx.coll.talks.map[logFor]} : null;
@@ -335,10 +367,10 @@
         <${UI.Check} label="Mine" checked=${mine} onChange=${setMine}/>
       </div>
       ${!ctx.coll.talks.ready ? html`<${UI.Empty} text="Loading."/>`
-        : shown.length ? html`<div class="talk-list">${shown.map(t => html`<${Row} key=${t.id} ctx=${ctx} t=${t} today=${today} onOpen=${setOpen} onLog=${setLogFor}/>`)}</div>`
+        : shown.length ? html`<div class="card talk-list">${shown.map(t => html`<${Row} key=${t.id} ctx=${ctx} t=${t} today=${today} onOpen=${setOpen} onLog=${setLogFor}/>`)}</div>`
         : html`<${UI.Card}><${UI.Empty} text=${q.trim() ? 'Nobody matches "' + q.trim() + '".' : f === 'due' ? 'No follow-ups due. Add the next person above.' : 'Nobody here yet. Add the first person above.'}/><//>`}
       ${pros && !ctx.viewAs ? html`<div class="row tiny sub" style=${{gap: '10px'}}>
-        <span>You have ${pros} people in your private prospects.</span>
+        <span>${pros === 1 ? '1 person in your private prospects is' : pros + ' people in your private prospects are'} not on this list yet.</span>
         <button type="button" class="linky tiny" id="talk-bring" disabled=${busy} onClick=${bring}>Bring them into this list</button>
       </div>` : null}
       ${open ? html`<${TalkDrawer} key=${open} ctx=${ctx} id=${open} onClose=${close}/>` : null}

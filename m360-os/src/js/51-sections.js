@@ -3,15 +3,26 @@
 'use strict';
 (function () {
   const {html, React, U, UI} = M;
-  /* a number in metal (metal-fx MetalText) */
-  const MetalNum = ({children, size, weight, color}) => html`<span class="fx-num"><${M.fx.MetalText} size=${size} weight=${weight} color=${color}>${children}<//></span>`;
   const {useState, useMemo} = React;
 
   const Embed = ({page, id}) => {
     const P = M.pages[page];
     return P ? html`<div class="embedded"><${P} id=${id || null}/></div>` : null;
   };
-  const Mini = ({v, l, hot, metal}) => html`<span class=${'chipline' + (metal ? ' fx-mini' : '')}>${metal && M.fx ? html`<${MetalNum} size=${14} weight=${600} color=${hot ? M.fx.FLAME : undefined}>${String(v)}<//>` : html`<b class=${'num' + (hot ? ' flame-t' : '')}>${v}</b>`} ${l}</span>`;
+  /* v40: the design's lede under a section title (design/m360-os-v7.html .lede): the section's live numbers in one
+     line, and what needs you in flame with an arrow that glides to it */
+  const goTo = sel => {
+    const el = document.querySelector(sel);
+    if (!el) return;
+    if (M.chrome && M.chrome.glideTo) M.chrome.glideTo(el, () => { M.chrome.flash([el]); if (M.mark && M.mark.lookAt) M.mark.lookAt(el); });
+    else el.scrollIntoView({behavior: 'smooth', block: 'start'});
+  };
+  const Lede = ({parts, need, needLabel, target, children}) => html`<p class="lede">
+    ${parts && parts.length ? html`<span class="lede-n">${parts.map((x, i) => html`<${React.Fragment} key=${i}>${i ? ', ' : ''}<b class="num">${x.v}</b> ${x.l}<//>`)}.</span>` : null}
+    ${need > 0 ? html`<button type="button" class="needl" onClick=${() => goTo(target)}><b class="num">${need}</b> ${needLabel}<i class="ar"/></button>` : null}
+    ${children || null}
+  </p>`;
+  const today = () => U.dateLabel(new Date()).toLowerCase();
   const SPARK = '\u2726';
   /* the effects, standing down to the plain element when the fx layer is missing */
   const fx = () => M.fx || null;
@@ -26,12 +37,14 @@
     const [project, setProject] = useState('');
     const [rows, setRows] = useState(null);
     const [busy, setBusy] = useState(false);
+    const [unread, setUnread] = useState('');
     const r = M.ai.useRun();
     const projects = Object.keys(ctx.coll.projects.map).map(id => ({id, ...ctx.coll.projects.map[id]})).filter(p => !p.archived && p.status !== 'done');
     const people = ctx.activeMembers;
     const profs = M.useProfiles(people.map(m => m.uid));
 
     async function breakDown() {
+      setUnread('');
       const nm = await M.ai.names(ctx);
       const tasks = ctx.coll.tasks.map;
       const load = people.map(m => {
@@ -45,8 +58,12 @@
         'working days are Monday to Saturday. ' + (p ? 'Use these project sections where they fit: ' + (p.sections || []).map(s => s.name).join(', ') + '. ' : '') +
         'Reply with only a JSON array of {"title": "starts with a verb", "owner": "first name", "due": "YYYY-MM-DD", "section": "section name or empty", "why": "under 12 words"}.\n\n' +
         'TEAM AND LOAD:\n' + load + '\n\nBRIEF:\n' + brief.slice(0, 6000), {signal: o.signal, cache: false}));
-      if (Array.isArray(out)) {
-        setRows(out.slice(0, 12).map((t, i) => {
+      /* v39: a list wrapped in an object ({"tasks": [...]}) is read too; an answer with no tasks in it says so */
+      const list = Array.isArray(out) ? out : (out && typeof out === 'object' ? (Object.values(out).find(Array.isArray) || null) : null);
+      const usable = (list || []).filter(t => t && typeof t === 'object' && String(t.title || '').trim());
+      if (out != null && !usable.length) setUnread('The answer held no tasks m360 could read. Tap Break it down to try again.');
+      if (usable.length) {
+        setRows(usable.slice(0, 12).map((t, i) => {
           const owner = M.ai.findMember(ctx, nm, t.owner) || ctx.uid;
           const sec = p ? ((p.sections || []).find(s => String(s.name).toLowerCase() === String(t.section || '').toLowerCase()) || (p.sections || [])[0] || {}).id || '' : '';
           return {k: i, on: true, title: String(t.title || '').slice(0, 140), owner, due: /^\d{4}-\d{2}-\d{2}$/.test(String(t.due || '')) ? t.due : '', section: sec, why: String(t.why || '')};
@@ -80,7 +97,7 @@
           options=${[{v: '', label: 'No project'}].concat(projects.map(p => ({v: p.id, label: p.name})))}/>
         <${Metal} kind="ink" block=${true}><button type="button" class="btn" disabled=${thinking || brief.trim().length < 12} onClick=${breakDown}>
           ${thinking ? html`<${M.Thinking} label="Breaking it down" state="composing"/>` : html`<span class="spark">${SPARK}</span> Break it down`}</button><//>
-        ${r.state === 'error' ? html`<div class="small flame-t">${M.ai.errLine(r.err, r.why)}</div>` : null}
+        ${r.state === 'error' ? html`<div class="small flame-t">${M.ai.errLine(r.err, r.why)}</div>` : unread ? html`<div class="small flame-t" id="b2t-unread">${unread}</div>` : null}
       </div>` : html`<div class="stack tight">
         <div class="small" style=${{fontWeight: 500}}>Untick anything you don't want. Change owners or dates, then send.</div>
         ${rows.map(t => html`<div class="focus" key=${t.k} style=${{alignItems: 'flex-start', flexWrap: 'wrap'}}>
@@ -115,19 +132,17 @@
     const dueWk = mineOpen.filter(t => t.due && t.due >= td && t.due <= wkEnd).length;
     const review = all.filter(t => t.status === 'review').length;
     const t = tab || 'tasks';
-    return html`<div class="stack" style=${{gap: '20px'}}>
-      <${M.SectionHero} title="Work"
+    return html`<div class="sect">
+      <${M.SectionHero} micro=${today()} title="Work"
         right=${M.ai.on(ctx) ? html`<button type="button" class="btn sec" onClick=${() => setB2t(true)}><span class="spark">${SPARK}</span> Brief to tasks</button>` : null}>
-        <div class="row" style=${{gap: '8px'}}>
-          <${Mini} v=${mineOpen.length} l="open on you" metal=${true}/>
-          <${Mini} v=${over} l="overdue" hot=${over > 0}/>
-          <${Mini} v=${dueWk} l="due this week"/>
-          <${Mini} v=${review} l="in review across the team"/>
-        </div>
+        <${Lede} parts=${[{v: mineOpen.length, l: 'open on you'}, {v: dueWk, l: 'due this week'}, {v: review, l: 'in review across the team'}]}
+          need=${over} needLabel="overdue" target=${t === 'tasks' ? '.tk.due' : '.sect-body'}/>
       <//>
       <${M.SectionTabs} section="work" active=${t}/>
-      ${t === 'projects' ? html`<${Embed} page="Projects" id=${id}/>` : t === 'week' ? html`<${Embed} page="Week"/>`
-        : t === 'calendar' ? html`<${Embed} page="Calendar"/>` : t === 'reviews' ? (M.parts.Reviews ? html`<${M.parts.Reviews}/>` : null) : html`<${Embed} page="Tasks" id=${id}/>`}
+      <div class="sect-body">
+        ${t === 'projects' ? html`<${Embed} page="Projects" id=${id}/>` : t === 'week' ? html`<${Embed} page="Week"/>`
+          : t === 'calendar' ? html`<${Embed} page="Calendar"/>` : t === 'reviews' ? (M.parts.Reviews ? html`<${M.parts.Reviews}/>` : null) : html`<${Embed} page="Tasks" id=${id}/>`}
+      </div>
       ${b2t ? html`<${BriefToTasks} onClose=${() => setB2t(false)}/>` : null}
     </div>`;
   }
@@ -139,25 +154,26 @@
     const live = clients.filter(c => c.status === 'live').length;
     const pitches = Object.keys(ctx.coll.pitches.map).map(k => ctx.coll.pitches.map[k]);
     const inPlay = pitches.filter(p => p.stage !== 'won' && p.stage !== 'lost').length;
-    const pm = ctx.isFounder && M.pitches && M.pitches.metrics ? M.pitches.metrics(ctx) : null;
-    const sh = ctx.isFounder && M.clients && M.clients.shares ? M.clients.shares(ctx) : [];
+    /* v39: money is the owner's alone (their finance doc is the only one loaded), so a second founder sees no money tiles */
+    const pm = ctx.isOwner && M.pitches && M.pitches.metrics ? M.pitches.metrics(ctx) : null;
+    const sh = ctx.isOwner && M.clients && M.clients.shares ? M.clients.shares(ctx) : [];
     const mrr = sh.reduce((n, r) => n + (r.monthly || 0), 0);
     const t = tab || 'talks';
     /* the older views still open by their hash; they sit behind one quiet line under the tabs */
     const older = [{h: '#prospects', l: 'Prospects'}, {h: '#crm', l: 'CRM table'}, {h: '#handshake', l: 'LinkedIn desk'}, {h: '#base', l: 'Database'}];
-    return html`<div class="stack" style=${{gap: '20px'}}>
-      <${M.SectionHero} title="Accounts">
-        <div class="row" style=${{gap: '8px'}}>
-          <${Mini} v=${live} l=${live === 1 ? 'live client' : 'live clients'}/>
-          <${Mini} v=${inPlay} l=${inPlay === 1 ? 'pitch in play' : 'pitches in play'}/>
-          ${pm ? html`<${Mini} v=${U.inr(pm.weighted)} l="weighted pipeline" metal=${true}/>` : null}
-          ${ctx.isFounder ? html`<${Mini} v=${U.inr(mrr)} l="monthly revenue" metal=${true}/>` : null}
-        </div>
+    const parts = [{v: live, l: live === 1 ? 'live client' : 'live clients'}, {v: inPlay, l: inPlay === 1 ? 'pitch in play' : 'pitches in play'}]
+      .concat(pm ? [{v: U.inr(pm.weighted), l: 'weighted pipeline'}] : [])
+      .concat(ctx.isOwner ? [{v: U.inr(mrr), l: 'monthly revenue'}] : []);
+    return html`<div class="sect">
+      <${M.SectionHero} micro=${today()} title="Accounts">
+        <${Lede} parts=${parts}/>
       <//>
       <${M.SectionTabs} section="accounts" active=${t}/>
-      ${t === 'talks' ? (M.pages.Talks ? html`<${Embed} page="Talks" id=${id}/>` : null)
-        : t === 'pipeline' ? html`<${Embed} page=${M.pages.Proposals ? 'Proposals' : 'Pitches'}/>` : t === 'prospects' ? html`<${Embed} page="Prospects" id=${id}/>` : t === 'crm' && M.parts.CRM ? html`<${M.parts.CRM}/>` : t === 'handshake' ? html`<${Embed} page="Handshake"/>` : html`<${Embed} page="Clients" id=${id}/>`}
-      <div class="row tiny sub" style=${{gap: '14px'}} id="accounts-older">
+      <div class="sect-body">
+        ${t === 'talks' ? (M.pages.Talks ? html`<${Embed} page="Talks" id=${id}/>` : null)
+          : t === 'pipeline' ? html`<${Embed} page=${M.pages.Proposals ? 'Proposals' : 'Pitches'}/>` : t === 'prospects' ? html`<${Embed} page="Prospects" id=${id}/>` : t === 'crm' && M.parts.CRM ? html`<${M.parts.CRM}/>` : t === 'handshake' ? html`<${Embed} page="Handshake"/>` : html`<${Embed} page="Clients" id=${id}/>`}
+      </div>
+      <div class="sect-more" id="accounts-older">
         <span>More tools</span>
         ${older.map(o => html`<button key=${o.h} type="button" class="linky tiny" onClick=${() => M.nav(o.h)}>${o.l}</button>`)}
       </div>
@@ -216,18 +232,16 @@
     Object.keys(ctx.coll.kudos.map).forEach(u => ((ctx.coll.kudos.map[u] || {}).given || []).forEach(k => { if (k.at >= from) kudos++; }));
     const online = Object.keys(ctx.online || {}).length;
     const t = tab || 'feed';
-    return html`<div class="stack" style=${{gap: '20px'}}>
-      <${M.SectionHero} title="Vibe">
-        <div class="row" style=${{gap: '8px'}}>
-          <${Mini} v=${posts} l=${posts === 1 ? 'post this week' : 'posts this week'}/>
-          <${Mini} v=${kudos} l="kudos this week" metal=${true}/>
-          <${Mini} v=${online} l="online now"/>
-        </div>
+    return html`<div class="sect">
+      <${M.SectionHero} micro=${today()} title="Vibe">
+        <${Lede} parts=${[{v: posts, l: posts === 1 ? 'post this week' : 'posts this week'}, {v: kudos, l: 'kudos this week'}, {v: online, l: 'online now'}]}/>
       <//>
       <${M.SectionTabs} section="vibe" active=${t}/>
-      ${t === 'feed' ? html`<${Wrapped}/>` : null}
-      ${t === 'crew' ? html`<${Embed} page="People" id=${id}/>` : t === 'pulse' ? html`<${Embed} page="Voice"/>` : t === 'scores' ? html`<${Embed} page="Scores"/>` : t === 'music' ? html`<${Embed} page="Music"/>`
-        : t === 'office' ? (M.pages.Office ? html`<${M.pages.Office} scope="team"/>` : null) : html`<${Embed} page="Feed"/>`}
+      <div class="sect-body">
+        ${t === 'feed' ? html`<${Wrapped}/>` : null}
+        ${t === 'crew' ? html`<${Embed} page="People" id=${id}/>` : t === 'pulse' ? html`<${Embed} page="Voice"/>` : t === 'scores' ? html`<${Embed} page="Scores"/>` : t === 'music' ? html`<${Embed} page="Music"/>`
+          : t === 'office' ? (M.pages.Office ? html`<${M.pages.Office} scope="team"/>` : null) : html`<${Embed} page="Feed"/>`}
+      </div>
     </div>`;
   }
 
@@ -242,19 +256,17 @@
     const pts = (M.points && M.points.pointsFor) ? M.points.pointsFor(ctx, ctx.uid, q.from, q.to) : {total: 0, badges: []};
     const level = 1 + Math.floor(Math.max(0, pts.total) / 60);
     const t = tab || 'profile';
-    return html`<div class="stack" style=${{gap: '20px'}}>
+    return html`<div class="sect">
       <${M.SectionHero} micro=${(ctx.member && ctx.member.empId) || 'me'}
         title=${html`<${UI.Name} id=${ctx.uid} fallback="You"/>`}
         sub=${(ctx.member && ctx.member.title) ? ctx.member.title + (ctx.member.pod ? ', ' + ctx.member.pod : '') : null}
         right=${html`<${UI.Avatar} id=${ctx.uid} size=${72}/>`}>
-        <div class="row" style=${{gap: '8px'}}>
-          <${Mini} v=${'Level ' + level} l=${pts.total + ' points this quarter'} metal=${true}/>
-          <${Mini} v=${inStreak} l="day streak" metal=${true}/>
-          <${Mini} v=${eodStreak} l="EOD lines in a row"/>
-          ${(pts.badges || []).map(b => M.fx ? html`<${M.fx.MetalBadge} key=${b}>${String(b)}<//>` : html`<span key=${b} class="pill ink">${b}</span>`)}
-        </div>
+        <${Lede} parts=${[{v: 'Level ' + level, l: 'with ' + pts.total + ' points this quarter'}, {v: inStreak, l: 'day streak'}, {v: eodStreak, l: 'EOD lines in a row'}]}>
+          ${(pts.badges || []).map(b => html`<span key=${b} class="pill ink">${b}</span>`)}
+        <//>
       <//>
       <${M.SectionTabs} section="me" active=${t}/>
+      <div class="sect-body">
       ${t === 'profile' && M.parts.ProfileCard ? html`<${UI.Fold} title="Your profile" summary="photo, pronouns, city, bio, links, birthday" id="fold-profile"><${M.parts.ProfileCard}/><//>` : null}
       ${t === 'leave' ? html`<${Embed} page="Leave"/>` : t === 'handbook' ? html`<${Embed} page="Handbook" id=${id}/>` : t === 'notes' ? html`<${Embed} page="Notes" id=${id}/>`
         : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>` : t === 'trophies' ? (M.parts.Trophies ? html`<${M.parts.Trophies}/>` : null)
@@ -265,6 +277,7 @@
       ${t === 'profile' && M.parts.EmailCard ? html`<${UI.Fold} title="Your email" summary="for sign-in links" id="fold-email"><${M.parts.EmailCard}/><//>` : null}
       ${t === 'profile' && M.parts.DeviceCard ? html`<${UI.Fold} title="Your devices" summary="where you are signed in" id="fold-devices"><${M.parts.DeviceCard}/><//>` : null}
       ${t === 'profile' ? (M.meCards || []).map((C, i) => html`<${C} key=${i}/>`) : null}
+      </div>
     </div>`;
   }
 
@@ -298,9 +311,7 @@
         ${castOpen && Sheet ? html`<${Sheet} uid=${ctx.uid} onClose=${() => setCastOpen(false)}/>` : null}
         <div class="row between">
           <span>Look</span>
-          <div class="theme-seg" role="group" aria-label="Theme">
-            ${[['auto', 'Auto'], ['light', 'Paper'], ['dark', 'Ink']].map(([v, l]) => html`<button key=${v} type="button" class=${theme === v ? 'on' : ''} aria-pressed=${theme === v} onClick=${() => M.theme.set(v)}>${l}</button>`)}
-          </div>
+          <${UI.Seg} sm=${true} options=${[{v: 'auto', label: 'Auto'}, {v: 'light', label: 'Paper'}, {v: 'dark', label: 'Ink'}]} value=${theme} ariaLabel="Theme" onChange=${v => M.theme.set(v)}/>
         </div>
         <div class="row between">
           <span>Sounds</span>
@@ -309,36 +320,27 @@
         </div>
         <div class="row between"><span>Deep work this week</span><span class="num" style=${{fontWeight: 600}}>${Math.round(deep / 6) / 10}h</span></div>
         <div class="row between">
-          <span>The buddy speaks</span>
+          <span>m360 AI speaks its answers</span>
           <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${voiceOn ? 'on' : 'off'} ariaLabel="Buddy voice"
-            onChange=${v => { M.prefs.set('buddyVoice', v === 'on' ? '1' : '0'); setVoiceOn(v === 'on'); if (v === 'on' && M.speech) M.speech.say('Hi, I am here whenever you need me.'); }}/>
+            onChange=${v => { M.prefs.set('buddyVoice', v === 'on' ? '1' : '0'); setVoiceOn(v === 'on'); if (v === 'on' && M.speech) M.speech.say('Answers will be read out loud.'); }}/>
         </div>
         <div class="row between">
           <span>Nudges on the phone</span>
           <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${haptic ? 'on' : 'off'} ariaLabel="Haptics"
             onChange=${v => { M.haptic.set(v === 'on'); setHaptic(v === 'on'); if (v === 'on') M.haptic.buzz('done'); }}/>
         </div>
-        <div class="row between fx-bell-row">
+        <div class="row between">
           <span>Message previews in notices</span>
-          <span class="row nowrap fx-bell-pair">
-            ${M.fx ? html`<${M.fx.Bell} id="prefs-bell-previews" size="sm" badge=${false} label="Ring with the line" offLabel="Who only" onLabel="Who and what" pressed=${previews}
-              onChange=${on => { if (M.notices) M.notices.setPreviews(on); setPreviews(on); }}/>` : null}
-            <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'Show'}, {v: 'off', label: 'Hide'}]} value=${previews ? 'on' : 'off'} ariaLabel="Message previews"
-              onChange=${v => { if (M.notices) M.notices.setPreviews(v === 'on'); setPreviews(v === 'on'); }}/>
-          </span>
+          <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'Show'}, {v: 'off', label: 'Hide'}]} value=${previews ? 'on' : 'off'} ariaLabel="Message previews"
+            onChange=${v => { if (M.notices) M.notices.setPreviews(v === 'on'); setPreviews(v === 'on'); }}/>
         </div>
-        <div class="row between fx-bell-row">
+        <div class="row between">
           <span>Notices for every room message</span>
-          <span class="row nowrap fx-bell-pair">
-            ${M.fx ? html`<${M.fx.Bell} id="prefs-bell-rooms" size="sm" badge=${false} label="Ring for each room line" offLabel="Mentions only" onLabel="Every line" pressed=${allRooms}
-              onChange=${on => { M.prefs.set('noticeAll', on ? '1' : '0'); setAllRooms(on); }}/>` : null}
-            <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${allRooms ? 'on' : 'off'} ariaLabel="Room notices"
-              onChange=${v => { M.prefs.set('noticeAll', v === 'on' ? '1' : '0'); setAllRooms(v === 'on'); }}/>
-          </span>
+          <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${allRooms ? 'on' : 'off'} ariaLabel="Room notices"
+            onChange=${v => { M.prefs.set('noticeAll', v === 'on' ? '1' : '0'); setAllRooms(v === 'on'); }}/>
         </div>
         <div class="row between"><span>Bubbles while m360 is in another window</span>
-          ${perm === 'default' ? (M.fx ? html`<${M.fx.Bell} id="notify-ask" size="sm" badge=${false} offLabel="Allow" onLabel="Allowed" pressed=${false} onChange=${() => M.notices && M.notices.ask().then(p => setPerm(p || 'denied'))}/>`
-            : html`<button type="button" class="linky small" id="notify-ask" onClick=${() => M.notices && M.notices.ask().then(p => setPerm(p || 'denied'))}>Allow</button>`)
+          ${perm === 'default' ? html`<${UI.Btn} kind="sec" sm=${true} id="notify-ask" onClick=${() => M.notices && M.notices.ask().then(p => setPerm(p || 'denied'))}>Allow<//>`
             : perm === 'granted' ? html`<span class="pill ink" id="notify-state">on</span>`
             : perm === 'denied' ? html`<span class="tiny ink62" id="notify-state">blocked in this browser's site settings</span>`
             : html`<span class="tiny ink62" id="notify-state">not on this browser</span>`}</div>
@@ -351,20 +353,23 @@
 
   /* ---------- Admin ---------- */
   function Admin() {
-    return html`<div class="stack" style=${{gap: '20px'}}>
-      <${M.SectionHero} color="ink" micro=${'founder' + (window.M360_BUILD ? ' · build ' + window.M360_BUILD : '')} title="Admin"
-        sub="Team, rules, corrections, the activity log, payroll export and your super controls."/>
+    return html`<div class="sect">
+      <${M.SectionHero} micro=${'founder' + (window.M360_BUILD ? ', build ' + window.M360_BUILD : '')} title="Admin">
+        <p class="lede"><span class="lede-n">Team, rules, corrections, the activity log, payroll export and your super controls.</span></p>
+      <//>
+      <div class="sect-body">
       ${M.parts.AiKeyCard ? html`<${UI.Fold} title="m360 AI" summary="your Anthropic key, and Check the AI" id="fold-ai"><${M.parts.AiKeyCard}/><//>`
         : M.parts.AiCheck ? html`<${UI.Fold} title="m360 AI" summary="check that the AI answers" id="fold-ai"><${UI.Card} id="ai-card" title="m360 AI">
             <p class="small ink62" style=${{marginTop: 0}}>Here the AI runs on each person's own claude.ai account. Check that it answers, and see what Anthropic says when it does not.</p>
             <${M.parts.AiCheck}/>
           <//><//>` : null}
       ${M.parts.MailCard ? html`<${UI.Fold} title="Email sending" summary="Resend key and sender" id="fold-mail"><${M.parts.MailCard}/><//>` : null}
-      ${M.parts.VoiceCard ? html`<${UI.Fold} title="The buddy's voice" summary="a natural voice for the cursor buddy" id="fold-voice"><${M.parts.VoiceCard}/><//>` : null}
+      ${M.parts.VoiceCard ? html`<${UI.Fold} title="m360 AI's voice" summary="a natural voice for m360 AI" id="fold-voice"><${M.parts.VoiceCard}/><//>` : null}
       ${M.parts.GoogleCard ? html`<${UI.Fold} title="Google Workspace" summary="mail, calendar, meetings and drive for everyone" id="fold-google"><${M.parts.GoogleCard}/><//>` : null}
       ${M.parts.BrowserCard ? html`<${UI.Fold} title="The browser" summary="reading mode, m360 Desktop, the frame helper" id="fold-browser"><${M.parts.BrowserCard}/><//>` : null}
       ${(M.adminCards || []).map((C, i) => html`<${UI.Fold} key=${i} title=${C.foldTitle || 'Radar settings'} summary=${C.foldSummary || 'keywords, sources, channels'} id=${'fold-admin-' + i}><${C}/><//>`)}
       <${Embed} page="Desk"/>
+      </div>
     </div>`;
   }
 

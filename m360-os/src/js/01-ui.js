@@ -78,20 +78,42 @@
 
   /* ---------- primitives ---------- */
   const UI = M.UI = {};
-  /* true inside a phone fold's body: the hot fold carries the beam, so a card in it is drawn flat */
+  /* true inside a phone fold's body: the fold carries the card's frame, so a card in it is drawn flat */
   const FoldCtx = UI.FoldCtx = React.createContext(false);
 
-  UI.Card = function Card({title, action, flame, className, children, id}) {
-    const inFold = React.useContext(FoldCtx);
-    const card = html`<section id=${id} class=${'card' + (flame ? ' flame' : '') + (className ? ' ' + className : '')}>
+  /* v7 card: white, 20 radius, a 1px ring at 10 percent, 24px in, a pointer spotlight on the rim (below).
+     `flame` (or `need`) marks a card that needs you with the 2px flame line on its top edge; `lift` makes a
+     clickable card rise 2px under the pointer. The border beam is retired. */
+  UI.Card = function Card({title, action, flame, need, lift, className, children, id, style}) {
+    const cls = 'card' + (flame || need ? ' flame' : '') + (lift ? ' lift' : '') + (className ? ' ' + className : '');
+    return html`<section id=${id} class=${cls} style=${style}>
       ${(title || action) ? html`<div class="card-head">
         ${title ? html`<h2 class="card-title">${title}</h2>` : null}
         ${action || null}
       </div>` : null}
       ${children}
     </section>`;
-    return flame && !inFold && M.fx && M.fx.Beam ? html`<${M.fx.Beam} on=${true}>${card}<//>` : card;
   };
+
+  /* the spotlight: a soft ring of ink that follows the pointer round the rim of a card. One listener for
+     the page, one write per frame, mice only */
+  try {
+    let raf = 0, ev = null;
+    const paint = () => {
+      raf = 0;
+      const e = ev;
+      const c = e && e.target && e.target.closest ? e.target.closest('.card, .ai-card, .fold') : null;
+      if (!c) return;
+      const r = c.getBoundingClientRect();
+      c.style.setProperty('--mx', Math.round(e.clientX - r.left) + 'px');
+      c.style.setProperty('--my', Math.round(e.clientY - r.top) + 'px');
+    };
+    document.addEventListener('pointermove', e => {
+      if (e.pointerType && e.pointerType !== 'mouse') return;
+      ev = e;
+      if (!raf) raf = requestAnimationFrame(paint);
+    }, {passive: true});
+  } catch (e) { /* no pointer events: the cards stay still */ }
 
   /* phones: one column, thumbs, short attention. Sections fold behind a one line summary. */
   const phoneMq = () => { try { return window.matchMedia('(max-width: 860px)'); } catch (e) { return null; } };
@@ -124,17 +146,18 @@
       </button>
       ${show ? html`<div class="fold-body"><${FoldCtx.Provider} value=${true}>${children}<//></div>` : null}
     </section>`;
-    return hot && M.fx && M.fx.Beam ? html`<${M.fx.Beam} on=${true}>${fold}<//>` : fold;
+    return fold;
   };
 
   UI.Micro = function Micro({children, plain}) {
     return html`<div class=${'micro' + (plain ? ' plain' : '')}>${children}</div>`;
   };
 
-  /* the primary button (no kind) is cast in liquid metal (metal-fx, flame tinted); secondary, ghost and
-     flame buttons stay as they are */
-  UI.Btn = function Btn({kind, sm, disabled, onClick, children, type, title, ariaLabel, id}) {
-    const cls = 'btn' + (kind === 'sec' ? ' sec' : kind === 'ghost' ? ' ghost' : kind === 'flame' ? ' flame' : '') + (sm ? ' sm' : '');
+  /* v7 buttons (css.css): primary ink, fully round, 40px (32 small), flame under the pointer; sec white with a
+     ring that turns ink; ghost a 32px ring pill; flame for the one loud action. `cap` sets the label in caps.
+     The primary keeps its layout host from the retired metal (M.fx.Metal draws the plain button) */
+  UI.Btn = function Btn({kind, sm, cap, disabled, onClick, children, type, title, ariaLabel, id}) {
+    const cls = 'btn' + (kind === 'sec' ? ' sec' : kind === 'ghost' ? ' ghost' : kind === 'flame' ? ' flame' : '') + (sm ? ' sm' : '') + (cap ? ' cap' : '');
     const b = html`<button type=${type || 'button'} id=${id} class=${cls} disabled=${!!disabled} onClick=${onClick} title=${title} aria-label=${ariaLabel}>${children}</button>`;
     return !kind && M.fx && M.fx.Metal ? html`<${M.fx.Metal} kind="ink">${b}<//>` : b;
   };
@@ -157,12 +180,61 @@
     return html`<span class=${cls} title=${title}>${children}</span>`;
   };
 
+  /* a segmented control: round segments on a warm track; an ink pill slides to the active one on the
+     spring. Until the pill is placed (and for any .seg drawn by hand) the active segment is ink itself */
   UI.Seg = function Seg({options, value, onChange, sm, ariaLabel}) {
-    return html`<div class=${'seg' + (sm ? ' sm' : '')} role="tablist" aria-label=${ariaLabel}>
+    const ref = React.useRef(null);
+    const pill = React.useRef(null);
+    const n = (options || []).length;
+    React.useLayoutEffect(() => {
+      const root = ref.current, p = pill.current;
+      if (!root || !p) return undefined;
+      const place = () => {
+        const a = root.querySelector('.seg-btn.active');
+        if (!a || !a.offsetWidth) { root.classList.remove('slide'); return; }
+        p.style.width = a.offsetWidth + 'px';
+        p.style.height = a.offsetHeight + 'px';
+        p.style.transform = 'translate3d(' + a.offsetLeft + 'px,' + a.offsetTop + 'px,0)';
+        if (!root.classList.contains('slide')) {
+          /* the first placement lands where it is; every later one slides */
+          p.style.transition = 'none';
+          void p.offsetWidth;
+          p.style.transition = '';
+          root.classList.add('slide');
+        }
+      };
+      place();
+      let ro = null;
+      if (typeof ResizeObserver !== 'undefined') { ro = new ResizeObserver(place); ro.observe(root); }
+      return () => { if (ro) ro.disconnect(); };
+    }, [value, n]);
+    return html`<div ref=${ref} class=${'seg' + (sm ? ' sm' : '')} role="tablist" aria-label=${ariaLabel}>
+      <span ref=${pill} class="seg-pill" aria-hidden="true"/>
       ${options.map(o => html`<button key=${o.v} type="button" role="tab" aria-selected=${o.v === value}
         class=${'seg-btn' + (o.v === value ? ' active' : '')}
         onClick=${() => onChange(o.v)}>${o.label}</button>`)}
     </div>`;
+  };
+
+  /* a section head: the eyebrow with a flame index number (01 needs you), a pill or controls on the right,
+     a 1px ink rule under it */
+  UI.SectionHead = function SectionHead({n, label, pill, hot, children, id}) {
+    const num = n == null ? '' : String(n).padStart(2, '0');
+    return html`<div class="sh" id=${id}>
+      <span class="eb">${num ? html`<i>${num}</i>` : null}<span>${label}</span></span>
+      ${pill != null || children ? html`<span class="sh-r">${pill != null ? html`<span class=${'pill' + (hot ? ' flame' : '')}>${pill}</span>` : null}${children || null}</span>` : null}
+    </div>`;
+  };
+
+  /* a big number: 72px light, the denominator at 26 percent ink; `money` (or a long value) sets it at 40 */
+  UI.BigNum = function BigNum({value, of, money, className}) {
+    const long = money || String(value == null ? '' : value).length > 5;
+    return html`<span class=${'bignum' + (long ? ' money' : '') + (className ? ' ' + className : '')}><b>${value}</b>${of != null ? html`<span class="den">/${of}</span>` : null}</span>`;
+  };
+
+  /* a band: warm or dark, 28 radius; the only grounds that are not paper */
+  UI.Band = function Band({tone, id, className, children}) {
+    return html`<section id=${id} class=${'band ' + (tone === 'dark' ? 'dark' : 'warm') + (className ? ' ' + className : '')}>${children}</section>`;
   };
 
   let fieldSeq = 0;
@@ -209,11 +281,52 @@
       onChange=${e => onChange && onChange(e.target.checked)}/><span>${label}</span></label>`;
   };
 
-  /* A side panel on wide screens, a bottom sheet on phones: a grab handle that follows the
-     finger and closes the sheet after an 80px swipe down, and inputs that scroll clear of the
-     keyboard when focused. */
-  const SWIPE_CLOSE = 80;
-  UI.Drawer = function Drawer({open, onClose, title, children, footer, head}) {
+  /* The glass sheet: every drawer and modal (design/sheet-and-avatar.js, css.css .gs). Wide screens: a 520px
+     glass panel 12px from the right edge (720 with `wide`), a 26px light title, a round close button, the
+     content rising in, a scrim. 900px and below: a bottom sheet with a grab handle that follows the finger
+     and closes past a 90px drag, and inputs that scroll clear of the keyboard. Esc and the scrim close it.
+     While any sheet is open the page carries html.gs-open (the island queues its news behind it) and
+     'm360:sheet' events say when one opens or closes.
+     The API is the one every caller already uses (open, onClose, title, footer, head) plus `wide`. The close
+     itself is immediate, as before; a ghost copy of the sheet (no ids, inert, hidden from assistive tech)
+     slides away on top while the page carries on. */
+  const SWIPE_CLOSE = 90;
+  let sheetsOpen = 0;
+  const sheetCount = d => {
+    sheetsOpen = Math.max(0, sheetsOpen + d);
+    try { document.documentElement.classList.toggle('gs-open', sheetsOpen > 0); } catch (e) { /* no document */ }
+  };
+  const sheetNews = (open, el) => { try { window.dispatchEvent(new CustomEvent('m360:sheet', {detail: {open, el, count: sheetsOpen}})); } catch (e) { /* old browser */ } };
+  function ghostOut(node) {
+    if (!node || !node.isConnected || M.reduced()) return;
+    try {
+      const body = node.querySelector('.drawer-body');
+      const top = body ? body.scrollTop : 0;
+      const g = node.cloneNode(true);
+      g.classList.remove('drawer', 'drag');
+      g.classList.add('gs-ghost');
+      ['role', 'aria-modal', 'aria-label'].forEach(a => g.removeAttribute(a));
+      g.setAttribute('aria-hidden', 'true');
+      g.setAttribute('inert', '');
+      g.querySelectorAll('iframe, video, audio, object, embed').forEach(e => e.remove());
+      g.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+      g.querySelectorAll('[name]').forEach(e => e.removeAttribute('name'));
+      const sc = document.createElement('div');
+      sc.className = 'gs-scrim gs-ghost';
+      sc.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(sc);
+      document.body.appendChild(g);
+      const gb = g.querySelector('.drawer-body');
+      if (gb) gb.scrollTop = top;
+      void g.offsetWidth; /* start where the sheet was, a drag included */
+      g.style.transition = '';
+      g.style.transform = '';
+      g.classList.add('out');
+      sc.classList.add('out');
+      setTimeout(() => { g.remove(); sc.remove(); }, 340);
+    } catch (e) { /* the close itself has already happened */ }
+  }
+  UI.Drawer = function Drawer({open, onClose, title, children, footer, head, wide}) {
     const ref = React.useRef(null);
     const drag = React.useRef(null);
     /* attached as the drawer is committed (a layout effect), so an Escape pressed the instant it
@@ -226,45 +339,60 @@
       window.addEventListener('keydown', on);
       return () => window.removeEventListener('keydown', on);
     }, [open]);
+    React.useLayoutEffect(() => {
+      if (!open) return undefined;
+      sheetCount(1);
+      sheetNews(true, ref.current);
+      return () => { sheetCount(-1); sheetNews(false, null); };
+    }, [open]);
+    /* React hands the ref back as null while the sheet is still on the page, just before it goes: the
+       moment to leave the ghost behind */
+    const setRef = React.useCallback(el => {
+      if (el) { ref.current = el; return; }
+      const was = ref.current;
+      ref.current = null;
+      ghostOut(was);
+    }, []);
     if (!open) return null;
     const onDown = e => {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       drag.current = {y: e.clientY, dy: 0};
       try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* old browser */ }
-      if (ref.current) { ref.current.style.animation = 'none'; ref.current.style.transition = 'none'; }
+      if (ref.current) { ref.current.classList.add('drag'); ref.current.style.animation = 'none'; ref.current.style.transition = 'none'; }
     };
     const onMove = e => {
       const d = drag.current;
       if (!d || !ref.current) return;
       d.dy = Math.max(0, e.clientY - d.y);
-      ref.current.style.transform = 'translateY(' + d.dy + 'px)';
+      ref.current.style.transform = 'translate3d(0,' + d.dy + 'px,0)';
     };
     const onUp = () => {
       const d = drag.current;
       drag.current = null;
       if (!ref.current) return;
       if (d && d.dy > SWIPE_CLOSE) { onClose(); return; }
-      ref.current.style.transition = M.reduced() ? '' : 'transform .18s ease';
+      ref.current.classList.remove('drag');
+      ref.current.style.transition = M.reduced() ? '' : 'transform .5s var(--spring)';
       ref.current.style.transform = '';
     };
     const onFocus = e => {
       const t = e.target;
-      if (!t || !/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || window.innerWidth > 860) return;
+      if (!t || !/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || window.innerWidth > 900) return;
       setTimeout(() => { try { t.scrollIntoView({block: 'center', behavior: M.reduced() ? 'auto' : 'smooth'}); } catch (err) { /* fine */ } }, 320);
     };
-    /* the drawer always lives on the body: an ancestor with a transform (a card mid animation) would
-       otherwise trap a fixed drawer inside its own box */
-    const node = html`<div>
-      <div class="scrim" onClick=${onClose}/>
-      <div class="drawer" role="dialog" aria-modal="true" aria-label=${title} ref=${ref}>
-        <div class="sheet-handle" aria-hidden="true" onPointerDown=${onDown} onPointerMove=${onMove} onPointerUp=${onUp} onPointerCancel=${onUp}><i/></div>
-        <div class="drawer-head">
+    /* the sheet always lives on the body: an ancestor with a transform (a card mid animation) would
+       otherwise trap a fixed sheet inside its own box */
+    const node = html`<div class="gs-wrap">
+      <div class="scrim gs-scrim" onClick=${onClose}/>
+      <div class=${'drawer gs' + (wide ? ' wide' : '')} role="dialog" aria-modal="true" aria-label=${title} ref=${setRef}>
+        <div class="sheet-handle grab" aria-hidden="true" onPointerDown=${onDown} onPointerMove=${onMove} onPointerUp=${onUp} onPointerCancel=${onUp}><i/></div>
+        <div class="drawer-head gs-h">
           <h2>${title}</h2>
           <div class="row nowrap">${head || null}
-            <button type="button" class="iconbtn" aria-label="Close" onClick=${onClose}><${M.icons.x}/></button></div>
+            <button type="button" class="iconbtn shx" aria-label="Close" onClick=${onClose}><${M.icons.x}/></button></div>
         </div>
-        <div class="drawer-body" onFocus=${onFocus}>${children}</div>
-        ${footer ? html`<div class="drawer-foot">${footer}</div>` : null}
+        <div class="drawer-body gs-in" onFocus=${onFocus}>${children}</div>
+        ${footer ? html`<div class="drawer-foot gs-f">${footer}</div>` : null}
       </div>
     </div>`;
     const RD = window.ReactDOM;
@@ -305,13 +433,28 @@
       const Face = M.parts.CooFace;
       return html`<span class="av coo-av" style=${{width: s + 'px', height: s + 'px'}} title=${title || t}>${Face ? html`<${Face} size=${s} label=${t}/>` : null}</span>`;
     }
-    return html`<img class="av" width=${s} height=${s} style=${{width: s + 'px', height: s + 'px'}}
-      src=${avatarSrc(id, s, ctx, p)} alt=${p && p.name ? p.name : 'avatar'} title=${title || (p && p.name) || ''}/>`;
+    const src = avatarSrc(id, s, ctx, p);
+    const name = (p && p.name) || '';
+    if (src) {
+      return html`<img class="av" width=${s} height=${s} style=${{width: s + 'px', height: s + 'px'}}
+        src=${src} alt=${name || 'avatar'} title=${title || name}/>`;
+    }
+    /* v7 (design/sheet-and-avatar.js): no photo and no chosen head, so the initials on ink */
+    const t = initialsOf(name);
+    return html`<span class=${'av av-i' + (t ? '' : ' av0')} role="img" aria-label=${name || 'avatar'} title=${title || name}
+      style=${{width: s + 'px', height: s + 'px', fontSize: Math.max(11, Math.round(s * .36)) + 'px', letterSpacing: s < 26 ? '-.02em' : null}}>${t}</span>`;
   };
+  const initialsOf = n => {
+    const w = String(n || '').trim().split(/\s+/).filter(Boolean);
+    if (!w.length) return '';
+    return (w[0][0] + (w.length > 1 ? w[w.length - 1][0] : '')).toUpperCase();
+  };
+  UI.initials = initialsOf;
   /* what an avatar shows: the character head when the person chose it for their photo, else the photo, else
-     the head unless they chose the photo, else the profile picture. Clay never has a head here unless the
-     person chose it for their photo (M.heads holds styled looks only), so it never replaces a chip on its own.
-     Kaavish's flame detail is drawn at 40 px and up */
+     the head unless they chose the photo, else a real profile picture (a web address). Clay never has a head
+     here unless the person chose it for their photo (M.heads holds styled looks only), so it never replaces a
+     chip on its own. The drawn initials chip the platform hands back (a data: picture) gives way to the v7
+     initials on ink, so the answer there is empty. Kaavish's flame detail is drawn at 40 px and up */
   function avatarSrc(id, s, ctx, p) {
     const photo = M.photos && M.photos[id];
     let head = M.heads && M.heads[id];
@@ -320,7 +463,8 @@
     if (head && pic === 'char') return head;
     if (photo) return photo;
     if (head && pic !== 'photo') return head;
-    return p ? p.avatarUrl : M.AV_FALLBACK;
+    const url = p && p.avatarUrl;
+    return url && /^https?:/i.test(url) ? url : '';
   }
   UI.AvatarRow = function AvatarRow({ids, size, max}) {
     const list = (ids || []).slice(0, max || 6);
@@ -336,12 +480,12 @@
     return html`<span data-uid=${id || ''}>${(p && p.name) || fallback || 'Someone'}</span>`;
   };
 
-  /* an empty state: a sleeping bot beside the line (bot-avatars), held still so nothing moves on a line
-     that says there is nothing here; while something loads, the working thinking orb (thinking-orbs) */
+  /* an empty state (v7): one quiet line at 45 percent ink, nothing moving on a line that says there is
+     nothing here; while something loads, the working thinking orb (thinking-orbs) */
   UI.Empty = function Empty({text}) {
     const loading = /^loading|^opening|^checking|^fetching/i.test(String(text || ''));
     const fx = M.fx;
-    const mark = !fx ? null : loading ? html`<${fx.Orb} state="working" size=${20}/>` : html`<${fx.Bot} feature="empty" state="sleeping" size=${24} paused=${true} label="nothing here yet"/>`;
+    const mark = fx && loading ? html`<${fx.Orb} state="working" size=${20}/>` : null;
     return html`<div class=${'sub small empty-line' + (loading ? ' is-loading' : '')}>${mark}<span>${text}</span></div>`;
   };
 

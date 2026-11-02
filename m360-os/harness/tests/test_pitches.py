@@ -94,7 +94,7 @@ def test(h):
     page.reload(); page.wait_for_selector('#pipeline-stages')
     h.roster(page, ('u_m1', 'u_m2'))
     page.wait_for_timeout(250)
-    check('Pipeline' in page.locator('h1.pgt').inner_text(), 'page title')
+    check('pipeline' in page.locator('h1.pgt').inner_text().lower(), 'page title')
     check(page.locator('.colm').count() == 7, 'seven stage columns')
     check(tile(page, 'kpi-weighted') == '₹0', 'weighted tile starts at zero, got %r' % tile(page, 'kpi-weighted'))
     check(tile(page, 'kpi-win') == 'not yet', 'win rate tile reads not yet without closed pitches')
@@ -279,7 +279,7 @@ def test(h):
     # 10. a member sees the board, no metrics bar and no value
     page.set_viewport_size({'width': 1280, 'height': 900})
     m1 = other_page(h, page, 'm1', 1280, '#pitches')
-    check('Pipeline' in m1.locator('h1.pgt').inner_text(), 'member opens pitches')
+    check('pipeline' in m1.locator('h1.pgt').inner_text().lower(), 'member opens pitches')
     check(m1.locator('.kpi-rail').count() == 0, 'no metrics bar for a member')
     check(m1.locator('.tcard', has_text=BRAND).count() == 1, 'member sees the card')
     check('₹' not in m1.inner_text('body'), 'no value shown to a member')

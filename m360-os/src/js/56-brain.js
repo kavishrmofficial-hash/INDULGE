@@ -1214,7 +1214,7 @@
     return true;
   }
 
-  /* ---------- the buddy's own prefs card: memory, hello, follow up ---------- */
+  /* ---------- m360 AI's own prefs card: memory, hello, follow up (v40: the design's ink segments, no robot) ---------- */
   function BuddyPrefs() {
     const ctx = M.useCtx();
     const doc = M.ai.useCache(ctx);
@@ -1226,19 +1226,17 @@
     const drop = async t => { setBusy(t); try { await forget(ctx, t); } catch (e) { /* gone already */ } setBusy(''); };
     const setHelloOn = on => { M.prefs.set('buddyHello', on ? '1' : '0'); setHello(on); };
     const setFollowOn = on => { M.prefs.set('buddyFollow', on ? '1' : '0'); setFollow(on); };
-    return html`<${UI.Card} id="buddy-prefs" title="The buddy" action=${html`<${M.fx.Bot} feature="buddy" size=${32} label="m360, the buddy" className="ai-bot"/>`}>
+    return html`<${UI.Card} id="buddy-prefs" title="m360 AI">
       <div class="stack tight">
         <div class="row between">
           <span>Says hello once a day</span>
-          ${M.fx.has() || M.parts.BellToggle ? html`<${M.fx.Bell} id="buddy-hello-bell" size="sm" label="Buddy hello" offLabel="Say hello" onLabel="Says hello daily" pressed=${hello} onChange=${setHelloOn}/>`
-            : html`<${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${hello ? 'on' : 'off'} ariaLabel="Buddy hello"
-            onChange=${v => setHelloOn(v === 'on')}/>`}
+          <span id="buddy-hello-seg"><${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${hello ? 'on' : 'off'} ariaLabel="Buddy hello"
+            onChange=${v => setHelloOn(v === 'on')}/></span>
         </div>
         <div class="row between">
           <span>Keeps listening after it answers out loud</span>
-          ${M.fx.has() || M.parts.BellToggle ? html`<${M.fx.Bell} id="buddy-follow-bell" size="sm" label="Buddy follow up" offLabel="Stops after" onLabel="Keeps listening" pressed=${follow} onChange=${setFollowOn}/>`
-            : html`<${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${follow ? 'on' : 'off'} ariaLabel="Buddy follow up"
-            onChange=${v => setFollowOn(v === 'on')}/>`}
+          <span id="buddy-follow-seg"><${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${follow ? 'on' : 'off'} ariaLabel="Buddy follow up"
+            onChange=${v => setFollowOn(v === 'on')}/></span>
         </div>
         <div class="stack tight" style=${{marginTop: '4px'}}>
           <div class="row between"><span class="row nowrap" style=${{gap: '8px'}}>${busy ? html`<${M.fx.Orb} state="weaving" size=${20} label="forgetting"/>` : null}What it remembers about you</span><span class="tiny ink62">${items.length} of ${MEMORY_MAX}</span></div>

@@ -1,29 +1,14 @@
-/* phones: bottom sheets, 40px targets, tabs, segments and stat rows that scroll sideways under a soft
-   edge, chip rows that wrap, the board as snap panes, the compact home hero, and room for the keyboard.
-   Everything here sits under 860px, the width where the sidebar gives way to the topbar and tabbar. */
+/* phones: bottom sheets, tabs, segments and stat rows that scroll sideways under a soft edge, chip rows
+   that wrap, the board as snap panes, the compact home hero, and room for the keyboard. Everything here sits
+   under 860px. v40: the capsule, the tab bar and the menu are the shell's (05-v7-shell.css), and buttons,
+   ghost pills, chips, segments and tabs keep the sizes design/m360-os-v7.html gives them at 390 (40px
+   buttons, 32px small and ghost, 28px chips, 36px tabs); nothing here pads them taller. */
 @media (max-width:860px){
-  /* ---------- chrome ---------- */
-  .topbar{top:0; height:auto; min-height:56px; padding:env(safe-area-inset-top,0px) 12px 0 16px}
-  .topbar .iconbtn{width:44px; height:44px; border-radius:14px}
-  .topbar .iconbtn.dark{border-radius:999px}
-  .topbar .rowbtn{min-width:44px; min-height:44px; display:inline-flex; align-items:center; justify-content:center}
-  .topbar .row.nowrap{gap:4px}
-  .tabbar{padding:4px 4px calc(4px + env(safe-area-inset-bottom))}
-  .tab-item{min-height:48px; padding:5px 2px 4px; justify-content:center}
-  .tab-item .badge{top:1px}
-
-  /* ---------- tap targets: 40px everywhere, 36px for inline text links ---------- */
-  .main button{min-height:40px}
-  .main .iconbtn{width:40px; height:40px}
-  .btn.sm{min-height:40px; padding:0 14px}
-  .chip,.emoji-btn,.lens button,.theme-seg button,.seg-btn,.seg.sm .seg-btn{min-height:40px}
-  .chipline{height:36px; padding:0 12px}
-  button.chipline{min-height:40px; height:40px}
   .mood{min-height:42px}
-  .theme-seg,.seg{border-radius:14px}
-  .theme-seg button{border-radius:12px}
   .linky{display:inline-flex; align-items:center; min-height:36px}
-  .main .side-item{min-height:44px}
+  /* a line that is a link keeps the design's 36px text-link height (its .lnkb), the browser's tab close 32px */
+  .main button.rowbtn.row{min-height:36px}
+  .web-tab-x{min-width:32px; min-height:32px; justify-content:center; align-items:center}
   /* the tick keeps its 22px circle inside a 36px button */
   .main button.tick{width:36px; height:36px; min-height:36px; border:0; background:transparent; position:relative; isolation:isolate}
   .main button.tick::before{content:""; position:absolute; inset:7px; z-index:-1; border-radius:999px; background:var(--paper); box-shadow:inset 0 0 0 1.5px var(--line2)}
@@ -39,15 +24,13 @@
      brings the active tab into view. ---------- */
   .tbl-wrap,.heat{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent); mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent); padding-right:32px}
   .seg{max-width:100%; -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 20px),transparent); mask-image:linear-gradient(90deg,#000 calc(100% - 20px),transparent)}
-  .tabs.section-tabs{flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; gap:0 18px; -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent); mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
+  .tabs.section-tabs{flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent); mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
   .tabs.section-tabs::-webkit-scrollbar{display:none}
-  .tabs.section-tabs .tab{min-height:44px; flex:none}
-  .hero:not(.section-hero) > div > .row:not(.between):not(.nowrap),.home-hero .hero-chips{flex-wrap:wrap; gap:8px}
+  .tabs.section-tabs .tab{flex:none}
+  .hero:not(.section-hero) > div > .row:not(.between):not(.nowrap){flex-wrap:wrap; gap:8px}
   .section-hero > div:last-child > .row{flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent); mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent)}
   .section-hero > div:last-child > .row::-webkit-scrollbar{display:none}
   .section-hero > div:last-child > .row > *,.section-hero .chipline{flex:none}
-  /* Break's sparks row sets its wrap inline, so its one row needs the weight */
-  .section-hero .brk-sparks{flex-wrap:nowrap !important}
   /* the soft edge shows only while more waits to the right: a row that fits, or one scrolled to its
      end, keeps its last tab, segment or stat crisp */
   @supports (animation-timeline:scroll()){
@@ -85,15 +68,11 @@
   .head-row > .row{justify-content:space-between}
   .hero .stat .v{font-size:22px; letter-spacing:-.03em}
 
-  /* ---------- the board: one column per pane, snap to each, a dot shows where you are ---------- */
+  /* ---------- the board: one column per pane, snap to each (the column widths are Work's, 08-v7-work.css) ---------- */
   .board-wrap{margin:0 calc(-1 * var(--pad-card)); padding:0 var(--pad-card) 6px; scroll-snap-type:x mandatory; scroll-padding:0 var(--pad-card); scrollbar-width:none; -webkit-overflow-scrolling:touch; position:relative}
   .board-wrap::-webkit-scrollbar{display:none}
   .board{gap:10px}
-  .colm{width:min(86vw,calc(100vw - 92px)); scroll-snap-align:start; scroll-snap-stop:always}
-  .board-wrap::before{content:""; position:sticky; left:0; display:block; height:4px; margin:0 0 10px; border-radius:999px; background:radial-gradient(circle,var(--flame) 0 2.5px,transparent 3px) no-repeat 0% 50% / 10px 10px, linear-gradient(var(--line),var(--line)) no-repeat 0 50% / 100% 1px}
-  @supports (animation-timeline:scroll()){
-    .board-wrap::before{animation:boardpos linear both; animation-timeline:scroll(nearest inline)}
-  }
+  .colm{scroll-snap-align:start; scroll-snap-stop:always}
 
   /* ---------- bottom sheets ---------- */
   .drawer{max-height:92vh; max-height:92dvh; border-radius:var(--r-drawer) var(--r-drawer) 0 0; touch-action:pan-y}
@@ -103,22 +82,11 @@
   .drawer-foot{position:sticky; bottom:0; background:var(--paper); padding-bottom:calc(14px + env(safe-area-inset-bottom))}
   .drawer-body{padding-bottom:16px}
   .drawer .grid2{grid-template-columns:1fr}
-  /* the New menu as a sheet: the same items, full width */
-  .newmenu.newmenu-sheet{position:static; padding:0; border:0; box-shadow:none; background:transparent}
-  .newmenu-sheet .newmenu-item{min-height:52px}
   .pal-scrim{padding:12px 12px 12px; align-items:flex-start}
   .pal{max-height:calc(100vh - 24px); max-height:calc(100dvh - 24px)}
   .breathe{min-height:100dvh}
 
-  /* ---------- home: a compact hero, then one column ---------- */
-  .home-hero{padding:20px 20px 18px}
-  .home-hero .hero-in{grid-template-columns:1fr; gap:16px}
-  .home-hero .hero-greet{padding-top:2px}
-  .home-hero .micro{white-space:nowrap; flex-wrap:wrap; letter-spacing:.1em; row-gap:2px}
-  .home-hero .hi{font-size:clamp(32px,9.6vw,40px)}
-  .home-hero .hero-chips{margin-top:16px}
-  .home-hero .hero-panel{padding:16px 16px 14px; border-radius:16px}
-  .home-hero .btn.xl{height:52px}
+  /* ---------- home: the v7 head is 07-v7-home.css's own ---------- */
   /* the five moods share one row; each column keeps its word on one line while the row has room */
   .hero-panel .moods{display:grid; grid-template-columns:repeat(5,minmax(0,auto)); gap:6px}
   .hero-panel .mood{padding:0 4px}
@@ -149,7 +117,6 @@
   .sheet-handle,.install-hint{display:none}
 }
 @media (max-width:400px){
-  .tab-item{font-size:11px}
   /* Talk is a microphone alone here; the button still reads Talk to a screen reader */
   .ask-in .micbtn{font-size:0; gap:0; padding:0 11px}
 }
@@ -170,13 +137,9 @@
   from,96%{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - var(--edge,24px)),transparent); mask-image:linear-gradient(90deg,#000 calc(100% - var(--edge,24px)),transparent)}
   to{-webkit-mask-image:none; mask-image:none}
 }
-@keyframes boardpos{from{background-position:0% 50%, 0 50%} to{background-position:100% 50%, 0 50%}}
 
-/* fingers: nothing tappable under 40px on a phone */
+/* fingers: the keyboard keys and the browser's tab close keep their size on a phone */
 @media (max-width:600px){
   .key{min-width:30px; height:42px}
-  .section-tabs .tab{min-height:40px}
-  .iconbtn{min-width:40px; min-height:40px}
   .web-tab-close{min-width:32px; min-height:32px}
-  .emoji-btn{height:36px; padding:0 10px}
 }

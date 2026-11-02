@@ -123,7 +123,8 @@ def t(h):
     p.locator('#profile-card').get_by_role('button', name='Remove photo').click()
     p.locator('#profile-save').click()
     p.wait_for_function('() => (window.__db.get("me/u_m1") || {}).photo === ""')
-    p.wait_for_function('() => !document.querySelector(".side-foot img.av").src.startsWith("data:image/jpeg")')
+    # v7: with no photo the avatar is the initials on ink (a span), or a head the person chose (an img)
+    p.wait_for_function('() => { const a = document.querySelector(".side-foot .av"); return !!a && !(a.getAttribute("src") || "").startsWith("data:image/jpeg"); }')
     check(doc(p, 'me/u_m1').get('city') == 'Mumbai', 'removing the photo lost the other fields')
 
     # ---- phone ----

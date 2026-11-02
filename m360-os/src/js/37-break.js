@@ -109,26 +109,19 @@
     .sort((a, b) => b.week - a.week);
   const setHide = (ctx, hide) => ctx.W.merge('play/' + ctx.uid, {hide: !!hide}).catch(() => {});
 
-  /* ---------- the hero: this week, the streak, the level, the squad ---------- */
+  /* ---------- the lede: this week, the streak, the level, in the design's one line (v40) ---------- */
   function Sparks() {
     const ctx = M.useCtx();
     const me = mine(ctx);
-    const care = html`<${M.fx.Bot} feature="care" size=${30} label="m360 care"/>`;
-    if (me.hide) return html`<div class="brk-sparks row" id="sparks" style=${{gap: '12px', alignItems: 'center'}}>
-      ${care}<span class="tiny ink62">Scoreboard hidden. Everything still counts.</span>
+    if (me.hide) return html`<p class="lede brk-sparks" id="sparks">
+      <span class="lede-n">Scoreboard hidden. Everything still counts.</span>
       <button type="button" class="linky tiny" id="sparks-show" onClick=${() => setHide(ctx, false)}>Show it</button>
-    </div>`;
-    const sq = squadBoard(ctx);
-    const my = sq.find(s => s.mine), pos = sq.indexOf(my);
-    const place = pos === 0 ? 'leading' : pos === 1 ? 'second' : pos === 2 ? 'third' : 'fourth';
-    return html`<div class="brk-sparks row" style=${{gap: '14px', flexWrap: 'wrap', alignItems: 'center'}} id="sparks">
-      ${care}
-      <span class="chipline"><b class="num"><${M.fx.MetalText} size=${15}>${String(me.week)}<//></b> sparks this week <span class="tiny ink62 num">${me.lastWeek ? 'last week ' + me.lastWeek : WEEK_GOAL + ' shows up'}</span></span>
-      <span class="chipline"><b class="num"><${M.fx.MetalText} size=${15}>${String(me.streak)}<//></b> workday streak${me.covered ? html` <span class="tiny ink62">${U.fmtDay(me.covered).split(' ')[0]} covered</span>` : me.best > me.streak ? html` <span class="tiny ink62 num">best ${me.best}</span>` : ''}</span>
-      <span class="chipline"><b><${M.fx.MetalText} size=${15}>${me.level.name}<//></b> <span class="tiny ink62 num">${me.level.weeks} ${me.level.weeks === 1 ? 'week' : 'weeks'} shown up${me.level.next ? ', ' + me.level.next + ' at ' + me.level.nextAt : ''}</span></span>
-      ${my && sq.length > 1 ? html`<span class="chipline" id="squad-chip"><b>${my.name}</b> <span class="tiny ink62 num">${my.week} sparks, ${place}</span></span>` : null}
+    </p>`;
+    const streakNote = me.covered ? ', ' + U.fmtDay(me.covered).split(' ')[0] + ' covered' : '';
+    return html`<p class="lede brk-sparks" id="sparks">
+      <span class="lede-n"><b class="num">${me.week}</b> sparks this week, <b class="num">${me.streak}</b> workday streak${streakNote}, <b>${me.level.name}</b> after <b class="num">${me.level.weeks}</b> ${me.level.weeks === 1 ? 'week' : 'weeks'} shown up.</span>
       <button type="button" class="linky tiny" id="sparks-hide" onClick=${() => setHide(ctx, true)}>Hide</button>
-    </div>`;
+    </p>`;
   }
 
   /* the squads this month, this week's totals; a person sees their own squad's members, never a ranking of people */
@@ -136,7 +129,7 @@
     const ctx = M.useCtx();
     const sq = squadBoard(ctx);
     if (sq.length < 2) return html`<${UI.Card} title="The team this week" id="squads">
-      <div class="row nowrap fxh-talk"><${M.fx.Bot} feature="care" size=${28} label="m360 care"/><div class="small">Squads start at six people. Until then it is everyone against the week: <b class="num"><${M.fx.MetalText} size=${15}>${String(sq[0] ? sq[0].week : 0)}<//></b> sparks so far.</div></div>
+      <div class="small">Squads start at six people. Until then it is everyone against the week: <b class="num">${sq[0] ? sq[0].week : 0}</b> sparks so far.</div>
     <//>`;
     return html`<${UI.Card} title="Squads this week" id="squads" action=${html`<span class="tiny ink62">drawn fresh every month, reset every Monday</span>`}>
       <div class="stack tight">
@@ -153,17 +146,20 @@
   function Break({tab}) {
     const t = tab || 'play';
     const P = M.parts;
-    return html`<div class="stack" style=${{gap: '20px'}} id="break">
-      <${M.SectionHero} micro="the reset room" title="Break" sub="One shared puzzle, a five minute game, a breath that is actually five minutes, a walk with a problem in your pocket. Built on the trials that replicated, with the grade on every card.">
+    /* v40: the section head every section uses (51-sections.js): the label, the title with its flame stop, one lede line */
+    return html`<div class="sect" id="break">
+      <${M.SectionHero} micro="the reset room" title="Break">
         <${Sparks}/>
       <//>
       <${M.SectionTabs} section="break" active=${t}/>
+      <div class="sect-body">
       ${t === 'reset' && P.BreakReset ? html`<${P.BreakReset}/>` : t === 'care' && P.BreakCare ? html`<${P.BreakCare}/>` : t === 'reflect' && P.BreakReflect ? html`<${P.BreakReflect}/>`
         : html`<div class="stack" style=${{gap: '18px'}} id="break-daily">
             ${P.Daily ? html`<${P.Daily}/>` : null}
             <div class="split">${P.Doubles ? html`<${P.Doubles}/>` : null}${P.Reaction ? html`<${P.Reaction}/>` : null}</div>
             <${Squads}/>
           </div>`}
+      </div>
     </div>`;
   }
 

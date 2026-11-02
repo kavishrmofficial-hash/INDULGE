@@ -6,14 +6,16 @@
   .qr-fields>.field:first-child{grid-column:1 / -1}
 }
 
-.qr-strip{position:relative; height:12px; margin-top:18px; border-radius:999px; background:var(--col); overflow:hidden}
-.qr-strip>span{position:absolute; top:0; bottom:0}
+/* v40: the day bar of the design's attendance rows: a hairline, the quiet run in ink, the save and the flag as dots */
+.qr-strip{position:relative; height:24px; margin-top:18px}
+.qr-strip::before{content:""; position:absolute; left:0; right:0; top:50%; height:1px; background:var(--g08)}
+.qr-strip>span{position:absolute; top:50%}
 /* the lunch hour, hatched: it never counts */
-.qr-lunch{background:repeating-linear-gradient(135deg, var(--line2) 0 3px, transparent 3px 7px)}
+.qr-lunch{height:8px; margin-top:-4px; border-radius:4px; background:repeating-linear-gradient(135deg, var(--g18) 0 2px, transparent 2px 5px)}
 /* the quiet run up to the flag */
-.qr-quiet{background:color-mix(in srgb, var(--flame) 26%, transparent)}
-.qr-strip>.qr-save{top:2px; bottom:auto; width:8px; height:8px; margin-left:-4px; border-radius:999px; background:var(--ink)}
-.qr-strip>.qr-flag{width:4px; margin-left:-2px; border-radius:999px; background:var(--flame)}
+.qr-quiet{height:2px; margin-top:-1px; border-radius:2px; background:var(--ink)}
+.qr-strip>.qr-save{width:7px; height:7px; margin:-3.5px 0 0 -3.5px; border-radius:50%; background:var(--ink)}
+.qr-strip>.qr-flag{width:7px; height:7px; margin:-3.5px 0 0 -3.5px; border-radius:50%; background:var(--flame)}
 .qr-ends{display:flex; justify-content:space-between; gap:8px; margin-top:6px}
 .qr-ends>span{white-space:nowrap}
 @media (prefers-reduced-motion:no-preference){

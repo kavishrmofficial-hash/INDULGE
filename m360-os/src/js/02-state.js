@@ -127,16 +127,18 @@
     const isFounder = !viewAs && (!!me.isOwner || !!(member0 && member0.role === 'founder' && member0.active !== false && (window.M360_STANDALONE || me.canEdit !== false)));
     const locked = !!(settingsDoc.data && settingsDoc.data.locked);
 
-    /* writes: refused client side while the workspace is locked (members) or a preview is on (everyone) */
+    /* writes: refused client side while the workspace is locked (everyone but the owner, v39: admins too, the
+       way the server refuses them) or a preview is on (everyone). A founder can still save settings, so they can lift the lock */
+    const owns = !viewAs && !!me.isOwner;
     const W = React.useMemo(() => {
-      if (!viewAs && !(locked && !isFounder)) return baseW;
+      if (!viewAs && !(locked && !owns)) return baseW;
       const msg = viewAs ? PREVIEW_MSG : LOCK_MSG;
-      const allowed = p => !viewAs && (p === 'me/' + uid || p === 'join/' + uid);
+      const allowed = p => !viewAs && (p === 'me/' + uid || p === 'join/' + uid || (isFounder && p === 'settings/app'));
       const refuse = () => { M.toast(msg, true); return Promise.reject({code: 'locked', message: msg}); };
       const wrap = fn => (p, d) => allowed(p) ? fn(p, d) : refuse();
       const as = (who, o) => { const b = baseW.as(who, o); return {set: wrap(b.set), update: wrap(b.update), merge: wrap(b.merge)}; };
       return {set: wrap(baseW.set), update: wrap(baseW.update), merge: wrap(baseW.merge), del: wrap(baseW.del), as};
-    }, [baseW, locked, isFounder, uid, viewAs]);
+    }, [baseW, locked, isFounder, owns, uid, viewAs]);
 
     /* profile photos ride in me/<uid>.photo; avatars everywhere read M.photos */
     React.useEffect(() => {

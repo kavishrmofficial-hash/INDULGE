@@ -100,7 +100,7 @@
     const hrMap = (ctx.coll.hr && ctx.coll.hr.map) || {};
     for (const uid of Object.keys(hrMap)) for (const lid of Object.keys((hrMap[uid] || {}).letters || {})) {
       const l = hrMap[uid].letters[lid];
-      if (l && l.status === 'draft' && Date.now() - (l.at || 0) > 86400000) push('bklet:' + lid, 'books', l.at || 0, 'A ' + (l.kind || 'letter') + ' letter for ' + ((l.vars && l.vars.who) || 'someone') + ' has waited a day unsigned', '#letters/' + uid.replace(/^cand:/, ''));
+      if (l && l.status === 'draft' && Date.now() - (l.at || 0) > 86400000) push('bklet:' + lid, 'books', l.at || 0, (b.aOr ? b.aOr(l.kind) : 'A') + ' ' + (l.kind || 'letter') + ' letter for ' + ((l.vars && l.vars.who) || 'someone') + ' has waited a day unsigned', '#letters/' + uid.replace(/^cand:/, ''));
     }
     if (today.slice(8) === '01' || today.slice(8) === '02') {
       const d = U.parseYmd(today); d.setDate(0);

@@ -43,7 +43,7 @@
       ${onStop ? html`<button type="button" class="linky tiny" onClick=${onStop}>Stop</button>` : null}
     </div>`;
   }
-  const Grade = ({g}) => html`<${UI.Pill} kind=${g === 'well supported' ? 'flame' : 'ink'}>${g}<//>`;
+  const Grade = ({g}) => html`<${UI.Pill} kind=${g === 'well supported' ? 'ink' : undefined}>${g}<//>`;
   const keep = (ctx, priv, kind, brief, text) => {
     const list = (((priv && priv.data) || {}).catches || []).concat([{at: Date.now(), kind, brief: String(brief || '').slice(0, 140), text: String(text || '').slice(0, 2000)}]).slice(-30);
     return ctx.W.merge(privPath(ctx), {catches: list, updated: Date.now()});

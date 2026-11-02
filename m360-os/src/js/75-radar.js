@@ -267,15 +267,16 @@
   }
 
   /* ---------- small parts ---------- */
-  const Chip = ({v, l, hot}) => html`<span class="chipline"><b class=${'num' + (hot ? ' flame-t' : '')}><${M.fx.MetalText} size=${15} weight=${700} color=${hot ? M.fx.FLAME : undefined}>${String(v)}<//></b> ${l}</span>`;
+  /* a count in the header (design .pl): a round pill, flame when it needs you */
+  const Chip = ({v, l, hot}) => html`<span class=${'pill pl tn' + (hot ? ' hot' : '')}>${String(v)} ${l}</span>`;
   const NewTab = ({href, children, className}) => html`<a class=${className} href=${safeUrl(href) || '#'} target="_blank" rel="noopener">${children}</a>`;
 
   /* the claude.ai copy cannot fetch: say so once, in ink */
   function OffCard({what}) {
-    return html`<section class="card ink" id="radar-off">
-      <${UI.Micro}>live feeds<//>
-      <div class="card-title" style=${{marginTop: '6px'}}>Live feeds run on your EdgeOne address</div>
-      <p class="small" style=${{margin: '8px 0 0', color: 'rgba(255,255,255,.72)', maxWidth: '60ch'}}>This copy of m360 runs inside claude.ai and has no way to reach the web. Open m360 on the EdgeOne address for the ${what}. The directory below is the same list it reads.</p>
+    return html`<section class="card" id="radar-off">
+      <span class="lab">live feeds</span>
+      <div class="big2" style=${{marginTop: '12px', fontWeight: 500}}>Live feeds run on your EdgeOne address</div>
+      <p class="small ink62" style=${{margin: '8px 0 0', maxWidth: '60ch'}}>This copy of m360 runs inside claude.ai and has no way to reach the web. Open m360 on the EdgeOne address for the ${what}. The directory below is the same list it reads.</p>
     </section>`;
   }
 
@@ -302,7 +303,7 @@
     const [busy, setBusy] = useState('');
     const src = it.source || (names && names[it.sourceId]) || hostOf(it.link) || 'source';
     const act = async (k, fn) => { if (busy) return; setBusy(k); try { await fn(); } catch (e) { /* toasted by the write layer */ } setBusy(''); };
-    return html`<article class=${'card rd-item' + (it.hot ? ' hot' : '')} data-id=${it.id} data-hot=${it.hot ? '1' : '0'}>
+    return html`<article class=${'card rd-item' + (it.hot ? ' hot need' : '')} data-id=${it.id} data-hot=${it.hot ? '1' : '0'}>
       <div class="row" style=${{gap: '8px'}}>
         <${UI.Pill}>${src}<//>
         ${it.lane && LANE_LABEL[it.lane] ? html`<${UI.Pill} kind="ink">${LANE_LABEL[it.lane]}<//>` : null}
@@ -345,7 +346,6 @@
     const btn = html`<button type="button" class=${'btn sm' + (text ? ' sec' : '')} disabled=${busy || !top.length} onClick=${go}>${busy ? html`<${M.Thinking} state="composing"/>` : html`<span class="spark">${SPARK}</span> ${text ? 'Write it again' : 'What moved this week'}`}</button>`;
     return html`<${M.fx.Beam}><section class="ai-card" id="radar-brief">
       <div class="row between ai-head">
-        <${M.fx.Bot} feature="radar" state=${busy ? 'working' : 'default'} size=${36} label="m360, the radar brief" className="ai-bot"/>
         <div class="grow"><${UI.Micro}>m360 ai<//><div class="card-title" style=${{marginTop: '4px'}}>Radar brief</div></div>
         ${text ? btn : html`<${M.fx.Metal} kind="ink">${btn}<//>`}
       </div>
@@ -404,13 +404,13 @@
             ? html`<${M.fx.Beam} key=${it.id}><${NewsItem} it=${it} saved=${!!saved[it.id]} names=${names} top=${i < 4}/><//>`
             : html`<${NewsItem} key=${it.id} it=${it} saved=${!!saved[it.id]} names=${names} top=${i < 4}/>`)
           : html`<${UI.Empty} text=${busy ? 'Fetching the stream.' : needle ? 'Nothing matches that search.' : chip === 'saved' ? 'Nothing saved yet. Save a story from the stream.' : chip === 'hot' ? (keywords.length ? 'No story matches your watch keywords right now.' : 'Add watch keywords in Admin to light up stories here.') : laneEmpty || (chip === 'world' ? 'Nothing from outside India right now.' : 'Nothing in the stream yet.')}/>`}
-      </div>` : html`<${UI.Card} title="Sources" id="radar-sources">
+      </div>` : html`<${UI.Band} tone="warm"><${UI.Card} title="Sources" id="radar-sources" action=${html`<span class="pill pl tn">${dir.length} on</span>`}>
         <div class="stack tight">${dir.map(s => html`<div class="listrow" key=${s.id}>
           <span class="grow"><${NewTab} className="linky" href=${s.url}>${s.name}<//></span>
           <span class="row nowrap" style=${{gap: '4px'}}>${s.tags.map(t => html`<${UI.Pill} key=${t}>${t}<//>`)}</span>
         </div>`)}
         ${!dir.length ? html`<${UI.Empty} text="No source matches."/>` : null}</div>
-      <//>`}
+      <//><//>`}
     </div>`;
   }
 
@@ -424,7 +424,8 @@
     const sources = sourcesOf(ctx);
     const names = useMemo(() => { const m = {}; sources.forEach(s => { m[s.id] = s.name; }); return m; }, [sources]);
     return html`<div class="stack" style=${{gap: '14px'}}>
-      <${UI.Card} title="Awards season" id="awards-card" action=${html`<span class="tiny sub">Typical timing. Check the site for this year's dates.</span>`}>
+      <${UI.Band} tone="warm"><${UI.Card} title="Awards season" id="awards-card" action=${html`<span class="pill pl">typical timing</span>`}>
+        <p class="tiny ink62" style=${{margin: '0 0 8px'}}>Typical timing. Check the site for this year's dates.</p>
         <div class="tbl-wrap rd-awards"><table class="tbl" id="awards-table">
           <thead><tr><th>award</th><th>recognises</th><th>usually</th><th>site</th></tr></thead>
           <tbody>${AWARDS.map(a => html`<tr key=${a.name}>
@@ -432,7 +433,7 @@
             <td>${a.site ? html`<${NewTab} className="linky" href=${a.site}>${hostOf(a.site)}<//>` : html`<span class="ink62">ask the team</span>`}</td>
           </tr>`)}</tbody>
         </table></div>
-      <//>
+      <//><//>
       ${live() ? html`<div class="stack" id="awards-stream">
         <${UI.Micro}>awards in the news<//>
         ${items.length ? items.map(it => html`<${NewsItem} key=${it.id} it=${it} saved=${!!saved[it.id]} names=${names}/>`)
@@ -544,7 +545,7 @@
     const hot = items.filter(i => i.hot).length;
     const moves = india.filter(i => i.lane === 'people' || i.lane === 'accounts').length;
     const savedN = Object.keys(savedOf(ctx)).length;
-    return html`<div class="stack" style=${{gap: '20px'}}>
+    return html`<div class="stack fo fo-radar" style=${{gap: '24px'}}>
       <${M.SectionHero} micro="the outside world, India first" title="Radar" sub="Who won which account, who joined where, what launched, what campaign broke, and awards season.">
         <div class="row" style=${{gap: '8px'}}>
           ${live() ? html`<${Chip} v=${india.length} l="India stories"/>` : null}

@@ -4,14 +4,14 @@
 'use strict';
 (function () {
   const {html, React, U, UI} = M;
-  /* a number in metal (metal-fx MetalText) */
-  const MetalNum = ({children, size, weight, color}) => html`<span class="fx-num"><${M.fx.MetalText} size=${size} weight=${weight} color=${color}>${children}<//></span>`;
   const {useEffect} = React;
   const KEEP_MS = 30 * 86400000;
   /* an empty bin: the sleeping bot (bot-avatars) beside the line, the way every empty state reads */
   const Quiet = ({children}) => html`<div class="small ink62 empty-line">${M.fx ? html`<${M.fx.Bot} feature="empty" state="sleeping" size=${30} label="nothing here yet"/>` : null}<span>${children}</span></div>`;
-  /* the count in the bin, cast in metal (metal-fx) */
-  const Count = ({n, tail}) => html`<span class="row nowrap tiny ink62 num" style=${{gap: '6px'}}>${M.fx && n ? html`<${MetalNum} size=${16} weight=${600}>${String(n)}<//>` : String(n)}${tail || ''}</span>`;
+  /* the count in the bin (design .pl) */
+  const Count = ({n, tail}) => html`<span class="pill pl tn">${String(n)}${tail || ''}</span>`;
+  /* v40: a restore lands in the island with UNDO, which puts it back where it was */
+  const told = (msg, cap, undo) => (M.undoToast ? M.undoToast(msg, cap, undo) : M.toast(msg));
 
   function TrashCard() {
     const ctx = M.useCtx();
@@ -22,9 +22,11 @@
       list.filter(t => (Number(t.deletedAt) || 0) < Date.now() - KEEP_MS).forEach(t => ctx.W.del('tasks/' + t.id).catch(() => {}));
     }, [list.length]);
     if (!ctx.isFounder) return null;
-    const restore = t => ctx.W.update('tasks/' + t.id, {deleted: false, deletedBy: null, deletedAt: null, updated: Date.now()}).then(() => M.toast('Back on the board')).catch(() => {});
+    const restore = t => ctx.W.update('tasks/' + t.id, {deleted: false, deletedBy: null, deletedAt: null, updated: Date.now()})
+      .then(() => told('Back on the board', 'restored', () => ctx.W.update('tasks/' + t.id, {deleted: true, deletedBy: t.deletedBy || null, deletedAt: t.deletedAt || Date.now(), updated: Date.now()}).catch(() => {})))
+      .catch(() => {});
     const purge = t => ctx.W.del('tasks/' + t.id).then(() => M.toast('Gone for good')).catch(() => {});
-    return html`<${UI.Card} id="trash-card" title="Deleted tasks" action=${html`<${Count} n=${list.length} tail=" in the bin, thirty days"/>`}>
+    return html`<${UI.Card} id="trash-card" title="Deleted tasks" action=${html`<${Count} n=${list.length} tail=" in the bin"/>`}>
       ${list.length ? html`<div class="stack tight">
         ${list.map(t => html`<div key=${t.id} class="row between brk-row" id=${'trash-' + t.id}>
           <div class="grow" style=${{minWidth: 0}}>
@@ -45,7 +47,9 @@
     const arch = (ctx.coll.clients && ctx.coll.clients.archived) || {};
     const list = Object.keys(arch).map(id => ({id, ...arch[id]})).sort((a, b) => (b.archivedAt || 0) - (a.archivedAt || 0));
     if (!ctx.isFounder) return null;
-    const restore = c => ctx.W.update('clients/' + c.id, {archived: false, archivedAt: null, archivedBy: null, updated: Date.now()}).then(() => M.toast('Back in Clients')).catch(() => {});
+    const restore = c => ctx.W.update('clients/' + c.id, {archived: false, archivedAt: null, archivedBy: null, updated: Date.now()})
+      .then(() => told('Back in Clients', 'restored', () => ctx.W.update('clients/' + c.id, {archived: true, archivedAt: c.archivedAt || Date.now(), archivedBy: c.archivedBy || null, updated: Date.now()}).catch(() => {})))
+      .catch(() => {});
     return html`<${UI.Card} id="archived-clients" title="Archived clients" action=${html`<${Count} n=${list.length}/>`}>
       ${list.length ? html`<div class="stack tight">
         ${list.map(c => html`<div key=${c.id} class="row between brk-row" id=${'arch-' + c.id}>

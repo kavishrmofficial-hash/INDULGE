@@ -238,10 +238,10 @@ def qa(h):
         page.wait_for_timeout(500)
         if page.evaluate('location.hash') != '#home':
             problems.append('m1 was not redirected away from %s' % hsh)
-        if page.locator('.side-item', has_text='HQ').count() or page.locator('.side-item', has_text='Admin').count():
+        if page.locator('.side-item', has_text='Command').count() or page.locator('.side-item', has_text='Admin').count():
             problems.append('m1 sees founder sections in the sidebar')
     # every old link still lands in the right section
-    for old_hash, label in (('#today', 'Home'), ('#tasks', 'Work'), ('#clients', 'Accounts'), ('#feed', 'Vibe'), ('#desk', 'Admin')):
+    for old_hash, label in (('#today', 'Today'), ('#tasks', 'Work'), ('#clients', 'Accounts'), ('#feed', 'Vibe'), ('#desk', 'Admin')):
         h.go(page, 'founder', hash=old_hash, width=1280, seed=True)
         page.wait_for_timeout(300)
         if not page.locator('.side-item.active', has_text=label).count():

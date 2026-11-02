@@ -2,9 +2,7 @@
 'use strict';
 (function () {
   const {html, React, U, UI} = M;
-  /* a number in metal (metal-fx MetalText) */
-  const MetalNum = ({children, size, weight, color}) => html`<span class="fx-num"><${M.fx.MetalText} size=${size} weight=${weight} color=${color}>${children}<//></span>`;
-  const {useState, useMemo, useEffect} = React;
+  const {useState, useMemo} = React;
 
   const TOKENS = ['start', 'grace', 'eodCut', 'mondayCut', 'wfhCap', 'revCap', 'ackHours', 'blockerDays'];
 
@@ -69,7 +67,7 @@
       flushList(); para.push(line.trim());
     }
     flushList(); flushPara();
-    return html`<div class="hb">${nodes}</div>`;
+    return html`<div class="hb md">${nodes}</div>`;
   }
 
   function LiveRules({sectionId}) {
@@ -142,12 +140,6 @@
     const list = sections(ctx);
     const current = useMemo(() => list.find(s => s.id === id) || list[0] || null, [list, id]);
     const reads = readsOf(ctx, ctx.uid);
-    const [wide, setWide] = useState(() => (typeof window !== 'undefined' ? window.innerWidth > 860 : true));
-    useEffect(() => {
-      const on = () => setWide(window.innerWidth > 860);
-      window.addEventListener('resize', on);
-      return () => window.removeEventListener('resize', on);
-    }, []);
 
     const isUnread = s => (reads[s.id] || 0) < (s.updated || 0);
     const readers = current ? ctx.activeMembers.filter(m => m.uid !== ctx.founderUid
@@ -160,44 +152,39 @@
       <${UI.PageHead} micro="the source of truth" title="Handbook">
         ${ctx.isFounder ? html`<${UI.Btn} onClick=${() => setEdit('new')}>New section<//>` : null}
       <//>
-      <div class="grid2" style=${wide ? {gridTemplateColumns: '260px minmax(0,1fr)'} : null}>
-        <${UI.Card} title=${unread && M.fx ? html`<span class="row nowrap hb-sections">Sections<${M.fx.MetalBadge}>${unread + ' new'}<//></span>` : 'Sections'}>
-          <div class="stack tight">
-            ${list.length ? list.map(s => html`<button type="button" key=${s.id}
-              class=${'side-item' + (current && s.id === current.id ? ' active' : '')}
-              onClick=${() => M.nav('#handbook/' + s.id)}>
-              <span class="grow">${s.title}</span>
-              ${isUnread(s) ? html`<span class="dotflame"/>` : null}
-            </button>`) : html`<${UI.Empty} text="No sections yet."/>`}
-          </div>
-        <//>
+      <div class="hb-grid">
+        <nav class="hb-nav" aria-label="Sections">
+          ${unread ? html`<span class="lab hb-sections">${unread + ' new to read'}</span>` : null}
+          ${list.length ? list.map(s => html`<button type="button" key=${s.id}
+            class=${'hb-i' + (current && s.id === current.id ? ' on' : '')} aria-current=${current && s.id === current.id ? 'page' : undefined}
+            onClick=${() => M.nav('#handbook/' + s.id)}>
+            <span class="grow">${s.title}</span>
+            ${isUnread(s) ? html`<span class="dotflame" aria-label="new"/>` : null}
+          </button>`) : html`<${UI.Empty} text="No sections yet."/>`}
+        </nav>
 
-        ${current ? html`<${UI.Card}>
-          <div class="row between">
-            <div>
-              <h2 class="pgt">${current.title}</h2>
-              <div class="tiny ink62">updated ${current.updated ? U.timeAgo(current.updated) : 'never'}</div>
-            </div>
+        ${current ? html`<section class="card hb-r">
+          <div class="row between" style=${{alignItems: 'flex-start'}}>
+            <span class="lab">updated ${current.updated ? U.timeAgo(current.updated) : 'never'}</span>
             ${ctx.isFounder ? html`<div class="row nowrap">
               <${UI.Btn} kind="sec" sm=${true} onClick=${() => setEdit(current)}>Edit<//>
               <${UI.ConfirmBtn} onConfirm=${() => ctx.W.del('handbook/' + current.id).then(() => { M.toast('Deleted'); M.nav('#handbook'); })}>Delete<//>
             </div>` : null}
           </div>
-          <hr class="hair"/>
+          <h2 class="hb-t">${current.title}</h2>
           <${HandbookBody} body=${current.body}/>
           <${LiveRules} sectionId=${current.id}/>
-          <hr class="hair"/>
-          <div class="row between">
+          <div class="hb-f">
             ${meRead
               ? html`<${UI.Pill} kind="ink">Read<//>`
               : html`<${UI.Btn} onClick=${() => ctx.W.merge('acks/' + ctx.uid, {s: {[current.id]: Date.now()}})
                   .then(() => M.toast('Marked as read'))}>I've read this<//>`}
             ${ctx.isFounder ? html`<div class="row">
-              <span class="tiny ink62 num fx-readby">Read by ${M.fx ? html`<${MetalNum} size=${15} weight=${600}>${String(readers.length)}<//>` : readers.length} of ${others.length}</span>
+              <span class="tiny mut num fx-readby">Read by ${readers.length} of ${others.length}</span>
               ${readers.length ? html`<${UI.AvatarRow} ids=${readers.map(r => r.uid)}/>` : null}
             </div>` : null}
           </div>
-        <//>` : html`<${UI.Card}><${UI.Empty} text="No sections yet."/><//>`}
+        </section>` : html`<${UI.Card}><${UI.Empty} text="No sections yet."/><//>`}
       </div>
       ${edit ? html`<${EditDrawer} section=${edit === 'new' ? null : edit} onClose=${() => setEdit(null)}/>` : null}
     </div>`;

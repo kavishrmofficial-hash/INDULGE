@@ -6,4 +6,5 @@
 .fix-item{display:flex; flex-direction:column; gap:4px; padding:10px 0; border-bottom:1px solid var(--line); min-width:0}
 .fix-item:last-child{border-bottom:0}
 .fix-want{font-weight:500; overflow-wrap:anywhere}
-.fix-note{color:var(--ink); border-left:2px solid var(--flame); padding-left:8px}
+.fix-note{display:flex; gap:8px; align-items:baseline; color:var(--ink); padding:8px 12px; border-radius:12px; background:var(--warm)}
+.fix-note::before{content:""; flex:0 0 6px; width:6px; height:6px; border-radius:50%; background:var(--flame); transform:translateY(-1px)}

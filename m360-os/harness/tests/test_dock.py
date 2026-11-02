@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
-"""v32 test: the buddy dock, the pop-up, the phone sheet and voice mode.
+"""v32 test, v40 rewrite: the m360 AI sheet, the phone sheet and voice mode.
 
-The droid lives in the dock: a live canvas drawn at its CSS size times the device pixel ratio, never
-scaled by CSS, asleep out of hours, one hop when something new is for you. A click grows the pop-up out
-of it (a spring on transform and opacity), the input takes the caret, Escape shrinks it back and the
-caret returns to the character. With a long answer and ten receipts in the thread the pop-up fits the
-window at 1280x720 and 1440x900 in both themes: the head and the composer stay in view, the body
-scrolls, the answer folds to eight lines and the receipts to one line. The dock clears anything marked
-to avoid, sits beside an open drawer, and hides for the palette. Hold Ctrl + Option to talk: the chip,
-the live words, let go to send, a short line said back. A quick tap of the keys opens the panel to type.
-Escape stops listening before it closes anything. Conversation mode shows in the head, the dock and the
-tab title, listens after each answer, stops on "that's all" and when the window loses focus. The phone
-sheet at 390 (3x) listens at once, swipes away, and a long press is push to talk. Reduced motion keeps
-fades only. Screenshots land in the scratchpad when DOCK_SHOTS is set.
+v40 puts no character on the screen: the corner dock is hidden, nothing is drawn in it at any hour, and
+m360 AI opens from the Ask bar's m360 AI row (Ctrl+K) as the glass sheet, a 520px panel 12px from the
+right, top and bottom edges that slides in on a spring; the input takes the caret and Escape puts it away.
+With a long answer and ten receipts in the thread the sheet fits the window at 1280x720 and 1440x900 in
+both themes: the head and the composer stay in view, the body scrolls, the answer folds to eight lines
+and the receipts to one line. Over an open drawer it opens above the scrim. Hold Ctrl + Option to talk:
+the chip, the live words, let go to send, a short line said back. A quick tap of the keys opens the
+sheet to type. Escape stops listening before it closes anything. Conversation mode shows in the head and
+the tab title, listens after each answer, stops on "that's all" and when the window loses focus. Narrow
+windows get it as a bottom sheet; the phone (390, 3x) opens it from the tab bar's Ask, Talk listens, and
+a swipe puts it away. Reduced motion keeps fades only. Screenshots land in the scratchpad when DOCK_SHOTS is set.
 
 Run: cd m360-os && python3 harness/tests/test_dock.py
 """
@@ -118,6 +117,17 @@ def mode(page):
     return page.evaluate('() => M.buddy.state().mode')
 
 
+def open_ai(page):
+    """v40: m360 AI opens from the Ask bar's m360 AI row"""
+    page.wait_for_function('() => !!(window.M && M.assistant && M.assistant.opener)')
+    page.keyboard.press('Control+k')
+    page.locator('.pal-item[data-k="a-ai"]').click()
+    page.wait_for_selector('.buddy-bubble.agent-pop, #orb-screen')
+
+
+NO_CHARACTER = '() => { const b = document.querySelector("#buddy-dock .buddy-home"); return !(b && b.getClientRects().length) && !document.querySelector("#buddy-dock canvas"); }'
+
+
 def quiet_voice(page, said=True):
     page.evaluate('v => { window.__spoken = []; M.speech.say = async t => { window.__spoken.push(t); return v; }; }', said)
 
@@ -130,38 +140,30 @@ def test(h):
             raise AssertionError(msg)
         checks.append(msg)
 
-    # ---------- the pop-up fits, light and dark, at 1280x720 and 1440x900 ----------
+    # ---------- the m360 AI sheet fits, light and dark, at 1280x720 and 1440x900 ----------
     for (w, ht) in ((1280, 720), (1440, 900)):
         for dark in (False, True):
             ctx = new_ctx(h, w, ht, dark=dark)
             p = open_page(h, ctx, 'founder', '#home')
             h.seed_doc(p, 'data/users/u_founder/chat', thread())
-            p.wait_for_selector('#buddy-dock .buddy-home canvas')
+            p.wait_for_selector('#buddy-dock', state='attached')
             tag = '%dx%d %s' % (w, ht, 'dark' if dark else 'light')
             if w == 1280 and not dark:
-                # the living character: drawn at its size times the pixel ratio, never scaled by CSS
-                # the package draws its 56px body on a canvas half as big again, for the hops
-                cv = p.evaluate('() => { const c = document.querySelector("#buddy-dock canvas"); const r = c.getBoundingClientRect(); const b = document.querySelector(".dock-char").getBoundingClientRect(); return {w: c.width, cw: r.width, box: b.width, dpr: devicePixelRatio, t: getComputedStyle(document.querySelector(".dock-char")).transform}; }')
-                check(abs(cv['box'] - 56) < 1 and abs(cv['cw'] - 84) < 1 and cv['w'] == round(cv['cw'] * cv['dpr']) and cv['t'] == 'none', 'the droid is 56px, drawn sharp: %r' % cv)
-                check(p.get_attribute('#buddy-dock .buddy-home', 'aria-label') == 'Ask m360' and 'Hold Ctrl and Option' in p.get_attribute('#buddy-dock .buddy-home', 'title'), 'the dock keeps its name and says how to talk')
-                d = rect(p, '#buddy-dock .buddy-home')
-                check(abs(w - d['r'] - 24) < 2 and abs(ht - d['b'] - 24) < 10, 'the dock sits bottom right: %r' % d)
-                check(p.evaluate('() => getComputedStyle(document.querySelector(".main > .content")).paddingBottom') == '96px', 'the content keeps room for the dock')
+                check(p.evaluate(NO_CHARACTER), 'no character in the corner')
                 shot(p, 'dock-closed-1280-light')
-            p.locator('#buddy-dock .buddy-home').click()
+            open_ai(p)
             p.wait_for_selector('.buddy-bubble.agent-pop .panel-composer')
             if w == 1280 and not dark:
                 names = p.evaluate('() => document.querySelector(".buddy-bubble.agent-pop").getAnimations().map(a => a.animationName)')
-                check('dockpop' in names and 'dockfade' in names, 'the pop-up grows out of the character: %r' % names)
+                check('gsin' in names, 'the sheet slides in from the right: %r' % names)
                 p.wait_for_function('() => document.activeElement && document.activeElement.id === "buddy-input"')
                 check(True, 'opening puts the caret in the box')
             p.wait_for_timeout(700)
             pop = rect(p, '.buddy-bubble.agent-pop')
             head = rect(p, '.buddy-bubble .panel-head')
             comp = rect(p, '.buddy-bubble .panel-composer')
-            check(pop['t'] >= 0 and pop['b'] <= ht and pop['l'] >= 0 and pop['r'] <= w, tag + ': the pop-up fits the window %r' % pop)
+            check(abs(pop['w'] - 520) < 1 and abs(w - pop['r'] - 12) < 1 and abs(pop['t'] - 12) < 1 and abs(ht - pop['b'] - 12) < 1, tag + ': the glass sheet, 520px, 12px from the edges %r' % pop)
             check(head['t'] >= pop['t'] - 1 and head['h'] >= 50 and comp['b'] <= pop['b'] + 1 and comp['t'] > head['b'], tag + ': head and composer in view %r %r' % (head, comp))
-            check(pop['b'] <= d['t'] if w == 1280 and not dark else True, 'the pop-up sits above the character')
             sc = p.evaluate('() => { const b = document.querySelector(".buddy-bubble .panel-body"); return [b.scrollHeight, b.clientHeight, b.scrollTop]; }')
             check(sc[0] > sc[1] and sc[2] + sc[1] >= sc[0] - 2, tag + ': the body scrolls and starts at the latest %r' % sc)
             check(p.locator('.buddy-bubble .panel-answer.folded').count() >= 1 and p.locator('.buddy-bubble .panel-more:has-text("Show all")').count() >= 1, tag + ': the long answer folds to eight lines')
@@ -187,7 +189,7 @@ def test(h):
                 check(p.locator('.buddy-bubble .panel-answer.folded').count() == 0, 'Show all unfolds the answer')
                 # the menu: History, Hide for today, Prefs
                 p.click('#buddy-more')
-                check(p.locator('.panel-menu [role="menuitem"]').count() >= 3, 'the menu lists History, Hide for today and Prefs')
+                check(p.locator('.panel-menu [role="menuitem"]').count() >= 2, 'the menu lists History and Prefs')
                 p.click('#buddy-history-btn')
                 p.wait_for_selector('.buddy-bubble #agent-history')
                 check(True, 'History shows in the panel')
@@ -196,19 +198,16 @@ def test(h):
             check(h.overflow(p) == 0, tag + ': no sideways scroll')
             small = [x for x in h.small_text(p) if x]
             check(not [x for x in small if 'agent-panel' in str(x)], tag + ': no tiny text %r' % small[:3])
-            # Escape: it shrinks back into the character and the caret goes home
+            # Escape: the sheet slides away
             p.keyboard.press('Escape')
-            if w == 1280 and not dark:
-                names = p.evaluate('() => { const e = document.querySelector(".buddy-bubble.agent-pop.closing"); return e ? e.getAnimations().map(a => a.animationName) : []; }')
-                check('dockshut' in names, 'closing runs back into the character: %r' % names)
             p.wait_for_function('() => !document.querySelector(".buddy-bubble")')
-            check(p.evaluate('() => !!document.activeElement.closest("#buddy-dock")'), 'closing returns focus to the character')
+            check(True, tag + ': Escape puts the sheet away')
             p.close()
 
     # ---------- talking: push to talk, a quick tap, Escape first, conversation ----------
     ctx = new_ctx(h, 1280, 800)
     p = open_page(h, ctx, 'founder', '#home')
-    p.wait_for_selector('#buddy-dock .buddy-home')
+    p.wait_for_selector('#buddy-dock', state='attached')
     p.evaluate('() => M.chat.clear(M.lastCtx)')
     p.wait_for_timeout(200)
     quiet_voice(p, said=False)
@@ -246,7 +245,7 @@ def test(h):
     # conversation mode: the head toggle, the dock chip, the tab title; it listens after each answer and stops on "that's all"
     quiet_voice(p, said=True)
     title0 = p.title()
-    p.locator('#buddy-dock .buddy-home').click()
+    open_ai(p)
     p.wait_for_selector('#buddy-conv')
     p.evaluate('() => { window.__sayQ = ["what can you do", "that\'s all"]; }')
     p.click('#buddy-conv')
@@ -278,7 +277,7 @@ def test(h):
     # ---------- with the agent on the page: the grammar runs with no model, the tray holds a card, a spoken yes sends it ----------
     if p.evaluate('() => !!(M.agent && M.agent.yesFor && M.brain && M.brain.hold)'):
         quiet_voice(p, said=True)
-        p.locator('#buddy-dock .buddy-home').click()
+        open_ai(p)
         p.wait_for_selector('#buddy-input')
         n0 = p.evaluate('() => window.__sampleCalls.length')
         p.fill('#buddy-input', 'set my status to at the Swisse shoot')
@@ -306,51 +305,23 @@ def test(h):
             p.keyboard.press('Escape'); p.wait_for_timeout(400)
         p.wait_for_function('() => !document.querySelector(".buddy-bubble")')
 
-    # ---------- placement: clear of the things in its corner, beside a drawer, gone for the palette ----------
-    p.evaluate('''() => { const d = document.createElement('div'); d.id = 'avoid-me'; d.setAttribute('data-dock-avoid', '');
-      Object.assign(d.style, {position: 'fixed', right: '0', bottom: '0', width: '320px', height: '90px'}); document.body.appendChild(d); }''')
-    p.wait_for_function('() => parseInt(getComputedStyle(document.documentElement).getPropertyValue("--dock-lift")) > 0')
-    p.wait_for_timeout(400)
-    av = rect(p, '#avoid-me'); dk = rect(p, '#buddy-dock .buddy-home')
-    check(dk['b'] <= av['t'] - 10, 'the dock lifts clear of a marked element: %r %r' % (dk, av))
-    p.locator('#buddy-dock .buddy-home').click()
-    p.wait_for_selector('.buddy-bubble.agent-pop')
-    p.wait_for_timeout(400)
-    check(rect(p, '.buddy-bubble.agent-pop')['b'] <= dk['t'], 'the pop-up lifts with it')
-    p.keyboard.press('Escape'); p.wait_for_function('() => !document.querySelector(".buddy-bubble")')
-    p.evaluate('() => document.getElementById("avoid-me").remove()')
-    p.keyboard.press('?')
-    p.wait_for_selector('.drawer')
-    p.wait_for_timeout(400)
-    dk = rect(p, '#buddy-dock .buddy-home')
-    check(dk['r'] <= 1280 - 480 - 16 + 1, 'the dock sits beside an open drawer: %r' % dk)
-    p.keyboard.press('Escape'); p.wait_for_function('() => !document.querySelector(".drawer")')
+    # ---------- v40: no dock to place; the Ask bar sits at the top of the canvas ----------
     p.keyboard.press('Control+k')
-    p.wait_for_selector('.pal-scrim')
-    check(not p.locator('#buddy-dock').is_visible(), 'the palette has the screen to itself')
+    p.wait_for_selector('#island.cmd #pal-input')
+    p.wait_for_timeout(900)
+    isl = rect(p, '#island')
+    check(isl and isl['t'] <= 16, 'the Ask bar sits at the top of the canvas: %r' % isl)
     p.keyboard.press('Escape')
-    # the chat composer: the dock sits above it
-    h.go(p, 'founder', hash='#chat')
-    if p.locator('.chat-composer').count():
-        # the chat page lays out once more after its list fills and the dock glides after it: read both once still
-        p.wait_for_timeout(500)
-        for _ in range(20):
-            a = (rect(p, '.chat-composer'), rect(p, '#buddy-dock .buddy-home')); p.wait_for_timeout(150)
-            if a == (rect(p, '.chat-composer'), rect(p, '#buddy-dock .buddy-home')): break
-        cc = rect(p, '.chat-composer'); dk = rect(p, '#buddy-dock .buddy-home')
-        if cc['r'] > dk['l']:
-            check(dk['b'] <= cc['t'] - 10, 'the dock clears the chat composer: %r %r' % (dk, cc))
-    # Hide for today: the dock goes, the talk key still opens the panel
+    p.wait_for_function('() => !document.querySelector("#island.cmd")')
+    # v40: the dock has no Hide for today (nothing shows to hide); the menu keeps History and Prefs
     h.go(p, 'founder', hash='#home')
-    p.locator('#buddy-dock .buddy-home').click()
-    p.click('#buddy-more'); p.click('#buddy-hide')
-    p.wait_for_selector('#buddy-dock.is-hidden', state='attached')
-    p.wait_for_function('() => !document.querySelector(".buddy-bubble")')
-    p.keyboard.down('Control'); p.keyboard.down('Alt'); p.keyboard.up('Alt'); p.keyboard.up('Control')
-    p.wait_for_selector('#buddy-input')
-    check(True, 'hidden for today, the talk key still opens it')
+    open_ai(p)
+    p.click('#buddy-more')
+    check(p.locator('#buddy-hide').count() == 0 and p.locator('#buddy-prefs').count() == 1, 'the sheet menu has no Hide for today')
     p.keyboard.press('Escape')
-    p.evaluate('() => localStorage.removeItem("m360.dockHidden")')
+    for _ in range(2):
+        if p.locator('.buddy-bubble').count():
+            p.keyboard.press('Escape'); p.wait_for_timeout(300)
     # Me: "Talking to m360"; the talk key can be switched off
     h.go(p, 'founder', hash='#me')
     p.wait_for_selector('#dock-prefs')
@@ -362,35 +333,21 @@ def test(h):
     p.evaluate('() => localStorage.setItem("m360.talkKey", "ctrlopt")')
     p.close()
 
-    # ---------- the character lives: asleep out of hours, awake in them, a hop for something new ----------
+    # ---------- v40: no character at any hour (the robot is retired) ----------
     late = datetime(2026, 9, 30, 23, 10, tzinfo=IST)
     ctx = new_ctx(h, 1280, 800, fixed=late)
     p = open_page(h, ctx, 'founder', '#home')
-    p.wait_for_selector('#buddy-dock')
-    check(p.get_attribute('#buddy-dock', 'data-state') == 'sleeping', 'the droid sleeps out of hours')
-    p.close()
-    day = datetime(2026, 9, 30, 11, 5, tzinfo=IST)
-    ctx = new_ctx(h, 1280, 800, fixed=day)
-    p = open_page(h, ctx, 'founder', '#home')
-    p.wait_for_selector('#buddy-dock')
-    check(p.get_attribute('#buddy-dock', 'data-state') == 'idle', 'awake in working hours')
-    p.evaluate('() => window.dispatchEvent(new CustomEvent("m360:pm", {detail: {type: "step", n: 1}}))')
-    # the hop lasts 380 ms: catch it while it runs, or its class if it has already landed
-    p.wait_for_function('() => { const e = document.querySelector("#buddy-dock .dock-char"); return !!e && (e.getAnimations().some(a => a.animationName === "dockhop") || e.classList.contains("hop")); }', timeout=8000)
-    check(True, 'something new: one hop')
+    p.wait_for_selector('#buddy-dock', state='attached')
+    check(p.evaluate(NO_CHARACTER), 'nothing drawn in the corner out of hours')
     p.close()
 
     # ---------- reduced motion: fades only ----------
     ctx = new_ctx(h, 1280, 800, reduced=True)
     p = open_page(h, ctx, 'founder', '#home')
-    p.wait_for_selector('#buddy-dock .buddy-home')
-    p.locator('#buddy-dock .buddy-home').click()
+    open_ai(p)
     p.wait_for_selector('.buddy-bubble.agent-pop')
     names = p.evaluate('() => document.querySelector(".buddy-bubble.agent-pop").getAnimations().map(a => a.animationName)')
-    check('dockpop' not in names and names in ([], ['fade']), 'reduced motion: a fade, no growth %r' % names)
-    p.evaluate('() => window.dispatchEvent(new CustomEvent("m360:pm"))')
-    p.wait_for_timeout(100)
-    check(p.evaluate('() => document.querySelector("#buddy-dock .dock-char").getAnimations().length') == 0, 'reduced motion: no hop')
+    check('gsin' not in names and names in ([], ['fade']), 'reduced motion: no slide %r' % names)
     p.keyboard.press('Escape')
     p.wait_for_function('() => !document.querySelector(".buddy-bubble")')
     p.close()
@@ -398,14 +355,13 @@ def test(h):
     # ---------- a drawer, a narrow window, the keys and what is never pressed ----------
     ctx = new_ctx(h, 1280, 800)
     p = open_page(h, ctx, 'founder', '#home')
-    p.wait_for_selector('#buddy-dock .buddy-home')
-    # beside a drawer the dock and the pop-up stand over the scrim: a tap reaches them
+    p.wait_for_selector('#buddy-dock', state='attached')
+    # over a drawer the sheet stands above the scrim: a tap reaches it
     p.keyboard.press('?')
     p.wait_for_selector('.drawer')
     p.wait_for_timeout(400)
     on_top = '''s => { const e = document.querySelector(s); if (!e) return false; const r = e.getBoundingClientRect(); const x = document.elementFromPoint(r.left + r.width / 2, r.top + Math.min(30, r.height / 2)); return !!(x && x.closest(s)); }'''
-    check(p.evaluate(on_top, '#buddy-dock .buddy-home'), 'beside a drawer the character still takes a tap')
-    p.locator('#buddy-dock .buddy-home').click()
+    p.evaluate('() => M.assistant.open("")')
     p.wait_for_selector('.buddy-bubble.agent-pop')
     p.wait_for_timeout(500)
     check(p.locator('.drawer').count() == 1 and p.evaluate(on_top, '.buddy-bubble.agent-pop'), 'the pop-up opens over the scrim, the drawer stays')
@@ -414,16 +370,8 @@ def test(h):
     p.wait_for_function('() => !document.querySelector(".buddy-bubble")')
     check(p.locator('.drawer').count() == 1, 'Escape in the pop-up closes the pop-up and leaves the drawer open')
     p.keyboard.press('Escape'); p.wait_for_function('() => !document.querySelector(".drawer")')
-    # the placement settles: with the chat composer in its corner it does not run every frame
-    h.go(p, 'founder', hash='#chat')
-    p.wait_for_timeout(1200)
-    p.evaluate('''() => { window.__lifts = 0; const st = document.documentElement.style; const f = st.setProperty.bind(st);
-      st.setProperty = (k, v, q) => { if (k === '--dock-lift') window.__lifts++; return f(k, v, q); }; }''')
-    p.wait_for_timeout(2000)
-    n = p.evaluate('() => window.__lifts')
-    check(n <= 6, 'the placement is quiet on a still page: %d runs in 2 s' % n)
     h.go(p, 'founder', hash='#home')
-    p.wait_for_selector('#buddy-dock .buddy-home')
+    p.wait_for_selector('#buddy-dock', state='attached')
     # Ctrl + Option + L by its key code: on a Mac, Option + L types a symbol
     p.evaluate('''() => window.dispatchEvent(new KeyboardEvent('keydown', {key: '\\u00ac', code: 'KeyL', ctrlKey: true, altKey: true}))''')
     p.wait_for_function('() => M.buddy.state().conv')
@@ -472,43 +420,42 @@ def test(h):
     check(not p.evaluate('() => window.__pressed') and all(s.startswith('not pressed') for s in said), 'paid, export and the pulse are pointed at, never pressed: %r' % said)
     p.close()
 
-    # ---------- a narrow window with a mouse: above the tab bar, and the pop-up fits over a drawer ----------
+    # ---------- a narrow window with a mouse: the sheet is a bottom sheet, and it fits over a drawer ----------
     ctx = new_ctx(h, 800, 700)
     p = open_page(h, ctx, 'founder', '#home')
-    p.wait_for_selector('#buddy-dock .buddy-home')
+    p.wait_for_selector('#buddy-dock', state='attached')
     p.wait_for_timeout(500)
-    tb = rect(p, '.tabbar'); dk = rect(p, '#buddy-dock .buddy-home')
-    check(tb and tb['h'] > 0 and dk['b'] <= tb['t'], 'the dock sits above the tab bar: %r %r' % (dk, tb))
     p.keyboard.press('?')
     p.wait_for_selector('.drawer')
     p.evaluate('() => M.assistant.open("")')
     p.wait_for_selector('.buddy-bubble.agent-pop')
     p.wait_for_timeout(600)
     pop = rect(p, '.buddy-bubble.agent-pop')
-    check(pop['l'] >= 0 and pop['r'] <= 800 and pop['t'] >= 0 and pop['b'] <= 700 and p.evaluate(on_top, '.buddy-bubble.agent-pop'), 'the pop-up fits a narrow window over a drawer: %r' % pop)
+    check(pop['l'] == 0 and pop['r'] == 800 and pop['t'] >= 0 and abs(pop['b'] - 700) < 1 and p.evaluate(on_top, '.buddy-bubble.agent-pop'), 'a bottom sheet in a narrow window, over a drawer: %r' % pop)
     p.close()
 
     # ---------- the phone: the sheet at 390, 3x, light and dark ----------
     for dark in (False, True):
         ctx = new_ctx(h, 390, 844, dsf=3, touch=True, dark=dark)
         m = open_page(h, ctx, 'founder', '#home')
-        m.wait_for_selector('.buddy-home.orb-home canvas')
-        cv = m.evaluate('() => { const c = document.querySelector("#buddy-dock canvas"); return [c.width, c.getBoundingClientRect().width, document.querySelector(".dock-char").getBoundingClientRect().width]; }')
-        check(abs(cv[2] - 48) < 1 and abs(cv[1] - 72) < 1 and cv[0] == 216, 'the phone droid is 48px, drawn at 3x: %r' % cv)
-        if not dark:
-            shot(m, 'phone-dock-390-light')
+        m.wait_for_selector('#buddy-dock', state='attached')
+        check(m.evaluate(NO_CHARACTER), 'no droid on the phone')
+        quiet_voice(m, said=False)   # nothing said back, so no follow-up listening races the swipe
         m.evaluate('() => { window.__sayQ = ["what is on my calendar this week"]; }')
-        m.locator('.buddy-home.orb-home').click()
+        # the tab bar's round Ask opens the Ask bar; its m360 AI row raises the sheet; Talk listens
+        m.locator('#tbAsk').click()
+        m.locator('.pal-item[data-k="a-ai"]').click()
         m.wait_for_selector('#orb-screen')
+        m.locator('#orb-screen .panel-talk-big').click()
         m.wait_for_function('() => M.buddy.state().mode === "listening"')
-        check(m.get_attribute('#orb-screen', 'data-mode') == 'listening', 'the sheet opens listening')
+        check(m.get_attribute('#orb-screen', 'data-mode') == 'listening', 'Talk sets the sheet listening')
         sh = rect(m, '#orb-screen')
         check(sh['h'] <= 844 * 0.88 + 1 and abs(sh['b'] - 844) < 1, 'the sheet rises to at most 88%% of the screen: %r' % sh)
         check(m.locator('#orb-screen .panel-grab').count() == 1, 'the sheet has its handle')
         m.wait_for_function('() => /calendar this week/.test((document.querySelector("#orb-heard") || {}).textContent || "")')
         m.click('#orb-tap')
         m.wait_for_function('() => M.buddy.state().mode === "answer"', timeout=20000)
-        check(m.locator('#orb-answer').count() == 1 and 'calendar this week' in m.inner_text('#orb-heard'), 'the answer sits under the words')
+        check(m.locator('#orb-answer').count() == 1 and 'calendar this week' in m.inner_text('#orb-heard'), 'the answer sits under the words: %r' % m.evaluate('() => [document.querySelectorAll("#orb-answer").length, (document.querySelector("#orb-heard") || {}).textContent, M.buddy.state().mode]'))
         m.wait_for_timeout(400)
         check(h.overflow(m) == 0, 'the sheet never scrolls sideways')
         shot(m, 'phone-sheet-390-%s' % ('dark' if dark else 'light'))
@@ -520,21 +467,7 @@ def test(h):
         m.mouse.move(hd['l'] + 4, hd['t'] + 200, steps=4)
         m.mouse.up()
         m.wait_for_selector('#orb-screen', state='detached')
-        check(mode(m) == 'idle', 'a swipe down puts the sheet away')
-        if not dark:
-            # a long press is push to talk: let go and it sends
-            quiet_voice(m, said=False)
-            m.evaluate('() => { window.__sayQ = ["what can you do"]; }')
-            b = rect(m, '.buddy-home.orb-home')
-            m.mouse.move(b['l'] + b['w'] / 2, b['t'] + b['h'] / 2)
-            m.mouse.down()
-            m.wait_for_function('() => M.buddy.state().live && M.buddy.state().push')
-            m.wait_for_function('() => /what can you do/.test((document.querySelector("#orb-heard") || {}).textContent || "")')
-            m.mouse.up()
-            m.wait_for_function('() => M.buddy.state().mode === "answer"', timeout=20000)
-            check([x for x in m.evaluate('() => M.chat.turns.map(t => t.content)') if x == 'what can you do'], 'the long press sent what was said')
-            m.click('#orb-screen #orb-close')
-            m.wait_for_selector('#orb-screen', state='detached')
+        check(mode(m) == 'idle', 'a swipe down puts the sheet away: %r' % mode(m))
         m.close()
 
     errs = h.errors()

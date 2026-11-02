@@ -1,6 +1,6 @@
 /* module: dayrate. How did the day go? One screen that takes over after a check-out, on the phone and
-   on the laptop: a meter you drag from left to right, a face that changes as you go and a ground
-   that moves from a deep red through amber to green. The number lands in your own check-in entry
+   on the laptop: a meter you drag from left to right and a face that changes as you go. v40: the
+   screen is paper and ink (07-v7-home.css); ground() still returns the old hue for any reader of it. The number lands in your own check-in entry
    for the day (dayRate, 0 to 100, with the moment), where Home reads it back the next morning and
    Kaavish's team view reads the week. Skipping is one tap and nothing is recorded. */
 'use strict';
@@ -55,7 +55,7 @@
       setBusy(true);
       const today = U.todayStr();
       ctx.W.merge('checkin/' + ctx.uid, {days: {[today]: {dayRate: v, dayRateAt: Date.now()}}})
-        .then(() => { M.haptic.buzz('done'); M.sound.play('chime'); if (v >= 85) M.rain('✨', document.getElementById('dayrate-face'), {n: 40, sound: false}); onClose(); })
+        .then(() => { M.haptic.buzz('done'); M.sound.play('chime'); if (v >= 85 && M.mark && M.mark.happy) M.mark.happy(); onClose(); })
         .catch(() => { setBusy(false); M.toast('That did not save. Try once more', true); });
     };
 

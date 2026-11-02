@@ -1,32 +1,20 @@
-/* ---------- motion, v26: the OS answers every touch. One easing family, transforms and opacity only,
-   everything under 400ms, and all of it steps aside for prefers-reduced-motion. ---------- */
-:root{--ease:cubic-bezier(.2,.7,.2,1); --spring:cubic-bezier(.34,1.45,.64,1); --fast:.14s; --mid:.28s}
+/* ---------- motion, v26, retuned for v7: the OS answers every touch. The curves are the design's (--ease for
+   fades, --spring and --bounce for anything that moves place or size, all set in css.css); a press is the
+   `scale` property (.92 to .95, css.css), so it composes with any transform a control already has. Everything
+   steps aside for prefers-reduced-motion. ---------- */
+:root{--fast:.14s; --mid:.28s}
 @media (prefers-reduced-motion:no-preference){
-  /* press: things give a little under the finger */
-  .btn,.iconbtn,.quick-btn,.chip,.seg-btn,.emoji-btn,.mood,.key,.tab-item,.tcard,.listrow.rowbtn,.fold-head,.side-item,.chipline,.pill.ghost-dark,.theme-seg button{transition:transform var(--fast) var(--ease), background var(--fast) ease, box-shadow var(--fast) ease, border-color var(--fast) ease, color var(--fast) ease}
-  .btn:active,.quick-btn:active,.chip:active,.emoji-btn:active,.mood:active,.key:active,.chipline:active,.seg-btn:active,.theme-seg button:active{transform:scale(.96)}
-  .iconbtn:active,.tab-item:active{transform:scale(.9)}
-  .tcard:active,.listrow.rowbtn:active{transform:scale(.985)}
-  .btn:not(:disabled):hover{transform:translateY(-1px)}
-  .btn:not(:disabled):active{transform:scale(.96)}
-  /* cards lift under a hovering pointer, never under a finger */
-  @media (hover:hover){
-    .card,.fold{transition:box-shadow .24s ease, border-color .18s ease}
-    .card:hover,.fold:hover{box-shadow:0 14px 34px -22px var(--shadow)}
-  }
-  /* a section arrives: the whole view rises once, then its cards stagger in as before */
-  /* backwards, never both: once the view has arrived the animation lets go, so a fixed child (the
-     web browser's full screen, a drawer) measures against the window again */
-  .content.view{animation:viewin .34s var(--ease) backwards}
+  /* press: the controls css.css does not already press */
+  .key,.tab-item,.listrow.rowbtn,.fold-head,.pill.ghost-dark,.theme-seg button{transition:scale .45s var(--spring), background-color .3s var(--ease), box-shadow .3s var(--ease), border-color .3s var(--ease), color .3s var(--ease)}
+  .key:active,.theme-seg button:active{scale:.95}
+  .tab-item:active{scale:.92}
+  .listrow.rowbtn:active,.fold-head:active{scale:.985}
   /* the fold opens with a breath */
-  .fold-body{animation:rise .26s var(--ease) both}
-  /* inputs settle into focus */
-  .input,textarea.input,select.input{transition:border-color var(--fast) ease, box-shadow var(--fast) ease}
-  .input:focus-visible{box-shadow:0 0 0 4px rgba(245,57,1,.12)}
+  .fold-body{animation:rise .5s var(--ease) backwards}
   /* toasts drop in */
   .toast{animation:toastin .32s var(--spring) both}
   /* the badge count pops when it changes */
-  .badge{animation:pop .3s var(--spring) both}
+  .badge{animation:pop .5s var(--spring) backwards}
   /* the tab mark slides to the tab you chose */
   .tabbar::before{transition:left .34s var(--spring), opacity .2s ease}
 }
@@ -56,8 +44,13 @@
 @keyframes orbring{from{opacity:.7; transform:scale(.85)} to{opacity:0; transform:scale(1.6)}}
 @keyframes orbthink{0%,100%{transform:scale(1) rotate(0)} 50%{transform:scale(1.1) rotate(8deg)}}
 /* the phone sheet (85-orb.js): up to 88% of the screen, the panel inside it (99-dock.css) */
-.orb-screen{position:fixed; left:0; right:0; bottom:0; z-index:95; max-height:88dvh; min-height:min(440px,88dvh); background:var(--paper); color:var(--ink); display:flex; flex-direction:column;
-  border-radius:22px 22px 0 0; padding:0 0 env(safe-area-inset-bottom,0px); overflow:hidden; overscroll-behavior:contain; box-shadow:0 -14px 44px var(--shadow)}
+/* the orb screen is a glass bottom sheet, like every other sheet (css.css .gs) */
+.orb-screen{position:fixed; left:0; right:0; bottom:0; z-index:95; max-height:88dvh; min-height:min(440px,88dvh); color:var(--ink); display:flex; flex-direction:column;
+  border-radius:var(--r-sheet) var(--r-sheet) 0 0; padding:0 0 env(safe-area-inset-bottom,0px); overflow:hidden; overscroll-behavior:contain;
+  background-color:var(--glass-dk); background-image:var(--grain),linear-gradient(165deg,rgba(255,255,255,.7),rgba(255,255,255,0) 45%);
+  -webkit-backdrop-filter:blur(30px) saturate(180%); backdrop-filter:blur(30px) saturate(180%);
+  box-shadow:0 0 0 1px rgba(14,14,14,.07),0 -30px 70px -28px rgba(14,14,14,.45),inset 0 1px 0 #fff}
+:root[data-theme="dark"] .orb-screen{background-image:var(--grain),var(--glass-sheen); box-shadow:var(--glass-shadow)}
 .orb-stage{flex:0 0 auto; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:18px 0 10px; gap:14px}
 .orb-stage .vorb{--sz:124px; will-change:transform}
 .orb-stage .vorb.live{box-shadow:0 10px 40px rgba(245,57,1,.45), inset 0 -8px 20px rgba(10,10,10,.25)}
@@ -75,7 +68,7 @@
 .orb-answer{font-size:17px; line-height:1.5; padding-top:12px; border-top:1px solid var(--line)}
 .orb-answer .ai-out b{font-weight:600}
 @media (prefers-reduced-motion:no-preference){
-  .orb-screen{animation:orbopen .32s var(--ease) both}
+  .orb-screen{animation:gsup .6s var(--spring) backwards}
 }
 @media (prefers-reduced-motion:reduce){
   .orb-screen{animation:fade .12s ease both}

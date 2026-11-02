@@ -56,13 +56,16 @@
     const od = !!p.nextDate && p.nextDate < today && c.v !== 'won' && c.v !== 'lost';
     const value = ctx.isFounder ? valueOf(fe) : 0;
     const nx = NEXT[c.v];
-    return html`<div class="tcard prop-card" data-pitch=${p.id} data-col=${c.v}>
+    return html`<div class=${'tcard tk prop-card' + (od ? ' due' : '')} data-pitch=${p.id} data-col=${c.v}>
       <button type="button" class="prop-open" onClick=${() => onOpen(p.id)} aria-label=${'Open ' + (p.brand || 'pitch')}>
-        <span class="row between nowrap"><span class="t">${p.brand || 'Untitled'}</span>${value ? html`<span class="small num">${U.inr(value)}</span>` : null}</span>
-        ${p.next ? html`<span class="small ink62">${p.next}</span>` : null}
-        <span class="row between nowrap">
-          <span class="row nowrap"><${UI.Avatar} id=${p.owner} size=${20}/><span class="tiny num sub">${days === 0 ? 'today' : days + 'd here'}</span></span>
-          ${p.nextDate ? html`<span class=${'tiny num' + (od ? ' flame-t' : ' sub')}>${U.fmtDay(p.nextDate)}</span>` : null}
+        <span class="t tk-t">${p.brand || 'Untitled'}</span>
+        ${p.next || value ? html`<span class="tk-m">
+          ${value ? html`<${UI.Pill}>${U.inr(value)}<//>` : null}
+          ${p.next ? html`<${UI.Pill} kind="warm">${p.next}<//>` : null}
+        </span>` : null}
+        <span class="tk-o">
+          <${UI.Avatar} id=${p.owner} size=${22}/><span class="grow">${days === 0 ? 'today' : days + 'd here'}</span>
+          ${p.nextDate ? html`<span class=${'tn' + (od ? ' flt' : '')}>${U.fmtDay(p.nextDate)}</span>` : null}
         </span>
       </button>
       ${nx || c.v !== 'lost' ? html`<div class="row nowrap prop-moves">
@@ -103,10 +106,10 @@
     const Toggle = html`<div class="row" style=${{justifyContent: 'flex-end'}}>
       <${UI.Seg} sm options=${[{v: 'simple', label: 'Five columns'}, {v: 'stages', label: 'All stages'}]} value=${view} onChange=${setView} ariaLabel="Pipeline view"/>
     </div>`;
-    if (view === 'stages' && M.pages.Pitches) return html`<div class="stack" style=${{gap: '12px'}} id="pipeline-stages">${Toggle}<${M.pages.Pitches}/></div>`;
-    return html`<div class="stack" style=${{gap: '18px'}}>
-      ${Toggle}
+    if (view === 'stages' && M.pages.Pitches) return html`<div class="stack" style=${{gap: '24px'}} id="pipeline-stages">${Toggle}<${M.pages.Pitches}/></div>`;
+    return html`<div class="stack" style=${{gap: '24px'}}>
       <${UI.PageHead} micro=${inPlay + ' in play' + (m && m.weighted ? ', ' + U.inr(m.weighted) + ' weighted' : '')} title="Pipeline">
+        ${Toggle}
         <${UI.Btn} kind="sec" onClick=${() => setOpen('new')}>Full form<//>
       <//>
       <${UI.Card} title="New proposal"><${QuickAdd} ctx=${ctx}/><//>
@@ -114,17 +117,17 @@
         <${icons.search}/>
         <input id="prop-q" class="input" type="search" aria-label="Search proposals" value=${q} onInput=${e => setQ(e.target.value)} placeholder="Search brand, contact or proposal"/>
       </label>
-      ${!ctx.coll.pitches.ready ? html`<${UI.Empty} text="Loading."/>` : html`<div class="board-wrap prop-wrap"><div class="board prop-board">
+      ${!ctx.coll.pitches.ready ? html`<${UI.Empty} text="Loading."/>` : html`<div class="board-wrap prop-wrap board nc prop-board" style=${{'--n': COLS.length}}>
         ${COLS.map(c => {
           const list = shown.filter(p => colOf(p).v === c.v).sort((a, b) => (b.stageAt || 0) - (a.stageAt || 0));
           const total = ctx.isFounder ? list.reduce((n, p) => n + valueOf(fin[p.id]), 0) : 0;
-          return html`<div class=${'colm' + (list.length ? '' : ' empty')} key=${c.v} data-col=${c.v}>
-            <div class="col-head"><span>${c.label}</span><span class="num">${list.length}${total ? ' · ' + U.inr(total) : ''}</span></div>
+          return html`<div class=${'colm col' + (list.length ? '' : ' empty')} key=${c.v} data-col=${c.v}>
+            <div class="col-head col-h"><span>${c.label}</span><span class="num">${list.length}${total ? ' · ' + U.inr(total) : ''}</span></div>
             ${list.map(p => html`<${Card} key=${p.id} ctx=${ctx} p=${p} fe=${fin[p.id]} today=${today} onOpen=${setOpen}/>`)}
-            ${!list.length ? html`<div class="tiny sub" style=${{padding: '6px 2px'}}>${ws.length ? 'No match' : 'Nothing here'}</div>` : null}
+            ${!list.length ? html`<div class="col-e">${ws.length ? 'No match' : 'Nothing here'}</div>` : null}
           </div>`;
         })}
-      </div></div>`}
+      </div>`}
       ${open && Drawer ? html`<${Drawer} pitchId=${open === 'new' ? null : open} onClose=${close}/>` : null}
     </div>`;
   }

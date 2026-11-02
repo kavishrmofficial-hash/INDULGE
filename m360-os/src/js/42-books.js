@@ -6,8 +6,6 @@
 'use strict';
 (function () {
   const {html, React, U, UI, icons} = M;
-  /* a number in metal (metal-fx MetalText) */
-  const MetalNum = ({children, size, weight, color}) => html`<span class="fx-num"><${M.fx.MetalText} size=${size} weight=${weight} color=${color}>${children}<//></span>`;
   const {useState, useEffect, useMemo} = React;
 
   /* ---------- money ---------- */
@@ -146,8 +144,9 @@
     const s = settings(ctx);
     const head = s.numbering.prefix + '/' + fy + '/' + code + '-';
     let max = 0;
+    /* v39: every invoice with this head counts, wherever it is filed, so one moved to another year keeps its number taken */
     for (const inv of invoices(ctx)) {
-      if (inv.fy !== fy || !String(inv.no || '').startsWith(head)) continue;
+      if (!String(inv.no || '').startsWith(head)) continue;
       const n = Number(String(inv.no).slice(head.length)) || 0;
       if (n > max) max = n;
     }
@@ -163,6 +162,8 @@
     out.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || (b.at || 0) - (a.at || 0));
     return out;
   };
+  /* v39: the article for a letter kind, "An offer letter", "A relieving letter" */
+  const aOr = w => /^[aeiou]/i.test(String(w || 'letter')) ? 'An' : 'A';
   /* days past due, for aging */
   const ageOf = (inv, today) => inv.due ? U.daysBetween(inv.due, today || U.todayStr()) : 0;
 
@@ -270,6 +271,16 @@
     });
   }
 
+  /* filter chips (design .fcs/.fc): warm round chips, ink when on, the count after the label (flame when it needs
+     you). The same tablist the segmented control was, so keyboards and readers find it the same way */
+  M.parts.FoChips = function FoChips({options, value, onChange, ariaLabel, id}) {
+    return html`<div class="fcs" role="tablist" aria-label=${ariaLabel} id=${id}>
+      ${options.map(o => html`<button key=${o.v} type="button" role="tab" aria-selected=${o.v === value}
+        class=${'fc' + (o.v === value ? ' on' : '') + (o.hot ? ' al' : '')} data-n=${o.n == null ? null : String(o.n)}
+        onClick=${() => onChange(o.v)}>${o.label}</button>`)}
+    </div>`;
+  };
+
   /* ---------- the section ---------- */
   const TABS = {overview: 'overview', invoices: 'Invoices', statement: 'Statement', expenses: 'Expenses', payroll: 'Payroll', letters: 'Letters', billing: 'billing'};
   function Books({tab, id}) {
@@ -277,12 +288,12 @@
     const t = TABS[tab] ? tab : 'overview';
     if (!ctx.isOwner) return html`<div class="stack"><${UI.PageHead} micro="the books" title="Books"/><${UI.Empty} text="The books are the owner's alone."/></div>`;
     const Page = t === 'invoices' ? M.pages.Invoices : t === 'statement' ? M.pages.Statement : t === 'expenses' ? M.pages.Expenses : t === 'payroll' ? M.pages.Payroll : t === 'letters' ? M.pages.Letters : null;
-    return html`<div class="stack" style=${{gap: '20px'}}>
-      <header class="hero ink">
-        <div>
-          <${UI.Micro}>${U.dateLabel(new Date(ctx.now))}<//>
-          <h1 class="hi">Books</h1>
-          <div class="sub" style=${{marginTop: '10px'}}>Invoices, bank statements, expenses, payroll and letters. Yours alone.</div>
+    return html`<div class="stack fo fo-books" style=${{gap: '24px'}}>
+      <header class="fo-top">
+        <div class="tl">
+          <span class="lab">${U.dateLabel(new Date(ctx.now))}</span>
+          <h1 class="pgt">Books</h1>
+          <p class="lede">Invoices, bank statements, expenses, payroll and letters. Yours alone.</p>
         </div>
       </header>
       <${M.SectionTabs} section="books" active=${t}/>
@@ -291,12 +302,16 @@
   }
 
   /* ---------- overview ---------- */
-  /* the headline total is cast in metal (metal-fx MetalText) and the rest stay plain, flame when they need a call */
-  function Tile({v, l, to, hot, metal}) {
-    const phone = M.usePhone();
+  /* a number (design .kp): the caps label, the big number (money at 40), a caption; the flame top line when it
+     needs a call, the ink line and the arrow under the pointer when it opens somewhere */
+  function Tile({v, l, to, hot, n, i}) {
     const nil = v == null;
-    const inner = html`<span class=${'v num' + (hot ? ' flame-t' : '') + (nil ? ' nil' : '')}>${nil ? 'not yet' : metal && M.fx ? html`<${MetalNum} size=${phone ? 26 : 30} weight=${600} color=${hot ? M.fx.FLAME : undefined}>${String(v)}<//>` : v}</span><span class="l">${l}</span>`;
-    return to ? html`<button type="button" class=${'stat rowbtn' + (hot ? ' hot' : '')} onClick=${() => M.nav(to)}>${inner}</button>` : html`<div class=${'stat' + (hot ? ' hot' : '')}>${inner}</div>`;
+    const inner = html`<div class="kl"><span class="cap">${l}</span>${to ? html`<i class="go"/>` : null}</div>
+      <div class="kv">${nil ? html`<span class="nil">not yet</span>` : html`<${UI.BigNum} value=${v} money=${/[^0-9.,%/ -]/.test(String(v))}/>`}</div>
+      ${n ? html`<div class="kn">${n}</div>` : null}`;
+    const st = {'--i': i || 0};
+    return to ? html`<button type="button" class=${'kp' + (hot ? ' hot' : '')} style=${st} onClick=${() => M.nav(to)}>${inner}</button>`
+      : html`<div class=${'kp' + (hot ? ' hot' : '')} style=${st}>${inner}</div>`;
   }
   function Overview() {
     const ctx = M.useCtx();
@@ -335,49 +350,51 @@
     for (const i of overdue.slice(0, 6)) calls.push({key: 'inv' + i.id, text: i.no + ', ' + (i.clientName || 'client') + ', ' + money(totals(i).balance, i.currency) + ' due ' + U.fmtDate(i.due) + ', ' + ageOf(i, today) + ' days late', to: '#invoices/' + i.id, hot: true});
     for (const i of list.filter(x => x.auto === 'retainer' && status(x, today) === 'draft').slice(0, 4)) calls.push({key: 'draft' + i.id, text: 'Retainer draft ready: ' + i.no + ', ' + (i.clientName || ''), to: '#invoices/' + i.id});
     const hrMap = (ctx.coll.hr && ctx.coll.hr.map) || {};
-    for (const uid of Object.keys(hrMap)) for (const lid of Object.keys((hrMap[uid] || {}).letters || {})) { const l = hrMap[uid].letters[lid]; if (l && l.status === 'draft') calls.push({key: 'let' + lid, text: 'A ' + (l.kind || 'letter') + ' letter is drafted and not issued', to: '#letters/' + uid}); }
+    for (const uid of Object.keys(hrMap)) for (const lid of Object.keys((hrMap[uid] || {}).letters || {})) { const l = hrMap[uid].letters[lid]; if (l && l.status === 'draft') calls.push({key: 'let' + lid, text: aOr(l.kind) + ' ' + (l.kind || 'letter') + ' letter is drafted and not issued', to: '#letters/' + uid}); }
     const dates = nextDates(ctx, today);
     const fx = list.some(i => i.currency && i.currency !== 'INR' && !num(i.fx));
-    return html`<div class="stack" style=${{gap: '18px'}}>
-      <div class="grid4">
-        <${Tile} v=${U.inr(billed)} l=${'billed, FY ' + fy} to="#invoices"/>
-        <${Tile} v=${U.inr(collected)} l=${'collected, FY ' + fy} to="#invoices"/>
-        <${Tile} v=${U.inr(outstanding)} l=${open.length + ' open, outstanding'} to="#invoices" hot=${overdue.length > 0}/>
-        <${Tile} v=${overdue.length ? U.inr(overdueAmt) : '0'} l="overdue" to="#invoices" hot=${overdue.length > 0}/>
+    const net = collMonth - expMonth - payMonth;
+    return html`<div class="stack" style=${{gap: '24px'}}>
+      <${UI.SectionHead} label="numbers" pill=${'FY ' + fy}/>
+      <div class="kpis" id="books-kpis">
+        <${Tile} i=${0} v=${U.inr(billed)} l="billed" n=${'FY ' + fy} to="#invoices"/>
+        <${Tile} i=${1} v=${U.inr(collected)} l="collected" n=${'FY ' + fy} to="#invoices"/>
+        <${Tile} i=${2} v=${U.inr(outstanding)} l="outstanding" n=${open.length + ' open'} to="#invoices" hot=${overdue.length > 0}/>
+        <${Tile} i=${3} v=${overdue.length ? U.inr(overdueAmt) : '0'} l="overdue" n=${overdue.length ? overdue.length + ' late' : 'Nothing late'} to="#invoices" hot=${overdue.length > 0}/>
+        <${Tile} i=${4} v=${U.inr(collMonth)} l="collected" n="This month"/>
+        <${Tile} i=${5} v=${U.inr(expMonth)} l="expenses" n="This month" to="#expenses"/>
+        <${Tile} i=${6} v=${run ? U.inr(payMonth) : null} l="payroll" n="This month" to="#payroll"/>
+        <${Tile} i=${7} v=${U.inr(net)} l="net" n="This month" hot=${net < 0}/>
       </div>
-      <div class="grid4">
-        <${Tile} v=${U.inr(collMonth)} l="collected this month"/>
-        <${Tile} v=${U.inr(expMonth)} l="expenses this month" to="#expenses"/>
-        <${Tile} v=${run ? U.inr(payMonth) : null} l="payroll this month" to="#payroll"/>
-        <${Tile} v=${U.inr(collMonth - expMonth - payMonth)} l="net this month" hot=${collMonth - expMonth - payMonth < 0} metal=${true}/>
-      </div>
-      ${fx ? html`<div class="card flame small">An invoice in a foreign currency has no INR rate on it, so the totals above leave it out. Open it and set the rate.</div>` : null}
-      <div class="split">
-        <div class="stack" style=${{gap: '18px'}}>
-          <${UI.Card} title=${M.fx ? html`<span class="row nowrap fx-title-bot"><${M.fx.Bot} feature="books" state=${calls.length ? 'working' : 'sleeping'} size=${26} label="m360 books"/>What needs a call</span>` : 'What needs a call'} id="books-calls">
-            ${calls.length ? calls.map(c => html`<button type="button" key=${c.key} class="listrow rowbtn" onClick=${() => M.nav(c.to)}>
-              ${c.hot ? html`<span class="dotflame"/>` : html`<span class="pill">next</span>`}<span class="grow">${c.text}</span></button>`)
-              : html`<${UI.Empty} text="Nothing waiting on you. Invoices are paid or not yet due, no drafts sit unsent."/>`}
-          <//>
-          <${UI.Card} title="Six months" id="books-months">
+      ${fx ? html`<div class="card need small">An invoice in a foreign currency has no INR rate on it, so the totals above leave it out. Open it and set the rate.</div>` : null}
+      <${UI.Card} title="needs a call" id="books-calls" need=${calls.some(c => c.hot)}
+        action=${html`<span class=${'pill pl tn' + (calls.some(c => c.hot) ? ' hot' : '')}>${calls.length ? calls.length + ' waiting' : 'all clear'}</span>`}>
+        ${calls.length ? calls.map(c => html`<button type="button" key=${c.key} class="listrow rowbtn" onClick=${() => M.nav(c.to)}>
+          ${c.hot ? html`<span class="dotflame"/>` : html`<span class="pill">next</span>`}<span class="grow">${c.text}</span></button>`)
+          : html`<${UI.Empty} text="Nothing waiting on you. Invoices are paid or not yet due, no drafts sit unsent."/>`}
+      <//>
+      <${UI.Band} tone="warm">
+        <div class="split">
+          <${UI.Card} title="six months" id="books-months">
             <div class="tbl-wrap"><table class="tbl">
               <thead><tr><th>month</th><th class="num">billed</th><th class="num">collected</th><th class="num">expenses</th></tr></thead>
               <tbody>${months.map(m => html`<tr key=${m.mid}><td data-label="month">${m.label}</td><td data-label="billed" class="num">${U.inr(m.b)}</td><td data-label="collected" class="num">${U.inr(m.c)}</td><td data-label="expenses" class="num">${U.inr(m.e)}</td></tr>`)}</tbody>
             </table></div>
           <//>
-        </div>
-        <div class="stack" style=${{gap: '18px'}}>
-          <${UI.Card} title="Receivables by age" id="books-aging">
-            ${buckets.map(b => html`<div class="listrow" key=${b.l}><span class="grow">${b.l} days</span><span class="tiny ink62 num">${b.n}</span><span class="num" style=${{fontWeight: 500}}>${U.inr(b.amt)}</span></div>`)}
-            <div class="listrow fx-total"><b class="grow">Outstanding</b>${M.fx ? html`<${MetalNum} size=${18} weight=${600} color=${overdue.length ? M.fx.FLAME : undefined}>${U.inr(outstanding)}<//>` : html`<b class="num">${U.inr(outstanding)}</b>`}</div>
-          <//>
-          <${UI.Card} title="Compliance dates" id="books-dates">
-            ${dates.length ? dates.map(d => html`<div class="listrow" key=${d.date + d.what}><span class="num tiny ink62" style=${{width: '86px'}}>${U.fmtDay(d.date)}</span><span class="grow">${d.what}</span></div>`)
-              : html`<${UI.Empty} text="Switch GST or TDS on under Setup to see the dates."/>`}
-            <div class="tiny ink62" style=${{marginTop: '8px'}}>Each date lands in your inbox three days before.</div>
+          <${UI.Card} title="receivables by age" id="books-aging">
+            <div class="tbl-wrap"><table class="tbl">
+              <thead><tr><th>age</th><th class="num">open</th><th class="num">amount</th></tr></thead>
+              <tbody>${buckets.map(b => html`<tr key=${b.l}><td>${b.l} days</td><td class="num">${b.n}</td><td class="num">${U.inr(b.amt)}</td></tr>`)}
+                <tr class="tot fx-total"><td class="cap">outstanding</td><td class="num">${open.length}</td><td class="num"><b class=${'num' + (overdue.length ? ' flame-t' : '')}>${U.inr(outstanding)}</b></td></tr></tbody>
+            </table></div>
           <//>
         </div>
-      </div>
+      <//>
+      <${UI.Card} title="compliance dates" id="books-dates">
+        ${dates.length ? dates.map(d => html`<div class="listrow" key=${d.date + d.what}><span class="num tiny ink62" style=${{width: '86px'}}>${U.fmtDay(d.date)}</span><span class="grow">${d.what}</span></div>`)
+          : html`<${UI.Empty} text="Switch GST or TDS on under Setup to see the dates."/>`}
+        <div class="tiny ink62" style=${{marginTop: '8px'}}>Each date lands in your inbox three days before.</div>
+      <//>
     </div>`;
   }
 
@@ -489,7 +506,6 @@
           <//>
         </div>
       </div>
-      <${ClientBilling} id=${id}/>
     </div>`;
   }
 
@@ -660,7 +676,7 @@
     </div>`;
   }
 
-  M.books = {CUR, CUR_OPTS, num, fmt, money, words, fyOf, fyRange, settings, clientBook, totals, status, STATUS_PILL, STATUS_TEXT, invoices, expenses, nextNumber, codeOf, ageOf, nextDates, print, shrinkImage, deep, blankBilling, draftBilling, cleanBilling};
+  M.books = {CUR, CUR_OPTS, num, fmt, money, words, fyOf, fyRange, settings, clientBook, totals, status, STATUS_PILL, STATUS_TEXT, invoices, expenses, nextNumber, codeOf, aOr, ageOf, nextDates, print, shrinkImage, deep, blankBilling, draftBilling, cleanBilling};
   M.parts.DocFrame = DocFrame;
   M.parts.DocHead = DocHead;
   M.parts.DocSign = DocSign;

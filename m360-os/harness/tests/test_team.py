@@ -50,10 +50,12 @@ def t(h):
 
     # ---- the founder sees it on HQ and lets them in from Admin ----
     h.go(p, 'founder', hash='#hq', width=1280)
-    p.wait_for_selector('.join-banner')
-    check('Rohan Verma wants to join the team' in p.inner_text('.join-banner'), 'banner text: ' + p.inner_text('.join-banner'))
+    # v40: the ask is a Command needs card; Add opens Admin
+    card = p.locator('#c-need .c-ncw[data-kind="join"]').filter(has_text='Rohan Verma').first
+    card.wait_for(timeout=8000)
+    check('wants to join' in card.inner_text(), 'needs card text: ' + card.inner_text())
     check(p.locator('.side-item', has_text='Admin').locator('.badge').count() == 1, 'admin badge missing')
-    p.click('.join-banner')
+    card.get_by_role('button', name='Add').click()
     p.wait_for_selector('#join-requests')
     check(p.evaluate('location.hash') == '#admin', 'banner did not open admin')
     card = p.inner_text('#join-requests')
@@ -72,7 +74,7 @@ def t(h):
     # the new member's waiting screen opens into the app by itself
     h.go(p, 'outsider', hash='#home', width=1280)
     p.wait_for_selector('.sidebar')
-    check(p.locator('.side-item', has_text='HQ').count() == 0, 'new member sees HQ')
+    check(p.locator('.side-item', has_text='Command').count() == 0, 'new member sees HQ')
 
     # ---- decline an unknown request ----
     h.seed_doc(p, 'join/u_stray', {'at': 1, 'title': ''})
@@ -101,9 +103,9 @@ def t(h):
     check(p.evaluate('window.__db.get("roster/team").members.u_m2.role') == 'founder', 'full access not saved')
     # on claude.ai, full access also needs edit rights on the page (a viewer who cannot edit cannot write admin documents)
     h.go(p, 'm2', hash='#hq', width=1280)
-    check(p.locator('.side-item', has_text='HQ').count() == 0, 'full access without edit rights on the page must not show HQ')
+    check(p.locator('.side-item', has_text='Command').count() == 0, 'full access without edit rights on the page must not show HQ')
     h.go(p, 'm2', hash='#hq', width=1280, edit='1')
-    check(p.locator('.side-item', has_text='HQ').count() == 1, 'full access member lacks HQ')
+    check(p.locator('.side-item', has_text='Command').count() == 1, 'full access member lacks HQ')
     # editing the founder keeps founder
     h.go(p, 'founder', hash='#admin', width=1280)
     p.locator('tr', has_text='Kaavish Ramchandani').get_by_role('button', name='Edit').click()

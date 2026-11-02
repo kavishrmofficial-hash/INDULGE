@@ -3,3 +3,19 @@
 .devlist .dev-ua{font-weight:500}
 .devlist .listrow{align-items:flex-start}
 .devlist .listrow .tiny{margin-top:3px}
+
+/* v40: the sign-in, join and invite screens (design B1 .gate): a white ground, the title at 36 on 40 with its flame
+   full stop, the line at 16 on 24, the form a little wider with room between the fields. The pen animation that
+   draws the mark (03-z-gate.js) is left as it is */
+.gate:has(.join-box){background:var(--paper)}
+.gate:has(.join-box)::before,.gate:has(.join-box)::after{display:none}
+.gate:has(.join-box) h1{font-size:36px; line-height:40px; font-weight:600; letter-spacing:-.03em}
+.gate:has(.join-box) h1::after{content:"."; color:var(--flame)}
+.gate:has(.join-box) p{font-size:16px; line-height:24px; color:var(--g64)}
+.gate .join-box{max-width:400px; margin-top:32px; gap:16px}
+.gate .join-box > .btn{align-self:flex-start}
+.gate .pw-links{gap:8px; margin-top:4px}
+.gate .pw-note{padding:12px 16px; border-radius:14px; font-size:13px; line-height:20px}
+@media (max-width:900px){
+  .gate:has(.join-box) h1{font-size:32px; line-height:36px}
+}

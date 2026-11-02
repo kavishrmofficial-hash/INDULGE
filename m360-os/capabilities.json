@@ -28,8 +28,12 @@
       },
       {
         "path": "review",
-        "read": "interact",
+        "read": "admin",
         "write": "admin"
+      },
+      {
+        "path": "review/{self}",
+        "read": "interact"
       },
       {
         "path": "leavedec",
@@ -267,6 +271,11 @@
       },
       {
         "path": "hr",
+        "read": "owner",
+        "write": "owner"
+      },
+      {
+        "path": "statements",
         "read": "owner",
         "write": "owner"
       }

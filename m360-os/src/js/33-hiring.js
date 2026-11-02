@@ -158,16 +158,15 @@
   /* ---------- founder: candidate list card ---------- */
   function CandidateCard({c, ctx, selected}) {
     const subs = submittedOf(ctx, c).length, total = evaluatorsOf(c).length;
-    return html`<button type="button" class="rowbtn" id=${'cand-' + c.id} style=${{fontWeight: 300}} aria-pressed=${!!selected}
+    /* v7 (design B1 .c-hir): the name with the role and due date under it, a tick per panel read, the stage */
+    return html`<button type="button" class=${'c-hir' + (selected ? ' on' : '')} id=${'cand-' + c.id} aria-pressed=${!!selected}
       aria-label=${'Open ' + (c.name || 'candidate')} onClick=${() => M.nav('#hiring/' + encodeURIComponent(c.id))}>
-      <div class="card stack tight">
-        <div class="row between nowrap"><b class="grow">${c.name || 'Candidate'}</b><${StagePill} stage=${c.stage}/></div>
-        ${c.role ? html`<div class="sub small">${c.role}</div>` : null}
-        <div class="row small num">
-          <span class="sub">${dueText(c)}</span>
-          <span>${subs} of ${total} ${evalWord(total)}</span>
-        </div>
-      </div>
+      <span class="grow"><b class="who-n">${c.name || 'Candidate'}</b><span class="c-sub">${c.role ? c.role + ' · ' : ''}${dueText(c)}</span></span>
+      <span class="c-ev">
+        ${total ? html`<span class="c-ticks" aria-hidden="true">${Array.from({length: total}, (_, i) => html`<i key=${i} class=${i < subs ? 'on' : ''}/>`)}</span>` : null}
+        <span class="sm num">${subs} of ${total} ${evalWord(total)}</span>
+        <${StagePill} stage=${c.stage}/>
+      </span>
     </button>`;
   }
 
@@ -366,18 +365,15 @@
   function MyCard({c, ctx, onOpen}) {
     const e = evalOf(ctx, ctx.uid, c.id);
     const isDec = decided(c);
-    return html`<button type="button" class="rowbtn" id=${'cand-' + c.id} style=${{fontWeight: 300}}
+    return html`<button type="button" class="c-hir" id=${'cand-' + c.id}
       aria-label=${'Open ' + (c.name || 'candidate')} onClick=${onOpen}>
-      <div class="card stack tight">
-        <div class="row between nowrap">
-          <b class="grow">${c.name || 'Candidate'}</b>
-          ${e ? html`<${UI.Pill} kind="ink">submitted<//>`
-            : isDec ? html`<${StagePill} stage=${c.stage}/>`
-            : html`<span class="row nowrap small flame-t"><span class="dotflame"/>evaluation due</span>`}
-        </div>
-        ${c.role ? html`<div class="sub small">${c.role}</div>` : null}
-        <div class="row small num"><span class="sub">${dueText(c)}</span>${e && isDec ? html`<${StagePill} stage=${c.stage}/>` : null}</div>
-      </div>
+      <span class="grow"><b class="who-n">${c.name || 'Candidate'}</b><span class="c-sub">${c.role ? c.role + ' · ' : ''}${dueText(c)}</span></span>
+      <span class="c-ev">
+        ${e ? html`<${UI.Pill} kind="ink">submitted<//>`
+          : isDec ? html`<${StagePill} stage=${c.stage}/>`
+          : html`<span class="row nowrap sm flame-t"><span class="dotflame"/>evaluation due</span>`}
+        ${e && isDec ? html`<${StagePill} stage=${c.stage}/>` : null}
+      </span>
     </button>`;
   }
 
@@ -499,7 +495,7 @@
           <${UI.Btn} onClick=${() => setDrawer({candidateId: null})}><${icons.plus}/>New candidate<//>
         <//>
         <${UI.Card} title=${html`<${BotTitle} text="Candidates" working=${!ready}/>`} id="hiring-list" action=${open ? html`<${UI.Pill}>${open} open<//>` : null}>
-          ${list.length ? html`<div class="stack tight">
+          ${list.length ? html`<div class="c-hirs">
             ${list.map(c => html`<${CandidateCard} key=${c.id} c=${c} ctx=${ctx} selected=${c.id === id}/>`)}
           </div>` : html`<${UI.Empty} text=${ready ? 'No candidates yet.' : 'Loading.'}/>`}
         <//>
@@ -510,15 +506,12 @@
 
     const mine = list.filter(c => evaluatorsOf(c).includes(ctx.uid));
     const due = assignedToMe(ctx).length;
-    /* the most urgent card on the panel: the first evaluation still due, in a beam */
-    const firstDue = (mine.find(c => !evalOf(ctx, ctx.uid, c.id) && !decided(c)) || {}).id;
     const close = () => { setOpenId(null); if (id) M.nav('#hiring'); };
     return html`<${React.Fragment}>
       <${UI.PageHead} micro="team" title="Hiring"/>
-      <${UI.Card} title=${html`<${BotTitle} text="Your panel" working=${!ready}/>`} id="hiring-mine" action=${due ? html`<${UI.Pill} kind="flame-o">${due} due<//>` : null}>
-        ${mine.length ? html`<div class="stack tight">
-          ${mine.map(c => c.id === firstDue && M.fx ? html`<${M.fx.Beam} key=${c.id} radius=${20}><${MyCard} c=${c} ctx=${ctx} onOpen=${() => setOpenId(c.id)}/><//>`
-            : html`<${MyCard} key=${c.id} c=${c} ctx=${ctx} onOpen=${() => setOpenId(c.id)}/>`)}
+      <${UI.Card} title=${html`<${BotTitle} text="Your panel" working=${!ready}/>`} id="hiring-mine" need=${!!due} action=${due ? html`<${UI.Pill} kind="flame-o">${due} due<//>` : null}>
+        ${mine.length ? html`<div class="c-hirs">
+          ${mine.map(c => html`<${MyCard} key=${c.id} c=${c} ctx=${ctx} onOpen=${() => setOpenId(c.id)}/>`)}
         </div>` : html`<${UI.Empty} text=${ready ? 'No evaluations assigned to you.' : 'Loading.'}/>`}
       <//>
       ${openId ? html`<${EvalDrawer} key=${openId} candidateId=${openId} onClose=${close}/>` : null}

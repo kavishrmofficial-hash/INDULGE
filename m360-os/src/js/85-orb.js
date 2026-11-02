@@ -71,5 +71,6 @@
   M.parts.AgentSheet = AgentSheet;
 
   /* the character's mark on a phone, kept for anything that still asks for it */
-  M.parts.OrbMark = () => M.fx && M.fx.Bot ? html`<span class="orb-mark"><${M.fx.Bot} type="droid" size=${32} label="m360"/></span>` : html`<span class="vorb" aria-hidden="true"/>`;
+  /* v40: no character; the voice orb stands for m360 in the sheet */
+  M.parts.OrbMark = () => html`<span class="vorb" aria-hidden="true"/>`;
 })();

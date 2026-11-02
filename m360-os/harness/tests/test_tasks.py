@@ -75,7 +75,7 @@ def test(h):
         'archived': False, 'by': 'u_founder', 'created': now})
     page.wait_for_timeout(250)
 
-    assert page.inner_text('.pgt').strip() == 'My tasks'
+    assert page.inner_text('.pgt').strip().lower() == 'my tasks'  # v40: the section head sets it in lowercase
     assert page.locator('.colm').count() == 4, 'four columns'
     heads = [t.strip() for t in page.locator('.col-head').all_inner_texts()]
     assert len(heads) == 4 and all('0' in t for t in heads), heads
@@ -120,7 +120,7 @@ def test(h):
     assert card.locator('.pill:has-text("20% shown")').count() == 1
     assert card.locator('.pill.warm:has-text("Swisse Q4 reels")').count() == 1
     assert card.locator('.pill.warm:has-text("Swisse Wellness UAE")').count() == 1
-    assert card.locator('img.av').count() == 1
+    assert card.locator('.av').count() == 1  # v7: initials on ink (a span) when there is no photo
     assert '1' in page.locator('.col-head').nth(0).inner_text()
     assert '1 open, 1 overdue' in page.inner_text('.page-head')
 
@@ -189,7 +189,10 @@ def test(h):
     page.locator('.drawer button[aria-label="Delete subtask"]').nth(0).click()
     page.wait_for_timeout(300)
     doc = get_doc(page, path)
-    assert len(doc['subtasks']) == 1 and list(doc['subtasks'].values())[0]['t'] == 'Send to Omar', doc['subtasks']
+    # v39: the delete writes {subtasks: {id: null}}; the server drops a null key, the mock keeps it as null
+    live = [v for v in doc['subtasks'].values() if v]
+    assert len(live) == 1 and live[0]['t'] == 'Send to Omar', doc['subtasks']
+    assert page.locator('.drawer button[aria-label="Delete subtask"]').count() == 1
     assert len(doc['comments']) == 1 and doc['revisions'] == 1, 'the rest of the task survives a subtask delete'
     close_drawer(page)
     assert page.locator('.tcard .pill:has-text("0 of 1")').count() == 1

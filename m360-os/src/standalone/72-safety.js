@@ -140,7 +140,10 @@
     const [restore, setRestore] = useState(null);
     const [busy, setBusy] = useState('');
     const dl = async d => { setBusy(d.ymd); try { await downloadDay(ctx, d.ymd); } catch (e) { oops(e); } setBusy(''); };
+    /* v39: restoring a collection is Kaavish's alone on the server, so only he sees Restore */
+    const owns = !!(ctx.me && ctx.me.isOwner);
     return html`<${UI.Card} title="Days">
+      ${owns ? null : html`<p class="small ink62" id="bk-owner-only" style=${{marginTop: 0}}>Only Kaavish restores from a backup.</p>`}
       ${info == null ? html`<${UI.Empty} text="Loading the list."/>`
         : !info.days.length ? html`<${UI.Empty} text="No backups yet. The first one runs on its own today, or tap Back up now."/>`
         : html`<div class="stack tight" id="bk-list">${info.days.map(d => html`<div class="listrow bk-row" key=${d.ymd} id=${'bk-row-' + d.ymd}>
@@ -150,7 +153,7 @@
           </span>
           <span class="row nowrap">
             <${UI.Btn} kind="sec" sm=${true} disabled=${busy === d.ymd} onClick=${() => dl(d)}>Download<//>
-            <${UI.Btn} kind="ghost" sm=${true} onClick=${() => setRestore(d)}>Restore<//>
+            ${owns ? html`<${UI.Btn} kind="ghost" sm=${true} onClick=${() => setRestore(d)}>Restore<//>` : null}
           </span>
         </div>`)}</div>`}
       ${restore ? html`<${RestoreDrawer} day=${restore} onClose=${() => setRestore(null)} onDone=${onChanged}/>` : null}
@@ -348,7 +351,9 @@
       </ol>
       ${site && site.lastError ? html`<div class="small flame-t" id="site-latest">The daily site copy was skipped ${U.timeAgo(site.lastError.at)}: ${site.lastError.message}</div>`
         : site && site.at ? html`<div class="tiny ink62 num" id="site-latest">Daily site copy ${U.timeAgo(site.at)} · ${fmtBytes(site.bytes)}</div>` : null}
-      <div class="row" style=${{marginTop: '12px'}}><${UI.Btn} id="site-backup-dl" sm=${true} disabled=${busy} onClick=${dl}>${busy ? 'Preparing' : 'Download the site backup'}<//></div>
+      ${/* v39: the site backup holds everyone's password hashes, and the server hands it to Kaavish alone */ ctx.me && ctx.me.isOwner
+        ? html`<div class="row" style=${{marginTop: '12px'}}><${UI.Btn} id="site-backup-dl" sm=${true} disabled=${busy} onClick=${dl}>${busy ? 'Preparing' : 'Download the site backup'}<//></div>`
+        : html`<p class="small ink62" id="site-owner-only" style=${{margin: '12px 0 0'}}>Only Kaavish downloads the site backup.</p>`}
       ${ctx.me && ctx.me.isOwner ? html`<div class="site-restore stack tight" id="site-restore-here">
         <${UI.Micro} plain>restore a site backup here<//>
         <p class="small ink62" style=${{margin: 0}}>For merging an older copy into this site. Adding what is missing touches nothing that exists now. Replace puts every document in the file over the current one, each going to the trash first, and sets people and their passwords back to the file's copy.</p>

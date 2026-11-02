@@ -319,6 +319,35 @@ def test(h):
     close_drawer(page)
     layout(h, page, 'founder-390', results)
 
+    # ---- v39: a comment goes on the second tap of Delete ----
+    view(h, page, 'm1', 1280)
+    wc = page.locator('#feed-stream .card[data-key="%s"]' % win_key)
+    wc.locator('.comments > button.linky').click()
+    wc.locator('input[aria-label="Comment"]').fill('Nice one')
+    wc.locator('.comments').get_by_role('button', name='Post').click()
+    page.wait_for_selector('#feed-stream .card[data-key="%s"] .comment:has-text("Nice one")' % win_key)
+    wc.locator('.comment:has-text("Nice one") button', has_text='Delete').click()
+    page.wait_for_timeout(300)
+    check(wc.locator('.comment:has-text("Nice one")').count() == 1, 'one tap on Delete keeps the comment')
+    wc.locator('.comment:has-text("Nice one") button', has_text='Tap again').click()
+    page.wait_for_function('() => !document.querySelector(".comment")')
+
+    # ---- v39: an admin (a roster founder) posts an announcement and it pins on the owner's doc, the one
+    # pinnedKey reads. The mock keeps admin paths for the owner, so the owner-doc write is caught here; the
+    # real server takes it (harness/out/bugs/team/followup.py) ----
+    page.evaluate('() => { const r = window.__db.get("roster/team"); r.members.u_m2.role = "founder"; return window.__db.set("roster/team", r); }')
+    page.goto(h.url('m2', '#feed', edit='1'))
+    h.ready(page)
+    page.wait_for_selector('h1.pgt:has-text("Feed")')
+    page.evaluate('() => { const W = M.lastCtx.W, orig = W.merge; window.__pins = []; W.merge = (p, d) => { if (p === "feed/u_founder") { window.__pins.push(d.pinned); return Promise.resolve(); } return orig(p, d); }; }')
+    page.locator('[aria-label="Post kind"] .seg-btn', has_text='Announcement').click()
+    page.fill('#feed-text', 'All hands at 5 today')
+    page.get_by_role('button', name='Post', exact=True).click()
+    page.wait_for_selector('.toast:has-text("Posted")')
+    m2doc = feed_doc(page, 'u_m2')
+    adm_key = 'u_m2:' + m2doc['posts'][0]['id']
+    check(page.evaluate('() => window.__pins') == [adm_key], 'an admin announcement pins on the owner doc: %r' % page.evaluate('() => window.__pins'))
+
     # ---- every view opened: no overflow, no small text, no console errors ----
     for name, ov, st in results:
         check(ov == 0, '%s: horizontal overflow %dpx' % (name, ov))

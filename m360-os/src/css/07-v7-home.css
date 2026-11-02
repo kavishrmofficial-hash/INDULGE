@@ -1,0 +1,280 @@
+/* ---------- v40: Home (Today) in the v7 look ----------
+   The values are the design's own (design/m360-os-v7.html and design/m360-os.css, B1): the Command head
+   (.c-top, .c-tl, .c-lede, .c-needl, .c-tr2, .c-askf, .wv, .kb), the bands, the section rhythm (.c-sec),
+   the filter chips (.c-fcs, .c-fc), and B1's Today page (.ann, .flags, .flag, .sev, .consent, .who, .eod,
+   .empty, .lnkb). They are scoped to .v7h, the Home page, so nothing else on the OS shifts. */
+
+/* the page: content rises 14px on entry with a short stagger */
+.v7h{display:flex; flex-direction:column; min-width:0}
+.v7h > *{animation:rise .75s var(--ease) backwards}
+.v7h > :nth-child(2){animation-delay:.05s}
+.v7h > :nth-child(3){animation-delay:.1s}
+.v7h > :nth-child(4){animation-delay:.15s}
+.v7h > :nth-child(n+5){animation-delay:.2s}
+
+/* ---------- the head: label, title with the flame stop, lede; the Ask field and the chips on the right ---------- */
+#home-hero.home-hero{position:relative; padding:0; border-radius:0; background:transparent; color:var(--ink); overflow:visible}
+#home-hero .c-top{display:flex; flex-direction:row; justify-content:space-between; align-items:flex-start; gap:32px; margin-bottom:0}
+#home-hero .c-tl{display:flex; flex-direction:column; gap:16px; min-width:0}
+#home-hero .c-tl > *{animation:rise .8s var(--ease) backwards}
+#home-hero .c-tl > :nth-child(2){animation-delay:.06s}
+#home-hero .c-tl > :nth-child(3){animation-delay:.12s}
+#home-hero .lab{color:var(--g64)}
+#home-hero .lab::before{display:none}
+#home-hero .sky{display:inline-flex; align-items:center; justify-content:center; width:6px; height:6px; flex:0 0 6px}
+#home-hero .sun{display:block; width:6px; height:6px; border-radius:50%; background:var(--flame)}
+#home-hero .moon{display:block; width:7px; height:7px; border-radius:50%; background:transparent; box-shadow:inset 0 0 0 1.5px var(--ink)}
+#home-hero .hero-clock{display:inline-flex; gap:8px; color:var(--g64)}
+#home-hero .hero-clock .clock{color:var(--ink); font-weight:500}
+#home-hero .pgt.hi{margin:0; font-size:48px; line-height:52px; font-weight:600; letter-spacing:-.035em}
+#home-hero .c-lede{display:flex; align-items:center; flex-wrap:wrap; column-gap:12px; row-gap:4px; min-height:28px; font-size:15px; line-height:20px}
+#home-hero .c-needl{display:inline-flex; align-items:center; gap:6px; height:28px; padding:0; border:0; background:none; font:inherit; font-size:14px; color:var(--flame); cursor:pointer; transition:color .3s var(--ease)}
+#home-hero .c-needl b{font-weight:500}
+#home-hero .c-needl .ar{width:14px; height:14px; background:currentColor; -webkit-mask:var(--arw) center/14px 14px no-repeat; mask:var(--arw) center/14px 14px no-repeat; rotate:90deg; transition:translate .45s var(--spring)}
+#home-hero .c-needl:hover .ar{translate:0 3px}
+#home-hero .c-needl.ok{color:var(--ink); cursor:default}
+#home-hero .hero-tomorrow{display:inline-flex; align-items:center; gap:8px; margin:0; font-size:14px; font-weight:400; color:var(--g64)}
+#home-hero .c-tr2{flex:0 0 320px; width:320px; display:flex; flex-direction:column; align-items:stretch; gap:12px; margin-top:-6px}
+#home-hero .c-tr2{animation:rise .8s var(--ease) .1s backwards}
+.v7h .c-askf{position:relative; display:flex; align-items:center; gap:12px; width:100%; height:44px; padding:0 10px 0 16px; border:0; border-radius:22px; font:inherit; color:var(--g64); background:var(--warm); box-shadow:inset 0 0 0 1px var(--g08); cursor:text; transition:background-color .3s var(--ease),box-shadow .35s var(--ease),scale .45s var(--spring)}
+@media (hover:hover){ .v7h .c-askf:hover{background:var(--paper); box-shadow:inset 0 0 0 1px var(--line2),0 14px 30px -20px rgba(14,14,14,.4)} }
+.v7h .c-askf:active{scale:.98}
+.v7h .c-askf .phd{flex:1; font-size:14px; line-height:20px; text-align:left}
+.v7h .wv{display:flex; align-items:center; gap:2px; height:14px}
+.v7h .wv i{display:block; width:2px; height:35%; border-radius:1px; background:var(--ink); animation:v7h-wv 1.4s ease-in-out infinite; animation-delay:calc(var(--k) * -.21s); transition:background-color .3s var(--ease)}
+.v7h .c-askf:hover .wv i{background:var(--flame)}
+@keyframes v7h-wv{0%,100%{height:30%} 50%{height:100%}}
+.v7h .kb{display:inline-flex; align-items:center; gap:1px; height:24px; padding:0 7px; border-radius:8px; font-size:12px; font-weight:500; line-height:1; color:var(--g64); background:var(--paper); box-shadow:inset 0 0 0 1px var(--line2)}
+/* the day's chips: the design's chip (28px, a ring, 12px at .08em) */
+#home-hero .hero-chips{display:flex; flex-wrap:wrap; gap:8px; margin:0}
+#home-hero .chip.chipline{flex:0 0 auto; display:inline-flex; align-items:center; gap:8px; height:28px; min-height:28px; padding:0 12px; border:0; border-radius:14px; font-size:12px; letter-spacing:.08em; color:var(--ink); background:transparent; box-shadow:inset 0 0 0 1px var(--line2); white-space:nowrap}
+#home-hero .chip.chipline b{font-weight:500; letter-spacing:0}
+#home-hero button.chip.chipline{cursor:pointer; font:inherit; font-size:12px; letter-spacing:.08em; transition:background-color .3s var(--ease),color .3s var(--ease),box-shadow .3s var(--ease),scale .45s var(--spring)}
+@media (hover:hover){ #home-hero button.chip.chipline:hover{color:var(--on-ink); background:var(--ink); box-shadow:inset 0 0 0 1px var(--ink)} }
+#home-hero button.chip.chipline:active{scale:.94}
+#home-hero .chip.chipline svg{width:12px; height:12px}
+
+/* ---------- 01 check in: a band, warm by day (a white card on it), dark at night ---------- */
+#home-hero .hero-panel.band{position:relative; display:block; margin:48px calc(-1 * var(--g)) 0; padding:48px var(--g); border:0; border-radius:28px; min-width:0}
+#home-hero .hero-panel.band.warm{background:var(--warm); color:var(--ink)}
+#home-hero .hero-panel.band.dark{background:var(--dark); color:#fff}
+#home-hero .band.warm .ci-card{position:relative; background:var(--paper); border-radius:20px; padding:24px; box-shadow:0 0 0 1px var(--line)}
+#home-hero .band.dark .ci-card{padding:0}
+#home-hero .ci-card .sh{margin-bottom:24px}
+#home-hero .band.warm .ci-card .sh{box-shadow:0 1px 0 var(--line)}
+#home-hero .band.dark .sh{box-shadow:0 1px 0 rgba(255,255,255,.85)}
+#home-hero .band.dark .eb{color:var(--w64)}
+#home-hero .band.dark .pill:not(.flame){color:#fff; background:transparent; border-color:var(--w26)}
+#home-hero .band.dark .pill.ink{color:#0E0E0E; background:#fff; border-color:#fff}
+#home-hero .band.dark .mut,#home-hero .band.dark .soft{color:var(--w64)}
+.ci-tap{display:flex; flex-direction:column; gap:20px}
+.ci-q{display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; font-size:15px; line-height:22px}
+.ci-q b{font-weight:500}
+.ci-go .btn.block{width:100%}
+.ci-pick{display:flex; flex-direction:column; gap:12px}
+.ci-pick-q{font-weight:500}
+.ci-now{display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap}
+.ci-num{display:flex; flex-direction:column; gap:8px; min-width:0}
+.ci-k{font-size:12px; line-height:16px; letter-spacing:.14em; text-transform:lowercase; color:var(--g64)}
+.band.dark .ci-k{color:var(--w64)}
+.ci-where{font-size:14px; line-height:20px; color:var(--g64)}
+.band.dark .ci-where{color:var(--w64)}
+.ci-act{display:flex; align-items:center; gap:12px}
+.ci-reopen{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.ci-special{padding:8px 0 0}
+/* the mood row: the design's filter chips. Warm, round, ink when on */
+.v7h .c-fcs{display:flex; flex-wrap:wrap; gap:8px}
+.v7h .c-fc{display:inline-flex; align-items:center; gap:8px; height:32px; padding:0 14px; border:0; border-radius:16px; font:inherit; font-size:13px; line-height:1; color:var(--ink); background:var(--warm); cursor:pointer; white-space:nowrap; transition:background-color .3s var(--ease),color .3s var(--ease),box-shadow .3s var(--ease),scale .45s var(--spring)}
+.v7h .c-fc:hover{box-shadow:inset 0 0 0 1px var(--line2)}
+.v7h .c-fc.on{color:var(--on-ink); background:var(--ink); box-shadow:none}
+.v7h .c-fc:active{scale:.94}
+.v7h .c-fc svg{width:16px; height:16px; flex:0 0 16px}
+#home-hero .band.dark .c-fc{color:#fff; background:transparent; box-shadow:inset 0 0 0 1px rgba(255,255,255,.26)}
+#home-hero .band.dark .c-fc:hover{box-shadow:inset 0 0 0 1px #fff}
+#home-hero .band.dark .c-fc.on{color:#0E0E0E; background:#fff; box-shadow:none}
+/* the segmented control keeps its paper look on the day card (css.css draws .hero-panel segments for a dark ground) */
+#home-hero .band.warm .seg{background:var(--warm)}
+#home-hero .band.warm .seg-btn{color:var(--g64)}
+#home-hero .band.warm .seg-btn:hover{color:var(--ink)}
+#home-hero .band.warm .seg-btn.active{color:var(--on-ink)}
+#home-hero .band.warm .seg:not(.slide) .seg-btn.active{background:var(--ink)}
+#home-hero .band.warm .seg-pill{background:var(--ink); box-shadow:0 8px 18px -10px rgba(14,14,14,.6)}
+/* B1: the consent line under the check-in */
+.v7h .consent{margin:0; padding-top:12px; font-size:12px; line-height:16px; color:var(--g45); box-shadow:0 -1px 0 var(--g08)}
+#home-hero .band.dark .consent{color:var(--w64); box-shadow:0 -1px 0 var(--w12)}
+
+/* ---------- sections ---------- */
+.v7h-notes{display:flex; flex-direction:column; gap:16px}
+.v7h-notes:not(:empty){padding-top:48px}
+.v7h .c-sec{padding-top:64px; display:flex; flex-direction:column; gap:16px; min-width:0}
+.v7h .c-sec > .sh{margin-bottom:8px}
+.v7h .split{gap:16px}
+.v7h-col{display:flex; flex-direction:column; gap:16px; min-width:0}
+.v7h .grid2{gap:16px}
+
+/* the quick actions: the design's filter chips with an icon */
+.v7h .quick.c-fcs{display:flex; grid-template-columns:none}
+.v7h .quick-btn.c-fc{flex-direction:row; padding:0 14px; box-shadow:none; border-radius:16px; translate:none}
+.v7h .quick-btn.c-fc:hover{translate:none; box-shadow:inset 0 0 0 1px var(--line2)}
+.v7h .quick-btn.c-fc:hover svg{color:var(--flame)}
+
+/* B1 Today: announcements */
+.v7h .card.ann{margin:0}
+.v7h .ann-h{display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap}
+.v7h .post-t{margin:0 0 16px; font-size:15.5px; line-height:24px}
+.v7h .pre{white-space:pre-wrap; word-break:break-word}
+.v7h .who-n{font-weight:500; font-size:14.5px; line-height:20px}
+.v7h .sm{font-size:13px; line-height:20px}
+.v7h .empty{padding:12px 0 4px; font-size:15px; line-height:22px; color:var(--g45)}
+.v7h .lnkb{display:inline-flex; align-items:center; border:0; font:inherit; font-size:13px; color:var(--ink); text-align:left; cursor:pointer; background:linear-gradient(var(--flame),var(--flame)) 0 100%/0 1px no-repeat; padding:0 0 1px; transition:color .3s var(--ease),background-size .45s var(--ease)}
+.v7h .lnkb:hover{color:var(--flame); background-size:100% 1px}
+/* B1 Today: the rule box's flags */
+.v7h .flags{display:flex; flex-direction:column}
+.v7h .flag{display:flex; gap:12px; align-items:flex-start; padding:12px 0; box-shadow:0 1px 0 var(--g08)}
+.v7h .flag:last-child{box-shadow:none}
+.v7h .flag b{display:block; font-size:14px; line-height:20px; font-weight:500}
+.v7h .flag .mut.sm{margin-top:2px}
+.v7h .sev{flex:0 0 8px; width:8px; height:8px; border-radius:50%; margin-top:6px; background:var(--g28)}
+.v7h .sev.high{background:var(--flame)} .v7h .sev.medium{background:var(--ink)} .v7h .sev.low{background:var(--g28)}
+/* B1 Today: the EOD line once posted */
+.v7h .eod{display:grid; grid-template-columns:80px minmax(0,1fr); gap:8px 16px; margin:0 0 12px; font-size:14.5px; line-height:20px}
+.v7h .eod dt{font-size:12px; line-height:20px; letter-spacing:.1em; color:var(--g45)}
+.v7h .eod dt.flt{color:var(--flame)}
+.v7h .eod dd{margin:0; min-width:0; overflow-wrap:anywhere}
+/* B1 Today: who is in */
+.v7h .who{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px}
+.v7h .who-i{display:flex; align-items:center; gap:12px; min-width:0; width:auto; padding:0; border:0; background:none; text-align:left; font:inherit; color:inherit; cursor:pointer}
+.v7h .who-i > div{min-width:0}
+.v7h .who-i:hover .who-n{color:var(--flame)}
+.v7h .crew-face{font-size:13px}
+
+/* the focus list: B1's list rows, a hairline between, the round tick */
+.v7h .focus{display:flex; align-items:center; gap:12px; min-height:48px; padding:10px 0; border-radius:0; background:transparent; box-shadow:0 1px 0 var(--g08)}
+.v7h .focus + .focus{margin-top:0}
+.v7h .focus:last-of-type{box-shadow:none}
+.v7h .focus .ft{font-size:14.5px; line-height:20px; font-weight:500}
+.v7h .focus .rowbtn{min-width:0}
+.v7h .tk-m{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px}
+.v7h .tk-m .pill{height:22px; padding:0 8px; font-size:11.5px; border-radius:11px}
+.v7h .tick{width:20px; height:20px; flex:0 0 20px; border-radius:50%; display:inline-grid; place-items:center; box-shadow:inset 0 0 0 1px var(--line2); background:transparent; color:var(--on-ink)}
+.v7h .tick.done{background:var(--ink); box-shadow:none}
+.v7h .tick svg{width:12px; height:12px}
+.v7h .ask-in{display:flex; gap:8px; align-items:center}
+.v7h .ask-in .input{flex:1 1 auto; min-width:0}
+
+/* your week: the number tiles (Command 02 numbers) */
+.v7h .kpis{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); column-gap:32px; row-gap:32px; margin:8px 0 16px}
+.v7h .kpis .stat{gap:12px; padding-top:16px; cursor:pointer}
+.v7h .kpis .stat .k{display:block; font-size:12px; line-height:16px; letter-spacing:.14em; text-transform:lowercase; color:var(--g64); transition:color .3s var(--ease)}
+.v7h .kpis .stat:hover .k{color:var(--ink)}
+.v7h .kpis .stat .n{display:block; font-size:13px; line-height:16px; color:var(--g64); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%}
+.v7h .kpis .bignum{max-width:100%}
+/* the week strip */
+.v7h .week-strip{gap:8px}
+.v7h .wk-day{border-radius:16px; padding:12px 4px 10px}
+.v7h .wk-day.is-today{background:var(--paper); box-shadow:inset 0 0 0 1px var(--ink)}
+.v7h .wk-dow{font-size:12px; letter-spacing:.1em; color:var(--g45)}
+.v7h .wk-day.is-today .wk-dow{color:var(--flame)}
+.v7h .wk-key{color:var(--g64)}
+/* around the studio: the ladder's rank is a plain number */
+.v7h .rank,.v7h .rank.first{width:20px; height:auto; border-radius:0; background:none; color:var(--g45); font-size:12px; font-weight:400; justify-content:flex-start}
+.v7h .rank.first{color:var(--flame); font-weight:500}
+.v7h .topthree{margin-top:16px; padding-top:12px; border-top:0; box-shadow:0 -1px 0 var(--line)}
+/* the cards around the head */
+.v7h .install-hint{display:block}
+/* the thought for the day: Command's voice line (B1 .c-q), a light 22px quote */
+#quote-card{padding:24px}
+#quote-card .quote-line{margin:12px 0 0; font-size:22px; line-height:28px; font-weight:300; letter-spacing:-.02em; overflow-wrap:anywhere}
+#quote-card .quote-next{border:0; color:var(--ink); background:var(--paper); box-shadow:inset 0 0 0 1px var(--line2)}
+#quote-card .quote-next:hover{background:var(--warm)}
+/* a celebration: the gift sits in an ink circle (B1 .c-clear .ok) */
+#celebrate .celebrate .cake{width:40px; height:40px; border-radius:50%; background:var(--ink); color:var(--on-ink)}
+#celebrate .celebrate .cake svg{width:18px; height:18px}
+#celebrate .celebrate + .celebrate{margin-top:16px}
+/* the day rating: paper ground, ink type, the logo black; the knob's centre is flame (your touch) */
+#dayrate.dayrate{background:var(--paper); color:var(--ink)}
+#dayrate .dayrate-top .mark{color:var(--mark)}
+#dayrate .dayrate-top .iconbtn{color:var(--ink); background:var(--paper); box-shadow:inset 0 0 0 1px var(--line2)}
+#dayrate .dayrate-micro{color:var(--g64)}
+#dayrate .dayrate-q{font-size:48px; line-height:52px; letter-spacing:-.035em}
+#dayrate .dayrate-face{filter:none}
+#dayrate .dayrate-word{font-weight:500}
+#dayrate .dayrate-track{background:var(--warm); box-shadow:inset 0 0 0 1px var(--g08)}
+#dayrate .dayrate-fill{background:var(--g12)}
+#dayrate .dayrate-knob{background:var(--ink); box-shadow:0 10px 22px -12px rgba(14,14,14,.7)}
+#dayrate .dayrate-knob::after{background:var(--flame)}
+#dayrate .dayrate-ends{color:var(--g45)}
+#dayrate .dayrate-acts .btn.xl{background:var(--ink); color:var(--on-ink)}
+@media (hover:hover){ #dayrate .dayrate-acts .btn.xl:hover{background:var(--flame)} }
+#dayrate .dayrate-skip{color:var(--ink)}
+@media (max-width:900px){ #dayrate .dayrate-q{font-size:36px; line-height:40px} }
+/* breathe: the flame orb is flame itself, never at an alpha */
+#breathe .orb::before{opacity:1}
+/* m360 AI points with a flame ring (the live mark looks at it); the flame is never a tint, so no glow */
+.buddy-ring{border-radius:14px; box-shadow:none}
+
+/* ---------- Me: the handbook (B1 .hb, .hb-nav, .hb-i, .hb-r, .hb-t, .hb-f, .md). The layout is .hb-grid
+   here, since .hb is already the reader's body ---------- */
+.hb-grid{display:grid; grid-template-columns:260px minmax(0,1fr); gap:16px; align-items:start}
+.hb-nav{display:flex; flex-direction:column; gap:4px; position:sticky; top:24px}
+.hb-nav .lab{margin:0 0 8px}
+.hb-i{display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; min-height:44px; padding:10px 16px; border:0; border-radius:14px; font:inherit; font-size:14px; line-height:20px; text-align:left; color:var(--ink); background:var(--paper); box-shadow:inset 0 0 0 1px var(--line); cursor:pointer; transition:background-color .3s var(--ease),color .3s var(--ease),box-shadow .3s var(--ease),scale .45s var(--spring)}
+.hb-i:hover{box-shadow:inset 0 0 0 1px var(--line2)}
+.hb-i:active{scale:.97}
+.hb-i.on{color:var(--on-ink); background:var(--ink); box-shadow:none}
+.card.hb-r{padding:32px 40px}
+.hb-t{margin:8px 0 20px; font-size:32px; line-height:36px; font-weight:600; letter-spacing:-.03em}
+.hb.md{max-width:66ch; gap:0}
+.hb.md h1{margin:28px 0 8px; font-size:21px; line-height:28px; font-weight:500; letter-spacing:-.02em}
+.hb.md h1:first-child{margin-top:0}
+.hb.md h2{margin:20px 0 6px; font-size:16.5px; line-height:24px; font-weight:500}
+.hb.md p{margin:0 0 12px; font-size:15.5px; line-height:25px; color:var(--g80)}
+.hb.md ul{margin:4px 0 12px; gap:0}
+.hb.md li{position:relative; display:block; margin:6px 0; padding-left:20px; font-size:15.5px; line-height:24px; color:var(--g80)}
+.hb.md li::before{position:absolute; left:2px; top:.66em; width:6px; height:6px}
+.hb.md b{color:var(--ink)}
+.hb-f{display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-top:28px; padding-top:20px; box-shadow:0 -1px 0 var(--line)}
+@media (max-width:960px){
+  .hb-grid{grid-template-columns:minmax(0,1fr)}
+  .hb-nav{position:static; flex-direction:row; overflow-x:auto; padding-bottom:4px; scrollbar-width:none}
+  .hb-nav .lab{display:none}
+  .hb-i{width:auto; white-space:nowrap; flex:0 0 auto}
+}
+@media (max-width:900px){ .card.hb-r{padding:24px 20px} .hb-t{font-size:26px; line-height:30px} }
+/* ---------- Me: leave (B1 .lv, .lv-r, .note) ---------- */
+#leave-mine .lv,#leave-approvals .lv{display:flex; flex-direction:column}
+#leave-mine .lv-r,#leave-approvals .lv-r{display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:56px; padding:12px 0; flex-wrap:wrap; box-shadow:0 1px 0 var(--g08)}
+#leave-mine .lv-r:last-child,#leave-approvals .lv-r:last-child{box-shadow:none}
+#leave-mine .lv-r b,#leave-approvals .lv-r b{font-weight:500}
+#leave-request .leave-note{margin:0 0 16px; padding:12px 16px; border-radius:14px; background:var(--warm); font-size:14px; line-height:20px}
+
+@media (max-width:1100px){ #home-hero .c-top{flex-direction:column; align-items:stretch; gap:24px} #home-hero .c-tr2{flex:none; width:100%; max-width:440px; margin-top:0} }
+@media (max-width:1000px){ .v7h .kpis{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (max-width:900px){
+  #home-hero.home-hero{padding:0}
+  #home-hero .pgt.hi{font-size:36px; line-height:40px}
+  #home-hero .lab{white-space:normal; flex-wrap:wrap; letter-spacing:.14em}
+  #home-hero .c-top{gap:24px}
+  #home-hero .c-tr2{max-width:none}
+  #home-hero .hero-panel.band{margin:40px -16px 0; padding:40px 16px; border-radius:24px}
+  #home-hero .band.warm .ci-card{padding:20px}
+  .v7h .c-sec{padding-top:48px}
+  .v7h-notes:not(:empty){padding-top:40px}
+  .v7h .kpis{grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:16px; row-gap:24px}
+  .v7h .kpis .bignum{font-size:52px; line-height:56px}
+  .v7h .kpis .bignum.money{font-size:30px; line-height:36px}
+  .v7h .eod{grid-template-columns:68px minmax(0,1fr)}
+  .v7h .lnkb{min-height:36px; background-position:0 calc(50% + 10px)}
+  .ci-now{align-items:flex-start}
+  .ci-now .ci-act,.ci-now .ci-act .btn{width:100%}
+  .v7h .quick.c-fcs{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px}
+  .v7h .quick-btn.c-fc{justify-content:flex-start; height:44px; border-radius:22px}
+  #home-hero .moods.c-fcs{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px}
+  #home-hero .moods .mood.c-fc{justify-content:center; padding:0 6px; height:40px; border-radius:20px}
+  #home-hero .hero-chips .chip.chipline{height:36px; min-height:36px}
+}
+@media (max-width:420px){ .v7h .who{grid-template-columns:1fr 1fr} .v7h .who-i .av{width:32px!important; height:32px!important} }
+@media (prefers-reduced-motion:reduce){
+  .v7h > *,#home-hero .c-tl > *,#home-hero .c-tr2,.v7h .wv i{animation:none!important}
+  .v7h .c-askf,.v7h .c-fc,#home-hero .c-needl .ar,#home-hero button.chip.chipline,.v7h .lnkb{transition:none!important}
+}

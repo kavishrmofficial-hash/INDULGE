@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""v32 contract test: the buddy dock, the pop-up and the phone sheet, black box, from spec Parts G and L.
+"""v32 contract test, v40 rewrite: the m360 AI sheet and the phone sheet, black box, from spec Parts G and L.
+
+v40: the corner dock and its character are gone from the screen; m360 AI opens from the Ask bar's m360 AI row
+(.pal-item[data-k="a-ai"], Ctrl+K on a desk, the tab bar's #tbAsk on a phone) as the glass sheet. The dock-only
+checks (its corner, its drawn character, lifting clear of the composer and drawers, focus back to it) are retired.
+The original v32 brief follows.
+
 
 Written by the server builder against the contract alone, apart from builder 3's own test_dock.py. It
 covers what spec Part M lists for test_dock.py through the public names: #buddy-dock .buddy-home
@@ -122,7 +128,9 @@ def test(h):
         return p
 
     def open_pop(p):
-        p.locator('#buddy-dock .buddy-home').first.click()
+        """v40: the Ask bar's m360 AI row opens the sheet"""
+        p.keyboard.press('Control+k')
+        p.locator('.pal-item[data-k="a-ai"]').click()
         p.wait_for_selector('.buddy-bubble[role="dialog"]', timeout=8000)
         p.wait_for_timeout(500)
 
@@ -134,21 +142,13 @@ def test(h):
                 p = page_in(c, first=True)
                 if dark:
                     p.emulate_media(color_scheme='dark')
-                home = p.locator('#buddy-dock .buddy-home')
-                check(home.count() == 1 and home.first.get_attribute('aria-label') == 'Ask m360', '%s: the dock and its label' % name)
-                if not home.count():
-                    c.close()
-                    continue
-                d = p.evaluate(RECT, '#buddy-dock .buddy-home')
-                pos = p.evaluate('() => getComputedStyle(document.querySelector("#buddy-dock")).position')
-                check(pos == 'fixed' and d['r'] <= w - 12 and d['r'] >= w - 40 and d['b'] <= hh - 12, '%s: the dock sits in the bottom right corner: %r %s' % (name, d, pos))
-                cv = p.evaluate('() => { const c = document.querySelector("#buddy-dock canvas"); if (!c) return null; const r = c.getBoundingClientRect(); return [c.width, r.width, devicePixelRatio]; }')
-                check(cv and abs(cv[0] - round(cv[1] * cv[2])) <= 2, '%s: the character is drawn at CSS size times DPR: %r' % (name, cv))
+                ch = p.evaluate('() => { const b = document.querySelector("#buddy-dock .buddy-home"); return [!!(b && b.getClientRects().length), document.querySelectorAll("#buddy-dock canvas").length]; }')
+                check(ch == [False, 0], '%s: no character in the corner: %r' % (name, ch))
                 if w < 500:
-                    check(p.locator('.buddy-home.orb-home').count() == 1 and 44 <= d['w'] <= 52, '%s: the phone character is 48 px with orb-home: %r' % (name, d))
-                    home.first.click()
+                    p.locator('#tbAsk').click()
+                    p.locator('.pal-item[data-k="a-ai"]').click()
                     p.wait_for_selector('#orb-screen', timeout=8000)
-                    sh = p.evaluate(RECT, '#orb-screen')
+                    sh = stable(p, '#orb-screen')
                     check(sh and sh['h'] <= hh * 0.88 + 2 and sh['b'] >= hh - 2, '%s: the sheet rises from the bottom, at most 88 percent: %r' % (name, sh))
                     check(h.overflow(p) <= 0, '%s: no overflow with the sheet open' % name)
                     if SHOTS:
@@ -161,7 +161,8 @@ def test(h):
                 # the pop-up springs open; on a busy page (the office and the COO's runner on Home since v33) that
                 # can take a moment, so read its places once they hold still
                 b = stable(p, '.buddy-bubble')
-                check(b and b['x'] >= 0 and b['y'] >= 0 and b['r'] <= w and b['b'] <= hh, '%s: the pop-up stays inside the window: %r' % (name, b))
+                check(b and b['x'] >= 0 and b['y'] >= 0 and b['r'] <= w and b['b'] <= hh, '%s: the sheet stays inside the window: %r' % (name, b))
+                check(b and abs(b['w'] - 520) < 1 and abs(w - b['r'] - 12) < 1 and abs(b['y'] - 12) < 1 and abs(hh - b['b'] - 12) < 1, '%s: the glass sheet, 520 px, 12 px from the edges: %r' % (name, b))
                 # the saved thread loads after the pop-up opens and the pop-up grows to fit it; a busy page (the
                 # office and the COO's runner on Home since v33) can take a few seconds, so wait for it, then read
                 # the header and composer once they hold still
@@ -198,7 +199,6 @@ def test(h):
                 p.keyboard.press('Escape')
                 p.wait_for_timeout(500)
                 check(p.locator('.buddy-bubble[role="dialog"]').count() == 0, '%s: Escape closes the pop-up' % name)
-                check(p.evaluate('() => !!(document.activeElement && document.activeElement.closest && document.activeElement.closest(".buddy-home"))'), '%s: focus returns to the character' % name)
                 c.close()
     section('views', views)
 
@@ -246,40 +246,26 @@ def test(h):
         c.close()
     section('openers', openers)
 
-    def avoidance():
+    def over_drawer():
+        """v40: no dock to step aside; over an open drawer the sheet opens above the scrim and takes a tap"""
         c = ctx_for(1280, 800, 1, False)
         p = page_in(c, first=True)
-        before = p.evaluate(RECT, '#buddy-dock .buddy-home')
-        p.evaluate('''() => { const d = document.createElement('div'); d.id = 'avoid-me'; d.setAttribute('data-dock-avoid', '');
-          Object.assign(d.style, {position: 'fixed', right: '0px', bottom: '0px', width: '320px', height: '120px'}); document.body.appendChild(d); }''')
-        p.wait_for_timeout(300)
-        after = stable(p, '#buddy-dock .buddy-home')
-        av = p.evaluate(RECT, '#avoid-me')
-        check(after and av and after['b'] <= av['y'] - 8, 'the dock lifts above [data-dock-avoid]: %r %r (was %r)' % (after, av, before))
-        p.evaluate('() => document.getElementById("avoid-me").remove()')
-        p.goto(h.url('founder', '#chat'))
-        h.ready(p)
-        p.wait_for_timeout(300)
-        comp = stable(p, '.chat-composer')
-        dk = stable(p, '#buddy-dock .buddy-home')
-        if comp and dk and comp['r'] > dk['x']:
-            check(dk['b'] <= comp['y'] - 8, 'the dock clears the chat composer: %r %r' % (dk, comp))
-        p.goto(h.url('founder', '#home'))
-        h.ready(p)
-        p.locator('.bellbtn').first.click()
+        p.keyboard.press('Control+k'); p.locator('.pal-item[data-k=\"a-inbox\"]').click()
         p.wait_for_selector('.drawer', timeout=8000)
         p.wait_for_timeout(700)
-        dr = p.evaluate(RECT, '.drawer')
-        dk = p.evaluate(RECT, '#buddy-dock .buddy-home')
-        check(dk and dr and (dk['r'] <= dr['x'] - 8 or dk['b'] <= dr['y']), 'the dock steps aside for an open drawer: %r %r' % (dk, dr))
+        p.evaluate('() => M.assistant.open("")')
+        p.wait_for_selector('.buddy-bubble[role="dialog"]', timeout=8000)
+        b = stable(p, '.buddy-bubble')
+        top = p.evaluate('r => { const e = document.elementFromPoint(r.x + r.w / 2, r.y + 40); return !!(e && e.closest(".buddy-bubble")); }', b)
+        check(top and p.locator('.drawer').count() == 1, 'the sheet opens over the drawer and takes a tap: %r' % b)
         c.close()
-    section('avoidance', avoidance)
+    section('over a drawer', over_drawer)
 
     def reduced():
         c = ctx_for(1280, 800, 1, False, reduced_motion='reduce')
         p = page_in(c, first=True)
         p.emulate_media(reduced_motion='reduce')
-        p.locator('#buddy-dock .buddy-home').first.click()
+        p.evaluate('() => M.assistant.open("")')
         p.wait_for_timeout(30)
         anims = p.evaluate('''() => document.getAnimations().filter(a => { const t = a.effect && a.effect.target; return t && t.closest && (t.closest('.buddy-bubble') || t.closest('#buddy-dock')); })
           .map(a => { const tm = a.effect.getComputedTiming(); return {d: tm.duration, it: tm.iterations, props: a.effect.getKeyframes ? Object.keys(a.effect.getKeyframes()[0] || {}).filter(k => !['offset', 'easing', 'composite', 'computedOffset'].includes(k)) : []}; })''')

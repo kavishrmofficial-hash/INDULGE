@@ -236,6 +236,7 @@ def test(h):
     p.locator('#coo-admin').screenshot(path=os.path.join(SHOTS, 'coo-admin.png'))
 
     # ---- HQ Workload: by id, never the look-alike ----
+    p.evaluate('() => sessionStorage.setItem("m360.hqmore", "1")')  # v40: HQ opens on Command; the brief, the tape and the setup sit under "more from HQ"
     be(p, 'founder', '#hq')
     wl = p.locator('section.card', has=p.locator('h2', has_text='Workload')).first
     wl.locator('button', has_text='Rebalance').click()

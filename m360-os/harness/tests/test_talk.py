@@ -77,6 +77,9 @@ def main():
             f.fill('#signin-pw', 'lamp-orbit-9182')
             f.get_by_role('button', name='Set up the workspace').click()
             f.wait_for_selector('.sidebar')
+            f.wait_for_selector('#hq-more')   # v40: HQ opens on Command; setup sits under "more from HQ"
+            if f.get_attribute('#hq-more', 'aria-expanded') != 'true':
+                f.click('#hq-more')
             f.wait_for_selector('#setup-card')
 
             # ---- the status, and speaking in Hindi through the box ----
@@ -106,7 +109,8 @@ def main():
 
             # ---- the Ask chat: Talk, the words land, the reply is read aloud ----
             # the spark opens the pop-up at the dock; expand takes the same thread wide, into the drawer
-            f.locator('.iconbtn[aria-label="Ask m360"]').click()
+            # v40: the Ask bar's m360 AI row opens the sheet (Ctrl+K, then the row)
+            f.keyboard.press('Control+k'); f.locator('.pal-item[data-k="a-ai"]').click()
             f.wait_for_selector('#buddy-expand')
             f.click('#buddy-expand')
             f.wait_for_selector('.drawer #ask-input')

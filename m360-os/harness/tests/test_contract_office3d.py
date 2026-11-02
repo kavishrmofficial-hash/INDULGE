@@ -30,8 +30,8 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, ROOT)
 MB = 1024 * 1024
-# capabilities.json as v34 shipped it: v35 adds no capability and no rule
-CAPS_SHA256 = '47cf76f495befc2be8ff32f48f0866767dbdc6f5509e2a7fcd904d2cb89861be'
+# capabilities.json as v39 ships it (v39 closed statements and review; the office still adds no rule of its own)
+CAPS_SHA256 = '36c87d1a471f602ba366875a347f9d11a87a9923ebbbc450c9490e7dceb06328'
 HEADER = '/* vendor: three.js r186 (0.186.1), MIT, Copyright 2010-2026 Three.js Authors. Bundled by fx/build.sh from fx/three-entry.js. Never edited by hand. */'
 N_OFFICE = ['dayOf', 'istYmd', 'istHm', 'istDayStart', 'layout', 'planOf', 'labelOf', 'desks', 'viewerOf', 'stateWord', 'STATE_WORD', 'shownStations',
             'STATION_POS', 'SPOTS', 'AREA', 'STATION_LABEL', 'NAV', 'MEET_SEATS', 'LUNCH_SEATS', 'aisles', 'walkway', 'path', 'route', 'standPoint', 'queue',

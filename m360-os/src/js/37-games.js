@@ -93,7 +93,7 @@
       go(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
     };
     const mm = Math.floor(left / 60), ss = String(left % 60).padStart(2, '0');
-    return html`<${UI.Card} id="doubles" title="Doubles, five minutes" action=${html`<${UI.Pill} kind="ink">mood, one trial<//>`}>
+    return html`<${UI.Card} id="doubles" title="Doubles, five minutes" action=${html`<${UI.Pill}>mood, one trial<//>`}>
       <div class="small" style=${{marginBottom: '10px'}}>Slide, merge the equal numbers, see how far you get before the timer calls you back. An easy game for five minutes lifted mood more than guided relaxation in a lab test. It is a mood tool. It trains nothing, and we will not pretend it does.</div>
       <div class="row between" style=${{marginBottom: '8px'}}>
         <span class="small num"><b><${M.fx.MetalText} size=${16}>${String(score)}<//></b> points${rec.best ? html` <span class="ink62">· best ${rec.best}</span>` : ''}</span>

@@ -4,10 +4,11 @@
    bundle is missing or the person asked for reduced motion, so nothing depends on the bundle.
 
      M.fx.Orb       thinking-orbs   ThinkingOrb, any of the nine states, sizes 20 / 32 / 64
-     M.fx.Beam      border-beam     BorderBeam round a card or a control, running while on screen
+     M.fx.Beam      (retired, v7)   the host alone; on=true marks the card inside with the flame line
+     M.fx.BeamFx    border-beam     BorderBeam round a card or a control, running while on screen
      M.fx.Voice     voice-glow      VoiceBeam under an input, a recording pill or a phone screen
      M.fx.VoicePill voice-glow      the recording pill round a Talk button while it listens
-     M.fx.Bot       bot-avatars     BotAvatar, one body per AI feature (M.fx.BOTS)
+     M.fx.Bot       (retired, v7)   draws nothing: the design has no robot; the live mark is m360's character
      M.fx.Metal     (retired)       the control itself; the liquid metal is gone (v36.2)
      M.fx.MetalText (retired)       the number or word in plain type at the size asked
      M.fx.MetalBadge (retired)      a flame pill for a small "new" style tag
@@ -91,7 +92,16 @@
   const TEXT_FIELD = 'input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=hidden]), textarea';
   const isField = (kid, el) => (!!kid && (kid.type === 'input' || kid.type === 'textarea')) ||
     (!!el && !!el.querySelector(TEXT_FIELD) && !el.querySelector('.card, .ai-card, section'));
-  function Beam({on, size, radius, strength, duration, dark, children, block}) {
+  /* v7: the border beam is retired. It drew flame as moving tints round a border, and the v7 design keeps
+     flame exact (#F53901, never a tint) and still: a card that needs you carries a 2px flame line on its top
+     edge (css.css). Beam keeps its host, so every layout built round it holds, and a beam a caller switches
+     on by a condition (`on`) marks the card inside as needing you with that line. BeamFx is the old effect,
+     kept for a caller that asks for it by name. */
+  function Beam({on, children, block}) {
+    if (on === false) return children;
+    return html`<span class=${'beam-host' + (block === false ? ' inline' : '') + (on === true ? ' need' : '')}>${children}</span>`;
+  }
+  function BeamFx({on, size, radius, strength, duration, dark, children, block}) {
     useSettled();
     const th = M.useResolvedTheme();
     const hush = useHushed();
@@ -176,24 +186,9 @@
     return html`<span class=${'voice-pill' + (live ? ' is-live' : '')}><${Voice} type="pill" on=${!!live} stream=${live && mic ? mic.stream : null}>${children}<//></span>`;
   }
 
-  /* BotAvatar: the library's plush fabric shading, bodies by feature, all in flame; paused holds it still.
-     headphones, jumpEvery (seconds between idle hops) and interactive (eyes that follow the pointer) go
-     straight through, as the package ships them, and so does what the office's COO wears and does:
-     glasses, bowTie, hat and accessoryColor, a held pose ({yaw, pitch, roll}, while it walks), turn, speed
-     and jumpHeight. Left out, each keeps the package's own default */
-  function Bot({type, feature, state, size, seed, face, label, id, className, paused, headphones, jumpEvery, interactive,
-    glasses, bowTie, hat, accessoryColor, pose, turn, speed, jumpHeight}) {
-    useSettled();
-    const th = M.useResolvedTheme();
-    const fx = FX();
-    const body = type || BOTS[feature] || 'clover';
-    if (!fx) return M.parts.Bot ? html`<${M.parts.Bot} type=${body} state=${state} size=${size} seed=${seed} label=${label} id=${id} glasses=${glasses} bowTie=${bowTie} paused=${!!paused}/>` : null;
-    return html`<${fx.BotAvatar} type=${body} state=${state || 'default'} size=${size || 28} seed=${seed || 0} face=${face || 'eyes'} color=${FLAME} theme=${th} paused=${!!paused} headphones=${!!headphones}
-      jumpEvery=${jumpEvery == null ? undefined : jumpEvery} interactive=${interactive == null ? undefined : !!interactive}
-      glasses=${glasses || undefined} bowTie=${bowTie == null ? undefined : !!bowTie} hat=${hat || undefined} accessoryColor=${accessoryColor || undefined}
-      pose=${pose || undefined} turn=${turn == null ? undefined : turn} speed=${speed == null ? undefined : speed} jumpHeight=${jumpHeight == null ? undefined : jumpHeight}
-      id=${id} className=${className} aria-label=${label || 'm360'}/>`;
-  }
+  /* v40: the robot is retired. The design (design/m360-os-v7.html) has one character, the live mark (M.mark), so
+     every place that still asks for a bot gets nothing and lays out without it */
+  function Bot() { return null; }
 
   /* BellToggle from React Bits; its count badge is drawn only where a count is passed, so a plain
      switch carries no hidden digits */
@@ -205,5 +200,5 @@
     return html`<${fx.BellToggle} ...${all}/>`;
   }
 
-  M.fx = {...(M.fx || {}), Orb, Beam, Metal, MetalText, MetalBadge, Voice, VoicePill, Bot, Bell, BOTS, FLAME, has: () => !!window.FX, useSettled, useHushed};
+  M.fx = {...(M.fx || {}), Orb, Beam, BeamFx, Metal, MetalText, MetalBadge, Voice, VoicePill, Bot, Bell, BOTS, FLAME, has: () => !!window.FX, useSettled, useHushed};
 })();

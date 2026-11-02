@@ -305,8 +305,7 @@ def site_part(check):
             def dock(pg, q):
                 pg.goto(base + '#home')
                 pg.reload()
-                pg.wait_for_selector('#buddy-dock .buddy-home')
-                pg.locator('#buddy-dock .buddy-home').click()
+                pg.wait_for_function('() => !!(window.M && M.assistant && M.assistant.opener)'); pg.keyboard.press('Control+k'); pg.locator('.pal-item[data-k="a-ai"]').click()   # v40: m360 AI opens from the Ask bar
                 pg.fill('#buddy-input', q)
                 pg.keyboard.press('Enter')
                 pg.wait_for_selector('.buddy-bubble .panel-err', timeout=45000)
@@ -334,6 +333,10 @@ def site_part(check):
                 f.reload()
                 f.wait_for_function('() => !!(window.M && M.lastCtx && M.theme)')
                 f.evaluate('t => M.theme.set(t)', theme)
+                # v40: HQ opens on Command; the brief sits under "more from HQ"
+                f.wait_for_selector('#hq-more')
+                if f.get_attribute('#hq-more', 'aria-expanded') != 'true':
+                    f.click('#hq-more')
                 f.locator('section.ai-card.dark button.btn').first.click()
                 f.wait_for_selector('section.ai-card.dark .ai-why', timeout=45000)
                 t = f.inner_text('section.ai-card.dark')
@@ -408,8 +411,7 @@ def artifact_part(h, check):
     p = h.session('founder', width=1280, hash='#home', reset=True, seed=True)
     h.roster(p, ['u_m1', 'u_m2'])
     h.go(p, 'founder', hash='#home', aierr='rate_limited', aimsg=said)
-    p.wait_for_selector('#buddy-dock .buddy-home')
-    p.locator('#buddy-dock .buddy-home').click()
+    p.wait_for_function('() => !!(window.M && M.assistant && M.assistant.opener)'); p.keyboard.press('Control+k'); p.locator('.pal-item[data-k="a-ai"]').click()   # v40: m360 AI opens from the Ask bar
     p.fill('#buddy-input', QUESTION)
     p.keyboard.press('Enter')
     p.wait_for_selector('.buddy-bubble .panel-err', timeout=20000)
@@ -417,8 +419,7 @@ def artifact_part(h, check):
     check('Claude needs a breather' in t and 'Anthropic said: Rate limit reached for the model, try again soon.' in t and 'claude-' not in t and chr(0x2014) not in t,
           'claude.ai: the owner reads the copy and the cleaned message: %r' % t)
     h.go(p, 'm1', hash='#home', aierr='rate_limited', aimsg=said)
-    p.wait_for_selector('#buddy-dock .buddy-home')
-    p.locator('#buddy-dock .buddy-home').click()
+    p.wait_for_function('() => !!(window.M && M.assistant && M.assistant.opener)'); p.keyboard.press('Control+k'); p.locator('.pal-item[data-k="a-ai"]').click()   # v40: m360 AI opens from the Ask bar
     p.fill('#buddy-input', QUESTION)
     p.keyboard.press('Enter')
     p.wait_for_selector('.buddy-bubble .panel-err', timeout=20000)

@@ -279,19 +279,43 @@
         onClick=${() => send(x.e)}><span class="emote-ch" aria-hidden="true">${x.ch}</span>${compact ? null : html`<span class="tiny">${x.label}</span>`}</button>`)}
     </div>`;
   }
+  /* v39: when an emote happened, on this device's clock. at comes from the sender's phone, and two phones'
+     clocks are never compared: an emote that changes while this page watches is timed from when it arrived here.
+     The sender's at only places the ones already there when the page first sees the me docs. One clock per
+     reader: see(coll, now) returns [{uid, e, at, seen}] with seen in this device's time */
+  function emoteClock() {
+    let primed = false;
+    const last = {};
+    return function see(coll, now) {
+      const map = (coll && coll.map) || {};
+      if (!primed && !(coll && coll.ready)) return [];
+      const out = [];
+      for (const uid of Object.keys(map)) {
+        const m = map[uid] && map[uid].emote;
+        if (!m || !EMOTE_OF[m.e]) continue;
+        const at = Number(m.at) || 0;
+        let r = last[uid];
+        if (!r || r.at !== at) r = last[uid] = {at, seen: primed ? now : Math.min(now, at)};
+        out.push({uid, e: m.e, at, seen: r.seen});
+      }
+      primed = true;
+      return out;
+    };
+  }
   /* the last few emotes, as a line: for the flat office, and anyone who looks away for a second */
   function EmoteFeed() {
     const ctx = M.useCtx();
     const [, tick] = useState(0);
-    const map = (ctx && ctx.coll && ctx.coll.me && ctx.coll.me.map) || {};
+    const clock = useRef(null);
+    if (!clock.current) clock.current = emoteClock();
     const now = Date.now();
-    const recent = Object.keys(map).map(uid => ({uid, m: map[uid] && map[uid].emote})).filter(x => x.m && EMOTE_OF[x.m.e] && Number(x.m.at) > now - 15000)
-      .sort((a, b) => b.m.at - a.m.at).slice(0, 4);
-    const soonest = recent.length ? Math.min(...recent.map(x => x.m.at + 15000 - now)) : 0;
+    const recent = clock.current(ctx && ctx.coll && ctx.coll.me, now).filter(x => x.seen > now - 15000)
+      .sort((a, b) => b.seen - a.seen).slice(0, 4);
+    const soonest = recent.length ? Math.min(...recent.map(x => x.seen + 15000 - now)) : 0;
     useEffect(() => { if (!soonest) return undefined; const t = setTimeout(() => tick(n => n + 1), Math.max(500, soonest + 50)); return () => clearTimeout(t); }, [soonest]);
     if (!recent.length) return null;
     return html`<div class="emote-feed small" id="emote-feed" aria-live="polite">${recent.map(x => html`<span key=${x.uid} class="emote-chip">
-      <span aria-hidden="true">${EMOTE_OF[x.m.e].ch}</span> <${UI.Name} id=${x.uid} fallback="Someone"/></span>`)}</div>`;
+      <span aria-hidden="true">${EMOTE_OF[x.e].ch}</span> <${UI.Name} id=${x.uid} fallback="Someone"/></span>`)}</div>`;
   }
 
   /* office life on this device: people get up, go for coffee and wave (91-office3d.js reads office.life) */
@@ -403,7 +427,7 @@
   M.parts.EmoteBar = EmoteBar;
   M.parts.EmoteFeed = EmoteFeed;
   M.pages.Character = Character;
-  M.character = {EMOTES};
+  M.character = {EMOTES, emoteClock};
   M.parts.CharacterSheet = CharacterSheet;
   M.meCards.push(CharacterCard);
   M.adminCards.push(AdminCharacters);

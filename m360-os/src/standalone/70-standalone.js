@@ -98,7 +98,8 @@
       try { await api('accept', {code: invite, email: em, password: pw}); window.M360_INVITE = ''; location.reload(); }
       catch (e) {
         if (e && e.code === 'expired') setInv({dead: true});
-        else setErr(said(e, ['mismatch', 'invalid_argument', 'weak']));
+        /* v39: an email that already has a login gets the server's own line: sign in, or ask for a reset code */
+        else setErr(said(e, ['mismatch', 'invalid_argument', 'weak', 'already_here']));
         setBusy(false);
       }
     }
@@ -149,7 +150,7 @@
         <button type="button" class="linky small" id="site-restore-back" style=${{alignSelf: 'flex-start'}} onClick=${() => { setErr(''); setSiteMode(false); }}>Set up a fresh workspace</button>
       </div>
     <//>`;
-    if (first) return html`<${M.Gate} title="Set up m360 OS" line="You are the first one here, so this workspace is yours. You get HQ, Admin and every number.">
+    if (first) return html`<${M.Gate} title="Set up m360 OS" line="You are the first one here, so this workspace is yours. You get Command, Admin and every number.">
       <div class="join-box stack tight">
         <${UI.Input} id="signin-name" label="your name" value=${name} placeholder="First and last name" onChange=${setName} onEnter=${go}/>
         <${UI.Input} id="signin-email" label="your email" type="email" value=${email} placeholder="you@mask360.agency" onChange=${setEmail} onEnter=${go}

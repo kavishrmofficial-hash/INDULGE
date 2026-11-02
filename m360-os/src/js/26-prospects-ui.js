@@ -196,6 +196,8 @@
         }
         if (r && r.ask) { setOut({text: r.ask, chips: r.chips || []}); setBusy(false); return; }
         setOut({text: (r && (r.say || r.text)) || 'Logged.', chips: (r && r.chips) || [], hold: (r && r.hold) || [], undo: r && r.undo, undoId: r && r.undoId});
+        /* v40: the island confirms the log with UNDO (the receipt keeps its own Undo chip) */
+        if (r && (r.undoId || r.undo)) M.undoToast('Logged', 'prospects', () => undoWith({undo: r.undo, undoId: r.undoId}));
         setText('');
         M.sound.play('soft');
       } catch (e) { setOut({err: (e && e.message) || 'That did not save. Try again.'}); }
@@ -203,11 +205,12 @@
     };
     /* Undo: a run through the agent sits in its ledger (undoId), so the ledger takes it back; the fallback
        path holds the store's own undo record */
-    const undoNow = () => {
-      if (out && out.undoId && M.agent && M.agent.undo) return M.agent.undo(ctx, out.undoId).then(r => setOut({text: (r && r.say) || 'Undone.'})).catch(e => setOut({err: (e && e.message) || 'That cannot be undone now.'}));
-      if (out && out.undo && P().undo) return P().undo(ctx, out.undo).then(s => setOut({text: s || 'Undone.'})).catch(() => {});
+    function undoWith(o) {
+      if (o && o.undoId && M.agent && M.agent.undo) return M.agent.undo(ctx, o.undoId).then(r => setOut({text: (r && r.say) || 'Undone.'})).catch(e => setOut({err: (e && e.message) || 'That cannot be undone now.'}));
+      if (o && o.undo && P().undo) return P().undo(ctx, o.undo).then(s => setOut({text: s || 'Undone.'})).catch(() => {});
       return run('Undo');
-    };
+    }
+    const undoNow = () => undoWith(out);
     const chip = c => {
       if (typeof c === 'string') { if (c === 'Undo') undoNow(); else run(c); return; }
       if (c && typeof c.run === 'function') Promise.resolve(c.run(ctx)).then(r => { if (r && (r.say || r.text)) setOut({text: r.say || r.text, chips: r.chips || []}); else if (typeof r === 'string') setOut({text: r}); else setOut(x => x ? {...x, chips: (x.chips || []).filter(y => y !== c)} : x); }).catch(() => {});
@@ -244,9 +247,11 @@
     /* the row is held before the write lands, since the list drops a closed follow-up on the next snapshot */
     const done = how => {
       if (onDone) onDone();
-      P().done(ctx, fid, how).then(() => {
+      P().done(ctx, fid, how).then(u => {
         if (how === 'replied' && fu.pi && fu.sid && P().setReply) P().setReply(ctx, fu.pi, fu.sid, 'replied').catch(() => {});
-        M.toast(how === 'replied' ? 'Noted, they replied' : 'Done'); setMode('next');
+        /* v40: the island says it, with UNDO that opens the follow-up again as it was */
+        M.undoToast(how === 'replied' ? 'Noted, they replied' : 'Done', 'follow-up closed', u && P().undo ? () => P().undo(ctx, u).then(m => M.toast(m || 'Undone.')).catch(() => {}) : null);
+        setMode('next');
       }).catch(() => { if (onSettled) onSettled(); });
     };
     const next = o => {
@@ -255,7 +260,7 @@
       /* a fresh follow-up: the old words ("talk after the 16th") were about the day just done */
       P().setFollow(ctx, {p: pid || '', pi: fu.pi || '', x: 'Follow up', d: w.d, t: w.t || '', src: 'form'}).then(() => { M.toast('Next: ' + label(w.d, w.t)); settle(); }).catch(() => {});
     };
-    const snooze = o => { const w = whenOf(o); if (!w) return; P().snooze(ctx, fid, w).then(() => { M.toast('Snoozed to ' + label(w.d, w.t)); setMode(''); }).catch(() => {}); };
+    const snooze = o => { const w = whenOf(o); if (!w) return; P().snooze(ctx, fid, w).then(u => { M.undoToast('Snoozed to ' + label(w.d, w.t), 'snoozed', u && P().undo ? () => P().undo(ctx, u).then(m => M.toast(m || 'Undone.')).catch(() => {}) : null); setMode(''); }).catch(() => {}); };
     if (mode === 'next') return html`<div class="pros-next"><span class="small">When next?</span><${QuickWhen} label="When next" options=${NEXT_OPTS} onPick=${next}/></div>`;
     if (mode === 'snooze') return html`<div class="pros-next"><span class="small">Snooze until</span><${QuickWhen} label="Snooze until" options=${SNOOZE_OPTS} onPick=${snooze}/><button type="button" class="linky tiny" onClick=${() => setMode('')}>Keep it</button></div>`;
     return html`<div class="row pros-acts">
@@ -446,8 +451,9 @@
       setBusy(true);
       P().logTouch(ctx, {p: pid, pi: meet.pi || '', k: 'meet', x, at: Date.now()}).then(() => P().doneMeet(ctx, meet.mid)).then(() => { setNote(''); setNoting(false); M.toast('Noted'); }).catch(() => {}).then(() => setBusy(false));
     };
-    const stop = () => P().stopTracking(ctx, pid).then(() => setStopped({pid, who: live.who})).catch(() => {});
     const undoStop = () => (P().restore ? P().restore(ctx, pid) : P().addPerson(ctx, {cid: p.cid || '', oid: p.oid || '', who: p.who, org: p.org, role: p.role, pi: p.pi || []})).then(() => setStopped(null)).catch(() => {});
+    /* v40: the island confirms it with UNDO; the sheet keeps its own Undo while it is open */
+    const stop = () => P().stopTracking(ctx, pid).then(() => { setStopped({pid, who: live.who}); M.undoToast('Stopped tracking ' + live.who, 'prospects', undoStop); }).catch(() => {});
     const addToBase = async () => {
       if (!M.base || !M.base.upsertContact) return;
       setBusy(true);

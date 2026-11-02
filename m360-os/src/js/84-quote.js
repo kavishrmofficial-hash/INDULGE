@@ -111,13 +111,14 @@
     const text = M.quote.today(n);
     const words = text.split(' ');
     useEffect(() => { setSeen(s => s + 1); }, [n]);
-    return html`<section class="card ink quote-card" id="quote-card" aria-label="A thought for the day">
-      <div class="row between" style=${{alignItems: 'flex-start', gap: '16px'}}>
-        <div class="grow" style=${{minWidth: 0}}>
-          <div class="micro">${n ? 'another thought' : 'a thought for ' + U.dateLabel(new Date()).toLowerCase()}</div>
-          <p class="quote-line" id="quote-line" key=${text}>${words.map((w, i) => html`<${React.Fragment} key=${i}><span class="quote-w" style=${{'--i': i}}>${w}</span>${i < words.length - 1 ? ' ' : ''}<//>`)}</p>
+    /* v40: the v7 quote (Command's voice lines): a light 22px line on a white card, the label above it */
+    return html`<section class="card quote-card" id="quote-card" aria-label="A thought for the day">
+      <div class="row between nowrap" style=${{alignItems: 'flex-start', gap: '16px'}}>
+        <div class="grow c-q" style=${{minWidth: 0}}>
+          <span class="lab">${n ? 'another thought' : 'a thought for ' + U.dateLabel(new Date()).toLowerCase()}</span>
+          <blockquote class="quote-line" id="quote-line" key=${text}>${words.map((w, i) => html`<${React.Fragment} key=${i}><span class="quote-w" style=${{'--i': i}}>${w}</span>${i < words.length - 1 ? ' ' : ''}<//>`)}</blockquote>
         </div>
-        <button type="button" class="iconbtn on-dark quote-next" id="quote-next" aria-label="Another thought" title="Another thought" onClick=${() => { M.haptic.buzz('tick'); M.sound.play('soft'); setN(x => x + 1); }}><${M.icons.refresh || M.icons.more}/></button>
+        <button type="button" class="iconbtn line quote-next" id="quote-next" aria-label="Another thought" title="Another thought" onClick=${() => { M.haptic.buzz('tick'); M.sound.play('soft'); setN(x => x + 1); }}><${M.icons.refresh || M.icons.more}/></button>
       </div>
     </section>`;
   }

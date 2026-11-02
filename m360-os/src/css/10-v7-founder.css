@@ -1,0 +1,186 @@
+/* v40 founder pages: Admin (the desk), Books, the COO, Radar, Workspace, the log, super, safety and the m360 AI.
+   The values and patterns are the approved design's (design/m360-os-v7.html, Appendix A) and its Desk styles
+   (design/m360-os.css, B1): the section head with a flame index, the white card inside a warm band, the table
+   rows with caps headers, the numbers with a top line, the filter chips and the round pills.
+   Scope: a page root with .fo (the Admin page is the content that holds the desk, .fo-desk). Every section head
+   and card title on a founder page takes the next flame index (01, 02, 03) down the page. */
+
+.content:has(.fo),.content:has(.fo-desk){counter-reset:fosec}
+
+/* the page header (design .top): date label, the title with its flame full stop, a one line lede, the action */
+.fo .fo-top{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.fo .fo-top .tl{display:flex;flex-direction:column;align-items:flex-start;gap:16px;min-width:0}
+.fo .fo-top .lede{margin:0;max-width:60ch;font-size:15px;line-height:22px;color:var(--g64)}
+.fo .fo-top .tr2{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+
+/* Admin: the section header is the plain page header (white ground, ink title, the flame full stop) */
+.content:has(.fo-desk) .hero.section-hero.ink{padding:0!important;border-radius:0;background:transparent;color:var(--ink);overflow:visible}
+.content:has(.fo-desk) .hero.section-hero.ink .micro,.content:has(.fo-desk) .hero.section-hero.ink .sub{color:var(--g64)}
+.content:has(.fo-desk) .hero.section-hero.ink .linky{color:var(--ink)}
+
+/* section heads (design .sh/.eb): the next flame index when none is given */
+:is(.fo,.content:has(.fo-desk)) .sh .eb:not(:has(> i))::before{counter-increment:fosec;content:counter(fosec,decimal-leading-zero);color:var(--flame);font-weight:500;letter-spacing:.04em;font-variant-numeric:tabular-nums}
+:is(.fo,.content:has(.fo-desk)) .sh{margin-top:40px}
+:is(.fo,.content:has(.fo-desk)) .card .sh,:is(.fo,.content:has(.fo-desk)) .band > .sh:first-child,:is(.fo,.content:has(.fo-desk)) .sh:first-child{margin-top:0}
+
+/* a card's head is the design's head inside a card (.card .sh): the eyebrow with its index, a hairline under it */
+:is(.fo,.content:has(.fo-desk)) .card-head{min-height:44px;margin-bottom:16px;padding-bottom:16px;box-shadow:0 1px 0 var(--line);align-items:center;flex-wrap:nowrap}
+:is(.fo,.content:has(.fo-desk)) .card-head .card-title{display:inline-flex;align-items:baseline;gap:10px;min-width:0;font-size:12px;line-height:16px;font-weight:400;letter-spacing:.14em;text-transform:lowercase;color:var(--g64);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+:is(.fo,.content:has(.fo-desk)) .card-head .card-title::before{counter-increment:fosec;content:counter(fosec,decimal-leading-zero);flex:0 0 auto;color:var(--flame);font-weight:500;letter-spacing:.04em;font-variant-numeric:tabular-nums}
+:is(.fo,.content:has(.fo-desk)) .card-head .card-title .fx-title-bot{gap:10px}
+:is(.fo,.content:has(.fo-desk)) .card.ink .card-head .card-title,:is(.fo,.content:has(.fo-desk)) .band.dark .card-head .card-title{color:var(--w64)}
+:is(.fo,.content:has(.fo-desk)) .card-head > .row,:is(.fo,.content:has(.fo-desk)) .card-head > :last-child:not(:first-child){flex:0 0 auto}
+/* the pill on the right of a head (design .pl): 28 tall, 12px, ring, ink under the pointer */
+:is(.fo,.content:has(.fo-desk)) :is(.card-head,.sh) .btn.sm,:is(.fo,.content:has(.fo-desk)) :is(.card-head,.sh) .btn.ghost,:is(.fo,.content:has(.fo-desk)) .pl{display:inline-flex;align-items:center;height:28px;padding:0 12px;border-radius:14px;font-size:12px;font-weight:400;letter-spacing:.04em;white-space:nowrap}
+:is(.fo,.content:has(.fo-desk)) :is(.card-head,.sh) .btn.ghost,:is(.fo,.content:has(.fo-desk)) .pl{color:var(--ink);background:var(--paper);box-shadow:inset 0 0 0 1px var(--line2)}
+@media (hover:hover){:is(.fo,.content:has(.fo-desk)) :is(.card-head,.sh) .btn.ghost:hover,:is(.fo,.content:has(.fo-desk)) button.pl:hover{color:var(--on-ink);background:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}}
+:is(.fo,.content:has(.fo-desk)) .pl.hot{color:#fff;background:var(--flame);box-shadow:none}
+.fo .band.dark .pl{color:#fff;background:transparent;box-shadow:inset 0 0 0 1px rgba(255,255,255,.26)}
+
+/* bands (design .band): edge to the gutter, 64 in, 28 radius; the white card sits inside a warm one */
+:is(.fo,.content:has(.fo-desk)) .band{margin:24px calc(-1 * var(--g)) 0;padding:64px var(--g);border-radius:28px}
+:is(.fo,.content:has(.fo-desk)) .band + .band{margin-top:24px}
+:is(.fo,.content:has(.fo-desk)) .band + :not(.band){margin-top:40px}
+:is(.fo,.content:has(.fo-desk)) .band:first-child{margin-top:0}
+:is(.fo,.content:has(.fo-desk)) .band > .stack{gap:24px}
+:is(.fo,.content:has(.fo-desk)) .band.warm .card{background:var(--paper)}
+.fo .band.dark{color:#fff}
+.fo .band.dark .sub,.fo .band.dark .mut,.fo .band.dark .ink62,.fo .band.dark .micro{color:var(--w64)}
+
+/* tables (design .ct/.tr): caps headers at 45 percent, 56 tall rows on a hairline, warm under the pointer */
+:is(.fo,.content:has(.fo-desk)) .tbl-wrap{margin:0 -12px;padding-right:0;-webkit-mask-image:none;mask-image:none}
+:is(.fo,.content:has(.fo-desk)) table.tbl{border-collapse:separate;border-spacing:0;font-size:14px}
+:is(.fo,.content:has(.fo-desk)) .tbl th{height:40px;padding:0 12px;font-size:12px;line-height:16px;font-weight:400;letter-spacing:.1em;text-transform:uppercase;color:var(--g45);border-bottom:0;vertical-align:middle;background:linear-gradient(var(--line),var(--line)) 0 100%/100% 1px no-repeat}
+:is(.fo,.content:has(.fo-desk)) .tbl td{height:56px;padding:8px 12px;font-size:14px;border-bottom:0;background:linear-gradient(var(--g08),var(--g08)) 0 100%/100% 1px no-repeat;transition:background-color .3s var(--ease)}
+:is(.fo,.content:has(.fo-desk)) .tbl :is(th,td):first-child{background-position:12px 100%;background-size:calc(100% - 12px) 1px}
+:is(.fo,.content:has(.fo-desk)) .tbl :is(th,td):last-child{background-size:calc(100% - 12px) 1px}
+:is(.fo,.content:has(.fo-desk)) .tbl :is(th,td):only-child{background-size:calc(100% - 24px) 1px}
+:is(.fo,.content:has(.fo-desk)) .tbl tbody tr:last-child td{background-image:none}
+:is(.fo,.content:has(.fo-desk)) .tbl th.num,:is(.fo,.content:has(.fo-desk)) .tbl td.num{text-align:right}
+@media (hover:hover){
+  :is(.fo,.content:has(.fo-desk)) .tbl tbody tr:not(.tot):not(.dark):hover td{background-color:var(--warm);background-image:none}
+  :is(.fo,.content:has(.fo-desk)) .tbl tbody tr:not(.tot):not(.dark):hover td:first-child{border-radius:12px 0 0 12px}
+  :is(.fo,.content:has(.fo-desk)) .tbl tbody tr:not(.tot):not(.dark):hover td:last-child{border-radius:0 12px 12px 0}
+}
+/* the total row (design .ct.tot): ink, 64 tall, 14 radius */
+:is(.fo,.content:has(.fo-desk)) .tbl tr.dark td,:is(.fo,.content:has(.fo-desk)) .tbl tr.tot td{height:64px;color:var(--on-ink);background:var(--ink);background-image:none}
+:is(.fo,.content:has(.fo-desk)) .tbl tr.dark td:first-child,:is(.fo,.content:has(.fo-desk)) .tbl tr.tot td:first-child{border-radius:14px 0 0 14px}
+:is(.fo,.content:has(.fo-desk)) .tbl tr.dark td:last-child,:is(.fo,.content:has(.fo-desk)) .tbl tr.tot td:last-child{border-radius:0 14px 14px 0}
+/* a list row is the design's row: 14px, 16 in, a hairline */
+:is(.fo,.content:has(.fo-desk)) .card .listrow{min-height:56px;padding:12px 0;font-size:14px;border-bottom:0;box-shadow:0 1px 0 var(--g08)}
+:is(.fo,.content:has(.fo-desk)) .card .listrow:last-child{box-shadow:none}
+:is(.fo,.content:has(.fo-desk)) .card .listrow:first-child{padding-top:12px}
+:is(.fo,.content:has(.fo-desk)) button.listrow.rowbtn{margin:0 -12px;padding-left:12px;padding-right:12px;width:calc(100% + 24px);border-radius:12px;transition:background-color .3s var(--ease)}
+@media (hover:hover){:is(.fo,.content:has(.fo-desk)) button.listrow.rowbtn:hover{background-color:var(--warm);box-shadow:none}}
+
+/* numbers (design .kpis/.kp): a 1px line on top (2px flame when it needs you), the caps label, the big number,
+   a one line caption. The line fills with ink under the pointer */
+.fo .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));column-gap:32px;row-gap:40px}
+.fo .kpis.k5{grid-template-columns:repeat(5,minmax(0,1fr))}
+.fo .kpis.k3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.fo .kp{position:relative;display:block;min-width:0;padding:16px 0 0;border:0;background:transparent;color:inherit;text-align:left;font:inherit}
+.fo .kp::before,.fo .kp::after{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:var(--g12)}
+.fo .kp::after{background:var(--ink);transform:scaleX(0);transform-origin:0 50%;transition:transform .7s var(--ease)}
+.fo .kp.hot::before,.fo .kp.hot::after{height:2px;background:var(--flame)}
+@media (hover:hover){.fo button.kp:hover::after{transform:scaleX(1)}}
+.fo button.kp{cursor:pointer}
+.fo .kp .kl{display:flex;justify-content:space-between;align-items:center;height:16px;color:var(--g64);transition:color .3s var(--ease)}
+.fo button.kp:hover .kl{color:var(--ink)}
+.fo .kp .go{display:block;flex:0 0 16px;width:16px;height:16px;background:var(--flame);-webkit-mask:var(--arw) center/16px 16px no-repeat;mask:var(--arw) center/16px 16px no-repeat;opacity:0;translate:-6px 0;rotate:-45deg;transition:opacity .25s var(--ease),translate .5s var(--spring)}
+.fo button.kp:hover .go{opacity:1;translate:0 0}
+.fo .kp .kv{position:relative;height:72px;margin-top:16px;overflow:hidden;display:flex;align-items:flex-end}
+.fo .kp .kv .bignum{animation:foroll 1.05s var(--ease) backwards;animation-delay:calc(var(--i,0) * 55ms + 350ms)}
+.fo .kp .kv .bignum.money{height:72px;line-height:72px}
+.fo .kp .kv .nil{font-size:24px;line-height:28px;font-weight:300;letter-spacing:-.02em;color:var(--g45)}
+.fo .kp .kn{margin-top:12px;font-size:13px;line-height:16px;color:var(--g64);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fo .kp.hot .kn{color:var(--flame);font-weight:500}
+.fo .band.dark .kp::before{background:var(--w20)}
+.fo .band.dark .kp::after{background:#fff}
+.fo .band.dark .kp .kl,.fo .band.dark .kp .kn{color:var(--w64)}
+.fo .band.dark .bignum .den{color:var(--w45)}
+@keyframes foroll{from{transform:translate3d(0,100%,0)}}
+
+/* filter chips (design .fcs/.fc): warm, 32 tall, ink when on, the count in 45 percent ink (flame when it needs you) */
+.fo .fcs{display:flex;flex-wrap:wrap;gap:8px}
+.fo .fc{display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 14px;border:0;border-radius:16px;font-size:13px;line-height:1;color:var(--ink);background:var(--warm);cursor:pointer;transition:background-color .3s var(--ease),color .3s var(--ease),box-shadow .3s var(--ease),scale .45s var(--spring)}
+.fo .fc b{font-weight:500;color:var(--g45);transition:color .3s var(--ease)}
+.fo .fc b.al{color:var(--flame)}
+.fo .fc:hover{box-shadow:inset 0 0 0 1px var(--line2)}
+.fo .fc.on{color:var(--on-ink);background:var(--ink);box-shadow:none}
+.fo .fc.on b{color:var(--w64)}
+.fo .fc.on b.al{color:var(--flame)}
+.fo .fc:active{scale:.94}
+.fo .fc[data-n]::after{content:attr(data-n);font-weight:500;color:var(--g45);transition:color .3s var(--ease)}
+.fo .fc.on[data-n]::after{color:inherit;opacity:.64}
+.fo .fc.al[data-n]:not([data-n="0"])::after{color:var(--flame)}
+.fo .fcs + *{margin-top:16px}
+/* data inside an eyebrow keeps its own case */
+:is(.fo,.content:has(.fo-desk)) .dn{text-transform:none;letter-spacing:.02em;color:var(--ink)}
+/* the pill a section head carries (design .pl) */
+:is(.fo,.content:has(.fo-desk)) .sh-r > .pill{height:28px;padding:0 12px;border-radius:14px;font-size:12px;letter-spacing:.04em;color:var(--ink)}
+:is(.fo,.content:has(.fo-desk)) .sh-r > .pill.flame{color:#fff}
+
+/* B1 desk: the roster rows, the search hits, the keeper rows, the setup steps */
+:is(.fo,.content:has(.fo-desk)) .ros{display:flex;flex-direction:column}
+:is(.fo,.content:has(.fo-desk)) .ros-r{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:60px;padding:12px 0;flex-wrap:wrap;box-shadow:0 1px 0 var(--g08)}
+:is(.fo,.content:has(.fo-desk)) .ros-r:last-child{box-shadow:none}
+:is(.fo,.content:has(.fo-desk)) .ros-r.off{opacity:.5}
+:is(.fo,.content:has(.fo-desk)) .hits{display:flex;flex-direction:column;overflow:hidden;border-radius:14px;box-shadow:inset 0 0 0 1px var(--line2)}
+:is(.fo,.content:has(.fo-desk)) .hits:empty{display:none}
+:is(.fo,.content:has(.fo-desk)) .hit{display:flex;align-items:center;gap:12px;min-height:48px;padding:10px 14px;font-size:14.5px;text-align:left;box-shadow:0 1px 0 var(--g08);transition:background-color .25s var(--ease)}
+:is(.fo,.content:has(.fo-desk)) .hit:last-child{box-shadow:none}
+:is(.fo,.content:has(.fo-desk)) .hit:hover{background:var(--warm)}
+:is(.fo,.content:has(.fo-desk)) .kpl{display:flex;flex-direction:column}
+:is(.fo,.content:has(.fo-desk)) .kp-r{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:14px 24px;padding:14px 0;box-shadow:0 1px 0 var(--g08)}
+:is(.fo,.content:has(.fo-desk)) .kp-r:last-child{box-shadow:none}
+:is(.fo,.content:has(.fo-desk)) .kp-q{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:4px 0}
+:is(.fo,.content:has(.fo-desk)) .note{margin-top:12px;padding:12px 16px;border-radius:14px;background:var(--warm);font-size:14px;line-height:20px}
+:is(.fo,.content:has(.fo-desk)) .card.need::before,:is(.fo,.content:has(.fo-desk)) .card.flame::before{left:24px;right:24px}
+
+/* the desk's controls: the section head with the switch under it */
+.fo-desk .fo-ctl{display:flex;flex-direction:column;gap:20px}
+.fo-desk .fo-ctl .seg{align-self:flex-start;max-width:100%;overflow-x:auto}
+
+/* the empty card (design .clear): the round ink tick, the light line, the caption */
+.fo .clear{display:flex;align-items:center;gap:16px;padding:24px;border-radius:20px;box-shadow:0 0 0 1px var(--line)}
+.fo .clear .ok{flex:0 0 40px;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:var(--on-ink);background:var(--ink)}
+.fo .clear .ok svg{width:18px;height:18px}
+.fo .clear b{display:block;font-size:24px;line-height:28px;font-weight:300;letter-spacing:-.02em}
+.fo .clear p{margin:0;font-size:13px;line-height:20px;color:var(--g64)}
+
+@media (max-width:1100px){
+  .fo .kpis.k5{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (max-width:900px){
+  .fo .fo-top{flex-direction:column;align-items:stretch;gap:24px}
+  :is(.fo,.content:has(.fo-desk)) .band{padding:48px 16px;border-radius:24px;margin:24px calc(-1 * (var(--g) - var(--inset))) 0}
+  :is(.fo,.content:has(.fo-desk)) .tbl-wrap{margin:0 -8px}
+  :is(.fo,.content:has(.fo-desk)) .tbl th,:is(.fo,.content:has(.fo-desk)) .tbl td{padding-left:8px;padding-right:8px}
+  :is(.fo,.content:has(.fo-desk)) button.listrow.rowbtn{margin:0 -8px;padding-left:8px;padding-right:8px;width:calc(100% + 16px)}
+  :is(.fo,.content:has(.fo-desk)) .card-head{flex-wrap:wrap}
+  :is(.fo,.content:has(.fo-desk)) .sh{flex-wrap:wrap;row-gap:12px}
+  :is(.fo,.content:has(.fo-desk)) .sh-r{flex-wrap:wrap;flex:0 1 auto;min-width:0}
+  :is(.fo,.content:has(.fo-desk)) .sh-r > .pill{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+  /* the numbers become a swipe strip (design .kpis on a phone) */
+  .fo .kpis,.fo .kpis.k5,.fo .kpis.k3{display:flex;gap:16px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;margin:4px calc(-1 * var(--g)) 0;padding:0 var(--g) 4px;scroll-padding:0 var(--g);scrollbar-width:none}
+  .fo .kpis::-webkit-scrollbar{display:none}
+  .fo .kp{flex:0 0 172px;scroll-snap-align:start}
+  .fo .kp .kv .bignum{font-size:52px;line-height:60px}
+  .fo .kp .kv .bignum.money{font-size:28px;line-height:56px}
+}
+/* phones: a table row is one stacked row (78-fold.css) on the design's row hairline */
+@media (max-width:600px){
+  :is(.fo,.content:has(.fo-desk)) .tbl-wrap{margin:0}
+  :is(.fo,.content:has(.fo-desk)) .tbl tr{gap:8px 12px;min-height:56px;padding:14px 0;border-bottom:0;box-shadow:0 1px 0 var(--g08)}
+  :is(.fo,.content:has(.fo-desk)) .tbl tbody tr:last-child{box-shadow:none}
+  :is(.fo,.content:has(.fo-desk)) .tbl td,:is(.fo,.content:has(.fo-desk)) .tbl tbody tr:last-child td{height:auto;padding:0;background:none}
+  :is(.fo,.content:has(.fo-desk)) .tbl td[data-label]::before{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--g45);margin-right:4px}
+  :is(.fo,.content:has(.fo-desk)) .tbl tr.tot,:is(.fo,.content:has(.fo-desk)) .tbl tr.dark{margin-top:8px;padding:16px;border-radius:14px;color:var(--on-ink);background:var(--ink);box-shadow:none}
+  :is(.fo,.content:has(.fo-desk)) .tbl tr.tot td,:is(.fo,.content:has(.fo-desk)) .tbl tr.dark td{height:auto;background:none;border-radius:0}
+}
+@media (prefers-reduced-motion:reduce){
+  .fo .kp .kv .bignum{animation:none}
+  .fo .kp::after,.fo .kp .go,.fo .fc{transition:none}
+}
+:root[data-theme="dark"] :is(.fo,.content:has(.fo-desk)) .band.warm .card{background:var(--paper)}
+:root[data-theme="dark"] .fo .clear .ok{color:var(--paper);background:var(--ink)}

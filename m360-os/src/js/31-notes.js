@@ -89,7 +89,6 @@
       <div class="row between nowrap note-head">
         <div class="row nowrap" style=${{gap: '8px', minWidth: 0}}>
           ${onBack ? html`<button type="button" class="iconbtn" aria-label="All notes" onClick=${onBack}><${icons.more}/></button>` : null}
-          ${M.fx ? html`<${M.fx.Bot} feature="notes" state=${dirty.current ? 'working' : 'default'} size=${26} label=${dirty.current ? 'm360, saving' : 'm360 notes'}/>` : null}
           <span class="small ink62">${saved ? 'Saved ' + saved : dirty.current ? 'Saving' : 'Only you can read this'}${meta.updated ? ' · ' + U.timeAgo(meta.updated) : ''}</span>
         </div>
         <span class="row nowrap" style=${{gap: '6px'}}>

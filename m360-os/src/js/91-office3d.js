@@ -801,6 +801,10 @@
     const CHAT = [['Coffee?', 'coffee'], ['High five', 'five'], ['Nice work', 'clap'], ['Lunch?', 'party'], ['Quick sync?', 'wave'], ['You got this', 'fire']];
     const SPEED = 1.15;
     const seenEmote = {};
+    /* v39: emotes are timed from when they arrive here (M.character.emoteClock); the sender's clock alone when it is missing */
+    const emoteSee = M.character && M.character.emoteClock ? M.character.emoteClock()
+      : (c, now) => Object.keys((c && c.map) || {}).map(uid => { const m = c.map[uid] && c.map[uid].emote; return m ? {uid, e: m.e, at: m.at, seen: Number(m.at) || 0} : null; }).filter(Boolean);
+    const meColl = d => (d && d.ctx && d.ctx.coll ? d.ctx.coll.me : null);
     let nextVisit = performance.now() + 9000 + Math.random() * 9000;
     const planSeat = uid => (data && data.L && data.L.seats ? data.L.seats[uid] : null);
     function inOffice(uid) {
@@ -942,11 +946,10 @@
     const lifeTimer = setInterval(() => { try { ambient(); } catch (e) { fail(e); } }, 1500);
     /* the emotes people send from the emote bar, read off their me doc */
     function emotes(d) {
-      const map = d && d.ctx && d.ctx.coll && d.ctx.coll.me ? d.ctx.coll.me.map || {} : {};
       const now = Date.now();
-      for (const uid of Object.keys(map)) {
-        const m = map[uid] && map[uid].emote;
-        if (!m || !EMOJI[m.e] || !(Number(m.at) > now - 9000) || seenEmote[uid] === m.at) continue;
+      for (const m of emoteSee(meColl(d), now)) {
+        const uid = m.uid;
+        if (!EMOJI[m.e] || !(m.seen > now - 9000) || seenEmote[uid] === m.at) continue;
         seenEmote[uid] = m.at;
         if (!st.ready || !world) continue;
         if (free(uid)) { standWave(uid, EMOJI[m.e], null, 4200, true); continue; }
@@ -1290,7 +1293,14 @@
         }
         const fold = collide || (phone && k.indexOf('desk:') === 0);
         el.classList.toggle('is-folded', fold);
-        if (fold) { put(el, s.x - 4, s.y - 8); continue; }
+        if (fold) {
+          /* v39: the dot keeps off every tag already placed (it showed through a quiet tag's words), and later tags keep off it */
+          const dots = [[0, 0], [0, -12], [-12, 0], [12, 0], [0, 12]].map(([dx, dy]) => ({x0: s.x - 4 + dx, x1: s.x + 4 + dx, y0: s.y - 8 + dy, y1: s.y + dy}));
+          const spot = dots.find(q => !placed.some(p => rectHit(q, p, 1))) || dots[0];
+          put(el, spot.x0, spot.y0);
+          placed.push(spot);
+          continue;
+        }
         put(el, r.x0, r.y0);
         placed.push(r);
       }
@@ -1415,7 +1425,7 @@
     /* ---------- start: lights, the world, the actors, the first frame ---------- */
     function start(d0) {
       data = d0;
-      try { const mm = d0 && d0.ctx && d0.ctx.coll && d0.ctx.coll.me ? d0.ctx.coll.me.map || {} : {}; for (const u of Object.keys(mm)) if (mm[u] && mm[u].emote && !(Number(mm[u].emote.at) > Date.now() - 4000)) seenEmote[u] = mm[u].emote.at; } catch (e) { /* none yet */ }
+      try { const t0 = Date.now(); for (const m of emoteSee(meColl(d0), t0)) if (!(m.seen > t0 - 4000)) seenEmote[m.uid] = m.at; } catch (e) { /* none yet */ }
       tok = null;
       makeCoo();
       makeKaavish();
@@ -1574,6 +1584,18 @@
     if (d.state === 'notin') return d.hot ? 'not in yet' : '';
     if (d.quiet) return lower(d.quiet);
     return '';
+  }
+  /* v39: a tag's name. The first name, with the next word's initial where two people share it, and the
+     whole name where even that matches */
+  function tagNames(uids, nm) {
+    const words = u => String(nm(u) || '').trim().split(/\s+/);
+    const count = (key) => { const n = {}; for (const u of uids) { const k = key(u); n[k] = (n[k] || 0) + 1; } return n; };
+    const first = u => words(u)[0] || '';
+    const initial = u => { const w = words(u); return !w[1] ? w[0] || '' : /^\d/.test(w[1]) ? w[0] + ' ' + w[1] : w[0] + ' ' + w[1].charAt(0).toUpperCase() + '.'; };
+    const byFirst = count(first), byInitial = count(initial);
+    const out = {};
+    for (const u of uids) out[u] = byFirst[first(u)] < 2 ? first(u) : byInitial[initial(u)] < 2 ? initial(u) : words(u).join(' ');
+    return out;
   }
   const viewStyle = (mode, phone) => (mode === 'page' ? {aspectRatio: phone ? '3 / 4' : '16 / 10', maxHeight: phone ? '78vh' : '80vh'} : {aspectRatio: '16 / 9'});
 
@@ -1734,7 +1756,8 @@
     };
     const names = data.profs;
     const nm = u => ((names[u] || {}).name) || 'Someone';
-    const first = u => String(nm(u)).split(' ')[0];
+    const tags = tagNames(D.map(d => d.uid), nm);
+    const first = u => tags[u] || String(nm(u)).split(' ')[0];
     const asked = (view.fx.asked && Date.now() - (Number(view.fx.asked.at) || 0) < 10 * MIN) ? view.fx.asked : null;
     const counts = {};
     data.rows.forEach(x => { const s = x.station || 'desk'; counts[s] = (counts[s] || 0) + 1; });
@@ -1824,5 +1847,5 @@
 
   /* life(): the next visit now, for the checks */
   const life = () => (cur && cur.life ? cur.life() : undefined);
-  M.office3d = Object.assign(M.office3d || {}, {can, useMode, load, acquire, release, tokens, Scene3D, Placeholder, stage3d, state, api: apiNow, setMode, retry, life});
+  M.office3d = Object.assign(M.office3d || {}, {can, useMode, load, acquire, release, tokens, Scene3D, Placeholder, stage3d, state, api: apiNow, setMode, retry, life, tagNames});
 })();

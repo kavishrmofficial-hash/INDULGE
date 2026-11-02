@@ -2,7 +2,8 @@
 """v5 test: the phone pass and the home hero.
 
 At 390 wide, as the founder and as a member, every section fits the viewport, the tabbar items
-are 44px tall, every button in the page body is at least 36px tall, drawers are bottom sheets
+are 44px tall, every button in the page body is at least 28px tall (v40: the design's sizes, its chips
+are 28px and its small and ghost buttons 32px), drawers are bottom sheets
 with a grab handle that closes on a swipe down, and inputs keep 16px type. At 1280 the home
 hero shows the flame sun by day and the paper ring moon at night.
 
@@ -26,7 +27,7 @@ SMALL_BUTTONS = '''() => {
     if (!r.width || !r.height) continue;
     const cs = getComputedStyle(b);
     if (cs.visibility === 'hidden') continue;
-    if (r.height < 36) out.push([b.className.slice(0, 40), Math.round(r.height), b.textContent.trim().slice(0, 24)]);
+    if (r.height < 28) out.push([b.className.slice(0, 40), Math.round(r.height), b.textContent.trim().slice(0, 24)]);
   }
   return out;
 }'''
@@ -64,7 +65,7 @@ def t(h):
             tabs = p.evaluate(TAB_HEIGHTS)
             check(tabs and min(tabs) >= 44, '%s %s tabbar items under 44px: %r' % (ident, hsh, tabs))
             small = p.evaluate(SMALL_BUTTONS)
-            check(not small, '%s %s buttons under 36px: %r' % (ident, hsh, small[:5]))
+            check(not small, '%s %s buttons under 28px: %r' % (ident, hsh, small[:5]))
             if ident == 'founder':
                 h.shot(p, 'mobile-%s-390' % hsh.strip('#'))
             else:
@@ -76,7 +77,7 @@ def t(h):
         p.wait_for_timeout(400)
         ov = p.evaluate(OVERFLOW)
         check(ov <= 0, '%s overflows by %dpx at 360' % (hsh, ov))
-        check(not p.evaluate(SMALL_BUTTONS), '%s has buttons under 36px at 360' % hsh)
+        check(not p.evaluate(SMALL_BUTTONS), '%s has buttons under 28px at 360' % hsh)
     h.shot(p, 'mobile-work-360')
 
     # ---- the home hero on a phone: chips wrap, nothing cut at the edge, panel full width ----
@@ -111,9 +112,9 @@ def t(h):
     p.wait_for_selector('.tcard[data-task="t1"]')
     p.locator('.tcard[data-task="t1"]').click()
     p.wait_for_selector('.drawer .sheet-handle')
-    p.wait_for_timeout(350)
+    p.wait_for_timeout(900)  # v7: the sheet rises on a .6s spring
     mh = p.evaluate('parseFloat(getComputedStyle(document.querySelector(".drawer")).maxHeight)')
-    check(abs(mh - 844 * 0.92) < 2, 'drawer max-height is %r, expected 92dvh' % mh)
+    check(abs(mh - (844 - 48)) < 2, 'drawer max-height is %r, expected the screen less 48px (v7 glass sheet)' % mh)
     box = p.locator('.drawer').bounding_box()
     check(box and box['x'] == 0 and abs(box['width'] - 390) < 1 and abs(box['y'] + box['height'] - 844) < 1, 'drawer is not docked to the bottom: %r' % box)
     radius = p.evaluate('getComputedStyle(document.querySelector(".drawer")).borderTopLeftRadius')

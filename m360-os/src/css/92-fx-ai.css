@@ -1,7 +1,6 @@
 /* ---------- v29, the AI screens: bots in the heads, orbs while it works, the beam on what matters ---------- */
 .ai-head{align-items:center; gap:12px; flex-wrap:nowrap}
 .ai-head > .grow{min-width:0}
-.ai-bot{flex:none; display:inline-block; vertical-align:middle}
 .ai-wait{gap:10px; align-items:center}
 .ai-wait canvas,.ai-wait .vorb{flex:none}
 .ai-card .metal-host{flex:none}

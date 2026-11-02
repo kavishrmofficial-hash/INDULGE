@@ -10,7 +10,6 @@
 (function () {
   const {html, React, U, UI, icons} = M;
   /* a number in metal (metal-fx MetalText) */
-  const MetalNum = ({children, size, weight, color}) => html`<span class="fx-num"><${M.fx.MetalText} size=${size} weight=${weight} color=${color}>${children}<//></span>`;
   const {useState} = React;
 
   const EARN = [['basic', 'Basic'], ['hra', 'House rent allowance'], ['special', 'Special allowance'], ['allowances', 'Other allowances']];
@@ -94,6 +93,9 @@
       if (k === 'pf' && p.pf && row.pf === pfOf(s.basic, p)) row.pf = pfOf(row.basic, p);
       if (k === 'esi' && p.esi && row.esi === esiOf(EARN.reduce((t, [e]) => t + num(s[e]), 0), p)) row.esi = esiOf(gross, p);
       if (k === 'pt' && row.pt === PT && isFeb(month)) row.pt = PT_FEB;
+      /* v39: professional tax only on a gross over the limit, and no deduction takes the net below zero */
+      if (k === 'pt' && gross <= PT_LIMIT) row.pt = 0;
+      row[k] = Math.max(0, Math.min(row[k], gross - ded));
       ded += row[k];
     }
     row.gross = gross;
@@ -203,7 +205,7 @@
         <//>
         <div class="listrow" style=${{borderBottom: 0}}>
           <span class="grow small">gross <span class="num">${inr(m.gross)}</span> · deductions <span class="num">${inr(m.deductions)}</span></span>
-          <b class="row nowrap" style=${{gap: '6px'}}>net <span class="num" id="pay-net">${M.fx ? html`<${MetalNum} size=${20} weight=${600}>${inr(m.net)}<//>` : inr(m.net)}</span></b>
+          <b class="row nowrap" style=${{gap: '6px'}}>net <span class="num" id="pay-net">${inr(m.net)}</span></b>
         </div>
         <${UI.Field} label="bank">
           <div class="stack tight">
@@ -317,7 +319,13 @@
     const undo = async (uid) => {
       if (busy) return;
       setBusy(true);
-      try { await ctx.W.merge('payroll/' + month, {run: {closed: false, rows: {[uid]: null}}, updated: Date.now()}); M.toast('Undone'); }
+      try {
+        await ctx.W.merge('payroll/' + month, {run: {closed: false, rows: {[uid]: null}}, updated: Date.now()});
+        /* v39: the Salaries expense stands for a closed month; it goes with the reopen and comes back when everyone is paid again */
+        const ex = (((ctx.coll.expenses && ctx.coll.expenses.map[month]) || {}).rows) || {};
+        if (ex['payroll-' + month]) await ctx.W.merge('expenses/' + month, {rows: {['payroll-' + month]: null}, updated: Date.now()});
+        M.toast('Undone');
+      }
       catch (e) { M.toast('Could not save', true); }
       setBusy(false);
     };
@@ -346,7 +354,7 @@
           </tr>`;
         })}</tbody>
       </table></div>
-      <div class="small ink62" id="pay-totals" style=${{marginTop: '10px'}}>gross <span class="num">${inr(t.gross)}</span> · deductions <span class="num">${inr(t.deductions)}</span> · net ${M.fx ? html`<${MetalNum} size=${20} weight=${600}>${inr(t.net)}<//>` : html`<b class="num">${inr(t.net)}</b>`} · <span class="num">${rows.length}</span> people${paidRows.length ? html` · paid <span class="num">${inr(paidRows.reduce((s, r) => s + netOf(r.row), 0))}</span>` : null}</div>
+      <div class="small ink62" id="pay-totals" style=${{marginTop: '10px'}}>gross <span class="num">${inr(t.gross)}</span> · deductions <span class="num">${inr(t.deductions)}</span> · net <b class="num">${inr(t.net)}</b> · <span class="num">${rows.length}</span> people${paidRows.length ? html` · paid <span class="num">${inr(paidRows.reduce((s, r) => s + netOf(r.row), 0))}</span>` : null}</div>
       ${policy.employerCost ? html`<div class="small ink62" id="pay-cost" style=${{marginTop: '4px'}}>cost to company this month <b class="num">${inr(t.cost)}</b>${policy.pf ? html` · PF employer <span class="num">${inr(t.pf)}</span>` : null}${policy.esi ? html` · ESI employer <span class="num">${inr(t.esi)}</span>` : null}${policy.gratuity ? html` · gratuity <span class="num">${inr(t.gratuity)}</span>` : null}${policy.insurance ? html` · insurance <span class="num">${inr(t.insurance)}</span>` : null}</div>` : null}
       <div class="row" style=${{marginTop: '12px'}}>
         ${unpaid.length ? html`<span id="pay-all"><${UI.ConfirmBtn} kind="flame" sm=${false} onConfirm=${() => pay(unpaid.map(r => r.uid))}>Pay everyone, ${inr(unpaidNet)}<//></span>` : null}
@@ -473,8 +481,9 @@
     const [edit, setEdit] = useState(null);
     if (!ctx.isOwner) return html`<${UI.Empty} text="Payroll is the owner's alone."/>`;
     const policy = policyOf(ctx);
-    return html`<div class="stack" style=${{gap: '18px'}} id="pay-page">
-      <${MonthCard} month=${month} setMonth=${setMonth} policy=${policy} onEdit=${setEdit}/>
+    return html`<div class="stack" style=${{gap: '24px'}} id="pay-page">
+      <${UI.SectionHead} label="payroll" pill=${monthName(month)}/>
+      <${UI.Band} tone="warm"><${MonthCard} month=${month} setMonth=${setMonth} policy=${policy} onEdit=${setEdit}/><//>
       <${PayCard} policy=${policy} onEdit=${setEdit}/>
       <${Payslips} month=${month} policy=${policy} id=${okMonth(id) ? null : id}/>
       ${edit ? html`<${PayDrawer} uid=${edit} policy=${policy} onClose=${() => setEdit(null)}/>` : null}

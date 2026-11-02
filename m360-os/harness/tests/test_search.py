@@ -87,7 +87,7 @@ def t(h):
     seed(h, p)
     base_seed(h, p)
     h.go(p, 'founder', hash='#home', width=1280)
-    p.wait_for_selector('.side-tools')
+    p.wait_for_selector('#sAsk')
 
     # ---- palette: a contact by first name, under people, Enter opens #base/<cid> ----
     open_palette(p, 'priya')
@@ -195,9 +195,9 @@ def t(h):
 
     # ---- Ask m360: who do we know at Tata Motors, through the tool ----
     h.go(p, 'founder', hash='#home', width=1280)
-    p.wait_for_selector('.side-tools')
+    p.wait_for_selector('#sAsk')
     p.evaluate('window.__sampleCalls = []')
-    p.locator('.side-tools').get_by_role('button', name='Ask m360').click()
+    p.keyboard.press('Control+k'); p.locator('.pal-item[data-k=\"a-ai\"]').click()
     # v32: Ask opens the dock's pop-up; expand opens the full drawer with the ask- ids
     p.locator('#buddy-expand').click()
     p.fill('#ask-input', 'who do we know at Tata Motors')
@@ -244,7 +244,7 @@ def t(h):
 
     # ---- privacy: m1 searching "leave" sees only their own leave, nothing of m2 ----
     h.go(p, 'm1', hash='#home', width=1280)
-    p.wait_for_selector('.side-tools')
+    p.wait_for_selector('#sAsk')
     open_palette(p, 'leave')
     p.wait_for_selector('.pal-item')
     lst = p.inner_text('#pal-list')
@@ -254,7 +254,7 @@ def t(h):
     p.keyboard.press('Escape')
     # m1's own request shows up for m1
     h.go(p, 'm2', hash='#home', width=1280)
-    p.wait_for_selector('.side-tools')
+    p.wait_for_selector('#sAsk')
     open_palette(p, 'leave')
     p.wait_for_selector('.pal-item[data-group="leave"]')
     check('pending' in p.locator('.pal-item[data-group="leave"]').first.inner_text(), 'own leave request missing for m2')
@@ -262,8 +262,9 @@ def t(h):
 
     # ---- 390: the search drawer fits, no sideways scroll ----
     h.go(p, 'm1', hash='#home', width=390)
-    p.wait_for_selector('.topbar .bellbtn')
-    p.locator('.topbar').get_by_role('button', name='Search').click()
+    p.wait_for_selector('.topbar #menuBtn')
+    # v40: on a phone the round Ask button by the tab bar opens the Ask bar in the island
+    p.locator('.tabbar .tb-ask').click()
     p.wait_for_selector('#pal-input')
     p.fill('#pal-input', 'swisse')
     p.wait_for_selector('.pal-item.more')

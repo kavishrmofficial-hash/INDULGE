@@ -47,6 +47,15 @@ def artifact_part(h):
     check(p.evaluate('M.books.words(1500.25, "USD")') == 'One Thousand Five Hundred Dollars and Twenty Five Cents Only', 'usd words: %r' % p.evaluate('M.books.words(1500.25, "USD")'))
     check(p.evaluate('M.books.words(99.5, "INR")') == 'Ninety Nine Rupees and Fifty Paise Only', 'paise words: %r' % p.evaluate('M.books.words(99.5, "INR")'))
     check(p.evaluate('M.books.words(12500000, "INR")') == 'One Crore Twenty Five Lakh Rupees Only', 'crore words: %r' % p.evaluate('M.books.words(12500000, "INR")'))
+    # v39 books-14: the article before a letter kind
+    check(p.evaluate('["offer", "experience", "relieving"].map(M.books.aOr)') == ['An', 'An', 'A'], 'letter articles: %r' % p.evaluate('["offer", "experience", "relieving"].map(M.books.aOr)'))
+    # v39 books-11: TDS sits after the invoice total and the mail asks for the total less TDS
+    m = p.evaluate('''M.invoices.mailFor(M.lastCtx, {no: "X-1", currency: "INR", gst: "intra", gstRate: 18, tds: 11234.57, due: M.U.todayStr(),
+        billTo: {contactName: "Asha"}, lines: [{desc: "Film", qty: 1, rate: 100000}, {desc: "Edits", qty: 1, rate: 12345.67}], payments: []}, "send")''')
+    check('₹1,21,333.32' in m['text'] and m['html'].find('Invoice total') < m['html'].find('TDS deductible') < m['html'].find('Total due') and '₹1,21,333.32' in m['html'].split('Total due')[1][:200], 'the TDS mail: ' + m['text'][:120])
+    # v39 books-9: no professional tax on a gross under 10,000, and the net never goes below zero
+    lop = p.evaluate('''[99, 25].map(l => { const r = M.payroll.compute({basic: 50000, hra: 20000, special: 30000, pt: 200, tds: 500}, 27, l, {pt: true}, "2026-10"); return [r.gross, r.pt, r.net]; })''')
+    check(lop[0] == [0, 0, 0] and lop[1][1] == 0 and lop[1][2] >= 0, 'payroll under the limit: %r' % lop)
     # setup: change the GSTIN and save
     h.go(p, 'founder', hash='#billing', width=1280)
     p.wait_for_selector('#books-save')
@@ -56,6 +65,7 @@ def artifact_part(h):
     p.wait_for_function('() => { const d = window.__db.get("books/settings"); return d && d.company && d.company.gstin === "27DGFPR0438M1ZV"; }')
     # the clients' billing table sits at the top of Setup; a client opens as a full page, drafted from what m360 knows
     p.wait_for_selector('#billing-table')
+    check(p.locator('#billing-clients').count() == 1, 'v39 books-13: the billing card shows %d times' % p.locator('#billing-clients').count())
     check('new' in p.inner_text('#billing-table .billing-row').lower(), 'a client without a profile should read as new')
     p.click('#billing-table .billing-row:has-text("Swisse Wellness UAE")')
     p.wait_for_selector('#billing-page')
@@ -184,6 +194,14 @@ def artifact_part(h):
     slip = p.inner_text('#payslip-doc')
     check('Durvesh Patil' in slip and '99,800' in slip and 'Ninety Nine Thousand Eight Hundred Rupees Only' in slip and 'Professional tax' in slip and 'Provident' not in slip, 'payslip: ' + slip[:300].replace('\n', ' | '))
     check(p.locator('#payslip-doc .mark svg').count() == 1, 'the payslip should carry the logo')
+    # v39 books-10: undo the pay and the Salaries expense of the closed month goes with it; pay again and it comes back
+    h.go(p, 'founder', hash='#payroll', width=1280)
+    p.wait_for_selector('#pay-undo-u_m1')
+    p.click('#pay-undo-u_m1')
+    p.wait_for_function('() => { const d = window.__db.get("expenses/%s"); return !d || !d.rows || !d.rows["payroll-%s"]; }' % (mid, mid))
+    p.fill('#pay-lop-u_m1', '0')
+    p.click('#pay-paid-u_m1')
+    p.wait_for_function('() => { const d = window.__db.get("expenses/%s"); return d && d.rows && d.rows["payroll-%s"] && d.rows["payroll-%s"].amount === 99800; }' % (mid, mid, mid))
     # letters: an offer letter for a member, saved and issued
     h.go(p, 'founder', hash='#letters/u_m1', width=1280)
     p.wait_for_selector('#letter-kind')
@@ -212,6 +230,24 @@ def artifact_part(h):
     p.wait_for_selector('#books-calls')
     over = p.inner_text('#books-calls') + p.inner_text('#books-aging')
     check('days late' in over and 'SW-001' in over and 'SW-002' in over, 'overview should name the overdue invoice and the draft: ' + over[:300].replace('\n', ' | '))
+    # v39 books-3: an edit saved from a drawer opened before a payment landed elsewhere keeps that payment
+    h.go(p, 'founder', hash='#invoices/' + iid, width=1280)
+    p.wait_for_selector('#inv-edit')
+    p.click('#inv-edit')
+    p.wait_for_selector('#inv-drawer')
+    p.evaluate('([fy, id]) => { const d = JSON.parse(JSON.stringify(window.__db.get("invoices/" + fy))); d.rows[id].payments = (d.rows[id].payments || []).concat([{at: Date.now(), amount: 5000, ref: "UTR-PHONE", note: ""}]); window.__db.set("invoices/" + fy, d); }', [fy, iid])
+    p.wait_for_timeout(400)
+    p.locator('#inv-drawer').get_by_label('payment terms line').fill('30 days from invoice date (Net 30)')
+    p.click('#inv-save')
+    p.wait_for_function('([fy, id]) => (window.__db.get("invoices/" + fy).rows[id].terms || "").includes("Net 30")', arg=[fy, iid])
+    refs = [x.get('ref') for x in p.evaluate('window.__db.get("invoices/%s").rows["%s"].payments' % (fy, iid))]
+    check('UTR-PHONE' in refs and 'UTR123' in refs, 'the edit lost a payment: %r' % refs)
+    # v39 books-8: an invoice moved to another year keeps its number taken
+    moved = p.evaluate('window.__db.get("invoices/%s").rows["%s"]' % (fy, iid))
+    moved = dict(moved, no='MM/%s/SW-007' % fy, date='2020-03-20')
+    h.seed_doc(p, 'invoices/2019-20', {'rows': {'movedrow': moved}, 'updated': 1})
+    nxt = p.evaluate('M.books.nextNumber(M.lastCtx, "SW", "%s")' % fy)
+    check(nxt == 'MM/%s/SW-008' % fy, 'the next number after a moved invoice: %r' % nxt)
     # the phone: the invoice document fits
     h.go(p, 'founder', hash='#invoices/' + iid, width=390)
     p.wait_for_selector('#invoice-doc')

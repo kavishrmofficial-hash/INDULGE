@@ -330,7 +330,7 @@
       } catch (e) { M.toast(M.ai.say(e, 'The desk could not read that'), true); }
       setBusy('');
     };
-    return html`<${UI.Card} id="hs-intake" title="Intake" action=${html`<${M.fx.Bot} feature="handshake" state=${busy ? 'working' : 'default'} size=${36} label="m360, the handshake desk" className="ai-bot"/>`}>
+    return html`<${UI.Card} id="hs-intake" title="Intake" action=${busy ? html`<span class="pill">working</span>` : null}>
       <div class="stack tight">
         <div class="small ink62">${canImg ? 'Drop the LinkedIn screenshots here, or paste lines: Name | headline | company | pending or 1st.' : 'Paste one person per line: Name | headline | company | pending or 1st. Screenshots need a build that takes images.'}</div>
         ${canImg ? html`<div class="row" style=${{gap: '8px', flexWrap: 'wrap'}}>
@@ -384,13 +384,13 @@
     const group = (title, list, id) => list.length ? html`<${UI.Card} title=${title + ' (' + list.length + ')'} id=${id}>
       <div class="stack">${list.map(p => html`<${Person} key=${p.id} p=${p} ctx=${ctx} all=${all}/>`)}</div>
     <//>` : null;
-    return html`<div class="stack" style=${{gap: '16px'}} id="handshake">
-      <div class="row" style=${{gap: '8px', flexWrap: 'wrap'}}>
-        <span class="chipline"><b class="num"><${M.fx.MetalText} size=${15} weight=${600}>${String(ready.length)}<//></b> ready</span>
-        <span class="chipline"><b class="num">${hold.length}</b> held</span>
-        <span class="chipline"><b class="num">${waiting.length}</b> waiting on accepts</span>
-        <span class="chipline"><b class="num"><${M.fx.MetalText} size=${15} weight=${700}>${String(sent.length)}<//></b> sent</span>
-      </div>
+    return html`<div class="stack" style=${{gap: '24px'}} id="handshake">
+      <${UI.SectionHead} n=${1} label="linkedin desk">
+        <span class=${'pill' + (ready.length ? ' ink' : '')}><b class="num">${ready.length}</b> ready</span>
+        <span class="pill"><b class="num">${hold.length}</b> held</span>
+        <span class="pill"><b class="num">${waiting.length}</b> waiting on accepts</span>
+        <span class="pill"><b class="num">${sent.length}</b> sent</span>
+      <//>
       ${!M.ai.on(ctx) ? html`<div class="hint">The desk writes with m360 ai. Turn it on in Admin.</div>` : null}
       <${Intake} ctx=${ctx}/>
       ${group('Ready to send', ready, 'hs-ready')}

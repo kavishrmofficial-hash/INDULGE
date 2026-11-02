@@ -24,7 +24,7 @@
 .pm-chips{gap:6px}
 .pm-ans.on{background:var(--ink); color:var(--on-ink); border-color:var(--ink)}
 .pm-ans[data-how="blocked"]{border-color:var(--flame); color:var(--flame-text)}
-.pm-ans[data-how="blocked"].on{background:var(--flame-deep); border-color:var(--flame-deep); color:var(--paper)}
+.pm-ans[data-how="blocked"].on{background:var(--flame); border-color:var(--flame); color:var(--paper)}
 .pm-eta{gap:6px; align-items:center}
 .pm-pick{display:inline-flex; align-items:center; gap:6px}
 .pm-pick .input,.pm-time{width:auto; min-height:32px; height:32px; padding:0 8px}
@@ -38,7 +38,7 @@
 .pm-chip{height:24px; padding:0 10px; border-radius:999px; font-size:12px; line-height:1; white-space:nowrap; cursor:pointer; border:1px solid var(--line2); background:var(--paper); color:var(--ink)}
 .pm-chip.ink{background:var(--col); border-color:var(--col); color:var(--ink)}
 .pm-chip.warm{background:var(--warm); border-color:var(--line2); color:var(--ink)}
-.pm-chip.flame{background:var(--flame-deep); border-color:var(--flame-deep); color:var(--paper)}
+.pm-chip.flame{background:var(--flame); border-color:var(--flame); color:var(--paper)}
 :root[data-theme="dark"] .pm-chip.flame{color:var(--ink)}
 .pm-chip:disabled{cursor:default; opacity:1}
 .pm-chip:not(:disabled):hover{box-shadow:0 0 0 2px var(--line2)}
@@ -88,7 +88,7 @@
 .pm-kinds .pill{cursor:pointer; height:28px}
 .pm-ladder-strip{display:flex; flex-wrap:wrap; gap:6px 16px; padding:10px 12px; border-radius:var(--r-sm); background:var(--warm)}
 .pm-ladder-strip span{display:inline-flex; gap:6px; align-items:baseline; font-size:13px; color:var(--ink62)}
-.pm-ladder-strip b{color:var(--ink); font-weight:600}
+.pm-ladder-strip b{color:var(--ink); font-weight:500}
 .pm-audit-wrap{margin-top:14px; padding-top:12px; border-top:1px solid var(--line); display:grid; gap:10px; justify-items:start}
 .pm-audit-wrap > div{justify-self:stretch}
 .pm-zero{gap:6px}
@@ -102,7 +102,7 @@
 
 /* the bot on a notice and in the inbox */
 .notice-logo.notice-bot{background:rgba(255,255,255,.08)}
-.inbox-kind.inbox-bot{background:transparent; overflow:visible}
+
 
 /* phones: everything wraps, every target is 44px */
 @media (max-width:860px){

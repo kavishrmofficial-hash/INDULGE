@@ -1,8 +1,7 @@
 /* module: map. "What's here": the whole of m360 on one page, in plain words. Every section and every
    tab with one line on what it is for, who it is for, a live number where one is cheap, and an Open
-   button; the things that are always around (Ask m360, the buddy, search, the inbox, focus, New); and
-   a day-one list for whoever just joined. The same lines ride on the section heroes ("What's in Work"),
-   as tooltips on the tab strips and the sidebar, in the palette, and on Home for the first two weeks. */
+   button; the things that are always around (Ask m360, m360 AI, search, the inbox, focus, New); and
+   a day-one list for whoever just joined. The same lines ride as tooltips on the tab strips and the sidebar, in the palette, and on Home for the first two weeks. */
 'use strict';
 (function () {
   const {html, React, U, UI, icons} = M;
@@ -32,7 +31,7 @@
       {k: 'crew', label: 'Crew', route: 'people', blurb: 'Everyone on the team, their profiles, pods and who is in today.', signal: ctx => ctx.activeMembers.length + ' people'},
       {k: 'pulse', label: 'Pulse and ideas', route: 'voice', blurb: 'The anonymous weekly pulse (what is broken, what to change) and the ideas board with votes.'},
       {k: 'scores', label: 'Leaderboard', route: 'scores', blurb: 'Points by week, month, quarter and since joining, with what earned them.'},
-      {k: 'music', label: 'Music', route: 'music', blurb: 'Spotify inside m360: search, play, playlists, the dock at the bottom.'},
+      {k: 'music', label: 'Music', route: 'music', blurb: 'Spotify inside m360: search, play, playlists, the player at the bottom.'},
       {k: 'office', label: 'Office', route: 'office', member: true, blurb: 'The studio as it is right now: who is in, and the m360 COO at work.'}]},
     {k: 'office', label: 'The office', icon: 'desk', route: 'office', blurb: 'A live drawing of the studio: every desk as it is right now, and the m360 COO walking its rounds. Tap anything to see more.', tabs: []},
     {k: 'break', label: 'Break', icon: 'breath', route: 'break', blurb: 'The reset room, built on the trials that replicated: Five, the shared word of the day, an easy five minute game, a reaction check, breathing that is actually five minutes, a walk with a problem in your pocket, your care reminders, and a read of your last months. Sparks by the week, squads, a streak that forgives.', tabs: [
@@ -56,16 +55,15 @@
       {k: 'awards', label: 'Awards', route: 'awards', blurb: 'The award shows and their entry dates.'},
       {k: 'watch', label: 'Watch', route: 'watch', blurb: 'The YouTube channels and sources we follow.'}]},
     {k: 'me', label: 'Me', icon: 'people', route: 'me', blurb: 'Your own corner: profile, notes, trophies, leave, the handbook.', tabs: [
-      {k: 'profile', label: 'Profile', route: 'me', blurb: 'Your details and photo, the look, sounds, the buddy, notices and shortcuts.'},
+      {k: 'profile', label: 'Profile', route: 'me', blurb: 'Your details and photo, the look, sounds, m360 AI, notices and shortcuts.'},
       {k: 'notes', label: 'Notes', route: 'notes', blurb: 'Private notes, yours alone; the first line is the title.'},
       {k: 'trophies', label: 'Trophies', route: 'trophies', blurb: 'Badges you have earned and the ones coming up; birthdays and anniversaries.'},
       {k: 'leave', label: 'Leave', route: 'leave', blurb: 'Ask for leave, see the decision, withdraw while it is pending.', signal: ctx => { const n = ctx.isFounder && M.leave ? M.leave.pending(ctx).length : 0; return n ? n + ' waiting on you' : ''; }},
       {k: 'handbook', label: 'Handbook', route: 'handbook', blurb: 'How we work, section by section; the founder edits, everyone reads.', signal: ctx => { const n = M.handbook ? M.handbook.unread(ctx, ctx.uid).length : 0; return n ? n + ' unread' : ''; }},
       {k: 'hiring', label: 'Hiring', route: 'hiring', member: true, blurb: 'Candidates you were asked to evaluate, with the scorecard.'},
       {k: 'coo', label: 'COO', route: 'coo', member: true, blurb: 'What the m360 COO does on its own, what it only drafts, what it never does, and how to ask Kaavish to undo.'}]},
-    {k: 'hq', label: 'HQ', icon: 'command', route: 'hq', founder: true, blurb: 'The founder\'s desk: the brief, the numbers and hiring.', tabs: [
-      {k: 'brief', label: 'Intelligence', route: 'hq', blurb: 'The daily brief: risks, wins, people, money, the actions to take, and Ask HQ.'},
-      {k: 'dashboard', label: 'Dashboard', route: 'command', blurb: 'The company in numbers: attendance, output, pipeline, revenue, the ladder.'},
+    {k: 'hq', label: 'HQ', icon: 'command', route: 'hq', founder: true, blurb: 'The founder\'s desk: what needs you, the numbers, the COO, the office and hiring.', tabs: [
+      {k: 'brief', label: 'Command', route: 'hq', blurb: 'What needs you, the numbers, attendance, flags, the business, the team and clients; the brief and Ask HQ under more from HQ.'},
       {k: 'coo', label: 'COO', route: 'coo', blurb: 'The m360 COO: what needs you, what it did today with Undo, what it watches next, and its on, pause and off.'},
       {k: 'office', label: 'Office', route: 'office', blurb: 'The office, live: every desk, the COO at work, and today\'s run with Undo.'},
       {k: 'hiring', label: 'Hiring', route: 'hiring', blurb: 'Candidates by stage, the panel, the scorecards and the decision.', signal: ctx => { const n = M.hiring ? M.hiring.candidatesOf(ctx).filter(c => !c.decision).length : 0; return n ? n + ' open' : ''; }}]},
@@ -79,13 +77,13 @@
       {k: 'billing', label: 'Setup', route: 'billing', blurb: 'Company details, defaults, the logo, client billing profiles.'}]}
   ];
   const ALWAYS = [
-    {label: 'Ask m360', blurb: 'Ask anything, tell it to do anything: the spark in the sidebar, or the buddy bottom right (hold Ctrl and Option to talk).', act: () => window.dispatchEvent(new CustomEvent('m360:ask')), key: '✦'},
+    {label: 'Ask m360', blurb: 'Ask anything, tell it to do anything: m360 AI in the sidebar, or the Ask button on a phone (hold Ctrl and Option to talk).', act: () => window.dispatchEvent(new CustomEvent('m360:ask')), key: '✦'},
     {label: 'Search anything', blurb: 'People, companies, tasks, projects, clients, posts, the handbook, and every page.', act: () => window.dispatchEvent(new KeyboardEvent('keydown', {key: 'k', ctrlKey: true, bubbles: true})), key: M.isMac ? '⌘K' : 'Ctrl K'},
     {label: 'Inbox', blurb: 'What needs you: assignments, reviews, mentions, kudos, decisions, announcements.', act: () => window.dispatchEvent(new CustomEvent('m360:inbox')), key: 'i'},
     {label: 'New', blurb: 'A task, project, pitch, client, post, kudos or note from one button.', act: () => M.intend('#tasks', 'newtask'), key: '+'},
     {label: 'Focus timer', blurb: 'A deep work session that counts toward your week.', act: () => M.focus && M.focus.open(), key: 'f'},
     {label: 'Breathe', blurb: 'Five minutes, six breaths a minute.', act: () => M.breathe && M.breathe.open('slow'), key: ''},
-    {label: 'The tour', blurb: 'The buddy walks you through the place, out loud.', act: () => window.dispatchEvent(new CustomEvent('m360:tour')), key: ''},
+    {label: 'The tour', blurb: 'm360 walks you through the place, out loud.', act: () => window.dispatchEvent(new CustomEvent('m360:tour')), key: ''},
     {label: 'Keyboard shortcuts', blurb: 'The whole sheet.', act: () => window.dispatchEvent(new CustomEvent('m360:keys')), key: '?'}
   ];
   const DAY_ONE = [
@@ -95,7 +93,7 @@
     ['Post a hello on Vibe', 'feed', 'The team reads it.'],
     ['Read the handbook', 'handbook', 'How we work, in twenty minutes.'],
     ['File the EOD line', 'home', 'Three lines before the cut, every working day.'],
-    ['Take the tour', 'tour', 'The buddy shows you around in two minutes.']
+    ['Take the tour', 'tour', 'm360 shows you around in two minutes.']
   ];
 
   const allowed = (ctx, s) => !(s.founder && !ctx.isFounder) && !(s.owner && !ctx.isOwner) && !(s.member && ctx.isFounder);
@@ -111,9 +109,8 @@
   const sig = (ctx, x) => { try { return x.signal ? String(x.signal(ctx) || '') : ''; } catch (e) { return ''; } };
 
   /* each section is introduced by its own bot (bot-avatars), one body per place */
-  const BOT_OF = {home: 'brief', work: 'sections', accounts: 'clients', vibe: 'buddy', break: 'care', base: 'base', chat: 'handshake',
-    workspace: 'writer', web: 'search', radar: 'radar', me: 'notes', hq: 'hq', admin: 'hiring', books: 'books', office: 'buddy'};
-  const Mark = ({s}) => M.fx ? html`<${M.fx.Bot} feature=${BOT_OF[s.k] || 'ask'} size=${30} seed=${(s.label.length % 7) / 7} label=${'m360, ' + s.label}/>` : html`<${icons[s.icon] || icons.today}/>`;
+  /* v40: each section's own icon; the design draws no characters */
+  const Mark = ({s}) => html`<${icons[s.icon] || icons.today}/>`;
   function Section({s, ctx, open}) {
     return html`<${UI.Card} id=${'map-' + s.k} className=${'map-card' + (open ? ' open' : '')} title=${html`<span class="row nowrap" style=${{gap: '8px'}}><${Mark} s=${s}/>${s.label}${s.founder || s.owner ? html`<${UI.Pill}>${s.owner ? 'owner' : 'founder'}<//>` : null}</span>`}
       action=${html`<${UI.Btn} sm=${true} kind="sec" onClick=${() => M.nav('#' + s.route)}>Open<//>`}>
@@ -136,7 +133,7 @@
     }, [id, list.length]);
     const joined = ctx.member && ctx.member.joined ? U.daysBetween(ctx.member.joined, td()) : 999;
     return html`<div class="stack" style=${{gap: '18px'}} id="map">
-      <${M.SectionHero} micro="the map" title="What's in m360" sub="Every place, in one line each. Tap a name to go there; the numbers are live. The buddy bottom right answers anything this page does not.">
+      <${M.SectionHero} micro="the map" title="What's in m360" sub="Every place, in one line each. Tap a name to go there; the numbers are live. Ask m360 answers anything this page does not.">
         <div class="row" style=${{gap: '8px', flexWrap: 'wrap'}}>
           ${list.map(s => html`<button key=${s.k} type="button" class="chip" onClick=${() => { const el = document.getElementById('map-' + s.k); if (el) el.scrollIntoView({block: 'start', behavior: M.reduced() ? 'auto' : 'smooth'}); }}>${s.label}</button>`)}
         </div>
@@ -145,13 +142,13 @@
         <div class="map-tabs">${DAY_ONE.map(([label, route, why]) => html`<button key=${label} type="button" class="map-tab" onClick=${() => route === 'tour' ? window.dispatchEvent(new CustomEvent('m360:tour')) : M.nav('#' + route)}>
           <b>${label}</b><span class="tiny ink62">${why}</span></button>`)}</div>
       <//>` : null}
-      <${UI.Card} id="map-always" title=${M.fx ? html`<span class="row nowrap" style=${{gap: '8px'}}><${M.fx.Bot} feature="ask" size=${30} label="m360"/>Always around, from anywhere</span>` : 'Always around, from anywhere'}>
+      <${UI.Card} id="map-always" title="Always around, from anywhere">
         <div class="map-tabs">${ALWAYS.map(a => html`<button key=${a.label} type="button" class="map-tab" onClick=${a.act}>
           <span class="row between" style=${{gap: '8px'}}><b>${a.label}</b>${a.key ? html`<span class="kbd">${a.key}</span>` : null}</span>
           <span class="tiny ink62">${a.blurb}</span></button>`)}</div>
       <//>
       <div class="map-grid">${list.map(s => html`<${Section} key=${s.k} s=${s} ctx=${ctx} open=${id === s.k}/>`)}</div>
-      <div class="hint">Something you cannot find here? Ask the buddy: "where do I request leave", "what can you do".</div>
+      <div class="hint">Something you cannot find here? Ask m360: "where do I request leave", "what can you do".</div>
     </div>`;
   }
 
@@ -163,11 +160,11 @@
     if (gone || joined > 14) return null;
     return html`<${UI.Card} id="find-your-way" title="New here? Here is what is where" flame=${true}
       action=${html`<button type="button" class="iconbtn" aria-label="Close" onClick=${() => { M.prefs.set('mapSeen', '1'); setGone(true); }}><${icons.x}/></button>`}>
-      <div class="small" style=${{marginBottom: '10px'}}>m360 has a page for everything: work, clients, the team, the outside world, and you. One page lists all of it in plain words, and the buddy bottom right answers any question about the place.</div>
+      <div class="small" style=${{marginBottom: '10px'}}>m360 has a page for everything: work, clients, the team, the outside world, and you. One page lists all of it in plain words, and Ask m360 answers any question about the place.</div>
       <div class="row" style=${{gap: '8px', flexWrap: 'wrap'}}>
         <${UI.Btn} sm=${true} onClick=${() => M.nav('#map')}>See what's here<//>
         <${UI.Btn} sm=${true} kind="sec" onClick=${() => window.dispatchEvent(new CustomEvent('m360:tour'))}>Show me around<//>
-        <${UI.Btn} sm=${true} kind="sec" onClick=${() => window.dispatchEvent(new CustomEvent('m360:ask'))}>Ask the buddy<//>
+        <${UI.Btn} sm=${true} kind="sec" onClick=${() => { if (M.island && M.island.cmd) M.island.cmd('', document.getElementById('find-your-way')); else window.dispatchEvent(new CustomEvent('m360:ask')); }}>Ask m360<//>
       </div>
     <//>`;
   }

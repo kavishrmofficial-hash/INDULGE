@@ -76,7 +76,7 @@ def t(h):
 
     # ---- the founder: inbox item, then the Corrections tab ----
     h.go(p, 'founder', hash='#home', width=1280)
-    p.wait_for_selector('.side-tools')
+    p.wait_for_selector('#sAsk')
     p.keyboard.press('i')
     p.wait_for_selector('.drawer:has-text("Inbox")')
     body = p.inner_text('.drawer')
@@ -145,7 +145,7 @@ def t(h):
         reqs = doc(p, 'fixes/u_m1')['reqs']
         rid = next(k for k, r in reqs.items() if r.get('field') == 'reopen')
         h.go(p, 'founder', hash='#home', width=1280)
-        p.wait_for_selector('.side-tools')
+        p.wait_for_selector('#sAsk')
         p.keyboard.press('i')
         p.wait_for_selector('.drawer:has-text("Inbox")')
         body = p.inner_text('.drawer')
@@ -175,7 +175,7 @@ def t(h):
 
     # deep link from anywhere: M.fixes.open(kind, date, field) lands on Me with the drawer prefilled
     h.go(p, 'm1', hash='#home', width=1280)
-    p.wait_for_selector('.side-tools')
+    p.wait_for_selector('#sAsk')
     p.evaluate('M.fixes.open("attendance", "%s", "out")' % monday)
     p.wait_for_selector('#fix-drawer')
     check(p.evaluate('location.hash') == '#me', 'deep link did not land on Me')

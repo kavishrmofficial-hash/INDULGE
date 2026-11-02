@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""The buddy: by default its pointer rests in the dock and flies out to point; with "Ride next to my
-cursor" on it follows the mouse before, during and after an answer and a tour step and never gets
-stuck pinned. The voice module picks a browser voice or the server voice.
+"""m360 AI (the buddy): v40 puts no character on the screen. The corner dock is hidden and nothing rides the
+cursor; the Ask bar's m360 AI row opens the glass sheet, answers and the tour ring what they point at in flame.
+The voice module picks a browser voice or the server voice.
 Part one runs on the Claude mock; part two runs the voice actions on the EdgeOne stand-in.
 
 Run: cd m360-os && python3 harness/tests/test_buddy.py
@@ -23,19 +23,21 @@ import build_edgeone  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-def pointer_xy(p):
-    return p.evaluate('''() => { const el = document.querySelector('.buddy'); if (!el) return null;
-      const m = /translate3d\\(([-\\d.]+)px, ?([-\\d.]+)px/.exec(el.style.transform || ''); return m ? [Number(m[1]), Number(m[2])] : null; }''')
+ASK = '.pal-item[data-k="a-ai"]'
 
 
-def follows(p, x, y, check, label):
-    p.mouse.move(x, y)
-    p.wait_for_timeout(120)
-    p.mouse.move(x + 4, y + 2)
-    p.wait_for_timeout(700)
-    xy = pointer_xy(p)
-    ok = bool(xy) and abs(xy[0] - (x + 4 + 16)) < 12 and abs(xy[1] - (y + 2 + 14)) < 12
-    check(ok, '%s: pointer at %r for mouse at %r' % (label, xy, (x + 4, y + 2)))
+def ask(p):
+    """open the m360 AI sheet the way a person does on a desk: Ctrl+K opens the Ask bar, then its m360 AI row"""
+    p.keyboard.press('Control+k')
+    p.locator(ASK).click()
+    p.wait_for_selector('#buddy-input')
+
+
+def no_character(p, check, label):
+    """v40: nothing of the buddy shows on the screen: the dock is hidden and the pointer never appears"""
+    st = p.evaluate('''() => { const h = document.querySelector('#buddy-dock .buddy-home'); const b = document.querySelector('.buddy');
+      return {dock: !!(h && h.getClientRects().length), pointer: !!(b && getComputedStyle(b).opacity !== '0'), ride: M.buddy.state().ride}; }''')
+    check(not st['dock'] and not st['pointer'] and not st['ride'], '%s: a character shows on the screen: %r' % (label, st))
 
 
 def mock_part(h):
@@ -48,26 +50,20 @@ def mock_part(h):
     p = h.session('founder', width=1280, hash='#home', reset=True, seed=True)
     seed(h, p)
     h.go(p, 'founder', hash='#home', width=1280)
-    p.wait_for_selector('#buddy-dock .buddy-home')
+    p.wait_for_selector('#buddy-dock', state='attached')
     p.wait_for_selector('.buddy', state='attached')
-    # by default the pointer rests in the dock: it does not follow the mouse
-    p.mouse.move(300, 300); p.wait_for_timeout(500)
-    st = p.evaluate('() => M.buddy.state()')
-    check(not st['ride'] and p.evaluate('() => document.querySelector(".buddy").classList.contains("docked")'), 'the pointer rests in the dock: %r' % st)
-    # "Ride next to my cursor" brings the old pointer back
+    # v40: no character on the screen, even when the old "ride next to my cursor" pref is set
     p.evaluate('() => { localStorage.setItem("m360.buddyRide", "1"); window.dispatchEvent(new CustomEvent("m360:dockprefs")); }')
-    p.wait_for_function('() => M.buddy.state().ride')
-    # idle: follows
-    follows(p, 300, 300, check, 'idle')
-    # tap the character: the pop-up opens for typing, and the pointer still follows
-    p.locator('.buddy-home').click()
-    p.wait_for_selector('#buddy-input')
-    follows(p, 520, 260, check, 'while asking')
-    # ask, get an answer, and the pointer must follow again afterwards
+    p.mouse.move(300, 300); p.wait_for_timeout(500)
+    no_character(p, check, 'idle')
+    # the Ask bar's m360 AI row opens the sheet for typing
+    ask(p)
+    no_character(p, check, 'while asking')
+    # ask, get an answer
     p.fill('#buddy-input', 'what is overdue')
     p.keyboard.press('Enter')
     p.wait_for_selector('.buddy-bubble #buddy-answer', timeout=20000)
-    follows(p, 700, 420, check, 'after an answer')
+    no_character(p, check, 'after an answer')
     # the chat thread: expand opens the same thread wide, in the drawer
     p.locator('#buddy-expand').click()
     p.wait_for_selector('.drawer:has-text("what is overdue")')
@@ -75,27 +71,28 @@ def mock_part(h):
     check(p.locator('.drawer #ask-input').count() == 1 and p.locator('.buddy-bubble').count() == 0, 'expand trades the pop-up for the drawer')
     p.keyboard.press('Escape'); p.wait_for_function('() => !document.querySelector(".drawer")')
     h.go(p, 'founder', hash='#home', width=1280)
-    p.wait_for_selector('.buddy-home')
-    check(p.locator('#buddy-dock .buddy-home[aria-label="Ask m360"]').count() == 1, 'the dock is the Ask m360 button')
-    # the sidebar spark opens the pop-up at the dock, with the same thread
-    p.locator('.side-tools .iconbtn[aria-label="Ask m360"]').click()
+    p.wait_for_selector('#buddy-dock', state='attached')
+    # v40: the buddy has no corner character; m360 AI opens from the Ask bar, with the same thread
+    p.keyboard.press('Control+k'); p.locator('.pal-item[data-k=\"a-ai\"]').click()
     p.wait_for_selector('.buddy-bubble:has-text("what is overdue")', timeout=8000)
     p.keyboard.press('Escape'); p.wait_for_function('() => !document.querySelector(".buddy-bubble")')
     # the pop-up stays where it opened while the mouse moves around
-    p.locator('.buddy-home').click()
-    p.wait_for_selector('#buddy-input')
-    p.mouse.move(300, 200); p.wait_for_timeout(400)
-    # it hangs from the dock: its right and bottom edges hold while the mouse moves
+    ask(p)
+    p.mouse.move(300, 200); p.wait_for_timeout(900)   # the sheet slides in on a .6s spring
+    # v40: it is the glass sheet, 520px, 12px from the right, top and bottom edges, and holds while the mouse moves
     b1 = p.evaluate('() => { const r = document.querySelector(".buddy-bubble").getBoundingClientRect(); return [Math.round(r.right), Math.round(r.bottom)]; }')
     p.mouse.move(700, 500); p.wait_for_timeout(600)
     b2 = p.evaluate('() => { const r = document.querySelector(".buddy-bubble").getBoundingClientRect(); return [Math.round(r.right), Math.round(r.bottom)]; }')
     check(b1 == b2, 'bubble must stay put %r %r' % (b1, b2))
+    sh = p.evaluate('''() => { const e = document.querySelector(".buddy-bubble.agent-pop"); const r = e.getBoundingClientRect(); const c = getComputedStyle(e);
+      return [Math.round(r.width), Math.round(innerWidth - r.right), Math.round(r.top), Math.round(innerHeight - r.bottom), c.borderTopLeftRadius, c.backdropFilter.indexOf("blur") >= 0]; }''')
+    check(sh[0] == 520 and sh[1] == 12 and sh[2] == 12 and sh[3] == 12 and sh[4] == '28px' and sh[5], 'the m360 AI sheet is the glass sheet: %r' % sh)
     check(p.locator('.buddy-bubble .panel-head').count() == 1 and p.locator('.buddy-bubble .panel-composer').count() == 1, 'the pop-up has its head and composer')
     p.keyboard.press('Escape')
     p.wait_for_function('() => !document.querySelector(".buddy-bubble")')
     # a how-to becomes a pointed walk with Next between steps, and it never counts as the tour
     p.evaluate('() => localStorage.removeItem("m360.tourSeen")')
-    p.locator('.buddy-home').click(); p.wait_for_selector('#buddy-input')
+    ask(p)
     p.fill('#buddy-input', 'show me how to request leave'); p.keyboard.press('Enter')
     p.wait_for_selector('.buddy-bubble.tour', timeout=20000)
     p.wait_for_timeout(900)
@@ -108,27 +105,24 @@ def mock_part(h):
     p.wait_for_function('() => !document.querySelector(".buddy-bubble")')
     check(p.evaluate('() => localStorage.getItem("m360.tourSeen")') is None, 'a walk must not mark the tour as seen')
     h.go(p, 'founder', hash='#home', width=1280)
-    p.wait_for_selector('.buddy-home')
-    # it does things: "open new" presses the New button (a menu appears); a Delete control is only pointed at
+    p.wait_for_selector('#buddy-dock', state='attached')
+    # it does things: "open new" presses a New button (a sheet opens); a Delete control is only pointed at
     p.evaluate('''() => { window.__spoken = []; M.speech.say = async t => { window.__spoken.push(t); return true; };
       const b = document.createElement('button'); b.textContent = 'Delete this'; b.id = 'risky-btn'; b.onclick = () => { window.__riskyClicked = true; };
-      document.querySelector('.main').prepend(b); }''')
-    p.locator('.buddy-home').click(); p.wait_for_selector('#buddy-input')
+      document.querySelector('.main').prepend(b);
+      const n = document.createElement('button'); n.textContent = 'New'; n.id = 'new-btn'; n.onclick = () => window.dispatchEvent(new CustomEvent('m360:newtask'));
+      document.querySelector('.main').prepend(n); }''')
+    ask(p)
     # "open ..." at the start of a sentence is the agent's own grammar (a screen), so the press is asked for in other words
+    # v40: the sidebar has no New button (New lives in the Ask bar), so the page gets one: the buddy presses it
     p.fill('#buddy-input', 'click to open new'); p.keyboard.press('Enter')
     p.wait_for_selector('.buddy-bubble:has-text("Opened New")', timeout=20000)
-    check(p.locator('.new-menu, .new-wrap [role="menu"], .new-wrap .menu').count() >= 1 or p.evaluate('() => !!document.querySelector(".new-trigger[aria-expanded=\'true\']")'), 'the New menu should be open after the buddy pressed it')
+    check(p.locator('.drawer:has-text("New task")').count() == 1, 'the New task sheet should be open after the buddy pressed New')
     check(p.locator('.buddy-bubble:has-text("pressed New")').count() == 1, 'the bubble should log the press')
     p.keyboard.press('Escape'); p.keyboard.press('Escape')
-    # its own Escape press closes the menu, never the buddy
-    p.locator('.sidebar .new-trigger').click(); p.wait_for_selector('.new-trigger[aria-expanded="true"]')
-    p.locator('.buddy-home').click(); p.wait_for_selector('#buddy-input')
-    p.fill('#buddy-input', 'close this'); p.keyboard.press('Enter')
-    p.wait_for_selector('.buddy-bubble:has-text("Closed it")', timeout=20000)
-    check(p.locator('.new-trigger[aria-expanded="true"]').count() == 0, 'press_key Escape should close the menu')
-    check(p.locator('.buddy-bubble #buddy-answer').count() == 1, 'the buddy must survive its own Escape')
+    p.wait_for_function('() => !document.querySelector(".drawer")')
     p.keyboard.press('Escape')
-    p.locator('.buddy-home').click(); p.wait_for_selector('#buddy-input')
+    ask(p)
     p.fill('#buddy-input', 'press delete'); p.keyboard.press('Enter')
     p.wait_for_selector('.buddy-bubble:has-text("yours to press")', timeout=20000)
     check(not p.evaluate('() => !!window.__riskyClicked'), 'a risky control must never be pressed by the buddy')
@@ -137,25 +131,25 @@ def mock_part(h):
     # it types: into the search field on the Base page
     h.go(p, 'founder', hash='#base', width=1280)
     p.wait_for_selector('#base-q')
-    p.locator('.buddy-home').click(); p.wait_for_selector('#buddy-input')
+    ask(p)
     p.fill('#buddy-input', 'type Swisse into the search'); p.keyboard.press('Enter')
     p.wait_for_selector('.buddy-bubble:has-text("Typed it in")', timeout=20000)
     check(p.input_value('#base-q') == 'Swisse', 'type_into should fill the field, got %r' % p.input_value('#base-q'))
     p.keyboard.press('Escape')
     h.go(p, 'founder', hash='#home', width=1280)
-    p.wait_for_selector('.buddy-home')
-    # the tour: says each stop out loud, opens the section it belongs to, points and rings, and marks itself done
+    p.wait_for_selector('#buddy-dock', state='attached')
+    # the tour: says each stop out loud, opens the section it belongs to, rings each stop, and marks itself done
     p.evaluate('() => { window.__spoken = []; M.speech.say = async t => { window.__spoken.push(t); return false; }; localStorage.setItem("m360.buddyVoice", "1"); }')
     p.evaluate('window.dispatchEvent(new CustomEvent("m360:tour"))')
     p.wait_for_selector('.buddy-bubble.tour')
     p.wait_for_selector('.buddy-ring')
     p.wait_for_timeout(900)
     ring = p.evaluate('() => { const r = document.querySelector(".buddy-ring").getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; }')
-    xy = pointer_xy(p)
-    check(xy and ring[0] - 10 <= xy[0] <= ring[0] + ring[2] + 10 and ring[1] - 10 <= xy[1] <= ring[1] + ring[3] + 10, 'tour: pointer %r is not on the ring %r' % (xy, ring))
+    check(ring[2] > 12 and ring[3] > 12, 'tour: the first stop is not ringed: %r' % ring)
+    no_character(p, check, 'on the tour')
     n = p.evaluate('() => M.buddy.tour.count()')
     check(n >= 14, 'founder tour should have every stop, got %r' % n)
-    check(p.evaluate('() => window.__spoken.length') == 1 and 'buddy' in p.evaluate('() => window.__spoken[0]'), 'first stop should be spoken')
+    check(p.evaluate('() => window.__spoken.length') == 1 and 'm360' in p.evaluate('() => window.__spoken[0]'), 'first stop should be spoken')
     check('Kaavish' in p.evaluate('() => window.__spoken[0]'), 'the greeting should use their first name')
     for _ in range(6):
         p.locator('.buddy-bubble.tour').get_by_role('button', name='Next').click()
@@ -164,7 +158,6 @@ def mock_part(h):
     check(p.evaluate('() => window.__spoken.length') == 7, 'every stop should be spoken once, got %r' % p.evaluate('() => window.__spoken.length'))
     check(p.locator('.buddy-bubble.tour:has-text("7 of")').count() == 1, 'progress should read 7 of N')
     p.wait_for_function('() => !M.buddy.state().flying'); p.wait_for_timeout(300)
-    follows(p, 640, 500, check, 'after a tour step')
     check(p.locator('.buddy-ring').count() == 1, 'the ring stays while the tour bubble is open')
     p.locator('.buddy-bubble.tour').get_by_role('button', name='Back').click(); p.wait_for_timeout(600)
     check(p.locator('.buddy-bubble.tour:has-text("6 of")').count() == 1, 'Back should step back')
@@ -177,31 +170,22 @@ def mock_part(h):
     p.evaluate('() => { localStorage.removeItem("m360.tourSeen"); localStorage.setItem("m360.forceWelcome", "1"); }')
     h.roster(p, ('u_m1',))
     h.go(p, 'm1', hash='#home', width=1280)
-    p.wait_for_selector('#tour-yes', timeout=8000)
-    check('Hi ' in p.inner_text('.buddy-bubble'), 'welcome should greet by name')
-    p.locator('#tour-later').click()
+    # v40: the offer is a line in the island; the m360 AI sheet stays shut, and a tap starts the tour
+    welcome = '() => /two minute tour/.test((document.getElementById("island") || {}).innerText || "")'
+    p.wait_for_function(welcome, timeout=8000)
+    check('Hi ' in p.inner_text('#island'), 'welcome should greet by name')
+    check(p.locator('.buddy-bubble.agent-pop').count() == 0, 'the welcome must not open the m360 AI sheet over the page')
+    p.locator('#island').click()
+    p.wait_for_selector('.buddy-bubble.tour', timeout=8000)
+    p.locator('.buddy-bubble.tour').get_by_role('button', name='Skip').click()
     p.wait_for_function('() => !document.querySelector(".buddy-bubble")')
     h.go(p, 'm1', hash='#home', width=1280)
-    p.wait_for_selector('.buddy-home'); p.wait_for_timeout(2600)
-    check(p.locator('#tour-yes').count() == 0, 'the welcome must not come back once dismissed')
-    # Escape on the welcome also counts as an answer
-    p.evaluate('() => localStorage.removeItem("m360.tourSeen")')
-    h.roster(p, ('u_m1', 'u_m2'))
-    h.go(p, 'm2', hash='#home', width=1280)
-    p.wait_for_selector('#tour-yes', timeout=8000)
-    p.keyboard.press('Escape')
-    p.wait_for_function('() => !document.querySelector(".buddy-bubble")')
-    p.wait_for_timeout(2600)
-    check(p.locator('#tour-yes').count() == 0, 'the welcome must not come back after Escape')
+    p.wait_for_selector('#buddy-dock', state='attached'); p.wait_for_timeout(2600)
+    check(not p.evaluate(welcome), 'the welcome must not come back once offered')
     p.evaluate('() => localStorage.removeItem("m360.forceWelcome")')
     h.go(p, 'founder', hash='#home', width=1280)
-    p.wait_for_selector('.buddy-home')
-    # a still mouse dims the pointer after a while; any move brings it back
-    p.mouse.move(400, 300); p.wait_for_timeout(200); p.mouse.move(402, 300)
-    p.wait_for_timeout(4600)
-    check(p.evaluate('() => document.querySelector(".buddy").classList.contains("still")'), 'pointer should dim when the mouse rests')
-    follows(p, 400, 380, check, 'after resting')
-    check(not p.evaluate('() => document.querySelector(".buddy").classList.contains("still")'), 'pointer should wake on a move')
+    p.wait_for_selector('#buddy-dock', state='attached')
+    no_character(p, check, 'back on Home')
     # voice: the module exists, picks a voice when the browser has any, and never throws
     v = p.evaluate('() => ({has: !!M.speech, picked: !!M.speech.pick(), n: M.speech.voices().length})')
     check(v['has'], 'M.speech missing')
@@ -209,8 +193,7 @@ def mock_part(h):
     p.wait_for_timeout(300)
     p.evaluate('() => M.speech.stop()')
     # the mic button sits in the typed bubble
-    p.locator('.buddy-home').click()
-    p.wait_for_selector('#buddy-input')
+    ask(p)
     check(p.locator('.buddy-bubble .micbtn').count() == 1, 'mic button missing from the bubble')
     p.keyboard.press('Escape')
     # Me: the buddy voice switch
@@ -257,6 +240,7 @@ def standalone_part():
             f.get_by_role('button', name='Set up the workspace').click()
             f.wait_for_selector('.sidebar')
             f.wait_for_function('() => location.hash === "#hq"', timeout=20000)
+            f.click('#hq-more')  # v40: HQ opens on Command; the checklist sits under "more from HQ"
             f.wait_for_selector('#setup-card')
             f.wait_for_timeout(500)
             api = lambda a, body=None: f.evaluate('([a, b]) => window.M360_API(a, b || {}).then(r => ({ok: true, r}), e => ({ok: false, status: e.status, code: e.code}))', [a, body or {}])

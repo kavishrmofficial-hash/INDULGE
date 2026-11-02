@@ -314,8 +314,11 @@ def edge():
             f.set_viewport_size({'width': 390, 'height': 800})
             f.goto(base + '#music')
             f.wait_for_selector('#spotify-card')
+            f.wait_for_timeout(1500)   # a toast showing at 1280 glides to its phone place first
             ov = f.evaluate('() => document.documentElement.scrollWidth - document.documentElement.clientWidth')
-            check(ov <= 0, 'phone overflow %d' % ov)
+            wide = f.evaluate('''() => { const vw = document.documentElement.clientWidth; return [...document.querySelectorAll('body *')].filter(e => { const r = e.getBoundingClientRect(); if (!(r.width > 0 && r.right > vw + 1)) return false; for (let a = e; a && a !== document.body; a = a.parentElement) { const cs = getComputedStyle(a); if (cs.position === 'fixed' || /auto|scroll|hidden|clip/.test(cs.overflowX)) return false; } return true; })
+              .slice(0, 6).map(e => e.tagName + '.' + (typeof e.className === 'string' ? e.className.slice(0, 40) : '') + (e.id ? '#' + e.id : '') + ' ' + Math.round(e.getBoundingClientRect().right)); }''')
+            check(ov <= 0, 'phone overflow %d: %r' % (ov, wide))
             browser.close()
     finally:
         srv.terminate()

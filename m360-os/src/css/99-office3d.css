@@ -73,7 +73,8 @@
 
 /* stations: quiet labels on the furniture, a button each */
 .office.o3 .office-station{all:unset; box-sizing:border-box; position:absolute; left:0; top:0; pointer-events:auto; cursor:pointer; white-space:nowrap; font-size:11px; line-height:1; font-weight:400;
-  letter-spacing:.01em; color:var(--ink62); padding:4px 7px; border-radius:7px; transition:opacity .25s ease}
+  letter-spacing:.01em; color:var(--ink62); padding:4px 7px; border-radius:7px; transition:opacity .25s ease;
+  background:color-mix(in srgb, var(--paper) 72%, transparent)}
 .office.o3 .office-station:hover,.office.o3 .office-station:focus-visible{color:var(--ink); background:var(--paper); box-shadow:0 0 0 1px var(--line)}
 .office.o3 .office-station:focus-visible{outline:2px solid var(--flame); outline-offset:2px}
 .office.o3 .office-station.is-faded:not(:focus-visible):not(:hover){opacity:0}

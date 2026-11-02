@@ -7,8 +7,7 @@
 .podium .po-top{margin-bottom:-2px}
 
 /* projects: the header's percent sits at the end of the progress line */
-.proj-progress{gap:12px; align-items:center}
-.proj-progress > .row{min-width:0; flex:1 1 auto}
+.proj-progress > .pj-prog{min-width:0; flex:1 1 auto}
 .proj-pct{flex:none; display:inline-flex; align-items:center}
 
 /* chat: the bell and the notices link share the header's right side; the message box keeps its width inside the beam */
@@ -24,16 +23,9 @@
 /* numbers in the kpi tiles never push a tile wider than its column */
 .kpi .v{max-width:100%; overflow:hidden}
 
-/* a won pitch card: the brand and its badge share the first line */
-.tcard .row.between > .t{min-width:0; overflow:hidden; text-overflow:ellipsis}
-
-/* pitches: an empty stage folds to its heading and count, so the stages with pitches come into view */
-.colm.empty{width:132px}
-.colm.empty .col-head{gap:8px; align-items:flex-start}
-/* pitches: the count by stage is plain text, nothing to tap */
-.stage-counts{gap:6px 18px}
-.stage-count{font-size:14px; white-space:nowrap}
-.stage-count .num{font-weight:600; margin-left:4px}
+/* pitches: the count by stage, one pill a stage (v40: the design's pills; nothing to tap) */
+.stage-counts{gap:8px}
+.stage-count .num{font-weight:500; color:var(--ink)}
 
 /* HQ: every figure sits on a 1.15 line, so the labels line up */
 .stat.glass .v{line-height:1.15; display:flex; align-items:center}

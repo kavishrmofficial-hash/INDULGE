@@ -11,8 +11,22 @@
   const PRUNE_DAYS = 90;
   const RANGES = [{v: '1', label: 'Today'}, {v: '7', label: '7 days'}, {v: '30', label: '30 days'}];
   const KINDS = [{v: 'writes', label: 'Writes'}, {v: 'signins', label: 'Sign-ins'}, {v: 'all', label: 'All'}];
-  const SIGNIN = {login: 'signed in', logout: 'signed out', signup: 'asked to join', accept: 'joined by invite', setup: 'set the workspace up', link: 'made a sign-in link'};
-  const VERB = {set: 'added', update: 'changed', delete: 'removed', merge: 'changed', prune: 'pruned', ...SIGNIN};
+  const SIGNIN = {login: 'signed in', logout: 'signed out', signup: 'asked to join', accept: 'joined by invite', setup: 'set the workspace up', link: 'made a sign-in link',
+    mklink: 'made a sign-in link', signout: 'signed a device out', signoutall: 'signed out every device', pw: 'chose a sign-in', setpw: 'set a new sign-in',
+    resetpw: 'reset a sign-in', resetcode: 'made a reset code', recovery: 'used a recovery code', totp: 'changed two-step sign-in'};
+  /* v39: every action the server logs reads as a plain verb */
+  const VERB = {set: 'added', update: 'changed', delete: 'removed', merge: 'changed', prune: 'pruned', ...SIGNIN,
+    backup: 'backed up', restore: 'restored', revert: 'went back to an older version of', emptytrash: 'emptied the trash',
+    sitebackup: 'downloaded the site backup', siteidentity: 'downloaded the people list', prunelogs: 'cleared old logs',
+    invite: 'sent an invite', uninvite: 'took an invite back', rename: 'changed a name', setemail: 'changed an email',
+    aikey: 'changed the AI key', aicheck: 'checked the AI key', mailkey: 'changed the mail key', googlekey: 'changed the Google key',
+    google: 'changed the Google link', gmail: 'sent an email', gcal: 'added a meeting', file: 'added a file',
+    voicebox: 'changed the voice box', voicekey: 'changed the voice key'};
+  /* a person's id inside a server summary ("u_5r6d...: 0 devices") */
+  const UID_RE = /\b(u_[a-z0-9]{6,})\b/g;
+  const named = (text, profs) => String(text || '').replace(UID_RE, m => (profs[m] && profs[m].name) || 'someone');
+  /* the summary with every id shown as that person's name */
+  const Said = ({text}) => String(text || '').split(UID_RE).map((part, i) => i % 2 ? html`<${UI.Name} key=${i} id=${part} fallback="someone"/>` : part);
   const TARGET = {
     tasks: 'task', projects: 'project', clients: 'client', pitches: 'pitch', candidates: 'candidate', handbook: 'handbook section',
     checkin: 'check-in', eod: 'EOD line', plan: 'monday outcomes', review: 'weekly review', rocks: 'rocks', feed: 'feed post',
@@ -28,7 +42,7 @@
   M.logs.read = M.logs.read || function read(ctx, range) {
     const from = (range && range.from) || '0000-00-00', to = (range && range.to) || '9999-12-31';
     /* one subscription per person on the roster (plus the viewer), each read once and released */
-    const people = Array.from(new Set(Object.keys(ctx.members || {}).concat([ctx.uid]).filter(Boolean)));
+    const people = Array.from(new Set(Object.keys(ctx.members || {}).concat([ctx.uid, ctx.founderUid]).filter(Boolean)));
     const one = uid => new Promise(res => {
       let un = null, done = false;
       const stop = () => setTimeout(() => { try { if (un) un(); } catch (e) { /* gone */ } }, 0);
@@ -97,7 +111,13 @@
     const [tick, setTick] = useState(0);
     const [busy, setBusy] = useState(false);
     const [hist, setHist] = useState('');
-    const uids = (ctx.activeMembers || []).map(m => m.uid);
+    /* v39: everyone with entries is in the filter and the CSV, Kaavish and people who left included */
+    const all = useMemo(() => rows(docs), [docs]);
+    const uids = useMemo(() => {
+      const seen = new Set([ctx.founderUid, ...(ctx.activeMembers || []).map(m => m.uid)].filter(Boolean));
+      all.forEach(r => { seen.add(r.uid); (r.s.match(UID_RE) || []).forEach(u => seen.add(u)); });
+      return Array.from(seen);
+    }, [all, ctx.founderUid, ctx.activeMembers]);
     const profs = M.useProfiles(uids);
     const today = U.todayStr();
     const from = U.ymd(U.addDays(new Date(), -(Number(range) - 1)));
@@ -109,7 +129,6 @@
       return () => { live = false; };
     }, [from, today, tick]);
 
-    const all = useMemo(() => rows(docs), [docs]);
     const list = useMemo(() => {
       const needle = q.trim().toLowerCase();
       return all.filter(r => (!who || r.uid === who)
@@ -131,7 +150,7 @@
       const lines = [['date', 'time', 'person', 'action', 'target', 'summary'].map(csvCell).join(',')];
       for (const r of list) {
         const d = new Date(r.at);
-        lines.push([U.ymd(d), U.hhmm(r.at), (profs[r.uid] && profs[r.uid].name) || r.uid, r.a, r.p, r.s].map(csvCell).join(','));
+        lines.push([U.ymd(d), U.hhmm(r.at), (profs[r.uid] && profs[r.uid].name) || 'someone', r.a, r.p, named(r.s, profs)].map(csvCell).join(','));
       }
       const data = lines.join('\n'), filename = 'log-' + from + '-to-' + today + '.csv';
       try {
@@ -181,8 +200,9 @@
       setTick(t => t + 1);
     }
 
-    const people = [{v: '', label: 'Everyone'}].concat(uids.map(u => ({v: u, label: (profs[u] && profs[u].name) || u})));
-    return html`<${UI.Card} id="log-tab" title="Log"
+    const people = [{v: '', label: 'Everyone'}].concat(uids.filter(u => u === ctx.founderUid || (ctx.members && ctx.members[u]) || all.some(r => r.uid === u))
+      .map(u => ({v: u, label: (profs[u] && profs[u].name) || 'Someone'})));
+    return html`<${UI.Band} tone="warm"><${UI.Card} id="log-tab" title="Log"
       action=${html`<span class="row nowrap">
         <${UI.Btn} kind="sec" sm=${true} id="log-export" disabled=${!list.length} onClick=${exportCsv}>Export CSV<//>
         <${UI.ConfirmBtn} kind="sec" onConfirm=${prune}>${busy ? 'Clearing' : 'Clear logs older than 90 days'}<//>
@@ -207,7 +227,7 @@
               <${UI.Avatar} id=${r.uid} size=${24}/>
               <div class="tx">
                 <div><${UI.Name} id=${r.uid}/> ${verbOf(r)} ${target(ctx, r) || ''}</div>
-                ${r.s ? html`<div class="s">${r.s}</div>` : null}
+                ${r.s ? html`<div class="s"><${Said} text=${r.s}/></div>` : null}
                 <div class="p">${r.p}${window.M360_STANDALONE && M.parts.HistoryDrawer && r.p && (r.a === 'set' || r.a === 'update' || r.a === 'delete' || r.a === 'revert') ? html` <button type="button" class="linky tiny log-versions" onClick=${() => setHist(r.p)}>Versions</button>` : null}</div>
               </div>
             </div>`)}
@@ -216,7 +236,7 @@
       ${list.length > limit ? html`<div class="row" style=${{marginTop: '10px'}}>
         <${UI.Btn} kind="sec" sm=${true} onClick=${() => setLimit(n => n + PAGE)}>Show more<//>
         <span class="tiny ink62 num">${limit} of ${list.length}</span></div>` : null}
-    <//>`;
+    <//><//>`;
   }
 
   M.deskTabs.push({v: 'log', label: 'Log', render: LogTab});

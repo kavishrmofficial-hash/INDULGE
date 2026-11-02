@@ -13,7 +13,10 @@
 
   function stats(ctx, period) {
     const p = PERIODS.find(x => x.k === period) || PERIODS[0];
-    const to = U.todayStr(), from = U.ymd(U.addDays(new Date(), -(p.days - 1)));
+    const to = U.todayStr(), start = U.ymd(U.addDays(new Date(), -(p.days - 1)));
+    /* v39: the period starts on the day you joined when that is later */
+    const joined = String(((ctx.members || {})[ctx.uid] || {}).joined || '');
+    const from = /^\d{4}-\d{2}-\d{2}$/.test(joined) && joined > start && joined <= to ? joined : start;
     const inRange = ts => { const d = U.ymd(new Date(ts)); return d >= from && d <= to; };
     const uid = ctx.uid;
     const tasks = Object.keys(ctx.coll.tasks.map).map(id => ({id, ...ctx.coll.tasks.map[id]})).filter(t => t && t.owner === uid);
@@ -33,7 +36,10 @@
     const eods = Object.keys((ctx.coll.eod.map[uid] || {}).days || {}).filter(d => d >= from && d <= to).length;
     let working = 0; for (let d = U.parseYmd(from); U.ymd(d) <= to; d = U.addDays(d, 1)) if (ctx.isWorkingDay ? ctx.isWorkingDay(U.ymd(d), uid) : d.getDay() !== 0) working++;
     const weeks = (ctx.coll.review.map[uid] || {}).weeks || {};
-    let hit = 0, miss = 0; Object.keys(weeks).forEach(w => { const mk = (weeks[w] || {}).marks || {}; Object.values(mk).forEach(v => { if (v === 'hit') hit++; else if (v === 'miss') miss++; }); });
+    /* v39: outcomes from the weeks in the period only */
+    const firstWeek = U.ymd(U.mondayOf(U.parseYmd(from)));
+    const inWeeks = w => { try { const d = U.ymd(U.mondayOfWeekId(w)); return d >= firstWeek && d <= to; } catch (e) { return false; } };
+    let hit = 0, miss = 0; Object.keys(weeks).filter(inWeeks).forEach(w => { const mk = (weeks[w] || {}).marks || {}; Object.values(mk).forEach(v => { if (v === 'hit') hit++; else if (v === 'miss') miss++; }); });
     const pts = M.points && M.points.pointsFor ? M.points.pointsFor(ctx, uid, from, to) : null;
     const checkins = Object.keys((ctx.coll.checkin.map[uid] || {}).days || {}).filter(d => d >= from && d <= to).length;
     const play = (M.play ? M.play.docOf(ctx) : {}) || {};
@@ -88,11 +94,19 @@
     useEffect(() => { M.ai.names(ctx).then(nm => setFirst(String(nm[ctx.uid] || '').split(' ')[0] || 'you')).catch(() => setFirst('you')); }, [ctx.uid]);
     const write = () => r.run(o => M.ai.text(ctx, narrativePrompt(s, first || 'this person'), {signal: o.signal, onText: o.onText, tier: 'quick', cache: false}).then(t => { const text = String(t || '').replace(/\u2014|\u2013/g, ', ').replace(/!/g, '.'); M.ai.saveCache(ctx, 'reflect', {...((cache.data || {}).reflect || {}), [period]: {text, date: U.todayStr()}}); return text; }));
     const text = r.text || fresh || '';
+    /* v39: one post per line: the button holds while it posts and stays done for a line already shared */
+    const [sharing, setSharing] = useState(false);
+    const [sharedLine, setSharedLine] = useState('');
+    const sharingRef = React.useRef(false);
+    const line = (text || fallback(s, first)).split(/(?<=\.)\s/)[0];
+    const shareKey = period + '|' + line;
     const share = () => {
-      const line = (text || fallback(s, first)).split(/(?<=\.)\s/)[0];
+      if (sharingRef.current || sharedLine === shareKey) return;
+      sharingRef.current = true; setSharing(true);
       const id = U.uid();
       const mine = ctx.coll.feed.map[ctx.uid] || {};
-      ctx.W.merge('feed/' + ctx.uid, {posts: [{id, kind: 'win', text: s.era.title + ': ' + line, at: Date.now()}].concat(U.clone(mine.posts || [])).slice(0, 80), pinned: mine.pinned || null}).then(() => M.toast('Posted to Vibe')).catch(() => {});
+      ctx.W.merge('feed/' + ctx.uid, {posts: [{id, kind: 'win', text: s.era.title + ': ' + line, at: Date.now()}].concat(U.clone(mine.posts || [])).slice(0, 80), pinned: mine.pinned || null}).then(() => { M.toast('Posted to Vibe'); setSharedLine(shareKey); })
+        .catch(() => {}).then(() => { sharingRef.current = false; setSharing(false); });
     };
     const tile = (v, l) => html`<div class="brk-tile-stat"><b class="num">${v}</b><span class="tiny ink62">${l}</span></div>`;
     return html`<div class="stack" style=${{gap: '16px'}} id="break-reflect">
@@ -109,7 +123,7 @@
         ${text ? html`<${M.AIText} text=${text}/>` : html`<div class="small">${fallback(s, first || 'Hey')}</div>`}
         <div class="row" style=${{gap: '10px', marginTop: '12px', flexWrap: 'wrap'}}>
           ${M.ai.on(ctx) ? html`<${UI.Btn} sm=${true} id="reflect-write" disabled=${r.state === 'thinking' || r.state === 'streaming'} onClick=${write}>${r.state === 'thinking' || r.state === 'streaming' ? 'Writing' : text ? 'Write it again' : 'Write it for me'}<//>` : null}
-          <${UI.Btn} sm=${true} kind="sec" id="reflect-share" onClick=${share}>Share one line to Vibe<//>
+          <${UI.Btn} sm=${true} kind="sec" id="reflect-share" disabled=${sharing || sharedLine === shareKey} onClick=${share}>${sharing ? 'Posting' : sharedLine === shareKey ? 'Shared to Vibe' : 'Share one line to Vibe'}<//>
           ${r.state === 'error' ? html`<span class="tiny flame-t">${M.ai.errLine(r.err, r.why)}</span>` : null}
         </div>
       <//>

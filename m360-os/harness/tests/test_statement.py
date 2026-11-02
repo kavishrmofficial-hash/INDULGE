@@ -115,6 +115,87 @@ def artifact_part(h):
     return fails
 
 
+def year_csv():
+    """A full financial year, 3,600 lines with paise, over 200 KB: more than one statement document holds. Two
+    Starbucks lines on 1 Apr are alike in date, amount and party (different UPI refs), and two Uber lines on 1 Apr
+    are alike in every column: each is its own expense."""
+    import datetime
+    parties = [('UPI/STARBUCKS COFFEE/%06d/coffee', 1), ('POS UBER INDIA SYSTEMS %06d', 1), ('NEFT DR-KHAN PRODUCTION STUDIO-%06d', 1),
+               ('ACH D- ADOBE SYSTEMS SOFTWARE %06d', 1), ('UPI/ZOMATO/%06d/lunch', 1), ('NEFT CR-TITAN COMPANY LTD-INV %06d', 0),
+               ('NEFT CR-SWISSE WELLNESS-%06d', 0), ('UPI/SOHO HOUSE MUMBAI/%06d/dinner', 1)]
+    rows, out_total, in_total, n_out = [], 0, 0, 0
+    d0 = datetime.date(2025, 4, 1)
+    for i in range(3600):
+        day = d0 + datetime.timedelta(days=i * 365 // 3600)
+        narr, debit = parties[i % len(parties)]
+        paise = 100000 + (i * 7919) % 900000
+        if i in (0, 8):
+            narr, paise = 'UPI/STARBUCKS COFFEE/%06d/coffee', 42000
+        if i in (1, 9):
+            narr, paise = 'POS UBER INDIA SYSTEMS 000777', 64000
+        amt = '%d.%02d' % (paise // 100, paise % 100)
+        nar = narr % (500000 + i) if '%' in narr else narr
+        rows.append('%s,%s,,%s,%s,0.00' % (day.strftime('%d-%m-%Y'), nar, amt if debit else '', '' if debit else amt))
+        if debit:
+            out_total += paise; n_out += 1
+        else:
+            in_total += paise
+    return '\n'.join(['Tran Date,Particulars,Chq No,Debit,Credit,Balance'] + rows), out_total, in_total, n_out
+
+
+def year_part(k, base, store):
+    """books-2, books-4 and books-5 on the team site: the year splits into statements/<id>.p2 and reads back with
+    exact totals, every money out line lands in Expenses once, and a renamed party adds nothing on a second press."""
+    fails = []
+
+    def check(cond, msg):
+        if not cond:
+            fails.append(msg)
+    csv, out_total, in_total, n_out = year_csv()
+    check(len(csv) > 200000, 'the year is too small to split: %d bytes' % len(csv))
+    k.goto(base + '#statement'); k.wait_for_selector('#stm-file', state='attached')
+    k.fill('#stm-bank', 'Axis FY')
+    k.set_input_files('#stm-file', files=[{'name': 'fy2025.csv', 'mimeType': 'text/csv', 'buffer': csv.encode()}])
+    k.wait_for_function('() => /Read 3600 lines|bad path|Could not/.test((document.querySelector("#stm-line") || {}).textContent || "")', timeout=120000)
+    line = k.inner_text('#stm-line')
+    check('Read 3600 lines' in line, 'the year: %r' % line)
+    k.wait_for_timeout(1500)
+    k.reload(); k.wait_for_selector('#stm-pick', timeout=30000)
+    k.wait_for_timeout(1500)
+    sid = k.evaluate('() => (M.statement.readAll(M.lastCtx).list.find(s => s.name === "fy2025.csv") || {}).id')
+    check(bool(sid), 'the year is not in the picker after a reload')
+    if not sid:
+        return fails
+    docs = k.evaluate('(sid) => Object.keys(M.lastCtx.coll.statements.map).filter(x => x === sid || x.startsWith(sid + "."))', sid)
+    check(sid + '.p2' in docs and not any('~' in d for d in docs), 'the parts: %r' % docs)
+    back = k.evaluate('''(sid) => { const s = M.statement.readAll(M.lastCtx).list.find(x => x.id === sid);
+        return {n: s.rows.length, out: Math.round(s.rows.reduce((t, r) => t + r.out, 0) * 100), inn: Math.round(s.rows.reduce((t, r) => t + r.inn, 0) * 100), parts: s.parts}; }''', sid)
+    check(back['n'] == 3600 and back['out'] == out_total and back['inn'] == in_total and back['parts'] >= 2,
+          'read back: %r, want 3600 lines, out %d, in %d paise' % (back, out_total, in_total))
+    k.select_option('#stm-pick', sid); k.wait_for_timeout(500)
+    want_out = '{:,}'.format(round(out_total / 100))
+    kpi = k.inner_text('#stm-out').replace(',', '')
+    check(kpi.endswith(str(round(out_total / 100))), 'money out for the year: %r, want %s' % (k.inner_text('#stm-out'), want_out))
+    # every money out line into Expenses, alike lines included
+    year = 'M.books.expenses(M.lastCtx).filter(e => e.source === "statement" && e.date >= "2025-04-01" && e.date <= "2026-03-31")'
+    k.click('#stm-to-exp')
+    k.wait_for_function('() => ' + year + '.length >= ' + str(n_out), timeout=60000)
+    k.wait_for_timeout(800)
+    got = k.evaluate('() => { const xs = ' + year + '; return {n: xs.length, sum: Math.round(xs.reduce((t, e) => t + e.amount, 0) * 100)}; }')
+    check(got == {'n': n_out, 'sum': out_total}, 'expenses for the year: %r, want %d lines and %d paise' % (got, n_out, out_total))
+    # rename a party, press again: nothing new
+    k.locator('#stm-outs tr.stm-row:has-text("Starbucks") button:has-text("Edit")').first.click()
+    k.wait_for_selector('#stm-party')
+    k.fill('#stm-party-label', 'Coffee runs')
+    k.click('#stm-party-save')
+    k.wait_for_function('() => [...document.querySelectorAll("#stm-outs tr.stm-row")].some(r => r.dataset.party === "Coffee runs")')
+    k.click('#stm-to-exp')
+    k.wait_for_timeout(2500)
+    again = k.evaluate('() => ' + year + '.length')
+    check(again == n_out, 'a renamed party was added again: %d expenses, want %d' % (again, n_out))
+    return fails
+
+
 def standalone_part():
     fails = []
 
@@ -161,6 +242,7 @@ def standalone_part():
             check(any(c['system'].startswith('BOOKS PARTIES') for c in calls), 'no party call')
             wins = [c for c in calls if c['system'].startswith('BOOKS STATEMENT')]
             check(len(wins) >= 3, 'the PDF should be read in windows: %d calls' % len(wins))
+            fails.extend(year_part(k, base, store))
             browser.close()
     finally:
         srv.terminate()

@@ -161,6 +161,34 @@ def test(h):
     if SHOTS:
         p.screenshot(path=os.path.join(SHOTS, 'pipeline-390.png'), full_page=True)
 
+    # v39: the log keeps the newest 40, also after the store merges the update
+    lid = p.evaluate('() => M.talks.add(M.lastCtx, {who: "Log Cap", org: "Cap Co"})')
+    p.wait_for_function('(id) => !!M.lastCtx.coll.talks.map[id]', arg=lid)
+    for i in range(43):
+        p.evaluate('([id, i]) => M.talks.logTalk(M.lastCtx, {id, ...M.lastCtx.coll.talks.map[id]}, "talk " + i, "2026-10-29")', [lid, i])
+    p.wait_for_function('(id) => Object.values(M.lastCtx.coll.talks.map[id].log || {}).some(l => l.x === "talk 42")', arg=lid)
+    n = p.evaluate('(id) => Object.keys(M.lastCtx.coll.talks.map[id].log || {}).length', lid)
+    check(n == 40, 'the talk log keeps the newest 40, got %r' % n)
+    # v39: two taps on Send to pipeline from the same copy make one pitch
+    sid = p.evaluate('() => M.talks.add(M.lastCtx, {who: "Twice", org: "Twice Co"})')
+    p.wait_for_function('(id) => !!M.lastCtx.coll.talks.map[id]', arg=sid)
+    p.evaluate('(id) => { const t = {id, ...M.lastCtx.coll.talks.map[id]}; return Promise.all([M.talks.toPipeline(M.lastCtx, t), M.talks.toPipeline(M.lastCtx, t)]); }', sid)
+    p.wait_for_timeout(300)
+    n = p.evaluate('(id) => Object.values(M.lastCtx.coll.pitches.map).filter(x => x.talk === id).length', sid)
+    check(n == 1, 'one pitch from two taps on one person, got %r' % n)
+    # v39: the shared billing on the client is the one answer for everyone
+    p.evaluate('(c) => M.lastCtx.W.update("clients/" + c, {billing: "retainer"})', cid)
+    p.wait_for_function('(c) => M.lastCtx.coll.clients.map[c].billing === "retainer"', arg=cid)
+    check(p.evaluate('(c) => M.clients.kindOf(M.lastCtx, c)', cid) == 'retainer', 'billing on the client wins over the private kind')
+    # v39: picking a client in the name suggestions empties the name
+    h.go(p, 'founder', hash='#talks', width=1280)
+    p.wait_for_selector('#talk-who')
+    p.fill('#talk-who', 'swis')
+    p.wait_for_selector('#talk-sug button:has-text("Client")', timeout=4000)
+    p.locator('#talk-sug button:has-text("Client")').first.dispatch_event('mousedown')
+    p.wait_for_timeout(150)
+    check(p.input_value('#talk-who') == '' and 'Swisse' in p.input_value('#talk-org'), 'a client pick fills the company and empties the name, got %r' % [p.input_value('#talk-who'), p.input_value('#talk-org')])
+
     errs = [e for e in h.errors() if 'AudioContext' not in str(e) and 'play()' not in str(e)]
     check(not errs, 'console errors: %r' % errs[:3])
     return fails

@@ -51,7 +51,7 @@
       <p class="small ink62" style=${{marginTop: 0}}>${ctx.isFounder ? 'Set up the Google sign-in first: Admin, Google Workspace.' : 'Kaavish switches Google on from Admin. Once that is done, connect yours here.'}</p>
       ${ctx.isFounder ? html`<${UI.Btn} kind="sec" onClick=${() => M.nav('#admin')}>Open Admin<//>` : null}
     <//>`;
-    return html`<${M.fx.Beam}><${UI.Card} title="Connect your Google" id="google-connect" action=${html`<${M.fx.Orb} state=${busy ? 'connecting' : 'breathing'} size=${32} label="Google"/>`}>
+    return html`<${M.fx.Beam}><${UI.Card} need=${true} title="Connect your Google" id="google-connect" action=${html`<${M.fx.Orb} state=${busy ? 'connecting' : 'breathing'} size=${32} label="Google"/>`}>
       <p class="small ink62" style=${{marginTop: 0}}>One sign-in, then your inbox, calendar, meetings and drive are here. Only you see yours. m360 keeps your tokens on the server, never in the page.</p>
       <${UI.Btn} id="google-go" disabled=${busy} onClick=${start}>${busy ? 'Opening Google' : 'Sign in with Google'}<//>
     <//><//>`;
@@ -271,7 +271,7 @@
     const {st, reload} = useStatus();
     const t = tab || 'mail';
     const ready = st && st.connected;
-    return html`<div class="stack" style=${{gap: '20px'}}>
+    return html`<div class="stack fo fo-ws" style=${{gap: '24px'}}>
       <${M.SectionHero} micro="workspace" title="Workspace" sub=${ready ? st.who : 'mail, calendar, meetings, drive'}>
         ${ready ? html`<button type="button" class="linky small" id="google-disconnect" onClick=${async () => { await api('googledisconnect').catch(() => {}); statusCache = null; reload(); M.toast('Google disconnected'); }}>Disconnect Google</button>` : null}
       <//>
@@ -297,7 +297,7 @@
     };
     const copy = () => { try { navigator.clipboard.writeText(st.redirect); M.toast('Copied'); } catch (e) { /* select it by hand */ } };
     if (!st) return html`<${UI.Card} id="google-card"><${M.Thinking} label="Checking" state="connecting"/><//>`;
-    return html`<${UI.Card} id="google-card">
+    return html`<${UI.Card} id="google-card" title="Google Workspace">
       <div class="row between"><span class="small">${st.configured ? html`<${UI.Pill} kind="ink">on<//>` : html`<${UI.Pill}>off<//>`} ${st.fromEnv ? 'set on the server' : st.configured ? 'client saved' : 'no client yet'}</span></div>
       <ol class="small" style=${{paddingLeft: '18px', margin: '10px 0'}}>
         <li>Open console.cloud.google.com with the mask360.agency account. Make a project called m360.</li>

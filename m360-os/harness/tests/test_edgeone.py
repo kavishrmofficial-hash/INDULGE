@@ -114,7 +114,11 @@ def main():
             f.fill('#signin-pw', PW['k'])
             f.get_by_role('button', name='Set up the workspace').click()
             f.wait_for_selector('.sidebar')
-            check(f.locator('.side-item', has_text='HQ').count() == 1, 'founder has no HQ')
+            check(f.locator('.side-item', has_text='Command').count() == 1, 'founder has no HQ')
+            # v40: HQ opens on Command; the "Get m360 ready" checklist sits under "more from HQ"
+            f.wait_for_selector('#hq-more')
+            if f.get_attribute('#hq-more', 'aria-expanded') != 'true':
+                f.click('#hq-more')
             f.wait_for_selector('#setup-card')
             check(store_doc('d/roster~team') and len(store_doc('d/roster~team')['members']) == 1, 'founder not on roster')
             check(store_doc('d/clients~swisse-wellness-uae') is not None, 'seed missing')
@@ -159,9 +163,14 @@ def main():
             check(not snap['colls'].get('handbook', {}).get('docs'), 'guest reads the handbook')
 
             # ---- the founder sees the request live and lets them in ----
-            f.wait_for_selector('.join-banner:has-text("Durvesh Patil wants to join the team")', timeout=15000)
-            f.click('.join-banner')
+            # v40: HQ is Command; the request lands live as a needs card (01 needs you), and Admin lets them in
+            f.wait_for_selector('#c-need .c-nc:has-text("Durvesh Patil")', timeout=15000)
+            f.evaluate('() => M.nav("#admin")')
             f.wait_for_selector('#join-requests')
+            # the first sign in offers the tour in the m360 AI sheet, which covers the right of the page: Later
+            if f.locator('#tour-later').count():
+                f.click('#tour-later')
+                f.wait_for_function('() => !document.querySelector(".buddy-bubble")')
             f.locator('#join-requests').get_by_role('button', name='Let them in').click()
             check(f.input_value('#desk-title') == 'Brand Strategist', 'title not carried over')
             f.get_by_role('button', name='Add to the team').click()
@@ -170,7 +179,7 @@ def main():
             # the member's waiting screen opens into the app by itself
             m.wait_for_selector('.topbar', timeout=15000)
             m.wait_for_selector('text=Good', timeout=15000)
-            check(m.locator('.tabbar .tab-item', has_text='Home').count() == 1, 'member tabbar missing')
+            check(m.locator('.tabbar .tab-item', has_text='Today').count() == 1, 'member tabbar missing')
 
             # ---- rules hold on the server ----
             res = m.evaluate('''async () => {
@@ -293,7 +302,7 @@ def main():
             team = store_doc('d/roster~team')
             priya = [m for m in team['members'].values() if m.get('title') == 'Producer']
             check(priya and priya[0]['role'] == 'lead' and priya[0]['active'] and priya[0]['empId'].startswith('M360-'), 'Priya roster row %r' % priya)
-            check(pp.locator('.side-item', has_text='HQ').count() == 0, 'pod lead sees HQ')
+            check(pp.locator('.side-item', has_text='Command').count() == 0, 'pod lead sees HQ')
             # the same link a second time is dead
             xc, xp = device()
             xp.goto(priya_link)
@@ -408,7 +417,7 @@ def main():
             wp.fill('#signin-pw', PW['k'])
             wp.locator('#signin-go').click()
             wp.wait_for_selector('.sidebar')
-            check('Kaavish' in wp.inner_text('.side-foot') and wp.locator('.side-item', has_text='HQ').count() == 1, 'founder password sign-in')
+            check('Kaavish' in wp.inner_text('.side-foot') and wp.locator('.side-item', has_text='Command').count() == 1, 'founder password sign-in')
             wc.close()
             st, j = api({'a': 'pw', 'email': 'nobody@mask360.agency', 'password': PW['k']})
             check(st == 401 and j['error']['message'] == 'That email and password do not match.', 'unknown email answer %r' % j)
@@ -635,6 +644,9 @@ def main():
             check(ov <= 0, 'phone overflow %d' % ov)
             os.makedirs(os.path.join(ROOT, 'harness', 'shots'), exist_ok=True)
             f.goto(base + '#hq')
+            f.wait_for_selector('#hq-more')
+            if f.get_attribute('#hq-more', 'aria-expanded') != 'true':
+                f.click('#hq-more')
             f.wait_for_selector('#setup-card')
             f.screenshot(path=os.path.join(ROOT, 'harness', 'shots', 'edgeone-hq.png'), full_page=False)
             m.screenshot(path=os.path.join(ROOT, 'harness', 'shots', 'edgeone-home-390.png'), full_page=False)

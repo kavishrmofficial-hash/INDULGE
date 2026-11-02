@@ -2,20 +2,12 @@
    first paint; src/js/03-z-gate.js joins everything React mounts later onto the same clock, shakes the box
    on a wrong sign-in and settles the app in after signing in. Reduced motion: none of it. */
 @media (prefers-reduced-motion: no-preference) {
-  .gate{position:relative; overflow:hidden; isolation:isolate}
-  /* a warm light drifts slowly behind the screen */
-  .gate::before,.gate::after{content:''; position:absolute; z-index:-1; width:70vmax; height:70vmax; border-radius:50%; pointer-events:none; filter:blur(60px)}
-  .gate::before{left:-20vmax; top:-26vmax; background:radial-gradient(closest-side, color-mix(in srgb, var(--flame) 20%, transparent), transparent); animation:gate-drift-a 18s ease-in-out infinite alternate}
-  .gate::after{right:-24vmax; bottom:-30vmax; background:radial-gradient(closest-side, color-mix(in srgb, var(--flame) 11%, transparent), transparent); animation:gate-drift-b 23s ease-in-out infinite alternate}
-  @keyframes gate-drift-a{to{transform:translate(8vmax, 6vmax) scale(1.08)}}
-  @keyframes gate-drift-b{to{transform:translate(-6vmax, -8vmax) scale(1.12)}}
+  /* v40: the sign-in ground is plain white, as in the design; nothing drifts behind it */
 
-  /* the mark writes itself in, left to right, behind a soft pen edge */
-  .gate .mark svg{-webkit-mask-image:linear-gradient(90deg, #000 0 42%, transparent 58% 100%); mask-image:linear-gradient(90deg, #000 0 42%, transparent 58% 100%);
-    -webkit-mask-size:260% 100%; mask-size:260% 100%; -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
-    -webkit-mask-position:0% 0; mask-position:0% 0;
-    animation:gate-write 1.6s cubic-bezier(.45,.05,.25,1) .12s both}
-  @keyframes gate-write{from{-webkit-mask-position:100% 0; mask-position:100% 0} to{-webkit-mask-position:0% 0; mask-position:0% 0}}
+  /* v39: the mark waits for its pen (03-z-gate.js draws it the way the Subject 360 film closes). If the
+     script is late, the mark fades in by itself so the screen never sits without it */
+  .gate .mark svg{overflow:visible; animation:gate-mark-in .5s ease 3s both}
+  @keyframes gate-mark-in{from{opacity:0} to{opacity:1}}
 
   /* the title, the line and the form rise into focus one after another */
   .gate > div > h1{animation:gate-rise .76s cubic-bezier(.22,1,.36,1) .52s both}

@@ -64,6 +64,18 @@
     return null;
   }
 
+  /* v39: the name box keeps its own draft while you type and saves once, on blur or Enter; a save per
+     keystroke from an old copy used to land out of order and snap the box back mid word */
+  function NameBox({value, onSave}) {
+    const [draft, setDraft] = useState(value);
+    const [focus, setFocus] = useState(false);
+    useEffect(() => { if (!focus) setDraft(value); }, [value, focus]);
+    const commit = () => { const v = String(draft || '').trim(); if (v && v !== value) onSave(v); else setDraft(value); };
+    return html`<input class="input" style=${{width: '150px', minHeight: '34px'}} value=${draft} aria-label="Reminder name" maxLength=${40}
+      onFocus=${() => setFocus(true)} onInput=${e => setDraft(e.target.value)} onBlur=${() => { setFocus(false); commit(); }}
+      onKeyDown=${e => { if (e.key === 'Enter') e.target.blur(); }}/>`;
+  }
+
   function Care() {
     const ctx = M.useCtx();
     const doc = M.useDoc(ctx.db, path(ctx));
@@ -100,7 +112,7 @@
     return html`<div class="stack" style=${{gap: '16px'}} id="break-care">
       <${UI.Card} id="care-today" title=${title} action=${html`<span class="tiny ink62 num" data-tick=${tick}>${on ? done + ' of ' + on + ' done' : ''}</span>`}>
         ${!list.length ? html`<div class="stack tight">
-          <div class="small">Nothing set yet. The usual five take one tap, then change the times to yours.</div>
+          <div class="small">Nothing set yet. The usual six take one tap, then change the times to yours.</div>
           <div><${UI.Btn} sm=${true} id="care-usual" onClick=${usual}>Add the usual<//></div>
         </div>` : html`<div class="stack tight">
           ${live.map(r => fx && r.it.id === firstDue ? html`<${fx.Beam} key=${r.it.id} radius=${14}><div class="fx-care-due">${row(r)}</div><//>` : row(r))}
@@ -110,7 +122,7 @@
       <${UI.Card} id="care-setup" title="The reminders">
         <div class="stack tight">
           ${list.map(it => html`<div key=${it.id} class="row between">
-            <span class="row nowrap"><input class="input" style=${{width: '150px', minHeight: '34px'}} value=${it.label} aria-label="Reminder name" onChange=${e => save(ctx, doc.data, list.map(x => x.id === it.id ? {...x, label: e.target.value} : x))}/>
+            <span class="row nowrap"><${NameBox} value=${it.label} onSave=${v => save(ctx, doc.data, items(doc.data).map(x => x.id === it.id ? {...x, label: v} : x))}/>
               <input class="input num" type="time" style=${{width: '110px', minHeight: '34px'}} value=${it.time} aria-label="Reminder time" onChange=${e => { if (okTime(e.target.value)) save(ctx, doc.data, list.map(x => x.id === it.id ? {...x, time: e.target.value} : x)); }}/></span>
             <span class="row nowrap" style=${{gap: '8px'}}>
               ${fx ? html`<${fx.Bell} size="sm" badge=${false} label=${it.label + ' on or off'} offLabel="Silent" onLabel="Rings" pressed=${it.on !== false} onChange=${v => save(ctx, doc.data, list.map(x => x.id === it.id ? {...x, on: !!v} : x))}/>`
@@ -123,7 +135,7 @@
             <input class="input num" id="care-time" type="time" style=${{width: '120px'}} value=${time} aria-label="New reminder time" onInput=${e => setTime(e.target.value)}/>
             <${UI.Btn} sm=${true} id="care-add" onClick=${add}>Add<//>
           </div>
-          ${list.length && USUAL.some(([l, t]) => !list.some(x => x.label === l && x.time === t)) ? html`<button type="button" class="linky tiny" style=${{alignSelf: 'flex-start'}} onClick=${usual}>Add the usual five</button>` : null}
+          ${list.length && USUAL.some(([l, t]) => !list.some(x => x.label === l && x.time === t)) ? html`<button type="button" class="linky tiny" style=${{alignSelf: 'flex-start'}} onClick=${usual}>Add the usual six</button>` : null}
         </div>
       <//>
       <div class="hint">Yours alone: nobody else sees the list. A day with every reminder done earns five sparks.</div>

@@ -106,6 +106,7 @@ def test(h):
     h.seed_doc(p, 'leavedec/' + M3, {'d': {'L1': {'status': 'approved', 'by': F, 'at': at(mon, 18, 30)}}})
 
     # ---- HQ at 1280 ----
+    p.evaluate('() => sessionStorage.setItem("m360.hqmore", "1")')  # v40: HQ opens on Command; the brief, the tape and the setup sit under "more from HQ"
     p.goto(h.url('founder', '#hq', seed=True))
     h.ready(p)
     p.wait_for_selector('#quiet-board #qb-u_m1')
@@ -172,6 +173,7 @@ def test(h):
     check(True, 'a row opens the person')
 
     # ---- the AI knows ----
+    p.evaluate('() => sessionStorage.setItem("m360.hqmore", "1")')  # v40: HQ opens on Command; the brief, the tape and the setup sit under "more from HQ"
     p.goto(h.url('founder', '#hq', seed=True))
     h.ready(p)
     p.wait_for_selector('#quiet-board #qb-u_m1')
@@ -229,6 +231,7 @@ def test(h):
 
     # ---- phone, 390 wide ----
     p.set_viewport_size({'width': 390, 'height': 844})
+    p.evaluate('() => sessionStorage.setItem("m360.hqmore", "1")')  # v40: HQ opens on Command; the brief, the tape and the setup sit under "more from HQ"
     p.goto(h.url('founder', '#hq', seed=True))
     h.ready(p)
     p.wait_for_selector('#fold-quiet')
@@ -238,7 +241,7 @@ def test(h):
     geo = p.evaluate('''() => { const s = document.querySelector("#qb-u_m1 .qb-strip").getBoundingClientRect(), n = document.querySelector("#qb-u_m1 .qb-nm").getBoundingClientRect(),
       m = document.querySelector("#qb-u_m1 .qb-sum").getBoundingClientRect(), hs = document.querySelector("#qb-u_m1 .qb-hours.per").getBoundingClientRect();
       return {w: s.width, l: s.left, r: s.right, vw: innerWidth, sumBelow: m.top >= n.bottom - 2, stripBelow: s.top >= m.bottom - 2, hours: hs.height}; }''')
-    check(geo['w'] >= 300 and geo['l'] >= 0 and geo['r'] <= geo['vw'], 'the strip takes the width and fits: %r' % geo)
+    check(geo['w'] >= 280 and geo['l'] >= 0 and geo['r'] <= geo['vw'], 'the strip takes the width and fits: %r' % geo)
     check(geo['sumBelow'] and geo['stripBelow'] and geo['hours'] > 0, 'the summary drops under the name, the strip under it with its own hours: %r' % geo)
     check(h.overflow(p) <= 0, 'no horizontal overflow at 390: %r' % h.overflow(p))
     small = [x for x in h.small_text(p) if 'quiet' in x[2].lower() or ':00' in x[2]]

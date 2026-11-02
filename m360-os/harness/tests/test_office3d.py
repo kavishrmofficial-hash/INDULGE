@@ -388,6 +388,8 @@ def test(h):
             h.ready(q)
             if hsh == '#home':
                 open_studio(q)
+            if hsh == '#hq' and q.locator('#hq-more[aria-expanded="false"]').count():
+                q.click('#hq-more')   # v40: HQ opens on Command; the office sits under "more from HQ"
             q.wait_for_selector(sel, timeout=20000)
             q.evaluate('s => document.querySelector(s).scrollIntoView({block: "center"})', sel)
             until(q, 's => !!document.querySelector(s)', '%s never drew in 3D' % name, arg=sel + ' ' + READY, timeout=45000)

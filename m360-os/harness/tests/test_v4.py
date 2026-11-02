@@ -26,7 +26,7 @@ def t(h):
     p = h.session('founder', width=1280, hash='#home', reset=True, seed=True)
     seed(h, p)
     h.go(p, 'founder', hash='#home', width=1280, online='u_m1')
-    p.wait_for_selector('.side-tools')
+    p.wait_for_selector('#sAsk')
 
     # ---- palette: find a task, run an action ----
     p.keyboard.press('Control+k')
@@ -39,6 +39,9 @@ def t(h):
     check(p.evaluate('location.hash') == '#tasks/t2', 'palette did not open the task: ' + p.evaluate('location.hash'))
     p.keyboard.press('Escape')
     p.wait_for_function('() => !document.querySelector(".drawer")')
+    # v40: the Ask bar finishes folding back into the island once the sheet has gone; '/' waits for that
+    p.wait_for_function('() => !document.querySelector("#island.closing, #island.cmd")')
+    p.wait_for_timeout(300)
     p.keyboard.press('/')
     p.wait_for_selector('#pal-input')
     p.fill('#pal-input', 'dark mode')
@@ -48,6 +51,7 @@ def t(h):
     p.evaluate('M.theme.set("light")')
 
     # ---- HQ: tape, heatmap, reviews on the founder ----
+    p.evaluate('() => sessionStorage.setItem("m360.hqmore", "1")')  # v40: HQ opens on Command; the brief, the tape and the setup sit under "more from HQ"
     h.go(p, 'founder', hash='#hq', width=1280, online='u_m1')
     p.wait_for_selector('#tape')
     check(p.locator('#tape .tape-row').count() >= 1, 'tape is empty')
@@ -82,9 +86,15 @@ def t(h):
     t1 = doc(p, 'tasks/t1')
     check(t1.get('revisions') == 1 and t1.get('sentBackNote') == 'Tighten the opening line', 'send back %r' % {k: t1.get(k) for k in ('revisions', 'sentBackNote')})
 
-    # ---- inbox: m1 sees the send back and the approval, then reading clears the badge ----
+    # ---- inbox: m1 sees the send back and the approval, then reading clears the count ----
+    # v40: the inbox is a row in the Ask bar, its count in the row's line
     h.go(p, 'm1', hash='#home', width=1280)
-    p.wait_for_selector('.bellbtn .badge')
+    p.wait_for_function('() => M.inbox.unread(M.lastCtx) > 0')
+    p.keyboard.press('Control+k')
+    p.wait_for_selector('.pal-item[data-k="a-inbox"]')
+    check(' new' in p.locator('.pal-item[data-k="a-inbox"]').text_content(), 'the Ask bar inbox row carries the count')
+    p.keyboard.press('Escape')
+    p.wait_for_function('() => !document.querySelector("#island.cmd")')
     p.keyboard.press('i')
     p.wait_for_selector('.drawer:has-text("Inbox")')
     body = p.inner_text('.drawer')
@@ -92,7 +102,7 @@ def t(h):
     check('approved Lock the shot list' in body, 'inbox missing approval')
     check('gave you kudos' in body, 'inbox missing kudos')
     p.keyboard.press('Escape')
-    p.wait_for_function('() => !document.querySelector(".bellbtn .badge")')
+    p.wait_for_function('() => M.inbox.unread(M.lastCtx) === 0')
     check(doc(p, 'me/u_m1').get('inboxSeen'), 'inboxSeen not written')
 
     # ---- mentions in a comment ----
@@ -124,7 +134,8 @@ def t(h):
     p.locator('.lens').get_by_role('button', name='45 min').click()
     p.get_by_role('button', name='Start 45 minutes').click()
     p.wait_for_selector('#focus-pill')
-    p.locator('.side-tools').get_by_role('button', name='Focus timer').click()
+    # v40: the sidebar keeps Inbox and m360 AI; the focus timer opens from its key (and the Home quick button)
+    p.keyboard.press('f')
     p.get_by_role('button', name='Done early').click()
     p.wait_for_function('() => (((window.__db.get("me/u_m1") || {}).focus || {}).sessions || []).length === 1')
     p.wait_for_function('() => !document.querySelector(".drawer")')
@@ -206,9 +217,9 @@ def t(h):
     p.wait_for_selector('#prefs-card')
     p.locator('#prefs-card').get_by_label('Sounds').get_by_role('tab', name='Off').click()
     check(p.evaluate('localStorage.getItem("m360.sound")') == '0', 'sound pref')
-    p.locator('#prefs-card').get_by_role('button', name='Ink').click()
+    p.locator('#prefs-card').get_by_label('Theme').get_by_role('tab', name='Ink').click()   # v40: the design's ink segment
     p.wait_for_function('() => document.documentElement.getAttribute("data-theme") === "dark"')
-    p.locator('#prefs-card').get_by_role('button', name='Auto').click()
+    p.locator('#prefs-card').get_by_label('Theme').get_by_role('tab', name='Auto').click()
 
     # ---- client update writer ----
     h.go(p, 'founder', hash='#clients', width=1280)
@@ -220,10 +231,12 @@ def t(h):
 
     # ---- phone ----
     h.go(p, 'm1', hash='#home', width=390)
-    p.wait_for_selector('.topbar .bellbtn')
-    p.locator('.topbar').get_by_role('button', name='Search').click()
+    p.wait_for_selector('.topbar #menuBtn')
+    # v40: on a phone the round Ask button by the tab bar opens the Ask bar in the island
+    p.locator('.tabbar .tb-ask').click()
     p.wait_for_selector('#pal-input')
-    box = p.locator('.pal').bounding_box()
+    p.wait_for_timeout(900)  # the island springs to its width
+    box = p.locator('#island .cb').bounding_box()
     check(box['x'] >= 0 and box['x'] + box['width'] <= 390, 'palette off screen')
     p.keyboard.press('Escape')
     ov = p.evaluate('() => document.documentElement.scrollWidth - document.documentElement.clientWidth')

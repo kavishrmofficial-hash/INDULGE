@@ -1,11 +1,12 @@
-/* module: home. Every person's own dashboard. The dark hero carries the greeting and the one
-   thing to do right now; below it, focus, the AI brief, numbers and the crew. */
+/* module: home. Every person's own dashboard, in the v7 page pattern: the date label, the greeting as the
+   title with its flame stop, what needs you, the Ask field and the day's chips; then the check-in band
+   (01), and numbered sections below: today (focus, the EOD line, the rule box), your week (numbers,
+   attendance, projects), your team, the studio. */
 'use strict';
 (function () {
   const {html, React, U, UI} = M;
-  const {useState, useMemo} = React;
+  const {useState, useMemo, useRef} = React;
 
-  const SPARK = '✦';
   const MOODS = [{v: 1, t: 'drained'}, {v: 2, t: 'low'}, {v: 3, t: 'okay'}, {v: 4, t: 'good'}, {v: 5, t: 'on fire'}];
   const STATUSES = ['Deep work', 'On a shoot', 'In a meeting', 'Travelling', 'At lunch', 'Free to chat', 'Under the weather'];
   const PLACES = [{v: 'Office', mode: 'office'}, {v: 'Client site', mode: 'office'}, {v: 'Home', mode: 'wfh'}, {v: 'Travelling', mode: 'wfh'}];
@@ -47,17 +48,23 @@
     <//>`;
   }
 
-  /* ---------- the one thing to do right now ---------- */
-  function TapIn() {
+  /* ---------- the one thing to do right now: the check-in band (01 check in) ----------
+     v40: the v7 look. A warm band by day holds a white card; a dark band at night holds the same lines
+     straight on the dark. Flame only for a late mark. */
+  function TapIn({night}) {
     const ctx = M.useCtx();
     const [mode, setMode] = useState('office');
     const [mood, setMood] = useState(0);
     const [busy, setBusy] = useState(false);
     const [pick, setPick] = useState(false);
     const phone = M.usePhone();
-    const cap = Number(ctx.settings.wfhCap) || 0;
+    /* v39: the person's own allowance, and a WFH day approved ahead is today's check-in, as on the check-in card */
+    const cap = M.att && M.att.wfhCapFor ? M.att.wfhCapFor(ctx, ctx.uid) : (Number(ctx.settings.wfhCap) || 0);
     const used = (M.att && M.att.wfhUsed) ? M.att.wfhUsed(ctx, ctx.uid, new Date()) : 0;
-    const wfhFull = used >= cap;
+    const planned = !!(M.att && M.att.plannedWfh && M.att.plannedWfh(ctx, ctx.uid, U.todayStr()));
+    const wfhFull = used >= cap && !planned;
+    /* v39: a blank or broken start time in settings leaves the sentence out */
+    const start = String(ctx.startFor(ctx.uid) || '');
 
     async function save(loc, m) {
       const days = U.clone((ctx.coll.checkin.map[ctx.uid] || {}).days || {});
@@ -65,7 +72,7 @@
       if (mood) entry.mood = mood;
       days[U.todayStr()] = entry;
       await ctx.W.merge('checkin/' + ctx.uid, {days: U.prunePatch(days)});
-      M.burst(document.getElementById('tapin'));
+      if (M.mark && M.mark.happy) M.mark.happy();
       M.toast('Checked in at ' + U.hhmm(entry.in));
     }
     async function tap() {
@@ -76,28 +83,39 @@
       setBusy(false);
     }
     async function manual(p) {
+      /* v39: the place decides the day: Home and Travelling are WFH days, counted against the cap */
+      const m = p.mode || mode;
+      if (m === 'wfh' && wfhFull) { M.toast('WFH days used up this week', true); return; }
       setBusy(true);
-      await save({lat: null, lng: null, acc: null, dist: null, verified: false, place: p.v, src: 'self'}, mode).catch(() => {});
+      await save({lat: null, lng: null, acc: null, dist: null, verified: false, place: p.v, src: 'self'}, m).catch(() => {});
       setBusy(false); setPick(false);
     }
-    return html`<div class="stack" id="tapin" style=${{gap: '14px'}}>
-      <div class="row between">
-        <div style=${{fontWeight: 500}}>Start is ${ctx.startFor(ctx.uid)}. How's today?</div>
+    return html`<div class="ci-tap" id="tapin">
+      <div class="ci-q">
+        <div><b>How's today?</b>${/^\d{1,2}:\d{2}$/.test(start) ? html`<span class="mut"> Start is ${start}.</span>` : null}</div>
         <${UI.Seg} options=${[{v: 'office', label: 'Office'}, {v: 'wfh', label: 'WFH'}]} value=${mode} ariaLabel="Where"
           onChange=${v => { if (v === 'wfh' && wfhFull) { M.toast('WFH days used up this week', true); return; } setMode(v); }}/>
       </div>
-      <div class="moods">${MOODS.map(m => html`<button key=${m.v} type="button" class=${'mood' + (mood === m.v ? ' on' : '')}
+      <div class="moods c-fcs">${MOODS.map(m => html`<button key=${m.v} type="button" class=${'mood c-fc' + (mood === m.v ? ' on' : '')}
         aria-pressed=${mood === m.v} onClick=${() => setMood(mood === m.v ? 0 : m.v)}>${m.t}</button>`)}</div>
-      ${pick ? html`<div>
-        <div style=${{fontWeight: 500, marginBottom: '8px'}}>Where are you checking in from?</div>
-        <div class="row">${PLACES.map(p => html`<button key=${p.v} type="button" class="btn on-dark sec sm" disabled=${busy} onClick=${() => manual(p)}>${p.v}</button>`)}</div>
-      </div>` : html`<div><${M.fx.Metal} kind="paper" block=${phone}><button type="button" class="btn xl on-dark" disabled=${busy} onClick=${tap}>
-        ${busy ? html`<${M.fx.Orb} state="searching" size=${20} dark=${false} label="finding your location"/> Checking in` : (mode === 'wfh' ? 'Check in, WFH' : 'Check in, office')}</button><//></div>`}
-      <div class="tiny" style=${{color: 'rgba(255,255,255,.6)'}}>WFH days used this week: ${used} of ${cap}. Checking in records the time and your location at that moment. Kaavish can see both.</div>
+      ${pick ? html`<div class="ci-pick">
+        <div class="ci-pick-q">Where are you checking in from?</div>
+        <div class="row">${PLACES.map(p => html`<button key=${p.v} type="button" class=${'btn sec sm' + (night ? ' on-dark' : '')} disabled=${busy} onClick=${() => manual(p)}>${p.v}</button>`)}</div>
+      </div>` : html`<div class="ci-go"><button type="button" class=${'btn xl' + (night ? ' on-dark' : '') + (phone ? ' block' : '')} disabled=${busy} onClick=${tap}>
+        ${busy ? 'Checking in' : (mode === 'wfh' ? 'Check in, WFH' : 'Check in, office')}</button></div>`}
+      <p class="consent">WFH days used this week: ${used} of ${cap}. Checking in records the time and your location at that moment.${ctx.uid === ctx.founderUid ? '' : ' Kaavish can see both.'}</p>
     </div>`;
   }
 
-  function InNow() {
+  /* v39: a self reported place reads once ("Office, self reported", "WFH, Home, self reported") */
+  function whereLine(a) {
+    const word = a.status === 'wfh' ? 'WFH' : 'Office';
+    const place = String(a.place || '').replace(/\.$/, '');
+    if (a.loc && a.loc.src === 'self') return (place && place !== word ? word + ', ' + place : word) + ', self reported';
+    return word + ', ' + (place || 'no location') + (a.verified ? ', verified' : '');
+  }
+
+  function InNow({night}) {
     const ctx = M.useCtx();
     const today = U.todayStr();
     const a = M.att.dayStatus(ctx, ctx.uid, today);
@@ -126,37 +144,38 @@
       /* the day rating waits on the hero's own button (How did it go?), never a takeover on check-out */
     }
     const rated = a.out && M.dayrate ? M.dayrate.todayOf(ctx, ctx.uid) : null;
-    return html`<div class="row between" style=${{alignItems: 'flex-end'}}>
-      <div>
-        <div class="display" style=${{fontSize: '26px'}}>${a.out ? 'Done for today' : 'In since ' + U.hhmm(a.in)}</div>
-        <div class="small" style=${{color: 'rgba(255,255,255,.7)', marginTop: '6px'}}>
-          ${a.out ? 'In ' + U.hhmm(a.in) + ', out ' + U.hhmm(a.out) + ', ' + U.durText(a.out - a.in) + '. ' : ''}${a.status === 'wfh' ? 'WFH' : 'Office'}, ${(a.place || 'no location').replace(/\.$/, '')}${a.verified ? ', verified' : ''}.
-          ${a.late ? html` <span class="flame-t">Late.</span>` : null}
-        </div>
+    const sec = 'btn sec sm' + (night ? ' on-dark' : '');
+    return html`<div class="ci-now">
+      <div class="ci-num">
+        <span class="ci-k">${a.out ? 'Done for today' : 'In since'}</span>
+        ${a.out ? html`<${UI.BigNum} value=${U.hhmm(a.in) + ' to ' + U.hhmm(a.out)} money=${true}/>` : html`<${UI.BigNum} value=${U.hhmm(a.in)}/>`}
+        <span class="ci-where">${a.out ? U.durText(a.out - a.in) + '. ' : ''}${whereLine(a)}.${a.late ? html` <span class="flame-t">Late.</span>` : null}</span>
       </div>
-      ${a.out ? (rated != null ? html`<span class="pill on-dark" id="home-rated" title="How your day went">${M.dayrate.faceFor(rated)[1]} ${M.dayrate.faceFor(rated)[2]}</span>`
-        : (M.dayrate ? html`<button type="button" class="btn on-dark sec sm" id="home-rate" onClick=${() => M.dayrate.open()}>How did it go?</button>` : null))
-        : html`<button type="button" class="btn on-dark sec sm" disabled=${busy} onClick=${out}>Check out</button>`}
+      <div class="ci-act">
+        ${a.out ? (rated != null ? html`<span class="pill" id="home-rated" title="How your day went">${M.dayrate.faceFor(rated)[1]} ${M.dayrate.faceFor(rated)[2]}</span>`
+          : (M.dayrate ? html`<button type="button" class=${sec} id="home-rate" onClick=${() => M.dayrate.open()}>How did it go?</button>` : null))
+          : html`<button type="button" class=${'btn' + (night ? ' on-dark' : '')} disabled=${busy} onClick=${out}>Check out</button>`}
+      </div>
     </div>
     ${a.out ? (reopenSent
-      ? html`<div class="small" id="home-reopen-sent" style=${{color: 'rgba(255,255,255,.7)', marginTop: '12px'}}><span class="dotflame"/> Asked Kaavish to reopen the day. It opens again when he approves; the answer lands in your inbox.</div>`
-      : html`<div class="row" style=${{marginTop: '12px', gap: '10px'}}>
-        <span class="small" style=${{color: 'rgba(255,255,255,.7)'}}>Checked out by mistake?</span>
+      ? html`<p class="consent" id="home-reopen-sent"><span class="dotflame"/> Asked Kaavish to reopen the day. It opens again when he approves; the answer lands in your inbox.</p>`
+      : html`<div class="consent ci-reopen">
+        <span>Checked out by mistake?</span>
         ${ctx.isFounder
-          ? html`<button type="button" class="btn on-dark sec sm" id="home-reopen" disabled=${busy} onClick=${reopen}>Reopen the day</button>`
-          : html`<button type="button" class="btn on-dark sec sm" id="home-reopen" disabled=${busy} onClick=${() => M.fixes && M.fixes.ask({kind: 'attendance', field: 'reopen', date: today})}>Ask Kaavish to reopen the day</button>`}
+          ? html`<button type="button" class=${sec} id="home-reopen" disabled=${busy} onClick=${reopen}>Reopen the day</button>`
+          : html`<button type="button" class=${sec} id="home-reopen" disabled=${busy} onClick=${() => M.fixes && M.fixes.ask({kind: 'attendance', field: 'reopen', date: today})}>Ask Kaavish to reopen the day</button>`}
       </div>`) : null}`;
   }
 
   function Clock() {
     const t = M.useClock();
-    return html`<span class="hero-clock"><span aria-hidden="true">\u00b7</span><span class="clock num">${U.hhmm(t)}</span></span>`;
+    return html`<span class="hero-clock"><span aria-hidden="true">·</span><span class="clock num">${U.hhmm(t)}</span></span>`;
   }
 
   /* ---------- the sky: the moment of day the hero speaks to ----------
-     Day runs 6:00 to 19:30. The hero carries one small mark in its date line: a flame dot by
-     day, a paper ring moon at night. The arc numbers (x, y, size) still describe where the sun
-     would stand, for previews and tests; the stylesheet no longer draws it at that size.
+     Day runs 6:00 to 19:30. The date label carries one small mark of the hour: the flame dot by day, a
+     ring at night, and at night the check-in band turns dark. The arc numbers (x, y, size) still
+     describe where the sun would stand, for previews and tests; nothing draws them.
      M.hero.at pins the moment for previews and tests. */
   const DAY_FROM = 6 * 60, DAY_TO = 19 * 60 + 30;
   M.hero = {
@@ -175,14 +194,22 @@
   };
   M.heroMode = d => M.hero.mode(d);
 
-  /* ---------- hero ---------- */
-  function Hero({onStatus}) {
+  /* the Ask field of the v7 header: the island grows into the Ask bar out of it (02-z-chrome.js, .c-askf) */
+  function AskField() {
+    const mod = '⌘K';   /* the design's field reads ⌘K everywhere; Ctrl K still opens it */
+    return html`<button type="button" class="c-askf" id="home-ask" aria-label="Ask m360">
+      <span class="wv" aria-hidden="true">${[0, 1, 2, 3, 4].map(k => html`<i key=${k} style=${{'--k': k}}/>`)}</span>
+      <span class="phd">Ask m360 anything</span><span class="kb">${mod}</span></button>`;
+  }
+
+  /* ---------- hero: the v7 page head (label, title with the flame stop, lede, the Ask field and the
+     day's chips on the right), then the check-in band ---------- */
+  function Hero({onStatus, needs, onNeeds}) {
     const ctx = M.useCtx();
     const clock = M.useClock();
     const now = M.hero.at ? new Date(M.hero.at) : new Date(clock);
     const sky = M.hero.mode(now);
     const night = sky.mode === 'night';
-    const chip = 'chipline' + (night ? ' on-dark' : '');
     const first = U.firstName(ctx.me.name) || 'there';
     const td = U.todayStr();
     const a = M.att.dayStatus(ctx, ctx.uid, td);
@@ -195,25 +222,39 @@
     const special = a.status === 'leave' ? "You're on approved leave today. Log off."
       : a.status === 'holiday' ? 'Today is a holiday.' : a.status === 'sunday' ? 'Sunday. The OS rests too.' : '';
     const hol = M.holidays ? M.holidays.tomorrow(ctx) : null;
-    const chipInk = night ? '#F2F1EC' : undefined;
-    const panel = html`<div class="hero-panel">${special ? html`<div class="display" style=${{fontSize: '24px'}}>${special}</div>`
-          : (a.in ? html`<${InNow}/>` : html`<${TapIn}/>`)}</div>`;
+    const start = String(ctx.startFor(ctx.uid) || '');
+    const pill = special ? null : a.late ? html`<span class="pill flame">late</span>`
+      : a.out ? html`<span class="pill">checked out</span>` : a.in ? html`<span class="pill ink">${a.status === 'wfh' ? 'WFH' : 'in office'}</span>`
+        : /^\d{1,2}:\d{2}$/.test(start) ? html`<span class="pill">start ${start}</span>` : null;
+    const body = special ? html`<div class="c-empty ci-special">${special}</div>` : (a.in ? html`<${InNow} night=${night}/>` : html`<${TapIn} night=${night}/>`);
     return html`<header class=${'hero home-hero ' + (night ? 'ink night' : 'day')} id="home-hero" data-mode=${sky.mode}
       style=${{'--sx': sky.x + '%', '--sy': sky.y + '%', '--px': sky.px + '%', '--py': sky.py + '%', '--sun': sky.size + 'px'}}>
-      <div class="hero-in">
-        <div class="hero-greet">
-          <${UI.Micro} plain><span class="sky" aria-hidden="true">${night ? html`<span class="moon"/>` : html`<span class="sun"/>`}</span>${U.dateLabel(now)} <${Clock}/><//>
-          <h1 class="hi">${sky.greeting},<br/>${first}.</h1>
-          <div class="hero-chips">
-            <span class=${chip}><b class="num"><${M.fx.MetalText} size=${15} color=${chipInk}>${String(inStreak)}<//></b> day streak</span>
-            <span class=${chip}><b class="num">${eodStreak}</b> EOD lines in a row</span>
-            <span class=${chip}>level <b class="num"><${M.fx.MetalText} size=${15} color=${chipInk}>${String(lv.lvl)}<//></b></span>
-            <button type="button" class=${'chip ' + chip} onClick=${onStatus}><${M.icons.edit}/>${st ? st.text : 'Set a status'}</button>
+      <div class="c-top hero-in">
+        <div class="c-tl hero-greet">
+          <span class="lab hero-lab"><span class="sky" aria-hidden="true">${night ? html`<span class="moon"/>` : html`<span class="sun"/>`}</span>${U.dateLabel(now).toLowerCase()} <${Clock}/></span>
+          <h1 class="pgt hi">${sky.greeting}, ${first}</h1>
+          <div class="c-lede">
+            ${needs > 0 ? html`<button type="button" class="c-needl" id="home-needs" onClick=${onNeeds}><b class="num">${needs}</b> ${needs === 1 ? 'thing needs you' : 'things need you'}<i class="ar" aria-hidden="true"/></button>`
+              : html`<span class="c-needl ok" id="home-needs">All clear.</span>`}
+            ${hol ? html`<span class="hero-tomorrow" id="hero-tomorrow"><span class="dotflame"/><span>${M.holidays.line(hol)}</span></span>` : null}
           </div>
-          ${hol ? html`<div class="hero-tomorrow" id="hero-tomorrow"><span class="dotflame"/><span>${M.holidays.line(hol)}</span></div>` : null}
         </div>
-        ${panel}
+        <div class="c-tr2">
+          <${AskField}/>
+          <div class="hero-chips">
+            <span class="chip chipline"><b class="num">${inStreak}</b> day streak</span>
+            <span class="chip chipline"><b class="num">${eodStreak}</b> EOD lines in a row</span>
+            <span class="chip chipline">level <b class="num">${lv.lvl}</b></span>
+            <button type="button" class="chip chipline ci-status" onClick=${onStatus}><${M.icons.edit}/>${st ? st.text : 'Set a status'}</button>
+          </div>
+        </div>
       </div>
+      <section class=${'band hero-panel ' + (night ? 'dark' : 'warm')} id="home-checkin">
+        <div class="ci-card">
+          <${UI.SectionHead} n=${1} label=${a.in ? (a.out ? 'your day' : 'checked in') : 'check in'}>${pill}<//>
+          ${body}
+        </div>
+      </section>
     </header>`;
   }
 
@@ -298,14 +339,11 @@
       : installEvt ? 'One tap and it opens full screen, like an app.'
         : 'Open the browser menu and choose Add to Home screen. It opens full screen, like an app.';
     return html`<section class="card install-hint" id="install-hint">
-      <div class="row nowrap" style=${{alignItems: 'flex-start', gap: '12px'}}>
-        <span class="ic"><${M.Mark} width="26px"/></span>
-        <div class="grow">
-          <div style=${{fontWeight: 500}}>Add m360 to your home screen</div>
-          <div class="small ink62" style=${{marginTop: '2px'}}>${line}</div>
-        </div>
+      <div class="grow">
+        <div style=${{fontWeight: 500}}>Add m360 to your home screen</div>
+        <div class="small mut" style=${{marginTop: '2px'}}>${line}</div>
       </div>
-      <div class="row" style=${{marginTop: '10px', gap: '6px'}}>
+      <div class="row" style=${{marginTop: '12px', gap: '8px'}}>
         ${!ios && installEvt ? html`<${UI.Btn} sm=${true} onClick=${install}>Install<//>` : null}
         <${UI.Btn} kind="ghost" sm=${true} onClick=${dismiss}>Not now<//>
       </div>
@@ -324,12 +362,12 @@
     if (!post) return null;
     const ackKey = 'ann:' + key;
     if ((((ctx.coll.acks.map[ctx.uid] || {}).s) || {})[ackKey]) return null;
-    return html`<${M.fx.Beam}><section class="card flame">
-      <div class="row"><span class="pill flame">announcement</span><${UI.Avatar} id=${au} size=${22}/>
-        <span class="small" style=${{fontWeight: 500}}><${UI.Name} id=${au}/></span><span class="tiny ink62">${U.timeAgo(post.at)}</span></div>
-      <p style=${{whiteSpace: 'pre-wrap', margin: '10px 0 14px', fontSize: '16px'}}>${post.text}</p>
+    return html`<section class="card ann flame" id="home-ann">
+      <div class="ann-h"><span class="pill flame">announcement</span><${UI.Avatar} id=${au} size=${22}/>
+        <span class="who-n"><${UI.Name} id=${au}/></span><span class="soft sm">${U.timeAgo(post.at)}</span></div>
+      <p class="post-t pre">${post.text}</p>
       <${UI.Btn} sm=${true} onClick=${() => ctx.W.merge('acks/' + ctx.uid, {s: {[ackKey]: Date.now()}}).catch(() => {})}>Got it<//>
-    </section><//>`;
+    </section>`;
   }
 
   /* ---------- EOD with an AI draft ---------- */
@@ -359,28 +397,27 @@
       M.toast('Posted');
     }
     if (posted && !edit) {
-      return html`<section class="card">
+      return html`<section class="card" id="home-eod">
         <div class="card-head"><h2 class="card-title">EOD line</h2>
           <${UI.Btn} kind="sec" sm=${true} onClick=${() => { setF({shipped: posted.shipped, next: posted.next || '', blocked: posted.blocked || ''}); setEdit(true); }}>Edit<//></div>
-        <div class="stack tight">
-          <div><span class="micro plain">shipped</span>${posted.shipped}</div>
-          ${posted.next ? html`<div><span class="micro plain">next</span>${posted.next}</div>` : null}
-          ${posted.blocked ? html`<div class="flame-t"><span class="micro plain">blocked</span>${posted.blocked}</div>` : null}
-        </div>
+        <dl class="eod">
+          <dt>shipped</dt><dd>${posted.shipped}</dd>
+          ${posted.next ? html`<dt>next</dt><dd>${posted.next}</dd>` : null}
+          ${posted.blocked ? html`<dt class="flt">blocked</dt><dd>${posted.blocked}</dd>` : null}
+        </dl>
       </section>`;
     }
     const cutHour = parseInt(String(ctx.settings.eodCut || '19:30'), 10) || 19;
     const late = new Date(ctx.now).getHours() >= cutHour - 1;
     const thinking = r.state === 'thinking' || r.state === 'streaming';
-    return html`<section class=${'card' + (late ? ' flame' : '')}>
+    return html`<section class=${'card' + (late ? ' flame' : '')} id="home-eod">
       <div class="card-head">
         <div class="grow"><h2 class="card-title">EOD line</h2>
-          <div class="small ink62">${late ? html`<span class="flame-t">${'Due at ' + ctx.settings.eodCut + '.'}</span>` : 'Three lines before ' + ctx.settings.eodCut + '. Let m360 draft it, then tweak.'}</div></div>
-        ${M.ai.on(ctx) ? html`<span class="row nowrap fxh-act"><${M.fx.Bot} feature="writer" state=${thinking ? 'working' : 'default'} size=${30} label=${thinking ? 'm360, writing' : 'm360 writer'}/>
-          <button type="button" class="btn sec sm" disabled=${thinking} onClick=${draft}>
-          ${thinking ? html`<${M.Thinking} label="Drafting"/>` : html`<span class="spark">${SPARK}</span> Write it for me`}</button></span>` : null}
+          <div class="small mut">${late ? html`<span class="flame-t">${'Due at ' + ctx.settings.eodCut + '.'}</span>` : 'Three lines before ' + ctx.settings.eodCut + '. Let m360 draft it, then tweak.'}</div></div>
+        ${M.ai.on(ctx) ? html`<button type="button" class="btn sec sm" disabled=${thinking} onClick=${draft}>
+          ${thinking ? html`<${M.Thinking} label="Drafting"/>` : 'Write it for me'}</button>` : null}
       </div>
-      ${thinking ? html`<div class="row nowrap fxh-drafting"><${M.fx.Orb} state="composing" size=${32} label="m360 is writing"/><span class="small ink62">Writing your three lines from today's work.</span></div>` : null}
+      ${thinking ? html`<div class="small mut fxh-drafting">Writing your three lines from today's work.</div>` : null}
       ${r.state === 'error' ? html`<div class="small flame-t">${M.ai.errLine(r.err, r.why)}</div>` : null}
       <div class="stack tight">
         <${UI.TextArea} id="wrap-shipped" label="shipped" rows=${2} value=${f.shipped} onChange=${v => set('shipped', v)} placeholder="What went out today"/>
@@ -395,7 +432,6 @@
   /* ---------- AI brief ---------- */
   function Brief() {
     const ctx = M.useCtx();
-    const phone = M.usePhone();
     const cache = M.ai.useCache(ctx);
     const r = M.ai.useRun();
     const cached = cache.data && cache.data.brief && cache.data.brief.date === U.todayStr() ? cache.data.brief.text : '';
@@ -412,18 +448,17 @@
     }
     const busy = r.state === 'thinking' || r.state === 'streaming';
     const btn = html`<button type="button" class=${'btn sm ' + (text ? 'sec' : '')} disabled=${busy} onClick=${go}>
-          ${busy ? html`<${M.Thinking} state="composing"/>` : html`<span class="spark">${SPARK}</span> ${text ? 'Refresh' : 'Brief me'}`}</button>`;
-    return html`<${M.fx.Beam} radius=${phone ? 18 : 20}><section class="ai-card fxh-brief">
+          ${busy ? html`<${M.Thinking} state="composing"/>` : (text ? 'Refresh' : 'Brief me')}</button>`;
+    return html`<section class="card ai-card fxh-brief">
       <div class="card-head">
-        <${M.fx.Bot} feature="brief" state=${busy ? 'working' : 'default'} size=${34} label=${busy ? 'm360, sorting your day' : 'm360 brief'}/>
         <div class="grow"><${UI.Micro}>m360 ai<//><h2 class="card-title" style=${{marginTop: '4px'}}>Your day, sorted</h2></div>
-        ${text ? btn : html`<${M.fx.Metal} kind="ink">${btn}<//>`}
+        ${btn}
       </div>
       ${text ? html`<${M.AIText} text=${text}/>`
-        : busy ? html`<div class="row nowrap fxh-drafting"><${M.fx.Orb} state="composing" size=${32} label="m360 is drafting"/><span class="small ink62">Reading your tasks, outcomes and flags.</span></div>`
-        : html`<div class="small ink62">One tap and m360 lines up your day from your tasks, deadlines and this week's outcomes.</div>`}
+        : busy ? html`<div class="small mut fxh-drafting">Reading your tasks, outcomes and flags.</div>`
+        : html`<div class="small mut">One tap and m360 lines up your day from your tasks, deadlines and this week's outcomes.</div>`}
       ${r.state === 'error' ? html`<div class="small flame-t" style=${{marginTop: '8px'}}>${M.ai.errLine(r.err, r.why)}</div>` : null}
-    </section><//>`;
+    </section>`;
   }
 
   /* ---------- focus list ---------- */
@@ -448,7 +483,14 @@
     const complete = t => { const sp = M.tasks.statusPatch(t, 'done', ctx.uid, ctx); return M.tasks.commit(ctx, t.id, sp).then(() => M.toast(sp.status === 'done' ? 'Done. Nice' : 'Sent for sign-off')).catch(() => {}); };
     const reopen = t => ctx.W.update('tasks/' + t.id, M.tasks.statusPatch(t, 'doing', ctx.uid, ctx).patch).catch(() => {});
 
+    /* v39: one add at a time; Enter pressed again while it runs does nothing */
+    const adding = useRef(false);
     async function add() {
+      if (adding.current) return;
+      adding.current = true;
+      try { await addNow(); } finally { adding.current = false; }
+    }
+    async function addNow() {
       const text = q.trim();
       if (!text) return;
       /* a prospect line ("spoke to Meera at Swisse, talk after the 16th") is private: it goes to Prospects, never a shared task */
@@ -490,7 +532,7 @@
       M.toast(task.owner === ctx.uid ? 'Added to your list' : 'Task sent');
     }
 
-    return html`<section class="card">
+    return html`<section class="card" id="home-focus">
       <div class="card-head"><h2 class="card-title">Today's focus</h2>
         <${UI.Btn} kind="sec" sm=${true} onClick=${() => M.nav('#tasks')}>Board<//></div>
       ${rows.open.length ? rows.open.map(t => {
@@ -498,27 +540,27 @@
         return html`<div class="focus" key=${t.id}>
           <button type="button" class="tick" aria-label=${'Mark ' + t.title + ' done'} onClick=${() => complete(t)}/>
           <button type="button" class="rowbtn grow" onClick=${() => onOpen(t.id)}>
-            <div class="ft" style=${{fontWeight: 500}}>${t.title}</div>
-            <div class="row" style=${{gap: '6px', marginTop: '5px'}}>
+            <div class="ft">${t.title}</div>
+            <div class="tk-m">
               ${t.due ? html`<span class=${'pill ' + (over ? 'flame' : '')}>${over ? 'overdue, ' : 'due '}${U.fmtDay(t.due)}</span>` : null}
               ${t.priority === 'high' ? html`<span class="pill flame-o">high</span>` : null}
               ${t.status === 'review' ? html`<span class="pill warm">in review</span>` : t.status === 'doing' ? html`<span class="pill">doing</span>` : null}
             </div>
           </button>
         </div>`;
-      }) : html`<div class="focus"><span class="grow">Nothing open on you. Pick something from the board.</span></div>`}
-      ${rows.more ? html`<div class="small ink62" style=${{marginTop: '10px'}}>${rows.more} more on your board</div>` : null}
-      ${rows.doneToday.length ? html`<div style=${{marginTop: '14px'}}>
-        <div class="micro" style=${{marginBottom: '8px'}}>done today, ${rows.doneToday.length}</div>
+      }) : html`<div class="empty">Nothing open on you. Pick something from the board.</div>`}
+      ${rows.more ? html`<div class="small mut" style=${{marginTop: '10px'}}>${rows.more} more on your board</div>` : null}
+      ${rows.doneToday.length ? html`<div style=${{marginTop: '16px'}}>
+        <div class="lab" style=${{marginBottom: '4px'}}>done today, ${rows.doneToday.length}</div>
         ${rows.doneToday.slice(0, 4).map(t => html`<div class="focus done" key=${t.id}>
-          <button type="button" class="tick done" aria-label=${'Reopen ' + t.title} onClick=${() => reopen(t)}>✓</button>
+          <button type="button" class="tick done" aria-label=${'Reopen ' + t.title} onClick=${() => reopen(t)}><${M.icons.check}/></button>
           <span class="ft grow">${t.title}</span></div>`)}
       </div>` : null}
-      <div class="ask-in" style=${{marginTop: '14px'}}>
-        <${M.fx.Beam} radius=${12} size="sm"><input id="quick-add" class="input" value=${q} aria-label="Add a task"
+      <div class="ask-in" style=${{marginTop: '16px'}}>
+        <input id="quick-add" class="input" value=${q} aria-label="Add a task"
           placeholder=${M.ai.on(ctx) ? 'Add a task. Try: ask Aanya to cut the teaser by Friday' : 'Add a task'}
-          onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') add(); }}/><//>
-        <${UI.Btn} disabled=${busy || !q.trim()} onClick=${add}>${busy ? html`<${M.fx.Orb} state=${M.ai.on(ctx) ? 'solving' : 'working'} size=${20} label="adding"/> Adding` : 'Add'}<//>
+          onInput=${e => setQ(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') add(); }}/>
+        <${UI.Btn} disabled=${busy || !q.trim()} onClick=${add}>${busy ? 'Adding' : 'Add'}<//>
       </div>
     </section>`;
   }
@@ -574,15 +616,16 @@
     const flags = (ctx.myFlags || []).slice().sort((a, b) => (SEV[a.severity] == null ? 1 : SEV[a.severity]) - (SEV[b.severity] == null ? 1 : SEV[b.severity]));
     const names = (M.rules && M.rules.NAMES) || {};
     const list = all ? flags : flags.slice(0, 3);
-    return html`<section class="card">
+    const hot = flags.some(f => f.severity === 'high');
+    return html`<section class=${'card' + (hot ? ' flame' : '')} id="home-rules">
       <div class="card-head"><h2 class="card-title">Rule box</h2>
-        ${flags.length ? html`<span class="pill flame">${flags.length}</span>` : html`<span class="pill ink">clear</span>`}</div>
-      ${flags.length ? list.map((f, i) => html`<div class="listrow" key=${f.rule + i}>
-        <span class="dotflame" style=${f.severity === 'low' ? {background: 'var(--ink62)'} : null}/>
-        <div class="grow"><div style=${{fontWeight: 500}}>${names[f.rule] || f.rule}</div><div class="small ink62">${f.text}</div></div>
-        ${f.ref ? html`<button type="button" class="linky small" onClick=${() => M.nav(f.ref)}>Open</button>` : null}
-      </div>`) : html`<div class="small ink62">All clear.</div>`}
-      ${flags.length > 3 ? html`<button type="button" class="linky small" style=${{marginTop: '8px'}} onClick=${() => setAll(!all)}>${all ? 'Show less' : 'Show all ' + flags.length}</button>` : null}
+        ${flags.length ? html`<span class=${'pill ' + (hot ? 'flame' : 'ink')}>${flags.length}</span>` : html`<span class="pill">clear</span>`}</div>
+      ${flags.length ? html`<div class="flags">${list.map((f, i) => html`<div class="flag" key=${f.rule + i}>
+        <span class=${'sev ' + (f.severity || 'medium')}/>
+        <div class="grow"><b>${names[f.rule] || f.rule}</b><div class="mut sm">${f.text}</div></div>
+        ${f.ref ? html`<button type="button" class="lnkb sm" onClick=${() => M.nav(f.ref)}>Open</button>` : null}
+      </div>`)}</div>` : html`<div class="empty">All clear.</div>`}
+      ${flags.length > 3 ? html`<button type="button" class="lnkb sm" style=${{marginTop: '8px'}} onClick=${() => setAll(!all)}>${all ? 'Show less' : 'Show all ' + flags.length}</button>` : null}
     </section>`;
   }
 
@@ -604,14 +647,15 @@
     const marks = ((((ctx.coll.review.map[ctx.uid] || {}).weeks || {})[wkId]) || {}).marks || {};
     const hit = Object.values(marks).filter(x => x === 'hit').length;
     const overdue = mine.filter(t => t.status !== 'done' && t.due && t.due < U.todayStr()).length;
-    const phone = M.usePhone();
-    const tile = (v, l, to, hot) => html`<button type="button" class=${'stat' + (hot ? ' hot' : '')} onClick=${() => M.nav(to)}>
-      <span class="v num"><${M.fx.MetalText} size=${phone ? 28 : 34} weight=${600} color=${hot ? M.fx.FLAME : undefined}>${String(v)}<//></span><span class="l">${l}</span></button>`;
-    return html`<div class="grid4 two">
-      ${tile(doneWk.length, 'shipped this week', '#tasks')}
-      ${tile(overdue, 'overdue on you', '#tasks', overdue > 0)}
-      ${tile(pts.total, ptsLabel, '#scores')}
-      ${tile(hit + '/' + plan.length, 'outcomes hit', '#week')}
+    /* v40: the v7 number tiles: a label, the big number (the denominator at 26 percent), a one line
+       caption, a flame top line when it needs you; a tap goes to its detail */
+    const tile = (v, of, l, n, to, hot) => html`<button type="button" class=${'stat' + (hot ? ' hot' : '')} onClick=${() => M.nav(to)}>
+      <span class="k">${l}</span><${UI.BigNum} value=${v} of=${of}/><span class="n">${n}</span></button>`;
+    return html`<div class="kpis" id="home-kpis">
+      ${tile(doneWk.length, null, 'shipped', 'this week', '#tasks')}
+      ${tile(overdue, null, 'overdue', overdue ? 'on you, open the board' : 'nothing late on you', '#tasks', overdue > 0)}
+      ${tile(pts.total, null, 'points', ptsLabel, '#scores')}
+      ${tile(hit, plan.length, 'outcomes hit', 'this week', '#week')}
     </div>`;
   }
 
@@ -622,21 +666,20 @@
     const people = ctx.activeMembers;
     const inCount = people.filter(m => { const a = M.att.dayStatus(ctx, m.uid, td); return a.status === 'office' || a.status === 'wfh'; }).length;
     const onlineCount = Object.keys(ctx.online || {}).length;
-    return html`<section class="card">
+    return html`<section class="card" id="home-crew">
       <div class="card-head"><h2 class="card-title">Who's in today</h2>
-        <span class="small ink62 num">${inCount} of ${people.length} in${onlineCount ? ', ' + onlineCount + ' online' : ''}</span></div>
-      <div class="stack tight">
+        <span class="pill num">${inCount} of ${people.length} in${onlineCount ? ', ' + onlineCount + ' online' : ''}</span></div>
+      <div class="who">
         ${people.map(m => {
           const a = M.att.dayStatus(ctx, m.uid, td);
           const st = todayStatus(ctx, m.uid);
           const where = a.status === 'office' ? 'In office' : a.status === 'wfh' ? 'WFH' : a.status === 'leave' ? 'On leave' : 'Not in yet';
-          return html`<button type="button" class="listrow rowbtn" key=${m.uid} onClick=${() => M.nav('#people/' + m.uid)}>
-            <span class="av-wrap"><${UI.Avatar} id=${m.uid} size=${30}/>${ctx.online && ctx.online[m.uid] ? html`<span class="live" title="online now"/>` : null}</span>
-            <span class="grow"><span style=${{fontWeight: 500}}><${UI.Name} id=${m.uid}/></span>
-              <div class="tiny ink62">${st ? st.text : where}${a.in ? ', ' + U.hhmm(a.in) : ''}</div></span>
-            ${a.late && ctx.canSee(m.uid) ? html`<span class="pill flame-o">late</span>` : null}
-            ${M.dayrate && a.out && M.dayrate.todayOf(ctx, m.uid) != null ? html`<span class="crew-face" title=${'rated the day ' + M.dayrate.faceFor(M.dayrate.todayOf(ctx, m.uid))[2].toLowerCase()} aria-label=${'rated the day ' + M.dayrate.faceFor(M.dayrate.todayOf(ctx, m.uid))[2].toLowerCase()}>${M.dayrate.faceFor(M.dayrate.todayOf(ctx, m.uid))[1]}</span>` : null}
-            <span class=${'pill ' + (a.status === 'office' ? 'ink' : a.status === 'leave' ? 'warm' : '')}>${where}</span>
+          const face = M.dayrate && a.out ? M.dayrate.todayOf(ctx, m.uid) : null;
+          return html`<button type="button" class="who-i rowbtn" key=${m.uid} onClick=${() => M.nav('#people/' + m.uid)}>
+            <span class="av-wrap"><${UI.Avatar} id=${m.uid} size=${36}/>${ctx.online && ctx.online[m.uid] ? html`<span class="live" title="online now"/>` : null}</span>
+            <div><div class="who-n"><${UI.Name} id=${m.uid}/></div>
+              <div class=${'sm ' + (a.late && ctx.canSee(m.uid) ? 'flt' : 'mut')}>${st ? st.text : where}${a.in ? ', ' + U.hhmm(a.in) : ''}${a.late && ctx.canSee(m.uid) ? ', late' : ''}
+                ${face != null ? html` <span class="crew-face" title=${'rated the day ' + M.dayrate.faceFor(face)[2].toLowerCase()} aria-label=${'rated the day ' + M.dayrate.faceFor(face)[2].toLowerCase()}>${M.dayrate.faceFor(face)[1]}</span>` : null}</div></div>
           </button>`;
         })}
       </div>
@@ -670,8 +713,8 @@
       ctx.isFounder ? {k: 'pitch', label: 'New pitch', icon: 'pitches', go: () => M.intend('#pitches', 'pitch')}
         : {k: 'leave', label: 'Request leave', icon: 'leave', go: () => M.nav('#leave')}
     ];
-    return html`<nav class="quick" aria-label="Quick actions">
-      ${items.map(it => html`<button key=${it.k} type="button" class="quick-btn" onClick=${it.go}>
+    return html`<nav class="quick c-fcs" aria-label="Quick actions">
+      ${items.map(it => html`<button key=${it.k} type="button" class="quick-btn c-fc" data-k=${it.k} onClick=${it.go}>
         <${M.icons[it.icon]}/><span>${it.label}</span></button>`)}
     </nav>`;
   }
@@ -753,18 +796,18 @@
           <${UI.Avatar} id=${it.type === 'kudos' ? it.giver : it.author} size=${28}/>
           <span class="grow" style=${{minWidth: 0}}>
             <span class="small"><b style=${{fontWeight: 500}}><${UI.Name} id=${it.type === 'kudos' ? it.giver : it.author}/></b>
-              ${it.type === 'kudos' ? html` gave kudos to <${UI.Name} id=${it.to}/>` : it.kind === 'win' ? html` shared a win <${M.fx.MetalBadge}>win<//>` : ''}</span>
+              ${it.type === 'kudos' ? html` gave kudos to <${UI.Name} id=${it.to}/>` : it.kind === 'win' ? html` shared a win <span class="pill ink">win</span>` : ''}</span>
             <span class="tiny ink62 clamp1">${it.type === 'kudos' ? it.why : it.text}</span>
           </span>
           <span class="tiny ink62 nowrap">${U.timeAgo(it.at)}</span>
         </button>`)}
       </div>` : html`<div class="small ink62">Quiet so far. <button type="button" class="linky small" onClick=${() => M.intend('#feed', 'post')}>Post the first update</button></div>`}
       ${board.length ? html`<div class="topthree">
-        <div class="micro plain" style=${{marginBottom: '8px'}}>${'top ' + boardLabel}</div>
+        <div class="lab" style=${{marginBottom: '8px'}}>${'top ' + boardLabel}</div>
         ${board.map((r, i) => html`<button type="button" class="top-row rowbtn" key=${r.uid} onClick=${() => M.nav('#scores')}>
           <span class=${'rank num' + (i === 0 ? ' first' : '')}>${i + 1}</span>
           <${UI.Avatar} id=${r.uid} size=${24}/><span class="grow small"><${UI.Name} id=${r.uid}/></span>
-          ${i === 0 ? html`<${M.fx.MetalBadge}>top<//>` : null}
+          ${i === 0 ? html`<span class="pill ink">top</span>` : null}
           <span class="num small">${r.total} pts</span>
         </button>`)}
       </div>` : null}
@@ -803,45 +846,79 @@
     const pmCard = !!(M.parts.PmCard && M.pm && M.pm.loaded(ctx) && (M.pm.chases(ctx, ctx.uid, 'quiet') || M.pm.cardItems(ctx, Number(ctx.now) || Date.now()).length));
     M.useIntent('eod', () => setTimeout(() => { const el = document.getElementById('fold-eod') || document.getElementById('wrap-shipped'); if (el) el.scrollIntoView({block: 'center', behavior: M.reduced() ? 'auto' : 'smooth'}); const f = document.getElementById('wrap-shipped'); if (f) f.focus({preventScroll: true}); }, 80));
 
-    return html`<div class="stack" style=${{gap: '18px'}}>
-      <${Hero} onStatus=${() => setStatus(true)}/>
-      ${M.parts.CooRunner ? html`<${M.parts.CooRunner}/>` : null}
-      ${ctx.isFounder && M.parts.HomeDigest ? html`<${M.parts.HomeDigest}/>` : null}
-      ${pmCard ? html`<${M.parts.PmCard} onStatus=${() => setStatus(true)}/>` : html`<${QuietNudge} onStatus=${() => setStatus(true)}/>`}
-      ${M.parts.NoticePermit ? html`<${M.parts.NoticePermit}/>` : null}
-      ${M.parts.JoinBanner ? html`<${M.parts.JoinBanner}/>` : null}
-      ${M.parts.FindYourWay ? html`<${M.parts.FindYourWay}/>` : null}
-      <${Announcement}/>
-      ${Celebrate ? html`<${Celebrate}/>` : null}
-      <${Quick} onTask=${() => setTask('new')}/>
-      <${TeamWatch}/>
-      ${M.parts.Quote ? html`<${M.parts.Quote}/>` : null}
-      ${M.parts.PlanToday ? html`<${M.parts.PlanToday}/>` : null}
-      ${M.parts.SpotifyMini ? html`<${M.parts.SpotifyMini}/>` : null}
-      <${InstallHint}/>
-      <div class="split">
-        <div class="stack" style=${{gap: '18px'}}>
-          ${eodFirst ? html`<${F} title="EOD line" summary=${eodPosted ? 'posted for today' : 'due by ' + (ctx.settings.eodCut || '19:30')} open=${!eodPosted} hot=${!eodPosted} id="fold-eod"><${Wrap}/><//>` : null}
-          <${F} title="Today's focus" summary=${n(myOpen.length, 'open task', 'open tasks') + (myLate ? ', ' + n(myLate, 'overdue', 'overdue') : '')} open=${true} hot=${myLate > 0} id="fold-focus"><${Focus} onOpen=${setTask}/><//>
-          ${M.parts.FollowupsFold ? html`<${M.parts.FollowupsFold}/>` : null}
-          ${Reviews && revN ? html`<${F} title="Waiting on your review" summary=${n(revN, 'piece', 'pieces')} open=${true} hot=${true} id="fold-reviews"><${Reviews} compact=${true}/><//>` : null}
-          ${Outcomes ? html`<${F} title="This week's outcomes" summary="what you said you would ship" id="fold-outcomes"><${Outcomes}/><//>` : null}
-          ${!eodFirst && working ? html`<${F} title="EOD line" summary=${'three lines before ' + (ctx.settings.eodCut || '19:30')} id="fold-eod"><${Wrap}/><//>` : null}
-          ${newHire && Onboard ? html`<${F} title="Onboarding" summary="your first weeks, step by step" id="fold-onboard"><${Onboard} uid=${ctx.uid} compact=${true}/><//>` : null}
-          ${M.ai.on(ctx) ? html`<${F} title="Your day, sorted" summary="an AI plan for the rest of today" id="fold-brief"><${Brief}/><//>` : null}
+    /* what needs you, for the head's flame line: overdue on you, reviews waiting, high and medium flags */
+    const hotFlags = (ctx.myFlags || []).filter(f => f.severity !== 'low').length;
+    const needs = myLate + revN + hotFlags;
+    const onNeeds = () => {
+      const sel = hotFlags ? '#home-rules, #fold-rules' : revN ? '#fold-reviews' : '#home-focus, #fold-focus';
+      if (M.chrome && M.chrome.showAt) M.chrome.showAt(null, sel, {max: 1});
+      else { const el = document.querySelector(sel); if (el) el.scrollIntoView({block: 'start', behavior: M.reduced() ? 'auto' : 'smooth'}); }
+    };
+    const team = !!(M.lines && M.lines.board(ctx, ctx.uid).length);
+    const nStudio = team ? 5 : 4;
+    const wkNo = Number(U.isoWeek(new Date(ctx.now)).split('-W')[1]);
+
+    return html`<div class="v7h">
+      <${Hero} onStatus=${() => setStatus(true)} needs=${needs} onNeeds=${onNeeds}/>
+      <div class="v7h-notes">
+        ${M.parts.CooRunner ? html`<${M.parts.CooRunner}/>` : null}
+        ${ctx.isFounder && M.parts.HomeDigest ? html`<${M.parts.HomeDigest}/>` : null}
+        ${pmCard ? html`<${M.parts.PmCard} onStatus=${() => setStatus(true)}/>` : html`<${QuietNudge} onStatus=${() => setStatus(true)}/>`}
+        ${M.parts.NoticePermit ? html`<${M.parts.NoticePermit}/>` : null}
+        ${M.parts.JoinBanner ? html`<${M.parts.JoinBanner}/>` : null}
+        ${M.parts.FindYourWay ? html`<${M.parts.FindYourWay}/>` : null}
+        <${Announcement}/>
+        ${Celebrate ? html`<${Celebrate}/>` : null}
+        ${M.parts.PlanToday ? html`<${M.parts.PlanToday}/>` : null}
+        <${InstallHint}/>
+      </div>
+
+      <section class="c-sec" id="home-today">
+        <${UI.SectionHead} n=${2} label="today" pill=${n(myOpen.length, 'open', 'open') + (myLate ? ', ' + myLate + ' late' : '')} hot=${myLate > 0}/>
+        <${Quick} onTask=${() => setTask('new')}/>
+        <div class="split">
+          <div class="v7h-col">
+            ${eodFirst ? html`<${F} title="EOD line" summary=${eodPosted ? 'posted for today' : 'due by ' + (ctx.settings.eodCut || '19:30')} open=${!eodPosted} hot=${!eodPosted} id="fold-eod"><${Wrap}/><//>` : null}
+            <${F} title="Today's focus" summary=${n(myOpen.length, 'open task', 'open tasks') + (myLate ? ', ' + n(myLate, 'overdue', 'overdue') : '')} open=${true} hot=${myLate > 0} id="fold-focus"><${Focus} onOpen=${setTask}/><//>
+            ${M.parts.FollowupsFold ? html`<${M.parts.FollowupsFold}/>` : null}
+            ${Reviews && revN ? html`<${F} title="Waiting on your review" summary=${n(revN, 'piece', 'pieces')} open=${true} hot=${true} id="fold-reviews"><${Reviews} compact=${true}/><//>` : null}
+            ${Outcomes ? html`<${F} title="This week's outcomes" summary="what you said you would ship" id="fold-outcomes"><${Outcomes}/><//>` : null}
+            ${!eodFirst && working ? html`<${F} title="EOD line" summary=${'three lines before ' + (ctx.settings.eodCut || '19:30')} id="fold-eod"><${Wrap}/><//>` : null}
+            ${newHire && Onboard ? html`<${F} title="Onboarding" summary="your first weeks, step by step" id="fold-onboard"><${Onboard} uid=${ctx.uid} compact=${true}/><//>` : null}
+            ${M.ai.on(ctx) ? html`<${F} title="Your day, sorted" summary="an AI plan for the rest of today" id="fold-brief"><${Brief}/><//>` : null}
+          </div>
+          <div class="v7h-col">
+            <${F} title="Rule box" summary=${flagN ? n(flagN, 'flag on you', 'flags on you') : 'all clear'} hot=${flagN > 0} open=${flagN > 0} id="fold-rules"><${HeadsUp}/><//>
+            <${Nudges}/>
+            ${Day ? html`<${F} title="Your day" summary="calendar, mail and files" id="fold-day"><${Day}/><//>` : null}
+          </div>
+        </div>
+      </section>
+
+      <section class="c-sec" id="home-week">
+        <${UI.SectionHead} n=${3} label="your week" pill=${'week ' + wkNo}/>
+        <${F} title="My numbers" summary=${ptsWk + ' points ' + (brWk.label || 'this week')} id="fold-numbers"><${Numbers}/><//>
+        <div class="grid2">
+          <${F} title="My week" summary="check-ins and EOD lines, Monday to Saturday" id="fold-week"><${MyWeek}/><//>
           <${F} title="My projects" summary=${n(projN, 'active project', 'active projects')} id="fold-projects"><${MyProjects}/><//>
+        </div>
+      </section>
+
+      ${team ? html`<section class="c-sec" id="home-team">
+        <${UI.SectionHead} n=${4} label="your team"/>
+        <${TeamWatch}/>
+      </section>` : null}
+
+      <section class="c-sec" id="home-studio">
+        <${UI.SectionHead} n=${nStudio} label="the studio" pill=${inN + ' of ' + ctx.activeMembers.length + ' in'}/>
+        <div class="grid2">
+          <${F} title="Who's in today" summary=${inN + ' of ' + ctx.activeMembers.length + ' in'} id="fold-crew"><${Crew}/><//>
           <${F} title="Around the studio" summary="the feed and this week's ladder" id="fold-buzz"><${Buzz}/><//>
         </div>
-        <div class="stack" style=${{gap: '18px'}}>
-          <${F} title="My numbers" summary=${ptsWk + ' points ' + (brWk.label || 'this week')} id="fold-numbers"><${Numbers}/><//>
-          <${F} title="My week" summary="check-ins and EOD lines, Monday to Saturday" id="fold-week"><${MyWeek}/><//>
-          <${F} title="Rule box" summary=${flagN ? n(flagN, 'flag on you', 'flags on you') : 'all clear'} hot=${flagN > 0} open=${flagN > 0} id="fold-rules"><${HeadsUp}/><//>
-          <${Nudges}/>
-          ${M.parts.StudioNow ? html`<${F} title="The studio now" summary="the office, live" open=${false} id="fold-studio"><${M.parts.StudioNow}/><//>` : null}
-          <${F} title="Who's in today" summary=${inN + ' of ' + ctx.activeMembers.length + ' in'} id="fold-crew"><${Crew}/><//>
-          ${Day ? html`<${F} title="Your day" summary="calendar, mail and files" id="fold-day"><${Day}/><//>` : null}
-        </div>
-      </div>
+        ${M.parts.Quote ? html`<${M.parts.Quote}/>` : null}
+        ${M.parts.StudioNow ? html`<${F} title="The studio now" summary="the office, live" open=${false} id="fold-studio"><${M.parts.StudioNow}/><//>` : null}
+        ${M.parts.SpotifyMini ? html`<${M.parts.SpotifyMini}/>` : null}
+      </section>
       ${task && Drawer ? html`<${Drawer} taskId=${task === 'new' ? null : task} defaults=${{owner: ctx.uid}} onClose=${() => setTask(null)}/>` : null}
       ${status ? html`<${StatusPicker} onClose=${() => setStatus(false)}/>` : null}
     </div>`;

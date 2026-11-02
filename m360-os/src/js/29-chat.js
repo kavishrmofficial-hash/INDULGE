@@ -79,12 +79,26 @@
      typed answer to a bot. Only short codes and ids */
   const EXTRA = ['ask', 'k', 'via', 'pm', 'pmHow'];
   const sentIds = new Set();
+  const LINE_MAX = 4000;
+  /* v39: the lines this tab wrote that the room has not echoed back yet, per sender doc. The next send,
+     edit or delete builds on these, so a second line sent quickly keeps the first */
+  const local = {};
+  const mineNow = (ctx, key) => {
+    const doc = ctx.coll.chat.map[key] || {};
+    const l = local[key];
+    return ((l && l.updated > (Number(doc.updated) || 0)) ? l.msgs : (doc.msgs || [])).slice();
+  };
+  const writeMine = (ctx, key, msgs, extra) => {
+    const updated = Math.max(Date.now(), ((local[key] || {}).updated || 0) + 1);
+    local[key] = {msgs, updated};
+    return ctx.W.merge('chat/' + key, {...(extra || {}), msgs, updated}).catch(e => { if (local[key] && local[key].updated === updated) delete local[key]; throw e; });
+  };
   async function send(ctx, room, text, mentions, files, extra) {
-    const t = String(text || '').trim().slice(0, 4000);
+    const t = String(text || '').trim().slice(0, LINE_MAX);
     const fs = (files || []).filter(f => f && f.url).slice(0, 10).map(f => ({id: String(f.id || ''), name: String(f.name || 'file').slice(0, 160), type: String(f.type || ''), size: Number(f.size) || 0, url: String(f.url)}));
     if (!t && !fs.length) return;
     const key = docId(room, ctx.uid);
-    const cur = ((ctx.coll.chat.map[key] || {}).msgs || []).slice();
+    const cur = mineNow(ctx, key);
     const xid = extra && extra.id ? String(extra.id).slice(0, 80) : '';
     if (xid) {
       const had = cur.find(x => x && x.id === xid);
@@ -97,24 +111,31 @@
     if (xid) sentIds.add(key + '|' + xid);
     let msgs = cur.concat([m]);
     if (msgs.length > CAP) msgs = msgs.slice(msgs.length - KEEP);
-    try { await ctx.W.merge('chat/' + key, {msgs, room, by: ctx.uid, updated: Date.now()}); } catch (e) { if (xid) sentIds.delete(key + '|' + xid); throw e; }
+    try { await writeMine(ctx, key, msgs, {room, by: ctx.uid}); } catch (e) { if (xid) sentIds.delete(key + '|' + xid); throw e; }
     return m;
   }
   const edit = (ctx, room, id, text) => {
     const key = docId(room, ctx.uid);
-    const msgs = ((ctx.coll.chat.map[key] || {}).msgs || []).map(m => m.id === id ? {...m, text: String(text || '').trim().slice(0, 4000), edited: Date.now()} : m);
-    return ctx.W.merge('chat/' + key, {msgs, updated: Date.now()});
+    const msgs = mineNow(ctx, key).map(m => m.id === id ? {...m, text: String(text || '').trim().slice(0, LINE_MAX), edited: Date.now()} : m);
+    return writeMine(ctx, key, msgs);
   };
   const remove = (ctx, room, id) => {
     const key = docId(room, ctx.uid);
-    const msgs = ((ctx.coll.chat.map[key] || {}).msgs || []).map(m => m.id === id ? {...m, del: true, text: ''} : m);
-    return ctx.W.merge('chat/' + key, {msgs, updated: Date.now()});
+    const msgs = mineNow(ctx, key).map(m => m.id === id ? {...m, del: true, text: ''} : m);
+    return writeMine(ctx, key, msgs);
   };
   const markRead = (ctx, room, at) => ctx.W.merge('data/users/' + ctx.uid + '/state', {chatRead: {[room]: at || Date.now()}}).catch(() => {});
+  const roomSlug = name => norm(name).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+  /* v39: a room that is there already is the answer; making it again never renames it or changes its maker */
+  const roomTaken = (ctx, id) => { const r = ((ctx.coll.chatrooms.map.team || {}).rooms || {})[id]; return !!(r && !r.gone); };
   const makeRoom = async (ctx, name, topic) => {
-    const id = norm(name).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+    const id = roomSlug(name);
     if (!id || id === 'general' || id.startsWith('dm')) throw new Error('bad name');
-    await ctx.W.merge(ROOMS_DOC, {rooms: {[id]: {name: String(name).trim().slice(0, 40), topic: String(topic || '').slice(0, 140), by: ctx.uid, at: Date.now()}}, updated: Date.now()});
+    if (roomTaken(ctx, id)) return id;
+    const rec = {name: String(name).trim().slice(0, 40), topic: String(topic || '').slice(0, 140), by: ctx.uid, at: Date.now()};
+    /* a room made again after it was removed comes back */
+    if (((ctx.coll.chatrooms.map.team || {}).rooms || {})[id]) rec.gone = null;
+    await ctx.W.merge(ROOMS_DOC, {rooms: {[id]: rec}, updated: Date.now()});
     return id;
   };
 
@@ -200,7 +221,13 @@
     const fileRef = useRef(null);
     const phone = M.usePhone();
     /* the route decides: a room in it opens that room; none means the list (the Chat tab on a phone) */
-    useEffect(() => { if (roomFromRoute) { if (roomFromRoute !== room) setRoom(roomFromRoute); setListOpen(false); } else setListOpen(true); }, [roomFromRoute]);
+    useEffect(() => {
+      if (!roomFromRoute) { setListOpen(true); return; }
+      /* v39: a direct message between two other people never opens from a link either */
+      if (isDm(roomFromRoute) && !roomFromRoute.split('.').includes(uid)) { M.toast('Only the two people in that conversation can open it'); setRoom('general'); M.nav('#chat/general'); return; }
+      if (roomFromRoute !== room) setRoom(roomFromRoute);
+      setListOpen(false);
+    }, [roomFromRoute]);
     useEffect(() => { M.prefs.set('chatRoom.' + uid, room); }, [room]);
     const people = ctx.activeMembers.filter(m => m.uid !== uid);
     const ids = useMemo(() => Array.from(new Set(ctx.activeMembers.map(m => m.uid).concat(dms.map(d => dmOther(d, uid)).filter(u => !isBot(u))))), [ctx.activeMembers, dms]);
@@ -210,8 +237,9 @@
     const botDm = dms.find(d => isBot(dmOther(d, uid)));
     const msgs = useMemo(() => messagesOf(ctx, room), [ctx.coll.chat, room]);
     const latest = msgs.length ? msgs[msgs.length - 1].at : 0;
-    const online = ctx.online || new Set();
-    const isOn = id => online.has ? online.has(id) : (Array.isArray(online) ? online.includes(id) : false);
+    /* v39: presence is a map {uid: {page, at}} */
+    const online = ctx.online || {};
+    const isOn = id => !!(id && online[id]);
 
     /* this room is read up to its latest line while it is open */
     useEffect(() => {
@@ -219,7 +247,8 @@
       const t = setTimeout(() => markRead(ctx, room, latest), 600);
       return () => clearTimeout(t);
     }, [room, latest]);
-    useEffect(() => { if (endRef.current && endRef.current.scrollIntoView) endRef.current.scrollIntoView({block: 'end'}); }, [msgs.length, room]);
+    /* v39: the lines scroll inside their own box; scrolling the page would push the box under the tab bar */
+    useEffect(() => { const el = endRef.current && endRef.current.parentNode; if (el) el.scrollTop = el.scrollHeight; }, [msgs.length, room]);
 
     const mentionIds = t => ctx.activeMembers.filter(m => String(t).includes('@' + nameOf(m.uid)) || String(t).includes('@' + String(nameOf(m.uid)).split(' ')[0] + ' ')).map(m => m.uid);
     const pick = list => {
@@ -233,6 +262,7 @@
       const t = text.trim();
       if (!t && !pending.length) return;
       if (busy) return;
+      if (t.length > LINE_MAX) { M.toast('A line holds ' + LINE_MAX + ' characters. Cut ' + (t.length - LINE_MAX) + ' to send it.', true); return; }
       if (editing) { if (!t) return; setText(''); await edit(ctx, room, editing, t).catch(() => {}); setEditing(null); return; }
       const files = [];
       try {
@@ -254,7 +284,8 @@
     const openDm = other => { setRoom(dmId(uid, other)); setListOpen(false); M.nav('#chat/' + dmId(uid, other)); };
     const openRoom = id => { setRoom(id); setListOpen(false); M.nav('#chat/' + id); };
     const create = async () => {
-      try { const id = await makeRoom(ctx, newName); setNaming(false); setNewName(''); openRoom(id); M.toast('Room made'); } catch (e) { M.toast('Pick a simple name', true); }
+      const had = roomTaken(ctx, roomSlug(newName));
+      try { const id = await makeRoom(ctx, newName); setNaming(false); setNewName(''); openRoom(id); M.toast(had ? 'That room is there already. Opening it.' : 'Room made'); } catch (e) { M.toast('Pick a simple name', true); }
     };
     const askNotify = () => { try { if (window.Notification) Notification.requestPermission().then(p => M.toast(p === 'granted' ? 'You will hear about messages for you' : 'Notices stay off')); } catch (e) { /* none */ } };
     const title = isDm(room) ? nameOf(dmOther(room, uid)) : '#' + ((rooms.find(r => r.id === room) || {}).name || room);
@@ -271,7 +302,7 @@
       const prev = msgs[i - 1];
       const cont = prev && prev.by === m.by && m.at - prev.at < 5 * 60000;
       rows.push(html`<div key=${m.id} class=${'chat-msg' + (cont ? ' cont' : '') + (m.by === uid ? ' mine' : '') + (mentionsMe(m, ctx, nameOf(uid)) ? ' hot' : '')}>
-        ${cont ? html`<span class="chat-gap"/>` : html`<${UI.Avatar} id=${m.by} size=${30}/>`}
+        ${cont ? html`<span class="chat-gap"/>` : html`<${UI.Avatar} id=${m.by} size=${32}/>`}
         <div class="grow" style=${{minWidth: 0}}>
           ${cont ? null : html`<div class="row nowrap" style=${{gap: '8px', alignItems: 'baseline'}}><span style=${{fontWeight: 500}}>${nameOf(m.by)}</span>${isBot(m.by) ? html`<span class="pill coo-pill">bot</span>` : null}<span class="tiny ink62 num">${U.hhmm ? U.hhmm(new Date(m.at)) : new Date(m.at).toLocaleTimeString()}</span></div>`}
           ${m.text ? html`<div class="chat-text"><${Rich} text=${m.text} names=${names}/>${m.edited ? html` <span class="tiny ink62">(edited)</span>` : null}${m.ask ? html` <span class="tiny ink62 chat-ask">${m.via === 'voice' ? 'asked by voice' : 'asked through m360'}</span>` : null}</div>` : null}
@@ -279,7 +310,7 @@
         </div>
         ${m.by === uid ? html`<span class="chat-tools row nowrap">
           ${m.text ? html`<button type="button" class="linky tiny" onClick=${() => { setEditing(m.id); setText(m.text); if (boxRef.current) boxRef.current.focus(); }}>Edit</button>` : null}
-          <button type="button" class="linky tiny" onClick=${() => remove(ctx, room, m.id)}>Delete</button>
+          <${UI.ConfirmBtn} label="Tap again" onConfirm=${() => remove(ctx, room, m.id).catch(() => {})}>Delete<//>
         </span>` : null}
       </div>`);
     });
@@ -328,8 +359,9 @@
           <button type="button" class="iconbtn line" id="chat-attach-btn" aria-label="Attach a file" title="Attach any file, up to 25 MB" disabled=${!!busy || !!editing} onClick=${() => fileRef.current && fileRef.current.click()}><${icons.plus}/></button>
           <div class="grow chat-input-wrap"><${M.fx.Beam} radius=${12}><textarea ref=${boxRef} id="chat-input" class="input grow" rows=${1} placeholder=${phone ? 'Message ' + title : 'Message ' + title + '. @ a name, or @everyone. Drop or paste files here'} value=${text}
             onInput=${e => setText(e.target.value)} onKeyDown=${onKey} onPaste=${onPaste} aria-label="Message"/><//></div>
-          <${UI.Btn} id="chat-send" disabled=${(!text.trim() && !pending.length) || !!busy} onClick=${go}>${editing ? 'Save' : 'Send'}<//>
+          <${UI.Btn} id="chat-send" disabled=${(!text.trim() && !pending.length) || !!busy || text.trim().length > LINE_MAX} onClick=${go}>${editing ? 'Save' : 'Send'}<//>
         </div>
+        ${text.length > LINE_MAX - 400 ? html`<div class=${'tiny num ' + (text.trim().length > LINE_MAX ? 'flame-t' : 'ink62')} id="chat-count" style=${{marginTop: '4px'}}>${text.trim().length} of ${LINE_MAX} characters${text.trim().length > LINE_MAX ? '. Cut ' + (text.trim().length - LINE_MAX) + ' to send it.' : ''}</div>` : null}
       </div>
     </section>`;
 

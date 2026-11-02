@@ -107,7 +107,7 @@ def test(h):
     # and in m2's inbox
     items = m2.evaluate('() => M.inbox.items(M.lastCtx).filter(i => i.kind === "flag").map(i => i.id)')
     check(any(i.startswith('team:u_m1:noin:') for i in items) and any(i.startswith('team:u_m3:noin:') for i in items), 'the watch lands in the inbox: %r' % items[:4])
-    m2.locator('.bellbtn').first.click()
+    m2.keyboard.press('Control+k'); m2.locator('.pal-item[data-k=\"a-inbox\"]').click()
     m2.wait_for_selector('.drawer')
     check('has not checked in' in m2.inner_text('.drawer'), 'the inbox drawer says it')
     m2.keyboard.press('Escape')

@@ -1,7 +1,8 @@
 /* security: the second factor, the throttle, the breach check, the new-device mail and the security log.
      t/<uid>          {secret, on, at, lastStep, recovery: [{salt, hash}], pending}   a person's authenticator; the secret never reaches a page after setup
      c2/<nonce>       {uid, until, ua, ip, tries, via}                                a password sign-in waiting for its code, five minutes
-     r/<iphash>       {n, since}                                                      sign-in attempts from one address in the window
+     ip/<iphash>      {n, since}                                                      sign-in attempts from one address in the window (v39: own prefix;
+                                                                                      r/ is presence, which sweeps its keys)
      dv/<uid>         {seen: {key: at}}                                               devices a person has signed in from
      sec/events       {events: [{at, uid, kind, ua, ip, note}]}                       the last 300 security events, for Admin
    The code is RFC 6238 TOTP: SHA-1, 30 second steps, six digits, one step of drift either way, a step never accepted twice. */
@@ -65,7 +66,7 @@ export function securityActions(h) {
   async function throttle(req) {
     const ip = String((req && req.ip) || '');
     if (!ip) return;
-    const key = 'r/' + (await sha256hex(ip)).slice(0, 32);
+    const key = 'ip/' + (await sha256hex(ip)).slice(0, 32);
     const now = Date.now();
     const rec = (await getJ(key).catch(() => null)) || {n: 0, since: now};
     const fresh = !rec.since || now - rec.since > THROTTLE_MS;

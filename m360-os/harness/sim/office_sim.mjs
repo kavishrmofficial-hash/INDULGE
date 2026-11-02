@@ -122,7 +122,9 @@ const EMOJI = ['wave', 'five', 'coffee', 'party', 'think'];
 
 const moves = {
   async checkin(p) {
-    const days = {[today()]: {in: Date.now(), loc: pick(['office', 'home'])}};
+    /* the page's own shape (50-home.js save): a mode of office or wfh, a place, no check-out yet */
+    const mode = Math.random() < 0.8 ? 'office' : 'wfh';
+    const days = {[today()]: {in: Date.now(), out: null, mode, loc: mode === 'office' ? 'Office' : 'Home', outLoc: null}};
     await p.write('merge', 'checkin/' + p.uid, {days}, 'check in');
   },
   async status(p) {

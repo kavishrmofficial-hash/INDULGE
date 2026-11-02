@@ -18,6 +18,7 @@
      e/<email>                           {uid}                         email to person
      i/<code>                            {email, name, title, role, by, until}   pending invites
      r/<uid>~<ms>~<page>                 ""                            presence beacons
+     ip/<hash>, wx/<hash>                the sign-in throttle per address (security.js) and misses for emails with no password
      x/pm/<ymd>/<uid>/<am|pm|esc>        {at, id, to, slot, keys, steps, sent}   the personal managers' mail ledger (pm.js)
      x/coo/...                           the m360 COO's slot claims, act keys, mail claims and heartbeat (coo.js)
      x/stage                             {o3, say, live, by, at, seq}  Kaavish's live walk and words in the office (office.js); a blob,
@@ -39,7 +40,7 @@ import {securityActions} from './security.js';
 import {fileActions} from './files.js';
 import {baseActions} from './base.js';
 import {pmDesk} from './pm.js';
-import {cooDesk} from './coo.js';
+import {cooDesk, COO_UID} from './coo.js';
 import {officeActions} from './office.js';
 import {askModel, statusOf, cleanReason, AI_BUDGET_MS} from './aicall.js';
 
@@ -81,6 +82,13 @@ const IST_MS = 330 * 60000;
 /* the calendar day in Asia/Kolkata, the agency's clock */
 const ymdIST = ms => new Date(ms + IST_MS).toISOString().slice(0, 10);
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
+/* the ISO week ("2026-W44") of a moment on the IST clock, as the page names weeks */
+const isoWeekIST = ms => {
+  const d = new Date(ms + IST_MS), t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
+  const y = t.getUTCFullYear();
+  return y + '-W' + String(Math.ceil(((t - Date.UTC(y, 0, 1)) / 86400000 + 1) / 7)).padStart(2, '0');
+};
 
 const segs = p => String(p || '').split('/').filter(Boolean);
 /* segments never carry ~, which joins them in storage keys */
@@ -253,6 +261,8 @@ function ruleAccess(path, uid, level) {
   /* a {self} subtree under a prefix that reads at admin stays private to its owner */
   return {read: canRead, write: level >= LEVEL[write] && canRead};
 }
+/* collections only the owner reads (the books), from the declared rules */
+const OWNER_ONLY = new Set(RULES.filter(r => r.read === 'owner' && segs(r.path).length === 1).map(r => r.path));
 /* people not on the roster yet see only what the join screen needs */
 function guestAccess(path, uid) {
   const s = segs(path);
@@ -342,8 +352,102 @@ export function createApp({store, env = {}}) {
       const pair = s[1].split(':')[0].slice(3).split('.');
       if (pair.indexOf(uid) < 0) return {read: false, write: false};
     }
+    if (level >= LEVEL.interact && (s[0] === 'chat' || s[0] === 'chatlog') && s.length === 2) {
+      /* v39: a chat doc is <room>:<sender> (chatlog adds :<ts>); only its sender writes it, and the owner the COO's own */
+      const parts = s[1].split(':'), by = parts[1] || '';
+      const ok = parts.length === (s[0] === 'chat' ? 2 : 3) && (by === uid || (by === COO_UID && level >= LEVEL.owner));
+      return {read: ruleAccess(path, uid, level).read, write: ok};
+    }
+    /* v39: the pulse is anonymous and the founder's to read; members only add their own answer (guard() below) */
+    if (level >= LEVEL.interact && level < LEVEL.admin && s[0] === 'pulse') return {read: false, write: true};
     if (level >= LEVEL.interact) return ruleAccess(path, uid, level);
     return guestAccess(path, uid);
+  }
+  /* ---------- v39: rules a path pattern cannot say, checked on the document as it would land ----------
+     needsGuard says which writes go through guard(); guard throws when the change is not the writer's to make */
+  function needsGuard(s, level, uid) {
+    const c = s[0];
+    if (c === 'kudos' && s.length === 2) return true;
+    if (level < LEVEL.admin && (c === 'pulse' || c === 'chatrooms' || c === 'music')) return true;
+    if (level < LEVEL.owner && (c === 'office' || (c === 'me' && s[1] !== uid))) return true;
+    return false;
+  }
+  const refuse = msg => { throw new HttpError(403, 'invalid_argument', msg); };
+  const same = (a, b) => JSON.stringify(a == null ? null : a) === JSON.stringify(b == null ? null : b);
+  /* items keyed by id, from a list or a map */
+  const byId = x => {
+    const out = {};
+    if (Array.isArray(x)) { for (const it of x) if (isObj(it) && it.id != null) out[String(it.id)] = it; }
+    else if (isObj(x)) { for (const k of Object.keys(x)) if (isObj(x[k])) out[k] = x[k]; }
+    return out;
+  };
+  const KUDOS_CAP = 3;
+  const MUSIC_MAX = 200;
+  async function guard(s, op, uid, level, cur, next) {
+    const c = s[0];
+    /* the pulse: one new anonymous answer at a time; only the founder changes or removes answers */
+    if (c === 'pulse' && level < LEVEL.admin) {
+      if (op !== 'set' || cur != null) refuse('A pulse answer is sent once and stays as it is.');
+      return;
+    }
+    /* chat rooms: a room is changed or hidden by the person who made it, or an admin */
+    if (c === 'chatrooms' && level < LEVEL.admin) {
+      if (s[1] !== 'team' || op === 'delete') refuse('Only an admin changes the room list.');
+      const a = isObj(cur && cur.rooms) ? cur.rooms : {}, b = isObj(next && next.rooms) ? next.rooms : {};
+      for (const id of new Set(Object.keys(a).concat(Object.keys(b)))) {
+        if (same(a[id], b[id])) continue;
+        if (a[id] != null && !(isObj(a[id]) && a[id].by === uid)) refuse('Only the person who made a room, or an admin, changes it.');
+        if (b[id] != null && !(isObj(b[id]) && b[id].by === uid)) refuse('A new room carries your own id.');
+      }
+      return;
+    }
+    /* music: add your own picks, remove your own; the oldest roll off past the list's 200 */
+    if (c === 'music' && level < LEVEL.admin) {
+      if (op === 'delete') refuse('Only an admin clears the music list.');
+      const a = byId(cur && cur.items), b = byId(next && next.items), full = Object.keys(b).length >= MUSIC_MAX;
+      for (const id of Object.keys(a)) {
+        if (a[id].by === uid || same(a[id], b[id])) continue;
+        if (b[id] == null && full) continue;
+        refuse('You can remove your own picks. Ask an admin about the rest.');
+      }
+      for (const id of Object.keys(b)) if (a[id] == null && b[id].by !== uid) refuse('A new pick carries your own id.');
+      /* v39: picks are kept as a map (picks.<id>), so two people adding at once both land; the same rule holds */
+      const pa = isObj(cur && cur.picks) ? cur.picks : {}, pb = isObj(next && next.picks) ? next.picks : {};
+      for (const id of new Set(Object.keys(pa).concat(Object.keys(pb)))) {
+        if (same(pa[id], pb[id])) continue;
+        if (pa[id] == null) {
+          if (!isObj(pb[id]) || pb[id].by !== uid) refuse('A new pick carries your own id.');
+          /* a pick from the older list is put away only by the person who added it */
+          if (pb[id].gone && a[id] && a[id].by !== uid) refuse('You can remove your own picks. Ask an admin about the rest.');
+          continue;
+        }
+        if (!isObj(pa[id]) || pa[id].by !== uid) refuse('You can remove your own picks. Ask an admin about the rest.');
+      }
+      return;
+    }
+    /* kudos: three a week (IST), each stamped when it is given */
+    if (c === 'kudos') {
+      const now = Date.now(), wk = isoWeekIST(now);
+      const list = x => (Array.isArray(x && x.given) ? x.given : []).filter(isObj);
+      const before = {};
+      for (const g of list(cur)) if (g.id != null) before[String(g.id)] = g;
+      const fresh = list(next).filter(g => g.id == null || !same(before[String(g.id)], g));
+      if (fresh.some(g => !(Math.abs(Number(g.at) - now) <= ACT_SKEW))) refuse('A kudos is stamped with the time it is given.');
+      const count = x => list(x).filter(g => Number.isFinite(Number(g.at)) && isoWeekIST(Number(g.at)) === wk).length;
+      const n = count(next);
+      if (n > KUDOS_CAP && n > count(cur)) refuse('Three kudos a week is the cap. More open on Monday.');
+      return;
+    }
+    /* the office's plan and Kaavish's locked looks are his alone */
+    if (c === 'office' && level < LEVEL.owner) {
+      if (s[1] === 'cast' || s[1] === 'plan') refuse('Only Kaavish changes the office.');
+      return;
+    }
+    /* someone else's me doc: Kaavish's is his alone, and only he restyles another person */
+    if (c === 'me' && s[1] !== uid && level < LEVEL.owner) {
+      if (s[1] === (await ownerUid())) refuse('Only Kaavish changes his own profile.');
+      if (!same(cur && cur.look, next && next.look)) refuse('Only Kaavish restyles someone else.');
+    }
   }
   /* someone else's private data, and the activity log (read through the logs action only), never reach a page mirror */
   const hidden = (coll, uid) => { const s = segs(coll); return s[0] === 'log' || (s[0] === 'data' && s[1] === 'users' && s[2] !== uid); };
@@ -401,6 +505,21 @@ export function createApp({store, env = {}}) {
     const next = {salt: rec.salt, hash: rec.hash, iter: rec.iter, at: rec.at, fails, since: fresh ? now : rec.since};
     if (fails >= PW_FAILS) next.until = now + PW_WAIT_MS;
     await putJ('w/' + uid, next).catch(() => {});
+    return false;
+  }
+  /* v39: an email with no password behind it counts its misses too (wx/<hash of the email>), so the wait after
+     PW_FAILS shows the same for every address and says nothing about which ones are on m360 */
+  async function missUnknown(email, password) {
+    const now = Date.now();
+    const key = 'wx/' + Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('m360:' + email))), b => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+    const rec = (await getJ(key).catch(() => null)) || {};
+    if (rec.until > now) throw new HttpError(429, 'slow_down', 'Too many tries. Wait 15 minutes or reset your password.');
+    await checkSecret(password, NO_REC);
+    const fresh = !rec.since || now - rec.since > PW_WAIT_MS;
+    const fails = fresh ? 1 : (Number(rec.fails) || 0) + 1;
+    const next = {fails, since: fresh ? now : rec.since};
+    if (fails >= PW_FAILS) next.until = now + PW_WAIT_MS;
+    await putJ(key, next).catch(() => {});
     return false;
   }
   /* a fresh reset code for one person: stored hashed under c/<uid>, returned in the clear once */
@@ -573,7 +692,7 @@ export function createApp({store, env = {}}) {
       const docs = {};
       for (const id of Object.keys(all)) if (access(coll + '/' + id, uid, level).read) docs[id] = all[id];
       /* someone not on the team yet learns that a roster exists, never who is on it */
-      if (level < LEVEL.interact && coll === 'roster' && docs.team && isObj(docs.team)) docs.team = {members: {}, nextEmp: docs.team.nextEmp, updated: docs.team.updated, redacted: true};
+      if (level < LEVEL.interact && coll === 'roster' && docs.team && isObj(docs.team)) docs.team = {members: ownRow(docs.team, uid), nextEmp: docs.team.nextEmp, updated: docs.team.updated, redacted: true};
       out[coll] = {v: inv[coll] ? v : EMPTY_V, docs};
     }));
     return out;
@@ -584,6 +703,9 @@ export function createApp({store, env = {}}) {
      stay under SYNC_BUDGET bytes: a big collection (26,000 contacts in 130 pages) arrives over a few
      rounds, more: true asking for the next one, and an import that touches one page costs one page. */
   const SYNC_BUDGET = 2500000;
+  /* v39: below the team, the roster is hidden except the viewer's own row, so a removed person's page can say
+     their access is paused (active: false) instead of greeting them as new */
+  const ownRow = (team, uid) => { const m = isObj(team.members) && team.members[uid]; return m ? {[uid]: m} : {}; };
   async function deltaFor(uid, level, mine, lazy) {
     const inv = await inventory();
     const out = {};
@@ -618,7 +740,7 @@ export function createApp({store, env = {}}) {
         let d = source[id];
         if (d == null) continue;
         if (!access(coll + '/' + id, uid, level).read) { sent[id] = tags[id]; continue; }
-        if (level < LEVEL.interact && coll === 'roster' && id === 'team' && isObj(d)) d = {members: {}, nextEmp: d.nextEmp, updated: d.updated, redacted: true};
+        if (level < LEVEL.interact && coll === 'roster' && id === 'team' && isObj(d)) d = {members: ownRow(d, uid), nextEmp: d.nextEmp, updated: d.updated, redacted: true};
         const size = JSON.stringify(d).length;
         if (bytes && bytes + size > SYNC_BUDGET) { more = true; break; }
         docs[id] = d; sent[id] = tags[id]; bytes += size;
@@ -642,6 +764,16 @@ export function createApp({store, env = {}}) {
   }
   const LOG_DAYS = 90;
   let logPruneDay = '';
+
+  /* v39: is an unexpired invite waiting on this email? */
+  async function pendingInvite(email) {
+    const now = Date.now();
+    for (const b of await listAll('i/')) {
+      const inv = await getJ(b.key).catch(() => null);
+      if (inv && inv.email === email && inv.until > now) return true;
+    }
+    return false;
+  }
 
   /* ---------- actions ---------- */
   const actions = {
@@ -686,12 +818,16 @@ export function createApp({store, env = {}}) {
       await sec.checkBreach(password);
       if (!(await ownerUid())) throw new HttpError(409, 'not_setup', 'set up first');
       if ((await appSettings()).joinPolicy === 'invite') throw new HttpError(409, 'closed', 'm360 is invite only right now. Ask Kaavish for an invite.');
-      const taken = await getJ(emailKey(email));
-      if (taken && taken.uid && (await getJ('p/' + taken.uid))) throw new HttpError(409, 'taken', 'That email is already on m360. Sign in with it instead.');
-      const uid = newId();
-      await putJ('w/' + uid, {...(await hashSecret(password)), at: Date.now()});
-      await putJ('p/' + uid, {name, email, at: Date.now()});
-      await putJ(emailKey(email), {uid});
+      /* v39: two sign-ups for one email at once make one account: the second finds the first */
+      const uid = await withLock(emailKey(email), async () => {
+        const taken = await getJ(emailKey(email));
+        if (taken && taken.uid && (await getJ('p/' + taken.uid))) throw new HttpError(409, 'taken', 'That email is already on m360. Sign in with it instead.');
+        const id = newId();
+        await putJ('w/' + id, {...(await hashSecret(password)), at: Date.now()});
+        await putJ('p/' + id, {name, email, at: Date.now()});
+        await putJ(emailKey(email), {uid: id});
+        return id;
+      });
       const token = await startSession(uid, req.ua, req.ip);
       await log(uid, 'signup', '', req.ua);
       await sec.noteSignin(uid, req, 'signup', req.site);
@@ -823,14 +959,19 @@ export function createApp({store, env = {}}) {
       if (s[0] === 'log') throw new HttpError(403, 'invalid_argument', 'the log is written by the server');
       const level = await levelOf(v.uid);
       if (!access(path, v.uid, level).write) throw new HttpError(403, 'invalid_argument', 'write not allowed');
-      /* the founder can freeze the workspace: below admin only your own join request and your own status still go through */
-      if (level < LEVEL.admin && (await appSettings()).locked === true) {
+      const app = level < LEVEL.owner || s[0] === 'join' ? await appSettings() : {};
+      /* the founder can freeze the workspace: below the owner only your own join request and your own status still go
+         through (v39: the lock card says only Kaavish changes anything), and admins keep settings/app so a lock can be lifted */
+      if (level < LEVEL.owner && app.locked === true) {
         const own = s.length === 2 && s[1] === v.uid && (s[0] === 'join' || s[0] === 'me');
-        if (!own) throw new HttpError(423, 'locked', 'm360 is locked for changes right now');
+        if (!own && !(level >= LEVEL.admin && path === 'settings/app')) throw new HttpError(423, 'locked', 'm360 is locked for changes right now');
       }
+      /* v39: while joining is by invite, nobody files a new join request (withdrawing one still works) */
+      if (s[0] === 'join' && level < LEVEL.admin && op !== 'delete' && app.joinPolicy === 'invite') throw new HttpError(409, 'closed', 'm360 is invite only right now. Ask Kaavish for an invite.');
       const key = docKey(path);
       return withLock(key, async () => {
         if (op === 'delete') {
+          if (needsGuard(s, level, v.uid)) await guard(s, op, v.uid, level, await getJ(key).catch(() => null), null);
           /* nothing is erased outright: safety.js keeps a copy in the trash first */
           if (hooks.beforeDelete) await hooks.beforeDelete(key, path, v.uid).catch(() => {});
           await store.delete(key).catch(() => {});
@@ -846,11 +987,13 @@ export function createApp({store, env = {}}) {
         const stampOnly = ownMe && (isActOnly(data, Date.now()) || isPmToldOnly(data));
         const quietWrite = stampOnly || isPulseMark(path, data);
         let next = data, cur = null;
-        if (op === 'update' || op === 'merge' || path === 'roster/team') cur = await getJ(key);
+        const guarded = needsGuard(s, level, v.uid);
+        if (op === 'update' || op === 'merge' || path === 'roster/team' || guarded) cur = await getJ(key);
         if (op === 'update' || op === 'merge') {
           if (cur == null && op === 'update') throw new HttpError(400, 'invalid_argument', 'update on missing document');
           next = merge(cur == null ? {} : cur, data);
         }
+        if (guarded) await guard(s, op, v.uid, level, cur, next);
         const done = op === 'merge' ? (cur == null ? 'set' : 'update') : op;
         const str = JSON.stringify(next);
         if (str.length > MAX_DOC) throw new HttpError(400, 'invalid_argument', 'document over 256 KiB');
@@ -879,11 +1022,24 @@ export function createApp({store, env = {}}) {
       if (!YMD.test(from) || !YMD.test(to) || to < from) throw new HttpError(400, 'invalid_argument', 'from and to as YYYY-MM-DD');
       if ((Date.parse(to) - Date.parse(from)) / 86400000 > LOG_MAX_DAYS - 1) throw new HttpError(400, 'invalid_argument', 'at most 31 days at a time');
       const docs = {};
+      /* v39: the owner's own collections (the books) and other people's private data stay out of what an admin reads */
+      const isOwner = v.uid === (await ownerUid());
+      const shown = e => {
+        if (isOwner || !isObj(e)) return true;
+        const ps = segs(e.p);
+        if (OWNER_ONLY.has(ps[0])) return false;
+        return !(ps[0] === 'data' && ps[1] === 'users' && ps[2] !== v.uid);
+      };
       await Promise.all((await listAll('d/log~')).map(async b => {
         const id = pathOfKey(b.key).slice(4), day = id.slice(0, 10);
         if (day < from || day > to) return;
         const d = await getJ(b.key).catch(() => null);
-        if (d) docs[id] = d;
+        if (!d) return;
+        if (!isOwner && isObj(d.e)) {
+          const e = {};
+          for (const k of Object.keys(d.e)) if (shown(d.e[k])) e[k] = d.e[k];
+          docs[id] = {...d, e};
+        } else docs[id] = d;
       }));
       return {docs};
     },
@@ -899,6 +1055,8 @@ export function createApp({store, env = {}}) {
     /* presence: one beacon key per viewer, listed without reading bodies */
     async presence(v, body) {
       if (!v) throw new HttpError(401, 'noid');
+      /* v39: someone not on the team yet sees nobody online and leaves no beacon */
+      if ((await levelOf(v.uid)) < LEVEL.interact) return {peers: []};
       const page = String(body.page || '').replace(/[^a-z0-9-]/gi, '').slice(0, 24) || 'home';
       const now = Date.now();
       const peers = [], stale = [];
@@ -939,14 +1097,19 @@ export function createApp({store, env = {}}) {
       if (!v) throw new HttpError(401, 'noid');
       const email = cleanEmail(body.email);
       if (!email) throw new HttpError(400, 'invalid_argument', 'That email does not look right.');
-      const taken = await getJ(emailKey(email));
-      if (taken && taken.uid !== v.uid) throw new HttpError(409, 'taken', 'That email belongs to someone else on the team.');
-      const p = (await getJ('p/' + v.uid)) || {};
-      if (p.email && p.email !== email) await store.delete(emailKey(p.email)).catch(() => {});
-      await putJ('p/' + v.uid, {...p, email});
-      await putJ(emailKey(email), {uid: v.uid});
-      await log(v.uid, 'setemail', '', '');
-      return {ok: true, email};
+      /* v39: only people on the team change their email, and never to an address an invite is waiting on */
+      if ((await levelOf(v.uid)) < LEVEL.interact) throw new HttpError(403, 'invalid_argument', 'Your email can change once you are on the team.');
+      return withLock(emailKey(email), async () => {
+        const taken = await getJ(emailKey(email));
+        if (taken && taken.uid !== v.uid) throw new HttpError(409, 'taken', 'That email belongs to someone else on the team.');
+        if (!taken && (await pendingInvite(email))) throw new HttpError(409, 'taken', 'An invite is waiting on that email. Ask Kaavish to cancel it first.');
+        const p = (await getJ('p/' + v.uid)) || {};
+        if (p.email && p.email !== email) await store.delete(emailKey(p.email)).catch(() => {});
+        await putJ('p/' + v.uid, {...p, email});
+        await putJ(emailKey(email), {uid: v.uid});
+        await log(v.uid, 'setemail', '', '');
+        return {ok: true, email};
+      });
     },
     /* the founder (or full access) invites by email; the person opens the link, confirms that email, and is on the team */
     async invite(v, body, req) {
@@ -1012,32 +1175,41 @@ export function createApp({store, env = {}}) {
       if (email !== inv.email) throw new HttpError(403, 'mismatch', 'That email does not match this invite.');
       const password = checkPassword(body.password, email);
       await sec.checkBreach(password);
-      const known = await getJ(emailKey(inv.email));
-      let uid = known && known.uid;
-      if (uid && !(await getJ('p/' + uid))) uid = null;
-      if (uid && (await getJ('w/' + uid))) throw new HttpError(409, 'already_here', 'This email already has a login. Sign in with it, or ask for a reset code.');
-      if (uid && uid === (await ownerUid())) throw new HttpError(403, 'invalid_argument', 'no');
-      if (!uid) {
-        uid = newId();
-        await putJ('p/' + uid, {name: inv.name || inv.email.split('@')[0], email: inv.email, at: Date.now()});
-        await putJ(emailKey(inv.email), {uid});
-      }
-      /* the invite proved the email, so the password set here replaces any older one */
-      await putJ('w/' + uid, {...(await hashSecret(password)), at: Date.now()});
-      await store.delete('c/' + uid).catch(() => {});
-      const team = (await getJ(docKey('roster/team'))) || {members: {}, nextEmp: 2, updated: 0};
-      team.members = team.members || {};
-      const cur = team.members[uid];
-      if (!cur || cur.active === false) {
-        const empId = (cur && cur.empId) || ('M360-' + String(team.nextEmp || 2).padStart(3, '0'));
-        team.members[uid] = {...(cur || {}), role: inv.role || 'member', empId, title: inv.title || (cur && cur.title) || '', pod: (cur && cur.pod) || '',
-          joined: (cur && cur.joined) || new Date().toISOString().slice(0, 10), start: (cur && cur.start) || '', probationEnd: (cur && cur.probationEnd) || '', active: true};
-        if (!cur) team.nextEmp = (team.nextEmp || 2) + 1;
-        team.updated = Date.now();
-        await store.set(docKey('roster/team'), JSON.stringify(team));
-        await bumpMarker('roster', 'team', digest([JSON.stringify(team)])).catch(() => {});
-      }
-      await store.delete('i/' + code).catch(() => {});
+      /* v39: one invite is accepted once: the email is locked while the account and the roster row are made, and the
+         invite is read again inside, so a second accept at the same moment finds it gone */
+      const uid = await withLock(emailKey(inv.email), async () => {
+        if (!(await getJ('i/' + code))) throw new HttpError(410, 'expired', 'invite expired');
+        const known = await getJ(emailKey(inv.email));
+        let uid = known && known.uid;
+        if (uid && !(await getJ('p/' + uid))) uid = null;
+        if (uid && (await getJ('w/' + uid))) throw new HttpError(409, 'already_here', 'This email already has a login. Sign in with it, or ask for a reset code.');
+        if (uid && uid === (await ownerUid())) throw new HttpError(403, 'invalid_argument', 'no');
+        if (!uid) {
+          uid = newId();
+          await putJ('p/' + uid, {name: inv.name || inv.email.split('@')[0], email: inv.email, at: Date.now()});
+          await putJ(emailKey(inv.email), {uid});
+        }
+        /* the invite proved the email, so the password set here replaces any older one */
+        await putJ('w/' + uid, {...(await hashSecret(password)), at: Date.now()});
+        await store.delete('c/' + uid).catch(() => {});
+        /* the roster row goes in under the roster's own lock, so an admin's save at the same moment is not lost */
+        await withLock(docKey('roster/team'), async () => {
+          const team = (await getJ(docKey('roster/team'))) || {members: {}, nextEmp: 2, updated: 0};
+          team.members = team.members || {};
+          const cur = team.members[uid];
+          if (!cur || cur.active === false) {
+            const empId = (cur && cur.empId) || ('M360-' + String(team.nextEmp || 2).padStart(3, '0'));
+            team.members[uid] = {...(cur || {}), role: inv.role || 'member', empId, title: inv.title || (cur && cur.title) || '', pod: (cur && cur.pod) || '',
+              joined: (cur && cur.joined) || new Date().toISOString().slice(0, 10), start: (cur && cur.start) || '', probationEnd: (cur && cur.probationEnd) || '', active: true};
+            if (!cur) team.nextEmp = (team.nextEmp || 2) + 1;
+            team.updated = Date.now();
+            await store.set(docKey('roster/team'), JSON.stringify(team));
+            await bumpMarker('roster', 'team', digest([JSON.stringify(team)])).catch(() => {});
+          }
+        });
+        await store.delete('i/' + code).catch(() => {});
+        return uid;
+      });
       const token = await startSession(uid, req.ua, req.ip);
       await log(uid, 'accept', '', (inv.role || 'member') + ', ' + req.ua);
       await sec.noteSignin(uid, req, 'invite', req.site);
@@ -1069,7 +1241,7 @@ export function createApp({store, env = {}}) {
       const uid = known && known.uid;
       const rec = uid ? await getJ('w/' + uid) : null;
       let ok = false;
-      try { ok = await verifyPassword(uid, rec, password); }
+      try { ok = rec && rec.hash ? await verifyPassword(uid, rec, password) : await missUnknown(email, password); }
       catch (e) { if (uid) await sec.event('locked', uid, req, 'too many wrong passwords'); throw e; }
       if (!ok || !(await getJ('p/' + uid))) { if (uid) await sec.event('pw_fail', uid, req, ''); throw new HttpError(401, 'bad_login', 'That email and password do not match.'); }
       const challenge = await sec.gate(uid, req, 'pw');

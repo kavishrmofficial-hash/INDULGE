@@ -33,13 +33,19 @@
       if (mineOnly && uid !== ctx.uid) continue;
       ctx.leaveMap[uid].forEach(d => add(d, {kind: 'leave', text: '', uid, ref: '#leave'}));
     }
+    /* v39: an approved WFH day booked ahead (ctx.wfhMap) shows before anyone checks in on it */
+    const wfhAhead = ctx.wfhMap || {};
+    for (const uid of Object.keys(wfhAhead)) {
+      if (mineOnly && uid !== ctx.uid) continue;
+      wfhAhead[uid].forEach(d => add(d, {kind: 'wfh', text: '', uid, ref: '#leave'}));
+    }
     const cmap = (ctx.coll.checkin && ctx.coll.checkin.map) || {};
     for (const uid of Object.keys(cmap)) {
       if (mineOnly && uid !== ctx.uid) continue;
       const days = (cmap[uid] || {}).days || {};
       for (const d of Object.keys(days)) {
         if (d < first || d > last || !days[d]) continue;
-        if (days[d].mode === 'wfh') add(d, {kind: 'wfh', text: '', uid, ref: '#people/' + uid});
+        if (days[d].mode === 'wfh') { if (!(wfhAhead[uid] && wfhAhead[uid].has(d))) add(d, {kind: 'wfh', text: '', uid, ref: '#people/' + uid}); }
         else if (days[d].mode === 'leave' && !(ctx.leaveMap && ctx.leaveMap[uid] && ctx.leaveMap[uid].has(d))) add(d, {kind: 'leave', text: '', uid, ref: '#leave'});
       }
     }

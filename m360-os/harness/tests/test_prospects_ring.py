@@ -140,7 +140,8 @@ def test(h):
     check(rang.get('k') == card['key'] and rang.get('dev'), 'the index carries rang with the key: %r' % rang)
     mark = a.evaluate('() => localStorage.getItem("m360.fuRang.u_founder")')
     check(card['key'] in (mark or ''), 'the localStorage mark holds the key: %r' % mark)
-    check(a.locator('.notice[data-key^="fu:"]').count() + b.locator('.notice[data-key^="fu:"]').count() == 1, 'one black card on screen')
+    FU = '() => M.notices.list().filter(n => String(n.key || "").startsWith("fu:")).length'
+    check(a.evaluate(FU) + b.evaluate(FU) == 1, 'one notice in the island across both tabs')
     check(a.locator('.dock-badge').count() == 0 and b.locator('.dock-badge').count() == 0, 'the dock badge never moves for a follow-up')
     # a reload and more passes stay quiet; the one rung elsewhere is skipped
     ready(a)

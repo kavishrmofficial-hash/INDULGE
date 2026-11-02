@@ -134,6 +134,8 @@ want_rules += [{"path": "fixes", "read": "admin", "write": "admin"}, {"path": "f
                {"path": "contacts", "read": "interact", "write": "interact"}, {"path": "orgs", "read": "interact", "write": "interact"}]
 # v16: the books (invoices, expenses, payroll, HR letters, billing setup) are the owner's alone
 want_rules += [{"path": c, "read": "owner", "write": "owner"} for c in ("books", "invoices", "expenses", "payroll", "hr")]
+# v39: bank statements are the owner's alone too (they were left on the open default rule in v37)
+want_rules += [{"path": "statements", "read": "owner", "write": "owner"}]
 if caps['db']['rules'] != want_rules:
     bad('capabilities.db.rules do not match BRIEF section 5 plus the me, join, fixes and log rules')
 for k in ('sample', 'room'):

@@ -105,7 +105,16 @@ const U = M.U = (() => {
   /* "tuesday 22 september, week 39" */
   const dateLabel = d => { d = d || new Date(); return DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ', week ' + Number(isoWeek(d).split('-W')[1]); };
   const firstName = n => String(n || '').trim().split(/\s+/)[0] || '';
-  return {pad, ymd, parseYmd, mondayOf, addDays, isoWeek, mondayOfWeekId, quarterId, monthId, isoLocal,
+  /* v39: what a form changed, as a patch. A drawer opened on a copy of a document saves only the fields its
+     person touched (compared with that copy), so what someone else saved meanwhile is kept. A field set back
+     to empty is sent as its empty value; a field the form does not know about is never sent */
+  const same = (a, b) => JSON.stringify(a === undefined ? null : a) === JSON.stringify(b === undefined ? null : b);
+  const changes = (base, next) => {
+    const out = {};
+    for (const k of Object.keys(next || {})) if (!same((base || {})[k], next[k])) out[k] = next[k] === undefined ? null : next[k];
+    return out;
+  };
+  return {changes, pad, ymd, parseYmd, mondayOf, addDays, isoWeek, mondayOfWeekId, quarterId, monthId, isoLocal,
     haversine, hhmm, minutes, durText, fmtDate, fmtDay, timeAgo, inr, uid, clone, cap, daysBetween, todayStr, pct,
     weekDays, pruneDays, pruneWeeks, prunePatch, dropNulls, periodRange, greeting, dateLabel, firstName, MONTHS, DAYS, DAYS_S};
 })();
@@ -129,9 +138,18 @@ M.boot = async function boot() {
 /* ---------- toasts ---------- */
 const toastListeners = new Set();
 let toastSeq = 0;
+/* v40: every toast lands in the island (02-z-chrome.js): a white check, or the flame mark when it needs a
+   look. A build without the island (an isolated module build) keeps the old row at the bottom */
+const islandUp = () => !!(M.island && M.island.toast);
 M.toast = (msg, isErr) => {
+  if (islandUp()) { M.island.toast(String(msg), !!isErr); return; }
   const t = {id: ++toastSeq, msg: String(msg), err: !!isErr};
   toastListeners.forEach(fn => fn(t));
+};
+/* a confirmation with a way back: the island's UNDO, or a plain toast where there is no island */
+M.undoToast = (msg, caption, undoFn) => {
+  if (M.island && M.island.confirm) { M.island.confirm(String(msg), caption || 'done', undoFn); return; }
+  M.toast(msg);
 };
 M.ToastHost = function ToastHost() {
   const [items, setItems] = React.useState([]);
@@ -144,6 +162,7 @@ M.ToastHost = function ToastHost() {
     toastListeners.add(on);
     return () => toastListeners.delete(on);
   }, []);
+  if (islandUp()) return null;
   return html`<div class="toasts" aria-live="polite">
     ${items.map(t => html`<div key=${t.id} class=${'toast' + (t.err ? ' err' : '') + (t.msg.indexOf('\n') >= 0 ? ' multi' : '')}>${t.msg}</div>`)}
   </div>`;

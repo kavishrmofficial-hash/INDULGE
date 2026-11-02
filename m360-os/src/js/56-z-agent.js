@@ -456,6 +456,7 @@
       const s = S[k];
       if ((s.founder && !ctx.isFounder) || (s.owner && !ctx.isOwner)) continue;
       add(s.label, '#' + (s.tabs && s.tabs[0] ? s.tabs[0].route : k));
+      if (s.alias) add(s.alias, '#' + (s.tabs && s.tabs[0] ? s.tabs[0].route : k));
       (s.tabs || []).forEach(t => { if (t.k === 'hiring' && !ctx.isFounder) return; add(t.label, '#' + t.route); });
     }
     ((M.palette && M.palette.PAGES) || []).forEach(p => { if (!p[3] || ctx.isFounder) add(p[0], '#' + p[1]); });

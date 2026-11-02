@@ -1,16 +1,18 @@
 /* ---------- base: the database. Search, rows, company cards, the import mapping ---------- */
 .bs-searchrow{align-items:stretch}
 .bs-search{position:relative; min-width:0}
-.bs-search svg{position:absolute; left:16px; top:50%; width:20px; height:20px; margin-top:-10px; color:var(--ink62); pointer-events:none}
-.bs-search .input{min-height:52px; padding-left:46px; font-size:17px; font-weight:400; border-radius:16px}
-.bs-searchrow .btn{flex:none; height:auto; min-height:52px; border-radius:16px}
+.bs-search svg{position:absolute; left:14px; top:50%; width:18px; height:18px; margin-top:-9px; color:var(--g45); pointer-events:none}
+/* v40: the design's input (44px, 14 radius, 15px) and its round button */
+.bs-search .input{min-height:44px; padding-left:40px; font-size:15px; font-weight:400; border-radius:14px}
+.bs-searchrow{align-items:center}
+.bs-searchrow .btn{flex:none}
 .bs-chips{gap:6px}
 .bs-chips .chip.on{background:var(--ink); color:var(--on-ink); border-color:var(--ink)}
 /* select.input sets a taller floor; the pill selects stay the height of the chips beside them */
 select.input.bs-filter{width:auto; min-height:32px; height:32px; padding:0 30px 0 12px; font-size:13px; font-weight:400; border-radius:999px; background-position:right 10px center; max-width:180px}
 .bs-orgstrip{gap:6px}
 .bs-orgstrip .chip .num{font-size:11px; opacity:.7}
-.bs-av{display:inline-flex; align-items:center; justify-content:center; flex:none; width:36px; height:36px; border-radius:999px; background:var(--warm); border:1px solid var(--line); color:var(--ink); font-size:12px; font-weight:500; letter-spacing:.02em}
+.bs-av{display:inline-flex; align-items:center; justify-content:center; flex:none; width:36px; height:36px; border-radius:999px; background:var(--ink); border:0; color:var(--on-ink); font-size:12px; font-weight:500; letter-spacing:.02em}
 .bs-row{gap:8px 12px; padding:10px 0}
 .bs-row .bs-main{display:flex; align-items:center; gap:12px; flex:1 1 260px; min-width:0}
 .bs-row .bs-main .grow{display:flex; flex-direction:column; gap:2px}
@@ -25,8 +27,8 @@ select.input.bs-filter{width:auto; min-height:32px; height:32px; padding:0 30px 
 .bs-cards{gap:12px}
 .bs-card{cursor:pointer}
 .bs-card .pill{max-width:150px; overflow:hidden; text-overflow:ellipsis; display:inline-block; line-height:22px}
-.bs-where{display:flex; flex-direction:column; gap:6px; padding:12px 14px; border-radius:14px; background:var(--warm)}
-.bs-mapbox{padding:12px 14px; border-radius:14px; border:1px solid var(--line2)}
+.bs-where{display:flex; flex-direction:column; gap:6px; padding:12px 16px; border-radius:14px; background:var(--warm)}
+.bs-mapbox{padding:12px 16px; border-radius:14px; box-shadow:inset 0 0 0 1px var(--line2)}
 .bs-file{padding:8px 12px; font-weight:400; cursor:pointer}
 .bs-file::file-selector-button{font:inherit; font-size:13px; border:1px solid var(--line2); background:var(--paper); color:var(--ink); border-radius:999px; padding:5px 12px; margin-right:10px; cursor:pointer}
 .bs-map td{white-space:normal; vertical-align:middle}

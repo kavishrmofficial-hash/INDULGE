@@ -389,8 +389,12 @@ Access rules to declare exactly, as `capabilities.db.rules`:
   },
   {
     "path": "review",
-    "read": "interact",
+    "read": "admin",
     "write": "admin"
+  },
+  {
+    "path": "review/{self}",
+    "read": "interact"
   },
   {
     "path": "leavedec",

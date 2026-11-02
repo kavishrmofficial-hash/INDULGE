@@ -46,6 +46,14 @@ def part(h):
     check(p.locator('.five-cell.typed').count() == 3, 'three letters typed, a short guess does not submit')
     for _ in range(3):
         p.keyboard.press('Backspace')
+    # v39: a mashed key is not a word and costs no try
+    p.keyboard.type('qqqqq')
+    p.keyboard.press('Enter')
+    p.wait_for_timeout(300)
+    check(p.locator('.five-cell.ok, .five-cell.near, .five-cell.out').count() == 0 and p.locator('.five-cell.typed').count() == 5, 'qqqqq is not scored')
+    for _ in range(5):
+        p.keyboard.press('Backspace')
+    check(p.evaluate('() => ["crane", "angst", "rhythm".slice(0, 5)].map(M.play.five.wordish).join()') == 'true,true,true', 'real words that are not on the list still count')
     p.keyboard.type(wrong)
     p.keyboard.press('Enter')
     p.wait_for_function('() => document.querySelectorAll(".five-cell.ok, .five-cell.near, .five-cell.out").length === 5')
@@ -177,7 +185,15 @@ def part(h):
     p.wait_for_selector('#care-today')
     p.click('#care-usual')
     p.wait_for_selector('#care-setup input[aria-label="Reminder name"]')
-    check(p.locator('#care-setup input[aria-label="Reminder name"]').count() == 6, 'the usual five (six rows, water twice)')
+    check(p.locator('#care-setup input[aria-label="Reminder name"]').count() == 6, 'the usual six (water twice)')
+    check('usual six' in p.inner_text('#care-setup') or p.locator('text=usual five').count() == 0, 'the copy counts six')
+    # v39: typing into a name keeps every letter, and saves once on leaving the box
+    box = p.locator('#care-setup input[aria-label="Reminder name"]').first
+    first_name = box.input_value()
+    box.click(); box.evaluate('e => e.setSelectionRange(e.value.length, e.value.length)'); p.keyboard.type(' and tea', delay=60)
+    check(box.input_value() == first_name + ' and tea', 'the name reads as typed: %r' % box.input_value())
+    p.click('#care-label')
+    p.wait_for_function('n => (((window.__db.get("data/users/u_founder/care") || {}).items) || []).some(x => x.label === n)', arg=first_name + ' and tea')
     now = p.evaluate('() => { const d = new Date(Date.now() - 60000); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }')
     p.fill('#care-label', 'Stretch'); p.fill('#care-time', now); p.click('#care-add')
     p.wait_for_selector('.care-row.due:has-text("Stretch")', timeout=8000)
@@ -205,8 +221,12 @@ def part(h):
     p.click('#reflect-write')
     p.wait_for_selector('#reflect-text .ai-out', timeout=15000)
     p.wait_for_function('() => { const d = window.__db.get("data/users/u_founder/ai"); return d && d.reflect && d.reflect.month && d.reflect.month.text; }')
-    p.click('#reflect-share')
+    n0 = p.evaluate('() => ((window.__db.get("feed/u_founder") || {}).posts || []).length')
+    p.dblclick('#reflect-share')
     p.wait_for_function('() => { const f = window.__db.get("feed/u_founder"); return f && f.posts && f.posts[0] && f.posts[0].kind === "win" && /era:/.test(f.posts[0].text); }')
+    p.wait_for_timeout(800)
+    n1 = p.evaluate('() => ((window.__db.get("feed/u_founder") || {}).posts || []).length')
+    check(n1 == n0 + 1, 'a double tap on share posts once: %d to %d' % (n0, n1))
     # the feed: the Five card, a shipped card with the rain, reactions and comments
     h.go(p, 'founder', hash='#feed', width=1280)
     p.wait_for_selector('#feed-stream')

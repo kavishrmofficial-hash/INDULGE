@@ -259,7 +259,7 @@ def test(h):
     go(p, 'founder', '#command')
     p.select_option('select[aria-label="Rule filter"]', 'R17')
     p.wait_for_timeout(200)
-    flags_card = p.locator('.card:has(select[aria-label="Rule filter"])').inner_text()
+    flags_card = p.locator('#c-flg').inner_text()
     check('Keep work moving' in flags_card and 'Nothing recorded on m360 since 10:50, 2h 50m so far, lunch aside' in flags_card, 'Command flags show R17 for m1: %r' % flags_card[:300])
     check([x['severity'] for x in r17(p)] == ['high'], 'filed under high: %r' % r17(p))
     go(p, 'founder', '#handbook/the-week')

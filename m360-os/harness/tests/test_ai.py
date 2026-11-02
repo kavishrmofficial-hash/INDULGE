@@ -38,7 +38,7 @@ def test(h):
         day = list((ci.get('days') or {}).values())
         check(day and day[-1].get('mood') == 5, 'mood saved with the check-in: %r' % day)
         check(day and day[-1]['loc']['verified'] is True, 'check-in verified at the office')
-        check('In since' in page.inner_text('main'), 'hero switches to the in-the-day state')
+        check('in since' in page.inner_text('main').lower(), 'hero switches to the in-the-day state')
 
     # ---- status ----
     page.get_by_role('button', name='Set a status').click()
@@ -68,7 +68,7 @@ def test(h):
     check(t and t[0]['owner'] == 'u_m2' and t[0]['priority'] == 'high', 'AI quick add assigned the task to Aanya: %r' % t)
 
     # ---- member AI: Ask m360 creates a task through a tool ----
-    page.locator('.side-tools').get_by_role('button', name='Ask m360').click()
+    page.keyboard.press('Control+k'); page.locator('.pal-item[data-k=\"a-ai\"]').click()
     page.get_by_role('button', name='Add a task for me to follow up with the client tomorrow').click()
     page.wait_for_timeout(800)
     t = [x for x in tasks(page) if x['title'] == 'Follow up with the client']
@@ -85,13 +85,14 @@ def test(h):
     page.keyboard.press('Escape')
     page.wait_for_function('() => !document.querySelector(".buddy-bubble")')
 
-    # ---- the cursor buddy: points at things on screen, and goes to other sections to show you ----
+    # ---- m360 AI points at things on screen, and goes to other sections to show you ----
     h.go(page, 'm2', hash='#home', width=1280, seed=True)
     page.wait_for_timeout(300)
     page.mouse.move(400, 300)
     page.wait_for_timeout(150)
-    check(page.locator('#buddy-dock .buddy-home').count() == 1 and page.evaluate('() => document.querySelector(".buddy").classList.contains("docked")'), 'the buddy waits in the dock, its pointer at rest')
-    page.locator('.buddy-home').click()
+    # v40: no character on the screen; m360 AI opens from the Ask bar's m360 AI row
+    check(page.evaluate('() => document.querySelector(".buddy").classList.contains("docked")'), 'the pointer stays at rest')
+    page.keyboard.press('Control+k'); page.locator('.pal-item[data-k="a-ai"]').click()
     page.fill('#buddy-input', 'where is the leave form')
     page.keyboard.press('Enter')
     page.wait_for_function("() => /Request leave/.test((document.querySelector('.buddy-bubble') || {}).innerText || '')", timeout=8000)
@@ -123,6 +124,9 @@ def test(h):
     # ---- founder HQ: intelligence brief and one tap assign ----
     h.go(page, 'founder', hash='#hq', width=1280, seed=True, online='u_m2')
     page.wait_for_timeout(400)
+    # v40: HQ opens on Command; the brief sits under "more from HQ"
+    if page.get_attribute('#hq-more', 'aria-expanded') != 'true':
+        page.click('#hq-more')
     page.locator('.ai-card.dark').get_by_role('button', name='Brief me').click()
     page.wait_for_timeout(600)
     check('shot list is the bottleneck' in page.inner_text('main'), 'HQ headline renders')
@@ -162,8 +166,8 @@ def test(h):
     h.go(page, 'm1', hash='#home', width=1280, seed=True, noai=True)
     page.wait_for_timeout(300)
     check('Your day, sorted' not in page.inner_text('main'), 'no AI surfaces without sample')
-    # the dock stays: without the AI its panel says so in one line and offers what still works with no model
-    page.locator('#buddy-dock .buddy-home').click()
+    # m360 AI stays: without the AI its sheet says so in one line and offers what still works with no model
+    page.keyboard.press('Control+k'); page.locator('.pal-item[data-k="a-ai"]').click()
     page.fill('#buddy-input', 'what is overdue')
     page.keyboard.press('Enter')
     page.wait_for_selector('.buddy-bubble .panel-err')
@@ -195,7 +199,7 @@ def test(h):
         far.wait_for_timeout(600)
         e = list(((far.evaluate('() => window.__db.get("checkin/u_m3")') or {}).get('days') or {}).values())
         check(e and e[-1].get('out'), 'check out stamps the time')
-        check('Done for today' in far.inner_text('main'), 'hero shows the day as done')
+        check('done for today' in far.inner_text('main').lower(), 'hero shows the day as done')
         # WFH cap: Aanya already has two WFH days this week
         h.go(far, 'm2', hash='#home', width=390, seed=True)
         far.wait_for_timeout(300)

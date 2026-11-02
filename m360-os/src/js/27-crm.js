@@ -111,7 +111,7 @@
           const openP = r.pitches.filter(p => p.stage !== 'won' && p.stage !== 'lost').length;
           return html`<tr key=${r.key} class="crm-row" onClick=${() => open(r)} style=${{cursor: 'pointer'}}>
             <td data-label="account"><span style=${{fontWeight: 500}}>${r.name}</span>${r.org ? null : html` <span class="tiny ink62">not in Base</span>`}</td>
-            <td data-label="stage">${st.label === 'won' ? html`<${M.fx.MetalBadge}>won<//>` : html`<${UI.Pill} kind=${st.kind}>${st.label}<//>`}</td>
+            <td data-label="stage">${st.label === 'won' ? html`<${UI.Pill} kind="ink">won<//>` : html`<${UI.Pill} kind=${st.kind}>${st.label}<//>`}</td>
             <td data-label="owner">${r.owner ? html`<${UI.Name} id=${r.owner}/>` : html`<span class="ink62">nobody</span>`}</td>
             <td data-label="people" class="num">${r.contacts}</td>
             <td data-label="pitches" class="num">${openP}${r.pitches.length > openP ? html`<span class="tiny ink62"> of ${r.pitches.length}</span>` : null}</td>

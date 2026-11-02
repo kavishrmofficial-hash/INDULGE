@@ -129,15 +129,15 @@
     const list = open ? commentsOf(ctx, itKey) : [];
     const send = ev => { const t = text.trim(); if (!t) return; const el = ev && ev.currentTarget; addComment(ctx, itKey, t).then(() => { setText(''); M.rain('💬', el, {n: 18, pops: 8, sound: 'soft'}); }).catch(() => {}); };
     return html`<div class="comments">
-      <button type="button" class="linky tiny" aria-expanded=${open} onClick=${() => setOpen(x => !x)}>${count ? count + (count === 1 ? ' comment' : ' comments') : 'Comment'}</button>
+      <button type="button" class="linky sm" aria-expanded=${open} onClick=${() => setOpen(x => !x)}>${count ? count + (count === 1 ? ' comment' : ' comments') : 'Comment'}</button>
       ${open ? html`<div class="stack tight" style=${{marginTop: '8px'}}>
-        ${list.map(c => html`<div key=${c.id} class="comment row nowrap" style=${{alignItems: 'flex-start'}}>
-          <${UI.Avatar} id=${c.by} size=${22}/>
-          <div class="grow"><b class="small"><${UI.Name} id=${c.by} fallback=${names[c.by] || undefined}/></b> <span class="tiny sub num">${U.timeAgo(c.at)}</span>
-            <div class="small" style=${{overflowWrap: 'anywhere'}}>${c.t}</div></div>
-          ${c.by === ctx.uid ? html`<button type="button" class="linky tiny" onClick=${() => dropComment(ctx, itKey, c.id)}>Delete</button>` : null}
+        ${list.map(c => html`<div key=${c.id} class="comment cmt">
+          <${UI.Avatar} id=${c.by} size=${28}/>
+          <div class="grow"><b class="sm"><${UI.Name} id=${c.by} fallback=${names[c.by] || undefined}/></b> <span class="sm soft num">${U.timeAgo(c.at)}</span>
+            <p class="sm" style=${{overflowWrap: 'anywhere'}}>${c.t}</p></div>
+          ${c.by === ctx.uid ? html`<${UI.ConfirmBtn} label="Tap again" onConfirm=${() => dropComment(ctx, itKey, c.id).catch(() => {})}>Delete<//>` : null}
         </div>`)}
-        <div class="row nowrap" style=${{gap: '8px'}}>
+        <div class="row nowrap cmt-box" style=${{gap: '8px'}}>
           <input class="input" value=${text} placeholder="Say something nice" aria-label="Comment" onInput=${e => setText(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') send(e); }}/>
           <${UI.Btn} sm=${true} disabled=${!text.trim()} onClick=${send}>Post<//>
         </div>
@@ -152,21 +152,21 @@
     const c = counts[it.key] || {};
     const react = reactOn(ctx, it.key);
     const cheer = CHEERS[Math.abs(String(it.id).split('').reduce((n, ch) => n + ch.charCodeAt(0), 0)) % CHEERS.length];
-    return html`<section class="card ship" data-key=${it.key} data-kind="ship">
-      <div class="row between post-head">
+    return html`<section class="card post ship" data-key=${it.key} data-kind="ship">
+      <div class="row between post-head post-h">
         <div class="row nowrap grow">
           <${UI.Avatar} id=${it.author} size=${32}/>
           <div class="grow">
             <div class="row">
               <b><${UI.Name} id=${it.author} fallback=${names[it.author] || undefined}/> ${cheer}</b>
-              <${M.fx.MetalBadge} className="fit">shipped<//>
+              <${UI.Pill} kind="flame">shipped<//>
             </div>
             <div class="tiny sub num">${U.timeAgo(it.at)}${it.project ? ' · ' + it.project : ''}${it.client ? ' · ' + it.client : ''}${it.approvedBy ? html` · approved by <${UI.Name} id=${it.approvedBy} fallback=${names[it.approvedBy] || undefined}/>` : ''}</div>
           </div>
         </div>
-        <button type="button" class="linky tiny" onClick=${() => M.nav('#tasks/' + it.id)}>Open</button>
+        <${UI.Btn} kind="ghost" onClick=${() => M.nav('#tasks/' + it.id)}>Open<//>
       </div>
-      <div class="ship-title">${it.text}</div>
+      <div class="ship-title post-t">${it.text}</div>
       <${Reactions} c=${c} mine=${mine} react=${react}/>
       <${Comments} itKey=${it.key} names=${names} count=${nComments || 0}/>
     </section>`;
@@ -175,9 +175,9 @@
   /* the reaction row every card carries: tap one and the screen rains with it */
   function Reactions({c, mine, react}) {
     return html`<div class="row reacts" role="group" aria-label="Reactions">
-      ${EMOJIS.map(e => html`<button key=${e} type="button" class=${'emoji-btn' + (mine === e ? ' on' : '')}
+      ${EMOJIS.map(e => html`<button key=${e} type="button" class=${'emoji-btn rx' + (mine === e ? ' on' : '')}
         aria-pressed=${mine === e} aria-label=${'React ' + e} onClick=${ev => react(e, ev.currentTarget)}>
-        <span>${e}</span>${c[e] ? html`<span class="num">${c[e]}</span>` : null}</button>`)}
+        <span>${e}</span>${c[e] ? html`<b class="num">${c[e]}</b>` : null}</button>`)}
     </div>`;
   }
 
@@ -237,7 +237,7 @@
   /* ---------- composer ---------- */
   function Composer() {
     const ctx = M.useCtx();
-    const {W, uid, isFounder} = ctx;
+    const {W, uid, isFounder, founderUid} = ctx;
     const [text, setText] = useState('');
     const [kind, setKind] = useState('update');
     const [busy, setBusy] = useState(false);
@@ -257,8 +257,11 @@
         const post = {id, kind: k, text: t, at: Date.now()};
         if (k === 'poll') post.options = opts.map(o => o.trim()).filter(Boolean).slice(0, 4);
         const posts = [post, ...U.clone(postsOf(ctx, uid))].slice(0, KEEP_POSTS);
-        const pinned = k === 'announce' ? uid + ':' + id : (mine.pinned || null);
-        await W.merge('feed/' + uid, {posts, pinned});
+        /* v39: only the owner's pinned field is read, so an admin's announcement pins there */
+        const pinKey = uid + ':' + id;
+        const own = k === 'announce' && (!founderUid || founderUid === uid);
+        await W.merge('feed/' + uid, {posts, pinned: own ? pinKey : (mine.pinned || null)});
+        if (k === 'announce' && !own) await W.merge('feed/' + founderUid, {pinned: pinKey});
         setText('');
         setKind('update'); setOpts(['', '']);
         M.sound.play('soft');
@@ -268,20 +271,20 @@
     };
 
     /* the composer is the one place on the feed to act, so it carries the beam */
-    return html`<${M.fx.Beam}><${UI.Card} id="feed-composer">
-      <div class="stack">
+    return html`<${UI.Card} id="feed-composer" className="composer-card">
+      <div class="composer">
         <${UI.TextArea} id="feed-text" placeholder=${kind === 'poll' ? 'Ask the team something' : 'Share an update, a win or a question'} rows=${3} value=${text} onChange=${setText}/>
         ${kind === 'poll' ? html`<div class="stack tight" id="poll-options">
           ${opts.map((o, i) => html`<${UI.Input} key=${i} value=${o} placeholder=${'Option ' + (i + 1)} onChange=${v => setOpts(x => x.map((y, j) => j === i ? v : y))}/>`)}
           ${opts.length < 4 ? html`<button type="button" class="linky small" style=${{alignSelf: 'flex-start'}} onClick=${() => setOpts(x => x.concat(['']))}>Add an option</button>` : null}
         </div>` : null}
-        <div class="row between">
+        <div class="row between composer-f">
           <${UI.Seg} ariaLabel="Post kind" value=${kind} onChange=${setKind} options=${options}/>
           <${UI.Btn} disabled=${!canPost} onClick=${post}>Post<//>
         </div>
         ${kind === 'announce' ? html`<div class="sub small">Announcements pin to the top of the feed and show on everyone's Today.</div>` : null}
       </div>
-    <//><//>`;
+    <//>`;
   }
 
   /* ---------- kudos drawer ---------- */
@@ -364,8 +367,8 @@
       W.merge('feed/' + au, doc).then(() => M.toast('Deleted')).catch(() => {});
     };
 
-    return html`<section class=${'card' + (it.pinned ? ' flame' : '')} data-key=${it.key} data-kind=${it.kind}>
-      <div class="row between post-head">
+    return html`<section class=${'card post' + (it.pinned ? ' flame pinned' : '')} data-key=${it.key} data-kind=${it.kind}>
+      <div class="row between post-head post-h">
         <div class="row nowrap grow">
           <${UI.Avatar} id=${it.author} size=${32}/>
           <div class="grow">
@@ -374,7 +377,7 @@
               <${UI.Pill} kind=${KIND_PILL[it.kind]}>${KIND_TEXT[it.kind]}<//>
               ${it.pinned ? html`<${UI.Pill}><${icons.pin}/>pinned<//>` : null}
             </div>
-            <div class="tiny sub num">${U.timeAgo(it.at)}</div>
+            <div class="sm soft num">${U.timeAgo(it.at)}</div>
           </div>
         </div>
         ${(isFounder || isAuthor) ? html`<div class="row nowrap">
@@ -382,7 +385,7 @@
           ${(isAuthor || isFounder) ? html`<${UI.ConfirmBtn} onConfirm=${remove}>Delete<//>` : null}
         </div>` : null}
       </div>
-      <div style=${{whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', margin: '12px 0'}}>${it.text}</div>
+      <div class="post-t pre" style=${{overflowWrap: 'anywhere'}}>${it.text}</div>
       ${it.kind === 'link' && it.link ? html`<a class="linkchip" href=${it.link} target="_blank" rel="noopener"><${icons.link}/><span>${hostOf(it.link) || 'open the link'}</span></a>` : null}
       ${pollVotes ? html`<div class="poll" role="group" aria-label="Poll">
         ${(it.options || []).map((o, i) => {
@@ -405,8 +408,8 @@
     const c = counts[it.key] || {};
     const react = reactOn(ctx, it.key);
     const got = it.tries >= 1 && it.tries <= 6;
-    return html`<section class="card" data-key=${it.key} data-kind="five">
-      <div class="row nowrap">
+    return html`<section class="card post" data-key=${it.key} data-kind="five">
+      <div class="row nowrap post-h">
         <${UI.Avatar} id=${it.author} size=${32}/>
         <div class="grow">
           <div class="row">
@@ -416,7 +419,7 @@
           <div class="tiny sub num">${U.timeAgo(it.at)} · ${U.fmtDay(it.ymd)}${it.ms && got ? ' · ' + M.play.fmtMs(it.ms) : ''}</div>
         </div>
       </div>
-      <div class="five-mini" style=${{marginTop: '10px'}} aria-label="The result card">${it.rows.map((r, i) => html`<div key=${i} class="five-mrow">${String(r).split('').map((s, j) => html`<i key=${j} class=${s === '2' ? 'ok' : s === '1' ? 'near' : 'out'}/>`)}</div>`)}</div>
+      <div class="five-mini post-t" aria-label="The result card">${it.rows.map((r, i) => html`<div key=${i} class="five-mrow">${String(r).split('').map((s, j) => html`<i key=${j} class=${s === '2' ? 'ok' : s === '1' ? 'near' : 'out'}/>`)}</div>`)}</div>
       <${Reactions} c=${c} mine=${mine} react=${react}/>
       <${Comments} itKey=${it.key} names=${names} count=${nComments || 0}/>
     </section>`;
@@ -426,8 +429,8 @@
     const ctx = M.useCtx();
     const c = counts[it.key] || {};
     const react = reactOn(ctx, it.key);
-    return html`<section class="card" data-key=${it.key} data-kind="kudos">
-      <div class="row nowrap">
+    return html`<section class="card post" data-key=${it.key} data-kind="kudos">
+      <div class="row nowrap post-h">
         <${UI.Avatar} id=${it.giver} size=${32}/>
         <div class="grow">
           <div class="row">
@@ -437,7 +440,7 @@
           <div class="tiny sub">from <${UI.Name} id=${it.giver} fallback=${names[it.giver] || undefined}/><span class="num"> · ${U.timeAgo(it.at)}</span></div>
         </div>
       </div>
-      <div style=${{overflowWrap: 'anywhere', marginTop: '12px'}}>${it.why}</div>
+      <div class="post-t" style=${{overflowWrap: 'anywhere'}}>${it.why}</div>
       <${Reactions} c=${c} mine=${mine} react=${react}/>
       <${Comments} itKey=${it.key} names=${names} count=${nComments || 0}/>
     </section>`;
@@ -471,11 +474,11 @@
         <${UI.Btn} kind="sec" onClick=${() => setKudosOpen(true)}>Give kudos<//>
       <//>
       <${Composer}/>
-      <div class="row between">
+      <div class="row between feed-filter">
         <${UI.Seg} ariaLabel="Filter" value=${filter} onChange=${setFilter} options=${FILTERS}/>
         <span class="tiny sub num">${shown.length} shown</span>
       </div>
-      <div class="stack" id="feed-stream">
+      <div class="posts" id="feed-stream">
         ${shown.length ? shown.map(it => it.type === 'kudos'
           ? html`<${KudosCard} key=${it.key} it=${it} counts=${counts} mine=${mine[it.key]} names=${names} nComments=${nc[it.key]}/>`
           : it.type === 'ship' ? html`<${ShipCard} key=${it.key} it=${it} counts=${counts} mine=${mine[it.key]} names=${names} nComments=${nc[it.key]}/>`
@@ -488,5 +491,5 @@
   }
 
   M.pages.Feed = Feed;
-  M.feed = {stream, reactCounts, commentsOf, commentCounts, addComment};
+  M.feed = {stream, reactCounts, commentsOf, commentCounts, addComment, kudosLeft: (ctx, uid) => Math.max(0, KUDOS_CAP - kudosThisWeek(ctx, uid, ctx.now))};
 })();

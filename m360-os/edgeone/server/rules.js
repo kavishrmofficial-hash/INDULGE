@@ -22,8 +22,12 @@ export const RULES = [
  },
  {
   "path": "review",
-  "read": "interact",
+  "read": "admin",
   "write": "admin"
+ },
+ {
+  "path": "review/{self}",
+  "read": "interact"
  },
  {
   "path": "leavedec",
@@ -261,6 +265,11 @@ export const RULES = [
  },
  {
   "path": "hr",
+  "read": "owner",
+  "write": "owner"
+ },
+ {
+  "path": "statements",
   "read": "owner",
   "write": "owner"
  }

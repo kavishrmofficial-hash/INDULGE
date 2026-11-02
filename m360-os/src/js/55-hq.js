@@ -1,5 +1,6 @@
-/* module: hq. The founder's power screen: live numbers, the daily AI intelligence brief with
-   one tap actions, workload balancing, who is online, and ask anything about the company. */
+/* module: hq. The founder's power screen. It opens on Command (40-command.js, the v7 dashboard); under it,
+   behind one quiet line, the daily AI intelligence brief with one tap actions, workload balancing, who is online,
+   the tape, the setup checklist and ask anything about the company. */
 'use strict';
 (function () {
   const {html, React, U, UI} = M;
@@ -10,16 +11,6 @@
     scores: 'Leaderboard', me: 'Me', leave: 'Leave', handbook: 'Handbook', hiring: 'Hiring', hq: 'HQ', command: 'HQ', admin: 'Admin', desk: 'Admin'};
 
   const SPARK = '\u2726';
-  /* one headline tile per rail is cast in metal; a tile with nowhere to go is a plain block */
-  function Tile({v, l, to, hot, metal}) {
-    const phone = M.usePhone();
-    const nil = v == null;
-    const body = html`<span class=${'v num' + (nil ? ' nil' : '')} style=${hot ? {color: 'var(--flame)'} : null}>${nil ? 'not yet'
-      : metal ? html`<${M.fx.MetalText} size=${phone ? 22 : 34} weight=${600} color=${hot ? M.fx.FLAME : 'rgb(255,255,255)'}>${String(v)}<//>` : String(v)}</span><span class="l">${l}</span>`;
-    return to ? html`<button type="button" class=${'stat glass' + (hot ? ' hot' : '')} onClick=${() => M.nav(to)}>${body}</button>`
-      : html`<div class=${'stat glass' + (hot ? ' hot' : '')}>${body}</div>`;
-  }
-
   function useNumbers(ctx) {
     return useMemo(() => {
       const td = U.todayStr();
@@ -81,7 +72,7 @@
 
     const card = html`<section class="ai-card dark">
       <div class="row between">
-        <div class="row ai-head"><${M.fx.Bot} feature="hq" state=${busy ? 'working' : 'default'} size=${40} label="m360, the intelligence brief" className="ai-bot"/><div>
+        <div class="row ai-head"><div>
           <${UI.Micro}>m360 ai<//><div class="card-title" style=${{color: '#fff', marginTop: '4px'}}>Today's intelligence</div>
           <div class="tiny ink62">${cached && !r.data ? 'generated ' + U.timeAgo(cache.data.hq.at) : 'reads every task, check-in, EOD, pitch and pulse'}</div></div></div>
         ${(() => { const b = html`<button type="button" class=${'btn sm on-dark' + (data ? ' sec' : '')} disabled=${busy} onClick=${go}>${busy ? html`<${M.Thinking} label="Reading the company" state="solving"/>` : html`<span class="spark">${SPARK}</span> ${data ? 'Refresh' : 'Brief me'}`}</button>`;
@@ -228,44 +219,11 @@
     return {log, today, now, summary: off ? 'switched off' : now ? now + ' quiet now' : n ? n + (n === 1 ? ' quiet stretch' : ' quiet stretches') + ' today' : 'steady so far'};
   }
 
-  /* ---------- page ---------- */
-  function HQ({tab, id}) {
+  /* ---------- the rest of HQ: the intelligence brief, the office, workload, the tape and the setup checklist ---------- */
+  function Intelligence({q, hqRev, hqLeave, n}) {
     const ctx = M.useCtx();
-    const n = useNumbers(ctx);
-    const t = tab || 'brief';
-    const q = useQuiet(ctx, t !== 'dashboard' && t !== 'hiring');
     const Panel = M.parts.AskPanel;
-    const hqRev = (M.reviews && M.reviews.queue) ? M.reviews.queue(ctx).filter(x => M.reviews.canReview(ctx, x)).length : 0;
-    const hqLeave = (M.leave && M.leave.pending) ? M.leave.pending(ctx).length : 0;
-    const setupSteps = (M.setup && M.setup.steps) ? M.setup.steps(ctx) : [];
-    const setupDone = !setupSteps.length || setupSteps.every(x => x.done) || !!(ctx.settings.setup && ctx.settings.setup.dismissed);
-    const setupSum = setupSteps.length ? setupSteps.filter(x => x.done).length + ' of ' + setupSteps.length + ' done' : 'your first-run checklist';
     return html`<div class="stack" style=${{gap: '20px'}}>
-      <header class="hero ink">
-        <div style=${{position: 'relative'}}>
-          <${UI.Micro}>${U.dateLabel(new Date(ctx.now))}<//>
-          <h1 class="hi">HQ</h1>
-          <div class="sub" style=${{marginTop: '10px'}}>Everything at Mask360, live.</div>
-        </div>
-        <div class="grid4" style=${{marginTop: '20px', position: 'relative'}}>
-          <${Tile} v=${n.inNow + ' of ' + n.people.length} l="in today" to="#command" metal=${!n.overdue}/>
-          <${Tile} v=${Object.keys(ctx.online).length} l="online now"/>
-          <${Tile} v=${n.late} l="late today" to="#command" hot=${n.late > 0}/>
-          <${Tile} v=${n.overdue + ' of ' + n.open} l="tasks overdue" to="#tasks" hot=${n.overdue > 0} metal=${n.overdue > 0}/>
-          <${Tile} v=${U.inr(n.pm.weighted)} l="weighted pipeline" to="#pitches"/>
-          <${Tile} v=${U.inr(n.mrr)} l="monthly revenue" to="#clients"/>
-          <${Tile} v=${n.lastEn ? n.lastEn.avg.toFixed(1) + '/5' : null} l="team energy" to="#voice" hot=${!!(n.lastEn && n.lastEn.avg < 3)}/>
-          <${Tile} v=${n.moodAvg ? n.moodAvg.toFixed(1) + '/5' : null} l="mood at check-in"/>
-        </div>
-      </header>
-      ${M.parts.JoinBanner ? html`<${M.parts.JoinBanner}/>` : null}
-      ${M.parts.SetupCard && !setupDone ? html`<${UI.Fold} title="Get m360 ready" summary=${setupSum} open=${false} id="fold-setup"><${M.parts.SetupCard}/><//>` : null}
-      <${M.SectionTabs} section="hq" active=${t}/>
-      ${M.parts.CooRunner ? html`<${M.parts.CooRunner}/>` : null}
-      ${t === 'dashboard' ? html`<${Embed} page="Command"/>` : t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>`
-        : t === 'coo' ? (M.pages.Coo ? html`<${M.pages.Coo}/>` : null)
-        : t === 'office' ? (M.pages.Office ? html`<${M.pages.Office} scope="founder"/>` : M.parts.OfficeSlot ? html`<${UI.Card} title="The office"><${M.parts.OfficeSlot} mode="hq" scope="founder"/><//>` : null)
-        : html`<div class="stack" style=${{gap: '20px'}}>
         <${IntelBrief}/>
         ${M.parts.OfficeSlot ? html`<${UI.Fold} title="The office" summary="the COO and the team, live" open=${true} id="fold-office"><section class="card hq-office">
           <div class="card-head"><h2 class="card-title">The office</h2></div>
@@ -276,7 +234,7 @@
           <div class="stack" style=${{gap: '20px'}}>
             <${UI.Fold} title="Workload" summary=${n.open + ' open across ' + ctx.activeMembers.length + ' people'} hot=${n.overdue > 0} id="fold-workload"><${Workload}/><//>
             ${M.parts.MoodHeat ? html`<${UI.Fold} title="Mood, three weeks" summary="every check-in mood, one box a day" id="fold-mood"><${M.parts.MoodHeat}/><//>` : null}
-            ${Panel && M.ai.on(ctx) ? html`<${UI.Fold} title="Ask HQ anything" summary="anyone, any client, any number" id="fold-askhq"><section class="card"><div class="card-head"><h2 class="card-title">Ask HQ anything</h2><${M.fx.Bot} feature="ask" size=${32} label="m360, ask" className="ai-bot"/></div><${Panel} inline=${true}/></section><//>` : null}
+            ${Panel && M.ai.on(ctx) ? html`<${UI.Fold} title="Ask HQ anything" summary="anyone, any client, any number" id="fold-askhq"><section class="card"><div class="card-head"><h2 class="card-title">Ask HQ anything</h2></div><${Panel} inline=${true}/></section><//>` : null}
           </div>
           <div class="stack" style=${{gap: '20px'}}>
             <${UI.Fold} title="Live now" summary=${Object.keys(ctx.online).length + ' online'} id="fold-live"><${LiveNow}/><//>
@@ -285,7 +243,51 @@
             ${M.parts.Tape ? html`<${UI.Fold} title="The tape" summary="today, newest first" id="fold-tape"><${M.parts.Tape} quiet=${q.today}/><//>` : null}
           </div>
         </div>
-      </div>`}
+      </div>`;
+  }
+
+  /* ---------- page ---------- */
+  /* v40: HQ opens on Command, the founder dashboard in the v7 layout. Everything else HQ holds sits under it
+     behind one quiet line (the section tabs and "more from HQ"), so nothing lands above 01 */
+  const MORE_KEY = 'm360.hqmore';
+  const moreWas = () => { try { return sessionStorage.getItem(MORE_KEY) === '1'; } catch (e) { return false; } };
+  function HQ({tab, id}) {
+    const ctx = M.useCtx();
+    const n = useNumbers(ctx);
+    const t = tab || 'brief';
+    const dash = t === 'brief' || t === 'dashboard';
+    const [more, setMore] = useState(moreWas);
+    const q = useQuiet(ctx, dash && more);
+    const hqRev = (M.reviews && M.reviews.queue) ? M.reviews.queue(ctx).filter(x => M.reviews.canReview(ctx, x)).length : 0;
+    const hqLeave = (M.leave && M.leave.pending) ? M.leave.pending(ctx).length : 0;
+    const setupSteps = (M.setup && M.setup.steps) ? M.setup.steps(ctx) : [];
+    const setupDone = !setupSteps.length || setupSteps.every(x => x.done) || !!(ctx.settings.setup && ctx.settings.setup.dismissed);
+    const setupSum = setupSteps.length ? setupSteps.filter(x => x.done).length + ' of ' + setupSteps.length + ' done' : 'your first-run checklist';
+    const toggle = () => setMore(x => { const v = !x; try { sessionStorage.setItem(MORE_KEY, v ? '1' : '0'); } catch (e) { /* private window */ } return v; });
+    if (dash) {
+      const Cmd = M.pages.Command;
+      return html`<div class="hq7">
+        ${M.parts.CooRunner ? html`<${M.parts.CooRunner}/>` : null}
+        ${Cmd ? html`<${Cmd}/>` : null}
+        <section class="c-more" id="hq-rest">
+          <div class="c-mrow">
+            <${M.SectionTabs} section="hq" active=${t}/>
+            <button type="button" class="c-pl" id="hq-more" aria-expanded=${more ? 'true' : 'false'} onClick=${toggle}>${more ? 'less from HQ' : 'more from HQ'}</button>
+          </div>
+          ${more ? html`<div class="c-mbody stack" style=${{gap: '20px'}}>
+            ${M.parts.SetupCard && !setupDone ? html`<${UI.Fold} title="Get m360 ready" summary=${setupSum} open=${false} id="fold-setup"><${M.parts.SetupCard}/><//>` : null}
+            <${Intelligence} q=${q} hqRev=${hqRev} hqLeave=${hqLeave} n=${n}/>
+          </div>` : null}
+        </section>
+      </div>`;
+    }
+    return html`<div class="stack" style=${{gap: '20px'}}>
+      <${M.SectionTabs} section="hq" active=${t}/>
+      ${M.parts.CooRunner ? html`<${M.parts.CooRunner}/>` : null}
+      ${t === 'hiring' ? html`<${Embed} page="Hiring" id=${id}/>`
+        : t === 'coo' ? (M.pages.Coo ? html`<${M.pages.Coo}/>` : null)
+        : t === 'office' ? (M.pages.Office ? html`<${M.pages.Office} scope="founder"/>` : M.parts.OfficeSlot ? html`<${UI.Card} title="The office"><${M.parts.OfficeSlot} mode="hq" scope="founder"/><//>` : null)
+        : null}
     </div>`;
   }
 

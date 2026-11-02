@@ -92,7 +92,17 @@ def test(h):
     # the list is the team's
     h.go(p, 'm1', hash='#music', width=1280)
     p.wait_for_selector('.music-card:has-text("Friday closer")')
-    check(p.locator('.music-card:has-text("Friday closer") .iconbtn').count() == 0, 'only the person who added it, or the founder, removes it')
+    check(p.locator('.music-card:has-text("Friday closer") button', has_text='Remove').count() == 0, 'only the person who added it, or the founder, removes it')
+    # v39: two adds at once both land (picks are keyed by id), and a remove asks for a second tap
+    p.evaluate('() => Promise.all([M.lastCtx.W.merge("music/team", {picks: {pa: {id: "pa", title: "Admin pick", url: "https://youtu.be/aaaaaaaaaaa", kind: "youtube", embed: "x", by: "u_m2", at: Date.now()}}}), M.lastCtx.W.merge("music/team", {picks: {pb: {id: "pb", title: "Member pick", url: "https://youtu.be/bbbbbbbbbbb", kind: "youtube", embed: "x", by: "u_m1", at: Date.now()}}})])')
+    p.wait_for_selector('.music-card:has-text("Member pick")')
+    check(p.locator('.music-card:has-text("Admin pick")').count() == 1 and p.locator('.music-card:has-text("Friday closer")').count() == 1, 'both picks made at once are in the list')
+    mine = p.locator('.music-card:has-text("Member pick")')
+    mine.get_by_role('button', name='Remove').click()
+    p.wait_for_timeout(300)
+    check(p.locator('.music-card:has-text("Member pick")').count() == 1, 'one tap on Remove keeps the pick')
+    mine.get_by_role('button', name='Tap again').click()
+    p.wait_for_function('() => !Array.from(document.querySelectorAll(".music-card")).some(e => /Member pick/.test(e.innerText))')
     # youtube goes to the no-cookie embed
     yt = p.evaluate('() => M.music.embedOf("https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PL123").embed')
     check(yt.startswith('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ') and 'list=PL123' in yt, 'youtube embed, got %r' % yt)
@@ -107,20 +117,20 @@ def test(h):
     p.get_by_label('Message previews').get_by_role('tab', name='Hide').click()
     check(p.evaluate('() => M.notices.previews()') is False, 'previews off')
     p.evaluate('() => M.notices.push({key: "t1", who: "u_m1", title: "Durvesh", body: "the deck is with you", href: "#chat"})')
-    p.wait_for_selector('#notices .notice')
-    nt = p.inner_text('#notices .notice')
+    p.wait_for_selector('#island[data-key="t1"] .news')
+    nt = p.locator('#island .news').text_content()
     check('Durvesh' in nt and 'deck' not in nt and 'New message' in nt, 'a notice with previews off shows who only, got %r' % nt)
     p.get_by_label('Message previews').get_by_role('tab', name='Show').click()
     p.evaluate('() => M.notices.push({key: "t2", who: "u_m1", title: "Durvesh", body: "second line", href: "#chat"})')
-    p.wait_for_selector('#notices .notice:has-text("second line")')
-    check(p.locator('#notices .notice').count() == 2, 'notices stack')
-    p.locator('#notices .notice:has-text("second line") .notice-x').click()
-    p.wait_for_function('() => document.querySelectorAll("#notices .notice").length === 1')
+    # v40: the island tells one at a time; the second waits behind the first
+    check(p.evaluate('() => M.notices.list().map(n => n.key)') == ['t1', 't2'] and p.evaluate('() => M.island.waiting()') == ['t2'], 'the second notice queues behind the first')
+    p.evaluate('() => M.notices.dismiss(M.notices.list().find(n => n.key === "t2").id)')
+    p.wait_for_function('() => M.notices.list().length === 1 && M.island.waiting().length === 0')
     p.get_by_label('Room notices').get_by_role('tab', name='On').click()
     check(p.evaluate('() => M.rooms.noticeAll()') is True, 'room notices on')
     p.get_by_label('Room notices').get_by_role('tab', name='Off').click()
     # they slide away on their own
-    p.wait_for_function('() => !document.querySelector("#notices")', timeout=9000)
+    p.wait_for_function('() => !M.notices.list().length && !document.querySelector("#island.show")', timeout=9000)
     errs = [e for e in h.errors() if 'AudioContext' not in str(e) and 'play()' not in str(e) and 'net::' not in str(e) and 'spotify' not in str(e).lower() and 'youtube' not in str(e).lower()]
     check(not errs, 'console errors: %r' % errs[:3])
     return fails

@@ -45,11 +45,15 @@
   /* v37: a client is a monthly retainer or a one-off project. The kind sits on the client (everyone sees the pill),
      the money in the founder's finance doc: finance.clients[cid] = {kind, monthly, fee, from, to, paid} */
   const KINDS = [{v: 'retainer', label: 'Retainer'}, {v: 'project', label: 'Project'}];
+  /* v39: the shared billing on the client wins, so everyone sees one answer; the owner's private kind only fills in
+     for a client saved before billing existed */
   function kindOf(ctx, id) {
     const fe = financeOf(ctx)[id] || {};
     const c = (ctx.coll && ctx.coll.clients && ctx.coll.clients.map[id]) || {};
-    return (fe.kind || c.billing) === 'project' ? 'project' : 'retainer';
+    return (c.billing || fe.kind) === 'project' ? 'project' : 'retainer';
   }
+  /* v39: the finance doc loads for the owner alone (02-state), so only the owner gets the money fields */
+  const hasMoney = ctx => !!ctx.isOwner;
   /* monthly revenue counts retainers only: a project fee is one payment, so it never inflates the monthly line */
   function shares(ctx) {
     const map = (ctx.coll && ctx.coll.clients && ctx.coll.clients.map) || {};
@@ -365,7 +369,6 @@
     const edit = (k, v) => { setD(x => ({...x, [k]: String(v || '').slice(0, BRAIN_MAX)})); setDirty(true); };
     const body = html`<section class="ai-card" id="client-brain">
       <div class="row between ai-head">
-        <${M.fx.Bot} feature="clients" state=${busy ? 'working' : 'default'} size=${36} label="m360, the company brain" className="ai-bot"/>
         <div class="grow"><${UI.Micro}>m360 ai<//><div class="card-title" style=${{marginTop: '4px'}}>Company brain</div></div>
         ${canAI ? html`<${M.fx.Metal} kind="ink"><button type="button" class="btn sm" id="brain-build" disabled=${busy} onClick=${build}>
           ${busy ? html`<${M.Thinking} label=${step || 'Thinking'} state=${/^Reading/.test(step || '') ? 'searching' : 'weaving'}/>` : html`<span class="spark">\u2726</span> ${saved ? 'Rebuild' : 'Build the brain'}`}</button><//>` : null}
@@ -429,7 +432,6 @@
     const busy = r.state === 'thinking' || r.state === 'streaming';
     const body = html`<div class="ai-card" id="client-prep">
       <div class="row between ai-head">
-        <${M.fx.Bot} feature="brief" state=${busy ? 'working' : 'default'} size=${36} label="m360, meeting prep" className="ai-bot"/>
         <div class="grow"><${UI.Micro}>m360 ai<//><div class="card-title" style=${{marginTop: '4px'}}>Meeting prep</div></div>
         <${M.fx.Metal} kind="ink"><button type="button" class="btn sm" id="prep-go" disabled=${busy} onClick=${go}>${busy ? html`<${M.Thinking} state="shaping"/>` : html`<span class="spark">\u2726</span> ${r.text ? 'Prep me again' : 'Prep me for a meeting'}`}</button><//>
       </div>
@@ -453,7 +455,9 @@
     const existing = id ? ctx.coll.clients.map[id] : null;
     const fin = financeOf(ctx);
     const ex = k => (existing && existing[k]) || '';
-    const [f, setF] = useState(() => ({
+    /* v39: the copy the form opened on; save sends only what this person changed against it */
+    const opened = useRef(null);
+    const [f, setF] = useState(() => (opened.current = {
       name: ex('name'), status: ex('status') || 'live', pod: ex('pod'), owner: (existing && existing.owner) || ctx.uid,
       memory: ex('memory'), approvals: ex('approvals'), never: ex('never'), links: ex('links'), org: ex('org'),
       website: ex('website'), industry: ex('industry'), hq: ex('hq'), since: ex('since'), tone: ex('tone'),
@@ -506,28 +510,40 @@
       }
       const org = linked.org;
       const cid = id || U.uid();
-      const doc = {name: f.name.trim(), status: f.status, pod: f.pod, owner: f.owner,
-        memory: f.memory, approvals: f.approvals, never: f.never, links: f.links, ...(f.org ? {org: f.org} : (id ? {org: ''} : {})), billing: f.kind,
-        website, domain: domainFrom(website) || (org ? (org.domain || domainFrom(org.website)) : ''),
-        industry: f.industry.trim(), hq: f.hq.trim(), since: f.since.trim(), tone: f.tone.trim(), socials,
-        logo: f.logo || '', useAutoLogo: !!f.useAutoLogo,
-        updated: Date.now(), by: ctx.uid};
+      const docOf = (x, site, soc) => ({name: x.name.trim(), status: x.status, pod: x.pod, owner: x.owner,
+        memory: x.memory, approvals: x.approvals, never: x.never, links: x.links, org: x.org || '', billing: x.kind,
+        website: site, domain: domainFrom(site) || (org ? (org.domain || domainFrom(org.website)) : ''),
+        industry: x.industry.trim(), hq: x.hq.trim(), since: x.since.trim(), tone: x.tone.trim(), socials: soc,
+        logo: x.logo || '', useAutoLogo: !!x.useAutoLogo});
+      const doc = {...docOf(f, website, socials), updated: Date.now(), by: ctx.uid};
+      if (!id && !f.org) delete doc.org;
+      const base = opened.current || f;
+      const orgMoved = !id || (f.org || '') !== (base.org || '');
       setBusy(true);
       try {
-        const before = id ? (existing && existing.org && linked.org && linked.org.id === existing.org ? linked.org : (M.base && M.base.orgForClientAsync ? await M.base.orgForClientAsync(ctx, id) : null)) : null;
-        if (id) await ctx.W.update('clients/' + id, doc);
-        else await ctx.W.set('clients/' + cid, doc);
-        /* the company row points back at the client, both ways, always */
+        const before = id && orgMoved ? (existing && existing.org && linked.org && linked.org.id === existing.org ? linked.org : (M.base && M.base.orgForClientAsync ? await M.base.orgForClientAsync(ctx, id) : null)) : null;
+        if (id) {
+          /* v39: only the fields this person changed, so what someone else saved meanwhile is kept */
+          const baseSite = cleanSite(base.website), baseSoc = {};
+          for (const so of SOCIALS) { const v = cleanHandle(base[so.k]); baseSoc[so.k] = v === null ? base[so.k] : v; }
+          const ch = U.changes(docOf(base, baseSite === null ? base.website : baseSite, baseSoc), docOf(f, website, socials));
+          if (!(existing && existing.billing)) ch.billing = f.kind;
+          await ctx.W.update('clients/' + id, {...ch, updated: doc.updated, by: ctx.uid});
+        } else await ctx.W.set('clients/' + cid, doc);
+        /* the company row points back at the client, both ways; the new doc rides along, since the page may not hold it yet */
         if (M.base && M.base.linkOrgToClient) {
-          if (before && before.id && before.id !== f.org && M.base.unlinkOrg) await M.base.unlinkOrg(ctx, before.id).catch(() => {});
-          if (f.org) await M.base.linkOrgToClient(ctx, f.org, cid).catch(() => {});
+          const orgNow = ((M.lastCtx && M.lastCtx.coll.clients.map[cid]) || existing || {}).org;
+          if (orgMoved) {
+            if (before && before.id && before.id !== f.org && M.base.unlinkOrg) await M.base.unlinkOrg(ctx, before.id).catch(() => {});
+            if (f.org) await M.base.linkOrgToClient(ctx, f.org, cid, {...doc, org: f.org}).catch(() => {});
+          } else if (f.org && f.org === orgNow) await M.base.linkOrgToClient(ctx, f.org, cid).catch(() => {});
         }
         /* a company typed by hand becomes a company in the database too, linked both ways */
         if (!id && !f.org && seed && seed.newOrg && M.base && M.base.upsertOrg && M.base.linkOrgToClient) {
           const oid = await M.base.upsertOrg(ctx, {name: doc.name, website, industry: doc.industry, city: doc.hq, source: 'manual'}).catch(() => null);
-          if (oid) { await ctx.W.update('clients/' + cid, {org: oid}); await M.base.linkOrgToClient(ctx, oid, cid).catch(() => {}); }
+          if (oid) { await ctx.W.update('clients/' + cid, {org: oid}); await M.base.linkOrgToClient(ctx, oid, cid, {...doc, org: oid}).catch(() => {}); }
         }
-        if (ctx.isFounder) {
+        if (hasMoney(ctx)) {
           const money = f.kind === 'project'
             ? {kind: 'project', fee: Number(f.fee) || 0, from: f.from || '', to: f.to || '', paid: Number(f.paid) || 0}
             : {kind: 'retainer', ...(String(f.monthly).trim() !== '' ? {monthly: Number(f.monthly) || 0} : {})};
@@ -598,9 +614,9 @@
       ${id && M.parts.PeopleAtClient && orgOf(ctx, id) ? html`<${UI.Fold} title="People at this client" id="fold-client-people"><${M.parts.PeopleAtClient} id=${id}/><//>` : null}
       ${id && M.parts.Connections ? html`<${M.parts.Connections} kind="client" id=${id}/>` : null}
       ${id && M.parts.ClientUpdate && M.ai.on(ctx) ? html`<${M.fx.Beam}><${UI.Fold} title="Client update" summary="a client-ready note" id="fold-client-update"><${M.parts.ClientUpdate} id=${id} name=${f.name}/><//><//>` : null}
-      ${ctx.isFounder && f.kind === 'retainer' ? html`<${UI.Input} id="client-monthly" label="monthly retainer, ₹" type="number" value=${f.monthly}
+      ${hasMoney(ctx) && f.kind === 'retainer' ? html`<${UI.Input} id="client-monthly" label="monthly retainer, ₹" type="number" value=${f.monthly}
         onChange=${v => set('monthly', v)} hint="Private to you. Counts in monthly revenue."/>` : null}
-      ${ctx.isFounder && f.kind === 'project' ? html`<div class="stack tight" id="client-project-money">
+      ${hasMoney(ctx) && f.kind === 'project' ? html`<div class="stack tight" id="client-project-money">
         <div class="grid2">
           <${UI.Input} id="client-fee" label="project fee, ₹" type="number" value=${f.fee} onChange=${v => set('fee', v)} hint="Private to you. One payment, kept out of monthly revenue."/>
           <${UI.Input} id="client-paid" label="paid so far, ₹" type="number" value=${f.paid} onChange=${v => set('paid', v)}/>
@@ -676,7 +692,7 @@
     const map = ctx.coll.clients.map;
     const sh = useMemo(() => {
       const out = {};
-      if (ctx.isFounder) shares(ctx).forEach(r => { out[r.id] = r; });
+      if (hasMoney(ctx)) shares(ctx).forEach(r => { out[r.id] = r; });
       return out;
     }, [ctx]);
     const allIds = Object.keys(map).sort((a, b) => String(map[a].name || '').localeCompare(String(map[b].name || '')));
@@ -689,9 +705,8 @@
     const hotId = ids.find(x => health(ctx, x).level === 'risk') || ids.find(x => health(ctx, x).level === 'watch') || null;
 
     return html`<div class="stack" style=${{gap: '18px'}}>
-      <${UI.PageHead} micro="client brains" title="Clients">
-        <${M.fx.Bot} feature="clients" size=${40} label="m360, client brains" className="ai-bot"/>
-        <${UI.Btn} id="client-new" onClick=${() => setOpen('new')}>New client<//>
+      <${UI.PageHead} micro=${allIds.length + (allIds.length === 1 ? ' client' : ' clients')} title="Clients">
+        <${UI.Btn} id="client-new" onClick=${() => setOpen('new')}><${M.icons.plus}/>New client<//>
       <//>
       <div class="row between" style=${{gap: '10px'}}>
         <label class="talk-search grow">
@@ -708,33 +723,33 @@
           const s = sh[id];
           const h = health(ctx, id);
           const fresh = c.created && Date.now() - c.created < 21 * 86400000;
-          const card = html`<button type="button" class="card rowbtn" key=${id} data-client=${id} onClick=${() => setOpen(id)}
-            style=${{cursor: 'pointer'}}>
-            <div class="row between nowrap">
-              <span class="cl-title grow"><${Logo} id=${id} client=${c} sm=${true}/><span class="nm">${c.name}</span></span>
-              ${fresh ? html`<${M.fx.MetalBadge}>new<//>` : null}
+          /* v40: the design's client card (B1 .card.cl-c); the one client most in need of a look carries the flame line */
+          return html`<button type="button" class=${'card lift cl-c rowbtn' + (id === hotId ? ' due' : '')} key=${id} data-client=${id} onClick=${() => setOpen(id)}>
+            <div class="cl-top">
+              <${Logo} id=${id} client=${c} sm=${true}/>
+              <h3 class="grow">${c.name}</h3>
+            </div>
+            <div class="cl-pills">
+              ${fresh ? html`<${UI.Pill} kind="ink">new<//>` : null}
               <span class="pill" data-kind=${kindOf(ctx, id)}>${kindOf(ctx, id) === 'project' ? 'project' : 'retainer'}</span>
               <${UI.Pill} kind=${STATUS_PILL[c.status]}>${c.status || 'live'}<//>
+              <span class=${'pill ' + HEALTH[h.level].pill} title=${h.why} data-health=${h.level}>${HEALTH[h.level].label}</span>
             </div>
-            <div class="row small ink62" style=${{marginTop: '8px'}}>
+            <div class="cl-line">
+              ${c.owner ? html`<${UI.Avatar} id=${c.owner} size=${22}/>` : null}
               ${c.industry ? html`<span>${c.industry}</span>` : null}
               ${c.pod ? html`<span>${c.pod}</span>` : null}
-              ${c.owner ? html`<${UI.Avatar} id=${c.owner} size=${22}/>` : null}
               <span class="num">${openTaskCount(ctx, id)} open tasks</span>
+              <span class=${'num' + (comp.filled < comp.total ? ' flt' : '')}>${comp.filled} of ${comp.total} fields</span>
             </div>
-            <div class="row" style=${{marginTop: '10px'}}>
-              <span class=${'pill ' + HEALTH[h.level].pill} title=${h.why} data-health=${h.level}>${HEALTH[h.level].label}</span>
-              <span class=${'small num' + (comp.filled < comp.total ? ' flame-t' : '')}>${comp.filled} of ${comp.total} fields</span>
-              <span class="tiny ink62">updated ${c.updated ? U.timeAgo(c.updated) : 'never'}</span>
-            </div>
-            ${s && s.kind === 'project' ? html`<div class="row small" style=${{marginTop: '8px'}}>
-              <span class="num" style=${{fontWeight: 500}}>${U.inr(s.fee)}</span><span class="ink62">project fee${projEnd(ctx, id)}</span>
-            </div>` : s ? html`<div class="row small" style=${{marginTop: '8px'}}>
-              <span class="num" style=${{fontWeight: 500}}>${U.inr(s.monthly)}</span>
-              <span class="ink62 num">${s.share}% of monthly revenue</span>
+            ${s && s.kind === 'project' ? html`<div class="cl-line">
+              <b class="num">${U.inr(s.fee)}</b><span>project fee${projEnd(ctx, id)}</span>
+            </div>` : s ? html`<div class="cl-line">
+              <b class="num">${U.inr(s.monthly)}</b>
+              <span class="num">${s.share}% of monthly revenue</span>
             </div>` : null}
+            <div class="cl-line"><span class="soft">updated ${c.updated ? U.timeAgo(c.updated) : 'never'}</span></div>
           </button>`;
-          return id === hotId ? html`<${M.fx.Beam} key=${id}>${card}<//>` : card;
         })}
       </div>` : html`<${UI.Card}><${UI.Empty} text=${q.trim() || kf !== 'all' ? 'No client matches.' : 'No clients yet.'}/><//>`}
       ${open === 'new' ? html`<${NewClient} onClose=${close} onAdd=${sd => { setSeed(sd); setOpen('add'); }} onOpen=${x => { setOpen(x); }}/>`
@@ -764,7 +779,6 @@
     const busy = r.state === 'thinking' || r.state === 'streaming';
     return html`<div class="ai-card" id="client-update">
       <div class="row between ai-head">
-        <${M.fx.Bot} feature="writer" state=${busy ? 'working' : 'default'} size=${36} label="m360, the update writer" className="ai-bot"/>
         <div class="grow"><${UI.Micro}>m360 ai<//><div class="card-title" style=${{marginTop: '4px'}}>Client update</div></div>
         <${M.fx.Metal} kind="ink"><button type="button" class="btn sm" disabled=${busy} onClick=${go}>${busy ? html`<${M.Thinking} state="composing"/>` : html`<span class="spark">\u2726</span> ${r.text ? 'Write it again' : 'Write an update'}`}</button><//>
       </div>

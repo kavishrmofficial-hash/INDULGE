@@ -129,17 +129,20 @@
     const rk = text => rankOf(qs, ws, text);
 
     if (want('people')) {
-      const team = ctx.activeMembers.map((m, i) => {
+      /* v39: three teammates in the palette, every one in Show all (which asks with a cap of its own) */
+      const teamAll = ctx.activeMembers.map((m, i) => {
         const nm = (names[m.uid] && names[m.uid].name) || '';
         return {key: 'u' + m.uid, label: nm || 'Someone', sub: m.title || '', uid: m.uid, hash: '#people/' + m.uid, rank: nm ? rk(nm + ' ' + (m.title || '')) : 0, order: i};
-      }).filter(x => x.rank > 0).slice(0, 3);
+      }).filter(x => x.rank > 0);
+      const team = teamAll.slice(0, opts.cap ? cap : 3);
       const cs = contacts(ctx).map((c, i) => ({key: 'c' + c.id, label: nameOf(c), sub: contactSub(ctx, c), hash: '#base/' + c.id, cid: c.id, order: 1000 - Math.min(999, Math.floor(stampOf(c) / DAY)) + i * 0.001,
         rank: Math.max(rk(nameOf(c)), Math.min(2, rk(nameOf(c) + ' ' + (c.title || '') + ' ' + orgNameOf(ctx, c) + ' ' + pick(c, 'email') + ' ' + (c.city || ''))))}));
       const ranked = cs.filter(x => x.rank > 0).sort((a, b) => b.rank - a.rank || a.order - b.order);
       const slots = Math.max(0, cap - team.length);
       team.forEach(x => out.push({...x, group: 'people', icon: 'people'}));
       ranked.slice(0, slots).forEach(x => out.push({...x, group: 'people', icon: 'people'}));
-      if (ranked.length > slots) { overflow.people = ranked.length - slots; out.push({key: 'people:more', group: 'people', label: 'Show all in Base', sub: (ranked.length - slots) + ' more', icon: 'search', more: 'people', rank: 0}); }
+      const extra = (teamAll.length - team.length) + Math.max(0, ranked.length - slots);
+      if (extra > 0) { overflow.people = extra; out.push({key: 'people:more', group: 'people', label: teamAll.length > team.length ? 'Show all people' : 'Show all in Base', sub: extra + ' more', icon: 'search', more: 'people', rank: 0}); }
     }
     /* v37: the shared list of people we are talking to, by name, company and what was said */
     if (want('talks') && ctx.coll.talks) {
@@ -485,7 +488,6 @@
     }
     return html`<${M.fx.Beam}><div class=${'ai-card askbase' + (compact ? ' compact' : '')} id="ask-base">
       <div class="row between ai-head">
-        <${M.fx.Bot} feature="base" state=${busy ? 'working' : 'default'} size=${compact ? 30 : 36} label="m360, ask the base" className="ai-bot"/>
         <div class="grow"><${UI.Micro}>m360 ai<//><div class="card-title" style=${{marginTop: '4px'}}>Ask the base</div></div>
       </div>
       ${!asked ? html`<div class="row" style=${{gap: '8px', marginTop: '10px'}}>${BASE_CHIPS.map(c => html`<button key=${c} type="button" class="chip" onClick=${() => go(c)}>${c}</button>`)}</div>` : null}

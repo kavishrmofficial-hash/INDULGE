@@ -100,6 +100,8 @@ export function safetyActions(h) {
     await putJ('t/' + Date.now() + '~' + key.slice(2), {path, by: uid || '', at: Date.now(), doc});
   };
   const trashMs = key => Number(key.slice(2).split('~')[0]) || 0;
+  /* v39: t/ is shared with the authenticators (security.js t/<uid>): only t/<ms>~<key> is the trash */
+  const isTrash = key => /^t\/\d{10,16}~/.test(key);
 
   /* ---------- version history: the document as it was before each write ----------
      h/<key without d/>/<ms>~<uid>  holds the replaced version; the key carries when and who, so a listing
@@ -129,7 +131,7 @@ export function safetyActions(h) {
     const cutoff = Date.now() - days * 86400000;
     let removed = 0;
     for (const b of await listAll('t/')) {
-      if (trashMs(b.key) >= cutoff) continue;
+      if (!isTrash(b.key) || trashMs(b.key) >= cutoff) continue;
       await store.delete(b.key).catch(() => {});
       removed++;
     }
@@ -427,7 +429,7 @@ export function safetyActions(h) {
     /* the newest deleted documents, newest first */
     async trash(v) {
       await admin(v);
-      const keys = (await listAll('t/')).map(b => b.key).sort((a, b) => trashMs(b) - trashMs(a)).slice(0, TRASH_LIST);
+      const keys = (await listAll('t/')).map(b => b.key).filter(isTrash).sort((a, b) => trashMs(b) - trashMs(a)).slice(0, TRASH_LIST);
       const items = [];
       await eachChunk(keys, async key => {
         const t = await getJ(key).catch(() => null);

@@ -1,5 +1,5 @@
 /* ---------- v32: the buddy dock and the one panel (58-buddy.js, 57-panel.js, 85-orb.js) ----------
-   The droid lives bottom right; the panel grows out of it. Every size here is CSS: a resize or a zoom
+   v40: the dock stays hidden (no character on the screen) and the panel opens as the glass sheet. Every size here is CSS: a resize or a zoom
    never leaves the panel stale. Tokens only, so paper by day and ink by night. Motion is transform and
    opacity, a spring where the browser has linear(), fades only for reduced motion. */
 :root{--dock-spring:var(--spring); --dock-lift:0px}
@@ -59,34 +59,41 @@ body:has(.breathe, .dayrate, .pal-scrim) .buddy-dock{display:none}
 @keyframes dockring{0%{opacity:.75; transform:none} 100%{opacity:0; transform:translateY(0) scale(1.18)}}
 @keyframes dockdot{0%,100%{opacity:1} 50%{opacity:.35}}
 
-/* ---------- the pop-up: the panel at the dock ---------- */
-/* it rides up with the dock, but never so far that less than 200px is left for it */
-.buddy-bubble.agent-pop{--pop-lift:min(var(--dock-lift), max(0px, 100dvh - 314px));
-  position:fixed; left:auto !important; top:auto !important; right:24px; bottom:calc(24px + 66px + var(--pop-lift)); width:min(400px, calc(100vw - 48px));
-  max-height:min(680px, calc(100dvh - 114px - var(--pop-lift))); min-height:200px; z-index:58; display:flex; flex-direction:column; padding:0;
-  background:var(--paper); color:var(--ink); border:1px solid var(--line); border-radius:20px; box-shadow:0 26px 60px -26px var(--shadow), 0 2px 10px var(--shadow);
-  overflow:hidden; font-size:14px; line-height:1.45; transform-origin:bottom right; pointer-events:auto}
-.dock-beside-drawer .buddy-bubble.agent-pop{right:calc(min(480px, 100%) + 16px); width:min(400px, calc(100vw - min(480px, 100vw) - 32px))}
-/* asked for while a drawer is open, the pop-up comes over it and its scrim */
-/* notices sit above the pop-up in the stack, so while it is open they move beside it on a desk and never
-   cover its Close; on a phone the sheet covers the whole window and rises above them instead (a drawer's
-   rule below still wins, so the sheet stays over a drawer) */
-@media (min-width:861px){
-  body:has(.buddy-bubble.agent-pop) .notices{right:calc(24px + min(400px, calc(100vw - 48px)) + 12px)}
-  .dock-beside-drawer body:has(.buddy-bubble.agent-pop) .notices{right:calc(min(480px, 100%) + 16px + min(400px, calc(100vw - 48px)) + 12px)}
-}
-@media (max-width:860px){ body:has(.buddy-bubble.agent-pop) .buddy-bubble.agent-pop{z-index:62} }
+/* ---------- v40: the m360 AI conversation is the glass sheet (css.css .gs, design/m360-os-v7.html .sheet) ----------
+   Opened from the Ask bar's m360 AI row or the phone's Ask: a 520px glass panel 12px from the right edge on a
+   desk, a bottom sheet on a phone. It stays non modal (no scrim), so the page behind keeps working while it talks. */
+.buddy-bubble.agent-pop{position:fixed; left:auto !important; top:12px !important; right:12px; bottom:12px; width:min(520px, calc(100vw - 24px)); max-height:none; min-height:0;
+  z-index:61; display:flex; flex-direction:column; padding:0; border:0; border-radius:var(--r-sheet); color:var(--ink); overflow:hidden; font-size:15px; line-height:1.5; pointer-events:auto;
+  background-color:var(--glass-dk); background-image:var(--grain),linear-gradient(165deg,rgba(255,255,255,.7),rgba(255,255,255,0) 45%);
+  -webkit-backdrop-filter:blur(30px) saturate(180%); backdrop-filter:blur(30px) saturate(180%);
+  box-shadow:0 0 0 1px rgba(14,14,14,.07),0 30px 70px -28px rgba(14,14,14,.45),inset 0 1px 0 #fff}
+:root[data-theme="dark"] .buddy-bubble.agent-pop{background-image:var(--grain),var(--glass-sheen); box-shadow:var(--glass-shadow)}
+.buddy-bubble.agent-pop::after{content:""; position:absolute; inset:0; z-index:3; border-radius:inherit; padding:1px; pointer-events:none; background:var(--glass-rim);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
 body:has(.drawer) .buddy-bubble.agent-pop{z-index:62}
-.buddy-bubble.agent-pop.folded{min-height:0; max-height:none}
+/* the sheet's head: the state as a 26px light title, the round close */
+.buddy-bubble.agent-pop .panel-head{position:relative; z-index:4; min-height:0; padding:24px 20px 16px 28px; border-bottom:0; background:transparent}
+.buddy-bubble.agent-pop .panel-state{font-size:26px; line-height:30px; font-weight:300; letter-spacing:-.02em; color:var(--ink)}
+.buddy-bubble.agent-pop .panel-tools{gap:8px}
+.buddy-bubble.agent-pop .panel-tools > .iconbtn:last-child{width:36px; height:36px; border-radius:18px; background:var(--g08)}
+.buddy-bubble.agent-pop .panel-tools > .iconbtn:last-child:hover{background:var(--g12)}
+.buddy-bubble.agent-pop .panel-body{padding:8px 28px 16px}
+.buddy-bubble.agent-pop .panel-tray{padding:0 28px; max-height:calc((100dvh - 24px) * .4)}
+.buddy-bubble.agent-pop .panel-composer{padding:16px 28px 24px; background:transparent; border-top:0; box-shadow:0 -1px 0 var(--line)}
+.buddy-bubble.agent-pop.folded{bottom:auto}
 .buddy-bubble.agent-pop.folded .agent-panel > :not(.panel-head):not(.panel-unfold){display:none}
-/* a short window: the panel takes the height, and the character moves into its head */
-@media (max-height:474px){
-  .buddy-bubble.agent-pop{top:16px !important; bottom:16px; max-height:none; min-height:0}
-  .buddy-dock.is-open .buddy-home{opacity:0; pointer-events:none}
+@media (max-width:900px){
+  .buddy-bubble.agent-pop{left:0 !important; right:0; top:auto !important; bottom:0; width:auto; max-height:calc(100dvh - 48px); min-height:min(440px, calc(100dvh - 48px));
+    border-radius:var(--r-sheet) var(--r-sheet) 0 0; padding-bottom:env(safe-area-inset-bottom,0px)}
+  .buddy-bubble.agent-pop .panel-head{padding:16px 16px 12px 20px}
+  .buddy-bubble.agent-pop .panel-state{font-size:24px; line-height:28px}
+  .buddy-bubble.agent-pop .panel-body{padding:4px 20px 12px}
+  .buddy-bubble.agent-pop .panel-tray{padding:0 20px}
+  .buddy-bubble.agent-pop .panel-composer{padding:12px 20px 16px}
 }
 @media (prefers-reduced-motion:no-preference){
-  .buddy-bubble.agent-pop{animation:dockpop 320ms var(--dock-spring) both, dockfade 120ms linear both}
-  .buddy-bubble.agent-pop.closing{animation:dockshut 180ms cubic-bezier(.4,0,1,1) both}
+  .buddy-bubble.agent-pop{animation:gsin .6s var(--spring) backwards}
+  .buddy-bubble.agent-pop.closing{animation:none; transform:translate3d(calc(100% + 32px),0,0); transition:transform .18s var(--ease)}
   .agent-panel.opening .panel-body > .msg:nth-last-child(-n+6){animation:dockrow .28s var(--ease) both}
   .agent-panel.opening .panel-body > .msg:nth-last-child(5){animation-delay:24ms}
   .agent-panel.opening .panel-body > .msg:nth-last-child(4){animation-delay:48ms}
@@ -94,14 +101,10 @@ body:has(.drawer) .buddy-bubble.agent-pop{z-index:62}
   .agent-panel.opening .panel-body > .msg:nth-last-child(2){animation-delay:96ms}
   .agent-panel.opening .panel-body > .msg:nth-last-child(1){animation-delay:120ms}
 }
-@media (prefers-reduced-motion:reduce){
-  .buddy-bubble.agent-pop{animation:fade .12s ease both}
-  .buddy-bubble.agent-pop.closing{animation:dockfadeout .12s ease both}
+@media (max-width:900px) and (prefers-reduced-motion:no-preference){
+  .buddy-bubble.agent-pop{animation-name:gsup}
+  .buddy-bubble.agent-pop.closing{transform:translate3d(0,calc(100% + 24px),0)}
 }
-@keyframes dockpop{from{transform:translateY(12px) scale(.6)} to{transform:none}}
-@keyframes dockfade{from{opacity:0} to{opacity:1}}
-@keyframes dockshut{from{opacity:1; transform:none} to{opacity:0; transform:translateY(12px) scale(.6)}}
-@keyframes dockfadeout{from{opacity:1} to{opacity:0}}
 @keyframes dockrow{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:none}}
 
 /* ---------- the panel, any size ---------- */
@@ -161,7 +164,6 @@ body:has(.drawer) .buddy-bubble.agent-pop{z-index:62}
 /* (a percentage of a box with no fixed height would not hold, so the cap is two fifths of the most the panel can be) */
 .panel-tray{flex:none; max-height:40dvh; overflow-y:auto; overscroll-behavior:contain; padding:0 14px; border-top:1px solid var(--line)}
 .panel-tray:empty{display:none}
-.agent-pop .panel-tray{max-height:calc(min(680px, 100dvh - 114px - var(--pop-lift)) * .4)}
 .size-sheet .panel-tray{max-height:calc(88dvh * .4)}
 .panel-tray .pending-acts{margin:10px 0}
 .agent-panel .pending-act:not(.ask-preview){background:var(--paper); border-color:var(--line2); color:var(--ink)}
@@ -180,9 +182,10 @@ body:has(.drawer) .buddy-bubble.agent-pop{z-index:62}
 .panel-clear{align-self:flex-start; margin:4px 22px 0}
 .panel-hint{margin:6px 22px 14px}
 
-/* ---------- the pop-up keeps paper in both themes: the old dark bubble's rules stand down ---------- */
-.buddy-bubble.agent-pop .input{background:var(--paper); border-color:var(--field-line); color:var(--ink)}
-.buddy-bubble.agent-pop .input::placeholder{color:var(--ink62)}
+/* ---------- the sheet: the old dark bubble's rules stand down ---------- */
+.buddy-bubble.agent-pop .input,.buddy-bubble.agent-pop .agent-panel .ask-in .input{background-color:var(--warm); border-color:transparent; color:var(--ink); box-shadow:inset 0 0 0 1px var(--g08)}
+.buddy-bubble.agent-pop .input:focus,.buddy-bubble.agent-pop .agent-panel .ask-in .input:focus{background-color:var(--paper); box-shadow:inset 0 0 0 1px var(--ink),0 0 0 4px var(--g04)}
+.buddy-bubble.agent-pop .input::placeholder{color:var(--g45)}
 .buddy-bubble.agent-pop .micro{color:var(--micro)}
 .buddy-bubble.agent-pop .linky{color:var(--ink)}
 
@@ -245,8 +248,8 @@ body:has(.drawer) .buddy-bubble.agent-pop{z-index:62}
   .buddy-dock{transition:transform .2s var(--ease), opacity .2s, visibility .2s, bottom .22s var(--ease), right .22s var(--ease)}
 }
 @media (max-width:860px){
-  .buddy-bubble.agent-pop{right:16px; width:calc(100vw - 32px)}
-}
-@media (max-width:860px){
   .buddy-bubble.tour,.buddy-bubble.tour.hang-up,.buddy-bubble.tour.at-dock{bottom:calc(86px + env(safe-area-inset-bottom,0px)); right:12px; width:auto; max-width:none; max-height:46vh}
 }
+
+/* another sheet open: the m360 AI panel steps behind it (and its scrim), so that sheet's buttons stay in reach */
+html.gs-open .buddy-bubble.agent-pop{z-index:59}

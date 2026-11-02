@@ -467,12 +467,11 @@
     const hasTable = sz === 'pop' && lastAi >= 0 && /^\s*\|.+\|\s*$/m.test(turns[lastAi].content);
 
     const state = title || (listening ? 'Listening' : hearing ? 'Hearing it' : busy ? 'Thinking' : st.speaking ? 'Speaking' : 'm360');
-    const Bot = M.fx && M.fx.Bot;
     const head = sz === 'pop' || sz === 'sheet' ? html`<div class="panel-head">
       ${sz === 'sheet' ? html`<div class="sheet-handle panel-grab" aria-hidden="true"><i/></div>` : null}
       <span class="panel-who">
         ${sz === 'sheet' && !(listening && empty) && M.fx && M.fx.Orb && (listening || busy) ? html`<${M.fx.Orb} state=${listening ? 'listening' : 'working'} size=${32} label=${listening ? 'listening' : 'thinking'}/>`
-          : Bot ? html`<${Bot} type="droid" size=${32} state=${busy ? 'working' : botState === 'sleeping' ? 'sleeping' : 'default'} headphones=${!!(conv || listening)} label="m360" className="panel-bot"/>` : null}
+          : null}
         <span class="panel-state micro" aria-live="off">${state}</span>
       </span>
       <span class="panel-tools">

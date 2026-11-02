@@ -688,7 +688,8 @@
     eod: {f: x => x.n + ' of ' + x.of + ' EOD lines in.'},
     close: {f: x => 'Day closed. ' + x.eod + ' of ' + x.of + ' EOD lines in. ' + (x.moves ? 'I made ' + plural(x.moves, 'move', 'moves') + ', still undoable till ' + x.untilT + '. ' : '') + waits(x.wait)},
     memo: {f: x => 'The memo for ' + String(x.week || 'the week').replace('-W', ' week ') + ' is ready.'},
-    leave_ok: {f: x => 'I approved ' + x.name + "'s " + (x.typeTxt ? x.typeTxt + ' ' : '') + 'leave on ' + x.when + '. ' + plural(x.left, 'day', 'days') + ' left, ' + outTxt(x.out) + ', no client dates. Undo until ' + x.untilT + '.',
+    /* v39: a type with no balance (a WFH swap) leaves the days-left clause out */
+    leave_ok: {f: x => 'I approved ' + x.name + "'s " + (x.typeTxt ? x.typeTxt + ' ' : '') + 'leave on ' + x.when + '. ' + capFirst((x.left == null ? '' : plural(x.left, 'day', 'days') + ' left, ') + outTxt(x.out)) + ', no client dates. Undo until ' + x.untilT + '.',
       dm: x => 'Your leave for ' + x.when + ' is approved.'},
     leave_card: {f: x => x.name + ' asked for leave on ' + x.when + '. It needs you.'},
     leave_wait: {f: x => x.name + "'s leave from " + x.when + ' is still waiting on you. Pending leave holds every nudge for ' + x.name + ' that day.'},
@@ -753,7 +754,7 @@
       dm: x => 'Hi ' + x.name + ', I am ' + x.bot + '. I help Kaavish run the day, and Kaavish reads what you send me.'},
     waiting: {f: x => plural(x.n, 'thing needs', 'things need') + ' you.'},
     paused: {f: x => 'Paused by you until ' + x.untilT + '.'},
-    off: {f: () => 'The COO is off. Admin, COO to switch it on.'},
+    off: {f: () => 'The COO is off. Switch it on in Admin, m360 COO.'},
     late_beat: {f: x => 'No heartbeat since ' + (x.atTxt || 'this morning') + '. I will catch up on the next round.'},
     page_runner: {f: x => 'I work while m360 is open. Last round ' + (x.atTxt || 'not yet') + '.'},
     mail_off: {f: () => 'Mail is not set up, so the drafts wait. Admin, Mail.'}
@@ -767,10 +768,11 @@
     pileup: 'J35', offday: 'J35', pileup_client: 'J35', client_risk: 'J36', due_tomorrow: 'J37', project_risk: 'J38', pitch_ask: 'J40', pitch_late: 'J40',
     client_mail: 'J41', meeting_mail: 'J42', invoice: 'J43', audit: 'J51', undone: 'J31', undone_due: 'J33', undone_leave: 'J10', hello: 'J50'};
   const stationOf = code => { const j = JOBS[code] ? code : CODE_JOB[code]; return (JOBS[j] || JOBS.J01).station; };
-  /* a practice line: "I would have moved ..." */
+  /* a practice line: "I would have moved ...". v39: only the bot's own verb, at the start or after "I", so
+     "Member asked for leave" stays the member's */
   const wouldOf = line => {
     const s = String(line).replace(/\s*(Undo for 24 hours|Undo until [^.]*)\./g, '');
-    const m = /\b(?:I )?(approved|moved|gave|asked|raised|drafted|reminded|sent|told)\b/i.exec(s);
+    const m = /(?:^|\bI )(approved|moved|gave|asked|raised|drafted|reminded|sent|told)\b/i.exec(s);
     if (!m) return 'Practice. ' + s;
     return s.slice(0, m.index) + 'I would have ' + m[1].toLowerCase() + s.slice(m.index + m[0].length);
   };

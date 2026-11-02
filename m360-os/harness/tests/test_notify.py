@@ -41,7 +41,7 @@ def t(h):
     h.go(p, 'm1', hash='#home', width=1280)
     p.wait_for_selector('#notify-card')
     p.wait_for_timeout(500)
-    check(p.locator('.notice-body').count() == 0, 'a backlog of notices on the first load: %r' % p.evaluate('[...document.querySelectorAll(".notice-title")].map(n => n.textContent)'))
+    check(not p.evaluate('() => M.notices.list().length'), 'a backlog of notices on the first load: %r' % p.evaluate('() => M.notices.list().map(n => n.title)'))
     mark = p.evaluate('localStorage.getItem("m360.inboxNotice.u_m1")')
     check(mark and int(mark) > 0, 'the mark was not set on the first load: %r' % mark)
     # a second person says not now, and the card stays away for them
@@ -63,8 +63,8 @@ def t(h):
     now_ms = p.evaluate('Date.now()')
     h.seed_doc(p, 'tasks/t_notify', {'title': 'Cut the teaser', 'owner': 'u_m1', 'by': 'u_founder', 'created': now_ms, 'updated': now_ms,
                                      'status': 'todo', 'priority': 'normal', 'due': '', 'client': '', 'project': '', 'section': '', 'link': ''})
-    p.wait_for_selector('.notice-body:has-text("Handed you Cut the teaser")')
-    title = p.inner_text('.notice-title')
+    p.wait_for_selector('#island .news:has-text("Handed you Cut the teaser")')
+    title = p.locator('#island .news em').text_content()
     check(title == 'Kaavish Ramchandani', 'the bubble carries the sender as its title: %r' % title)
     p.wait_for_function('() => window.__notes.length > 0')
     notes = p.evaluate('window.__notes')
@@ -74,7 +74,7 @@ def t(h):
     p.reload()
     p.wait_for_selector('#home-hero')
     p.wait_for_timeout(600)
-    check(p.locator('.notice-body').count() == 0, 'the item was notified again on reload')
+    check(not p.evaluate('() => M.notices.list().length') and p.locator('#island .news').count() == 0, 'the item was notified again on reload')
     # Me shows the state
     h.go(p, 'm1', hash='#me', width=1280)
     p.wait_for_selector('#prefs-card')
@@ -90,8 +90,8 @@ def t(h):
     given = p.evaluate('(window.__db.get("kudos/u_m1") || {}).given || []')
     given.append({'id': 'k_notify', 'to': 'u_founder', 'why': 'Unblocked the shoot', 'at': now_ms})
     h.seed_doc(p, 'kudos/u_m1', {'given': given})
-    p.wait_for_selector('.notice-body:has-text("Gave you kudos: Unblocked the shoot")')
-    check(p.inner_text('.notice-title') == 'Durvesh Patil', 'kudos bubble title: %r' % p.inner_text('.notice-title'))
+    p.wait_for_selector('#island .news:has-text("Gave you kudos: Unblocked the shoot")')
+    check(p.locator('#island .news em').text_content() == 'Durvesh Patil', 'kudos bubble title: %r' % p.locator('#island .news em').text_content())
     errs = [e for e in h.errors() if 'AudioContext' not in str(e) and 'play()' not in str(e)]
     check(not errs, 'console errors: %r' % errs[:3])
     return fails

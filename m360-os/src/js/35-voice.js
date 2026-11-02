@@ -104,10 +104,10 @@
     const e = Number(r.energy) || 0;
     const fields = [['working', r.working], ['broken', r.broken], ['change', r.change]]
       .filter(f => f[1] && String(f[1]).trim());
-    return html`<div class="listrow"><div class="grow stack tight">
+    return html`<div class="listrow evr"><div class="grow stack tight">
       <div class="row between">
         <${UI.Pill} kind=${e && e < 3 ? 'flame' : undefined}>energy ${e}<//>
-        <span class="tiny sub num">${U.timeAgo(r.at || 0)}</span>
+        <span class="sm soft num">${U.timeAgo(r.at || 0)}</span>
       </div>
       ${fields.map(([k, v]) => html`<div key=${k}>
         <${UI.Micro} plain>${k}<//>
@@ -134,8 +134,8 @@
               title=${w.week + (w.avg == null ? ': no responses' : ': ' + w.avg + ' average from ' + plural(w.n, 'response', 'responses'))}
               style=${w.avg == null ? {height: '6px', opacity: .3} : {height: Math.max(6, Math.round(100 * w.avg / 5)) + '%'}}/>`)}
           </div>
-          <div style=${{display: 'flex', gap: '7px', marginTop: '5px'}}>
-            ${weeks.map(w => html`<div key=${w.week} class="tiny sub num" style=${{flex: 1, minWidth: '8px', textAlign: 'center'}}>${weekNo(w.week)}</div>`)}
+          <div class="vbars-x">
+            ${weeks.map(w => html`<b key=${w.week} class="num">${weekNo(w.week)}</b>`)}
           </div>
         </div>
         <div class="sub small">${cur.n
@@ -179,20 +179,19 @@
 
   function IdeaRow({it, p, isFounder, onVote, onStatus}) {
     const name = (p && p.name) || '';
-    return html`<div class="listrow" data-idea=${it.key}>
-      <img class="av" width="30" height="30" style=${{width: '30px', height: '30px'}}
-        src=${(p && p.avatarUrl) || M.AV_FALLBACK} alt=${name || 'avatar'} title=${name}/>
+    return html`<div class="listrow idea" data-idea=${it.key}>
+      <${UI.Avatar} id=${it.author} size=${32}/>
       <div class="grow stack tight">
-        <div style=${{overflowWrap: 'anywhere'}}>${it.t}</div>
+        <p style=${{overflowWrap: 'anywhere'}}>${it.t}</p>
         <div class="row between">
           <div class="row">
-            <span class="small">${name || 'Someone'}</span>
-            <span class="tiny sub num">${U.timeAgo(it.at)}</span>
+            <span class="sm mut">${name || 'Someone'}</span>
+            <span class="sm soft num">${U.timeAgo(it.at)}</span>
             <${UI.Pill} kind=${pillFor(it.status)}>${it.status}<//>
           </div>
           <div class="row nowrap">
-            <span class="tiny sub num">${plural(it.votes, 'vote', 'votes')}</span>
-            <button type="button" class=${'emoji-btn' + (it.voted ? ' on' : '')} aria-pressed=${it.voted}
+            <span class="sm soft num">${plural(it.votes, 'vote', 'votes')}</span>
+            <button type="button" class=${'emoji-btn vote' + (it.voted ? ' on' : '')} aria-pressed=${it.voted}
               aria-label=${it.voted ? 'Remove your +1' : 'Give +1'} onClick=${onVote}>+1</button>
           </div>
         </div>

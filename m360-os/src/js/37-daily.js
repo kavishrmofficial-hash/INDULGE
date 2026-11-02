@@ -22,6 +22,10 @@
     for (let i = 0; i < 5; i++) { if (out[i] !== 2 && left[guess[i]]) { out[i] = 1; left[guess[i]]--; } }
     return out.join('');
   }
+  /* v39: a guess has to read like a word: one from the list, or one with a vowel, no letter three times
+     running and no four consonants running (angst and schwa excepted). A mashed key never costs a try */
+  const ODD_OK = ['angst', 'schwa'];
+  const wordish = g => WORDS.includes(g) || ODD_OK.includes(g) || (/[aeiouy]/.test(g) && !/(.)\1\1/.test(g) && !/[bcdfghjklmnpqrstvwxz]{4}/.test(g));
   const myResult = (ctx, uid, ymd) => (((M.play.docOf(ctx, uid) || {}).days || {})[ymd || today()] || {}).five || null;
   /* who has played today: tries per person, for the distribution */
   const teamToday = ctx => ctx.activeMembers.map(m => ({uid: m.uid, r: myResult(ctx, m.uid)})).filter(x => x.r);
@@ -56,6 +60,7 @@
     const submit = () => {
       if (over || busy) return;
       if (cur.length !== 5) { setShake(true); setTimeout(() => setShake(false), 400); M.sound.play('tick'); return; }
+      if (!wordish(cur)) { setShake(true); setTimeout(() => setShake(false), 400); M.sound.play('tick'); M.toast('Not a word. That try is still yours.'); return; }
       const start = Number(M.prefs.get('five:start:' + td, '0')) || Date.now();
       if (!guesses.length) M.prefs.set('five:start:' + td, String(start));
       const next = guesses.concat(cur);
@@ -138,7 +143,7 @@
   }
 
   M.parts.Daily = Five;
-  M.play.five = {WORDS, TRIES, wordFor, score, myResult, teamToday};
+  M.play.five = {WORDS, TRIES, wordFor, score, myResult, teamToday, wordish};
   M.play.puzzleFor = ymd => ({kind: 'five', word: wordFor(ymd)});
   M.play.kindFor = () => 'five';
 })();

@@ -32,19 +32,17 @@
     if (!p) return null;
     const parts = p.parts || {}, counts = p.counts || {};
     const rows = ORDER.filter(k => (counts[k] || 0) !== 0 || (parts[k] || 0) !== 0);
+    /* v7 (design B1 .brk): one hairline row per source of points, then output, discipline and the total */
+    const sign = v => v > 0 ? '+' + v : String(v || 0);
     return html`<${UI.Card} title=${title}>
-      ${rows.length ? html`<div class="tbl-wrap"><table class="tbl">
-        <tbody>
-          ${rows.map(k => html`<tr key=${k}>
-            <td>${LABELS[k] || k}</td>
-            <td class="num ink62" style=${{textAlign: 'right'}}>${counts[k] || 0}</td>
-            <td class="num" style=${{textAlign: 'right', fontWeight: 500}}>${parts[k] > 0 ? '+' + parts[k] : (parts[k] || 0)}</td>
-          </tr>`)}
-          <tr><td>output</td><td/><td class="num" style=${{textAlign: 'right', fontWeight: 500}}>${p.output}</td></tr>
-          <tr><td>discipline</td><td/><td class="num" style=${{textAlign: 'right', fontWeight: 500}}>${p.discipline}</td></tr>
-          <tr class="dark"><td>total</td><td/><td class="num" style=${{textAlign: 'right', fontWeight: 500}}>${p.total}</td></tr>
-        </tbody>
-      </table></div>` : html`<${WhyZero} p=${p} range=${range}/>`}
+      ${rows.length ? html`<div class="brk">
+        ${rows.map(k => html`<div class="brk-r" key=${k}>
+          <span>${LABELS[k] || k} <span class="soft num">${counts[k] || 0}</span></span><b>${sign(parts[k])}</b>
+        </div>`)}
+        <div class="brk-r"><span class="mut">output</span><b>${p.output}</b></div>
+        <div class="brk-r"><span class="mut">discipline</span><b>${p.discipline}</b></div>
+        <div class="brk-r tot"><span>total</span><b>${p.total}</b></div>
+      </div>` : html`<${WhyZero} p=${p} range=${range}/>`}
       ${(p.badges || []).length ? html`<div class="row" style=${{marginTop: '12px'}}>
         ${p.badges.map(b => html`<${UI.Pill} key=${b}>${b}<//>`)}</div>` : null}
     <//>`;
@@ -67,42 +65,45 @@
     /* podium order: second, first, third */
     const podium = three.length === 3 ? [three[1], three[0], three[2]] : three;
 
-    return html`<div class="stack" style=${{gap: '18px'}}>
+    return html`<div class="stack sc7" style=${{gap: '16px'}} id="scores-page">
       <${UI.PageHead} micro="points from the work itself" title="Leaderboard">
         <${UI.Seg} options=${PERIODS} value=${period} onChange=${setPeriod} ariaLabel="Period"/>
       <//>
 
-      <${UI.Card}><p style=${{margin: 0}}>${PRINCIPLE}</p><//>
+      <p class="sub sc7-lede">${PRINCIPLE}</p>
 
-      ${three.length ? html`<${UI.Card} title="Top 3">
-        <div class="podium">
-          ${podium.map((r, i) => {
-            const isFirst = r === three[0];
-            const h = isFirst ? 92 : (r === three[1] ? 70 : 54);
-            return html`<div class=${'po' + (isFirst ? ' first' : '')} key=${r.uid}>
-              <${UI.Avatar} id=${r.uid} size=${isFirst ? 44 : 36}/>
-              <div class="small po-name" style=${{fontWeight: 500, textAlign: 'center', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}><${UI.Name} id=${r.uid}/></div>
-              ${isFirst ? html`<${M.fx.MetalBadge} className="po-top">top<//>` : null}
-              <div class="plinth num" style=${{height: h + 'px'}}><${M.fx.MetalText} key=${String(r.total)} size=${isFirst ? 22 : 18} weight=${600} color=${isFirst ? 'var(--on-ink)' : undefined}>${String(r.total)}<//></div>
-            </div>`;
-          })}
-        </div>
-      <//>` : null}
+      ${three.length ? html`<div class="podium" id="podium">
+        ${podium.map(r => {
+          const p0 = r === three[0];
+          const place = p0 ? 1 : r === three[1] ? 2 : 3;
+          return html`<div class=${'pod-s' + (p0 ? ' p0' : '')} key=${r.uid}>
+            <${UI.Avatar} id=${r.uid} size=${p0 ? 48 : 36}/>
+            <b><${UI.Name} id=${r.uid}/></b>
+            <span class="pts">${r.total}</span>
+            <span class="mut sm">${place === 1 ? 'first' : place === 2 ? 'second' : 'third'}</span>
+          </div>`;
+        })}
+      </div>` : null}
 
       <${UI.Card} title="Leaderboard" action=${lastWeek ? html`<span class="pill ink">last week</span>` : byPace ? html`<span class="pill ink" id="board-pace">by pace</span>` : null}>
-        ${lastWeek ? html`<div class="small ink62" style=${{marginBottom: '10px'}}>Nothing has scored in the new week yet. The board shows last week until someone does.</div>` : null}
-        ${byPace ? html`<div class="small ink62" id="board-fair" style=${{marginBottom: '10px'}}>${period === 'all'
+        ${lastWeek ? html`<div class="sm mut" style=${{marginBottom: '10px'}}>Nothing has scored in the new week yet. The board shows last week until someone does.</div>` : null}
+        ${byPace ? html`<div class="sm mut" id="board-fair" style=${{marginBottom: '10px'}}>${period === 'all'
           ? 'Everyone is measured from the day they joined: points per working day, with the career total beside it. Time here is not an advantage.'
           : 'Someone joined part way through, so this board ranks by points per working day. The totals stay; the newcomer is not behind for days they were not here.'}</div>` : null}
-        ${board.length ? html`<div class="stack tight">
-          ${board.map((r, i) => html`<div class="listrow nowrap lb-row" key=${r.uid}>
-            <span class="num ink62" style=${{width: '20px', flex: 'none'}}>${i + 1}</span>
-            <${UI.Avatar} id=${r.uid} size=${28}/>
-            <span class="lb-name" style=${{flex: '1 1 120px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}><${UI.Name} id=${r.uid}/></span>
-            <${UI.Bar} a=${Math.max(0, r.output)} b=${Math.max(0, r.discipline)} max=${top}/>
-            ${byPace ? html`<span class="tiny ink62 num" style=${{width: '74px', textAlign: 'right', flex: 'none'}} title=${r.days + (r.days === 1 ? ' working day' : ' working days') + (r.partial ? ', joined ' + U.fmtDate(r.joined) : '')}>${r.pace}/day</span>` : null}
-            <span class="num" style=${{fontWeight: 500, width: '46px', textAlign: 'right', flex: 'none'}}>${i === 0 ? html`<${M.fx.MetalText} key=${String(r.total)} size=${16} weight=${600}>${String(r.total)}<//>` : r.total}</span>
-          </div>`)}
+        ${board.length ? html`<div class="lbs">
+          ${board.map((r, i) => {
+            const o = Math.max(0, r.output), d = Math.max(0, r.discipline);
+            return html`<div class="lb" key=${r.uid}>
+              <span class="rank">${i + 1}</span>
+              <${UI.Avatar} id=${r.uid} size=${32}/>
+              <div class="grow">
+                <b><${UI.Name} id=${r.uid}/></b>
+                <div class="split" aria-hidden="true"><i class="o" style=${{width: (100 * o / top) + '%'}}/><i class="d" style=${{width: (100 * Math.min(d, Math.max(0, top - o)) / top) + '%'}}/></div>
+              </div>
+              ${byPace ? html`<span class="sm mut num" title=${r.days + (r.days === 1 ? ' working day' : ' working days') + (r.partial ? ', joined ' + U.fmtDate(r.joined) : '')}>${r.pace}/day</span>` : null}
+              <b class="num lb-pts">${r.total}</b>
+            </div>`;
+          })}
         </div>` : html`<${UI.Empty} text="No points yet."/>`}
       <//>
 

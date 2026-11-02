@@ -69,19 +69,21 @@
     const list = today(ctx);
     if (!list.length) return null;
     const wish = async c => {
+      /* v39: a wish is a kudos, and the server holds everyone to three a week */
+      if (M.feed && M.feed.kudosLeft && !M.feed.kudosLeft(ctx, ctx.uid)) { M.toast('You have given your three kudos this week. Say it in chat instead.'); return; }
       const given = [{id: U.uid(), to: c.uid, why: c.kind === 'birthday' ? 'Happy birthday. Have the best one.' : 'Happy work anniversary. Thank you for everything.', at: Date.now()}]
         .concat(((ctx.coll.kudos.map[ctx.uid] || {}).given) || []).slice(0, 60);
       try { await ctx.W.merge('kudos/' + ctx.uid, {given}); } catch (e) { return; }
-      M.burst(document.getElementById('celebrate'));
+      if (M.mark && M.mark.happy) M.mark.happy();
       M.toast('Sent');
     };
-    return html`<${M.fx.Beam}><section class="card flame" id="celebrate">
+    return html`<section class="card" id="celebrate">
       ${list.map(c => html`<div class="celebrate" key=${c.uid + c.kind}>
         <span class="cake"><${icons.gift}/></span>
-        <div class="grow"><div style=${{fontWeight: 500}}><${UI.Name} id=${c.uid}/></div><div class="small ink62">${c.uid === ctx.uid ? (c.kind === 'birthday' ? 'Happy birthday from all of us.' : 'Happy work anniversary.') : c.text}</div></div>
+        <div class="grow"><div class="who-n"><${UI.Name} id=${c.uid}/></div><div class="small mut">${c.uid === ctx.uid ? (c.kind === 'birthday' ? 'Happy birthday from all of us.' : 'Happy work anniversary.') : c.text}</div></div>
         ${c.uid !== ctx.uid ? html`<${UI.Btn} sm=${true} onClick=${() => wish(c)}>Send wishes<//>` : null}
       </div>`)}
-    </section><//>`;
+    </section>`;
   }
 
   /* ---------- the trophy case, on Me ---------- */
@@ -94,13 +96,13 @@
     const fresh = who === ctx.uid ? got.filter(t => !seen.includes(t.id)).map(t => t.id) : [];
     useEffect(() => {
       if (!fresh.length) return;
-      M.burst(document.getElementById('trophies'));
+      if (M.mark && M.mark.happy) M.mark.happy();
       ctx.W.merge('me/' + ctx.uid, {badgesSeen: seen.concat(fresh)}).catch(() => {});
     }, [fresh.join(',')]);
     return html`<${UI.Card} id="trophies" title="Trophy case" action=${html`<span class="pill ink">${got.length} of ${list.length}</span>`}>
       <div class="trophies">
         ${list.map(t => html`<div key=${t.id} class=${'trophy' + (t.got ? '' : ' locked') + (fresh.includes(t.id) ? ' new' : '')}>
-          <span class="row between nowrap"><span class="ic"><${icons[t.icon] || icons.trophy}/></span>${t.got ? html`<${M.fx.MetalBadge}>${fresh.includes(t.id) ? 'new' : 'won'}<//>` : null}</span>
+          <span class="row between nowrap"><span class="ic"><${icons[t.icon] || icons.trophy}/></span>${t.got ? html`<span class="pill ink">${fresh.includes(t.id) ? 'new' : 'won'}</span>` : null}</span>
           <b>${t.name}</b><span class="small">${t.desc}</span>
         </div>`)}
       </div>

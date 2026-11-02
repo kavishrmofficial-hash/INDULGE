@@ -196,7 +196,7 @@ export function booksDesk(h) {
       if (!inv) throw new HttpError(404, 'not_found', 'That invoice is not in the books');
       if (inv.status === 'void') throw new HttpError(400, 'failed_precondition', 'A void invoice does not go out');
       const sent = await sendMail(to, subject, text, htmlBody || '<pre style="white-space:pre-wrap;font:inherit">' + esc(text) + '</pre>', req && req.site, {cc});
-      if (!sent) throw new HttpError(400, 'failed_precondition', 'Mail is not set up. Add the Resend key under Setup.');
+      if (!sent) throw new HttpError(400, 'failed_precondition', 'Mail is not set up. Add the Resend key in Admin, under Email sending.');
       const now = Date.now();
       const row = {...inv, updatedAt: now};
       if (kind === 'remind') row.chased = (Array.isArray(inv.chased) ? inv.chased : []).concat([{at: now, step: 'hand', via: 'mail', to}]);

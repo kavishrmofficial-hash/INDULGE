@@ -705,9 +705,10 @@
     };
 
     useEffect(() => () => { alive.current = false; anims.current.forEach(a => { try { a.cancel(); } catch (e) { /* gone */ } }); }, []);
-    /* a hidden tab holds the walk where it is; back again, it jumps to where it was going */
+    /* v39: a hidden tab ends a walk at once where it was going, so nothing walks or bobs unseen (the office
+       sits at the top of HQ > Office now, so a walk is often under way when the tab goes) */
     useEffect(() => {
-      const f = () => anims.current.forEach(a => { try { if (document.visibilityState === 'hidden') a.pause(); else a.finish(); } catch (e) { /* gone */ } });
+      const f = () => anims.current.forEach(a => { try { a.finish(); } catch (e) { /* gone */ } });
       document.addEventListener('visibilitychange', f);
       return () => document.removeEventListener('visibilitychange', f);
     }, []);
@@ -1122,21 +1123,14 @@
     }, [full]);
   }
 
-  /* the COO itself: the plush droid (square glasses, a bow tie), what it carries, its desk cards */
-  const LISTEN = {yaw: .45};   /* turned toward the dock; one object, so the droid is not handed a new pose each render */
+  /* the COO itself: v40, the m360 mark (the design has no robot), what it carries, its desk cards */
   function Mascot({view, rest, size, still, paused, listening, dark, onOpen, label}) {
-    const Bot = M.fx && M.fx.Bot;
     const walking = view.walking;
     const seated = !walking && view.spot === 'desk' && rest.seat !== false;
     const st = walking ? 'default' : rest.asleep && view.spot === rest.station ? 'sleeping' : view.state === 'working' ? 'working' : (view.state === 'sleeping' ? 'sleeping' : 'default');
-    const waiting = !walking && view.spot === 'tray' && rest.station === 'tray';
-    const pose = walking && view.pose ? view.pose : (listening && !walking ? LISTEN : null);
-    const props = {type: 'droid', glasses: 'square', bowTie: true, accessoryColor: dark ? '#F2F1EC' : '#0E0E0E', label: 'm360 COO', size,
-      state: st, paused: (paused || still) && !walking, headphones: !!listening, jumpEvery: still ? 0 : (waiting ? 40 : 0), interactive: !still && !walking,
-      pose: pose || undefined, speed: view.speed || undefined, className: 'office-bot'};
     return html`<div class=${'office-mascot' + (walking ? ' walking' : '') + (seated ? ' seated' : '')} data-state=${walking ? 'walking' : st} data-spot=${view.spot} style=${{'--bot': size + 'px'}}>
       <span class="office-shadow" aria-hidden="true"/>
-      <span class="office-bob">${Bot ? html`<${Bot} ...${props}/>` : html`<${M.Mark} width="40px"/>`}</span>
+      <span class="office-bob" aria-hidden="true"><${M.Mark} width="40px"/></span>
       ${view.carry && ITEM[view.carry] ? html`<span class=${'office-item carry ' + view.carry} aria-hidden="true">${ITEM[view.carry]}</span>` : null}
       ${(rest.orb || (view.fx.orb && Date.now() - view.fx.orb.k < 2400)) && seated && M.fx && M.fx.Orb ? html`<span class="office-orb" aria-hidden="true"><${M.fx.Orb} state="composing" size=${20}/></span>` : null}
       ${(rest.dot || view.failed) && !walking ? html`<i class="office-flamedot" aria-hidden="true"/>` : null}
@@ -1449,6 +1443,19 @@
   const NAV = {attendance: ['#people', 'Open Crew'], calendar: ['#leave', 'Open Leave'], board: ['#tasks', 'Open tasks'], review: ['#reviews', 'Open Reviews'],
     desk: ['#coo', 'Open the COO'], meeting: ['#week', 'Open the week'], clients: ['#pitches', 'Open the pipeline'], mail: ['#coo', 'Open the COO'],
     tray: ['#coo', 'Open Needs you'], books: ['#invoices', 'Open invoices'], reception: ['#admin', 'Open Admin'], clock: ['#coo', 'Open the COO']};
+  /* v39: what the COO does at each station, for a drawer opened while it is somewhere else */
+  const STATION_JOB = {attendance: 'The COO takes the morning roll call here.', board: 'The COO tidies the task board here.',
+    calendar: 'The COO checks the calendar here.', desk: 'The COO writes at its desk.', review: 'The COO walks work to reviewers from here.',
+    mail: 'The COO sorts the mail here.', meeting: 'The COO joins meetings here.', reception: 'The COO greets new people here.',
+    tray: 'Cards wait here for Kaavish.', books: 'Reminders wait here for Kaavish.', clients: 'The COO keeps the client wall here.',
+    clock: 'The COO keeps the day on time from here.'};
+  /* the member's line for a station: the live words only while the COO works there, asleep while it sleeps */
+  function stationLine(ctx, data, k) {
+    const cur = data.nowDoc || data.pub || {};
+    if (data.rest.working && cur.station === k) return teamLine(ctx, k, false);
+    if (data.rest.asleep) return 'The COO is asleep at its desk. ' + (STATION_JOB[k] || '');
+    return STATION_JOB[k] || '';
+  }
   function StationDrawer({k, data, onClose}) {
     const {ctx, founder, rows, D, profs, scope} = data;
     const nm = u => ((profs[u] || {}).name) || 'Someone';
@@ -1473,7 +1480,10 @@
       const open = {};
       Object.keys(ctx.coll.tasks.map).forEach(id => { const t = ctx.coll.tasks.map[id]; if (t && !t.deleted && t.status !== 'done' && t.owner) { const o = open[t.owner] = open[t.owner] || [0, 0]; o[0]++; if (t.due && t.due < data.day.ymd) o[1]++; } });
       const mine = D.filter(x => (founder || (see(x.uid) && x.uid !== ctx.uid)) && open[x.uid]);
-      body = mine.length ? html`<ul class="office-list">${mine.map(x => html`<li key=${x.uid}><b>${nm(x.uid)}</b> <span class="sub">${open[x.uid][0]} open${open[x.uid][1] ? ', ' + open[x.uid][1] + ' overdue' : ''}</span></li>`)}</ul>` : null;
+      /* v39: an empty board says so; a member who sees nobody else's work gets their own count */
+      const own = !founder && open[ctx.uid];
+      body = mine.length ? html`<ul class="office-list">${mine.map(x => html`<li key=${x.uid}><b>${nm(x.uid)}</b> <span class="sub">${open[x.uid][0]} open${open[x.uid][1] ? ', ' + open[x.uid][1] + ' overdue' : ''}</span></li>`)}</ul>`
+        : html`<p class="sub small">${own ? 'You have ' + own[0] + ' open' + (own[1] ? ', ' + own[1] + ' overdue.' : '.') : founder ? 'No open tasks on the floor.' : 'Nothing open for you.'}</p>`;
     } else if (k === 'review') {
       const qd = M.reviews ? M.reviews.queue(ctx) : [];
       body = qd.length ? html`<ul class="office-list">${qd.slice(0, 8).map(t => html`<li key=${t.id || t.title}>${t.title || 'A task'}</li>`)}</ul>` : html`<p class="sub small">Nothing waits for review.</p>`;
@@ -1492,7 +1502,7 @@
           ${h.ai ? html`<li><b>AI used</b> <span class="sub">${h.ai.used} of ${h.ai.cap}</span></li>` : null}
           ${h.stale ? html`<li><b>Late</b> <span class="sub">No round for a while. The next one catches up.</span></li>` : null}</ul>` : null}</div>`;
     } else if (k === 'books') body = html`<p class="sub small">Reminders wait here as drafts for your tap. Nothing pays from the office.</p>`;
-    const team = !founder ? teamLine(ctx, k, false) : '';
+    const team = !founder ? stationLine(ctx, data, k) : '';
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${labelOf(ctx, k)}
       footer=${nav2 ? html`<${UI.Btn} kind="sec" onClick=${() => { onClose(); M.nav(nav2[0]); }}>${nav2[1]}<//>` : null}>
       <div class="stack office-drawer" data-station=${k}>

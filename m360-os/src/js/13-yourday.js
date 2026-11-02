@@ -182,7 +182,7 @@
     const today = U.todayStr();
     const calInput = useMemo(() => calendarInput(today), [today]);
     if (!ctx || !ctx.mcp) return null;
-    return html`<${UI.Card} title="Your day" id="yourday-card" action=${html`<${M.fx.Bot} feature="brief" size=${30} label="m360, your day" className="ai-bot"/>`}>
+    return html`<${UI.Card} title="Your day" id="yourday-card">
       <${Section} id="yourday-calendar" server="Google Calendar" tool="list_events" input=${calInput} ms=${REFETCH_CAL}
         label="calendar" icon=${icons.cal} view=${CalendarView}/>
       <hr class="hair"/>

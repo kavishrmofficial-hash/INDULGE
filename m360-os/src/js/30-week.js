@@ -24,25 +24,19 @@
     const working = ctx.isWorkingDay(date, uid);
     const p = STATUS_PILL[d.status];
     const future = date > today;
-    return html`<button type="button" class="rowbtn" onClick=${() => onOpen({uid, date})}
-      style=${{padding: '4px 2px', minWidth: '96px'}}>
-      <div class="stack tight" style=${{gap: '4px', alignItems: 'flex-start'}}>
-        ${future ? html`<span class="tiny ink62">to come</span>`
-          : html`<div class="row" style=${{gap: '5px'}}>
-            ${p ? html`<${UI.Pill} kind=${p.k}>${p.t}<//>` : html`<span class="tiny ink62">${working ? 'not in' : ''}</span>`}
-          </div>`}
-        ${d.in ? html`<div class="row" style=${{gap: '5px'}}>
-          <span class="tiny num">${U.hhmm(d.in)}</span>
-          ${d.late && ctx.canSee(uid) ? html`<${UI.Pill} kind="flame">late<//>` : null}
-        </div>` : null}
-        ${!future && (e || (past && working))
-          ? (e
-            ? (String(e.blocked || '').trim()
-              ? html`<${UI.Pill} kind="flame">blocked<//>`
-              : html`<${UI.Pill} kind="ink">eod<//>`)
-            : html`<span class="pill" style=${{borderStyle: 'dashed'}}>no eod</span>`)
-          : null}
-      </div>
+    const late = d.late && ctx.canSee(uid);
+    /* v40: the design's week cell (B1 .wg-c): the status as a word, the time in (flame when late), the EOD key */
+    return html`<button type="button" class=${'wg-c' + (future ? ' fut' : '')} onClick=${() => onOpen({uid, date})}
+      aria-label=${U.fmtDay(date)}>
+      ${future ? null : p ? html`<span class=${'st st-' + d.status}>${p.t}</span>` : working ? html`<span class="st st-none">not in</span>` : null}
+      ${d.in ? html`<span class=${'tn' + (late ? ' flt' : '')}>${U.hhmm(d.in)}${late ? ' late' : ''}</span>` : null}
+      ${!future && (e || (past && working))
+        ? (e
+          ? (String(e.blocked || '').trim()
+            ? html`<span class="eodk bl">blocked</span>`
+            : html`<span class="eodk">eod</span>`)
+          : html`<span class="eodk miss">no eod</span>`)
+        : null}
     </button>`;
   }
 
@@ -96,9 +90,11 @@
   function ReviewCard({uid, weekId, ghost}) {
     const ctx = M.useCtx();
     const plan = ((ctx.coll.plan.map[uid] || {}).weeks || {})[weekId];
-    const rev = ((ctx.coll.review.map[uid] || {}).weeks || {})[weekId];
     const items = (plan && plan.items) || [];
     const mine = uid === ctx.uid;
+    /* v39 (BRIEF 7.10): a teammate's card shows their outcomes only. Marks, quality and the note are for the
+       person and the founder, and this page reads a review only for a card it may show it on */
+    const rev = ctx.isFounder || mine ? ((ctx.coll.review.map[uid] || {}).weeks || {})[weekId] : null;
     const isOwnFounderCard = ctx.isFounder && uid === ctx.uid;
     const [marks, setMarks] = useState(() => ({...((rev && rev.marks) || {})}));
     const [quality, setQuality] = useState(() => (rev && rev.quality != null ? String(rev.quality) : ''));
@@ -117,34 +113,45 @@
     }
 
     const g = ctx.isFounder && ghost && items.length ? ghost : null;
-    const card = html`<${UI.Card} title=${html`<${UI.Name} id=${uid}/>`}>
+    const hits = items.filter(it => (marks[it.id] || '') === 'hit').length;
+    /* v40: the design's review card (B1 .card-h, .tl, .mk, .rv-q and .qn); your own card carries the flame line */
+    return html`<section class=${'card rv-card' + (mine ? ' flame' : '')}>
+      <div class="card-h">
+        <span class="row nowrap" style=${{gap: '10px'}}><${UI.Avatar} id=${uid} size=${28}/><h3 class="card-title"><${UI.Name} id=${uid}/></h3></span>
+        ${items.length ? html`<span class="pill">${ctx.isFounder || mine ? hits + ' of ' + items.length + ' hit' : items.length + (items.length === 1 ? ' outcome' : ' outcomes')}</span>` : null}
+      </div>
       ${g ? html`<${Ghost} ghost=${g} uid=${uid} items=${items} marks=${marks}/>` : null}
-      ${items.length ? html`<div class="stack tight">
-        ${items.map(it => html`<div class="listrow" key=${it.id}>
-          <span class="grow">${it.text}</span>
+      ${items.length ? html`<ul class="tl">
+        ${items.map(it => html`<li key=${it.id}>
+          <span class="tl-t">${it.text}</span>
           ${g && !marks[it.id] && g.marks[it.id] ? html`<span class="pill coo-ghost" data-ghost=${g.marks[it.id]} title="Suggested by the COO">${g.marks[it.id]}, suggested</span>` : null}
           ${ctx.isFounder
-            ? html`<${UI.Seg} sm=${true} options=${MARKS} value=${marks[it.id] || ''}
-                onChange=${v => setMarks(m => ({...m, [it.id]: v}))} ariaLabel="Mark"/>`
+            ? html`<span class="rv-marks" role="group" aria-label="Mark">${MARKS.map(o => html`<button key=${o.v} type="button"
+                class=${'mk' + (marks[it.id] === o.v ? ' ' + o.v : '')} aria-pressed=${marks[it.id] === o.v}
+                onClick=${() => setMarks(m => ({...m, [it.id]: m[it.id] === o.v ? '' : o.v}))}>${o.label}</button>`)}</span>`
+            : !mine ? null
             : ((rev && rev.marks && rev.marks[it.id])
               ? html`<${UI.Pill} kind=${MARK_PILL[rev.marks[it.id]]}>${rev.marks[it.id]}<//>`
               : html`<${UI.Pill}>open<//>`)}
-        </div>`)}
-      </div>` : html`<${UI.Empty} text="No outcomes posted."/>`}
+        </li>`)}
+      </ul>` : html`<${UI.Empty} text="No outcomes posted."/>`}
 
-      ${ctx.isFounder ? html`<div class="stack tight" style=${{marginTop: '14px'}}>
-        ${isOwnFounderCard ? null : html`<${UI.Field} label="quality, 1 to 5">
-          <${UI.Seg} sm=${true} options=${QUALITY} value=${quality} onChange=${setQuality} ariaLabel="Quality"/><//>`}
-        <${UI.Input} label="note" value=${note} onChange=${setNote}/>
-        <div class="row"><${UI.Btn} sm=${true} onClick=${save}>Save review<//></div>
-      </div>` : (mine && rev ? html`<div class="stack tight" style=${{marginTop: '14px'}}>
+      ${ctx.isFounder ? html`<div>
+        ${isOwnFounderCard ? null : html`<div class="rv-q" role="group" aria-label="Quality">
+          <span class="rv-lab">quality, 1 to 5</span>
+          ${QUALITY.map(o => html`<button key=${o.v} type="button" class=${'qn' + (quality === o.v ? ' on' : '')} aria-pressed=${quality === o.v}
+            onClick=${() => setQuality(q => q === o.v ? '' : o.v)}>${o.label}</button>`)}
+        </div>`}
+        <div class="stack tight" style=${{marginTop: isOwnFounderCard ? '16px' : '0'}}>
+          <${UI.Input} label="note" value=${note} onChange=${setNote}/>
+          <div class="row"><${UI.Btn} sm=${true} onClick=${save}>Save review<//></div>
+        </div>
+      </div>` : (mine && rev ? html`<div class="stack tight" style=${{marginTop: '16px'}}>
         ${rev.quality != null ? html`<div class="row"><span class="small ink62">quality</span>
           <span class="num" style=${{fontWeight: 500}}>Quality ${rev.quality} of 5</span></div>` : null}
         ${rev.note ? html`<div class="small">${rev.note}</div>` : null}
       </div>` : null)}
-    <//>`;
-    /* your own outcomes card carries the beam: the one card on this page that is yours to act on */
-    return mine ? html`<${M.fx.Beam}>${card}<//>` : card;
+    </section>`;
   }
 
   function Week() {
@@ -160,7 +167,7 @@
     const coo = (M.cooUi ? M.cooUi.useLive : noCoo)(ctx);
     const cards = M.cooUi && ctx.isFounder ? M.cooUi.openCards(coo).filter(c => c.kind === 'review') : [];
 
-    return html`<div class="stack" style=${{gap: '18px'}}>
+    return html`<div class="stack" style=${{gap: '24px'}}>
       <${UI.PageHead} micro=${weekId.toLowerCase() + ', ' + range.toLowerCase()} title="The week">
         <div class="row nowrap">
           <${UI.Btn} kind="sec" sm=${true} ariaLabel="Previous week" onClick=${() => setOffset(o => o - 1)}><${icons.chevL}/><//>
@@ -169,21 +176,19 @@
         </div>
       <//>
 
-      <${UI.Card}>
-        <div class="tbl-wrap"><table class="tbl wk-table">
-          <thead><tr><th>person</th>${days.map(d => html`<th key=${d}>${U.fmtDay(d).toLowerCase()}</th>`)}</tr></thead>
-          <tbody>
-            ${ctx.activeMembers.map(m => html`<tr key=${m.uid}>
-              <td class="lead"><span class="row nowrap"><${UI.Avatar} id=${m.uid} size=${26}/><${UI.Name} id=${m.uid}/></span></td>
-              ${days.map(d => html`<td key=${d} class="wk-cell" data-label=${U.fmtDay(d).toLowerCase().slice(0, 3)}>
-                <${Cell} uid=${m.uid} date=${d} today=${today} onOpen=${setCell}/></td>`)}
-            </tr>`)}
-          </tbody>
-        </table></div>
-        ${ctx.activeMembers.length ? null : html`<${UI.Empty} text="Nobody on the roster yet."/>`}
-      <//>
+      <section class="card pad0 wk-card">
+        <div class="wk-scroll"><div class="wg wk-table" role="table">
+          <div class="wg-h" role="columnheader">person</div>
+          ${days.map(d => html`<div key=${d} class=${'wg-h' + (d === today ? ' td' : '')} role="columnheader">${U.fmtDay(d).split(' ')[0].toLowerCase()}<span>${Number(d.slice(8))}</span></div>`)}
+          ${ctx.activeMembers.map(m => html`<${React.Fragment} key=${m.uid}>
+            <div class="wg-p" role="rowheader"><${UI.Avatar} id=${m.uid} size=${28}/><span><${UI.Name} id=${m.uid}/></span></div>
+            ${days.map(d => html`<${Cell} key=${d} uid=${m.uid} date=${d} today=${today} onOpen=${setCell}/>`)}
+          <//>`)}
+        </div></div>
+        ${ctx.activeMembers.length ? null : html`<div style=${{padding: '0 24px 24px'}}><${UI.Empty} text="Nobody on the roster yet."/></div>`}
+      </section>
 
-      <${UI.Micro}>outcomes and review<//>
+      <${UI.SectionHead} n=${2} label="outcomes and review"/>
       ${ctx.activeMembers.map(m => html`<${ReviewCard} key=${m.uid + weekId} uid=${m.uid} weekId=${weekId} ghost=${cards.length ? M.cooUi.ghostOf(cards, m.uid, weekId) : null}/>`)}
       ${cell ? html`<${CellDrawer} cell=${cell} onClose=${() => setCell(null)}/>` : null}
     </div>`;

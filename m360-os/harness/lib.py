@@ -246,6 +246,9 @@ class Harness:
             if (!['DIV','SPAN','P','H1','H2','H3','LABEL','BUTTON','TD','TH','A','LI','SMALL','I','B','STRONG','INPUT','TEXTAREA','SELECT','OPTION'].includes(el.tagName)) continue;
             const cs = getComputedStyle(el);
             if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+            /* v40: text inside a hidden parent (the phone tab bar on a desk) is not on the screen, and the tab
+               bar's labels are the design's own 10px (design/m360-os-v7.html .tab) */
+            if (!el.getClientRects().length || el.closest('.tabbar')) continue;
             const fs = parseFloat(cs.fontSize);
             if (fs < 11) out.push([el.tagName, fs, el.textContent.trim().slice(0, 40)]);
           }

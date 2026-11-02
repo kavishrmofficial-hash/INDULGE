@@ -170,8 +170,9 @@ def main():
         # the throttle: one address hammering the sign-in
         bad = Client(base, 'curl/8', '10.9.9.9')
         codes = []
+        # a new email each time: one email's own wait after 6 misses (v39, the same for unknown emails) is not the throttle
         for i in range(43):
-            st, j = bad.call('pw', email='nobody@mask360.agency', password='wrong-' + str(i))
+            st, j = bad.call('pw', email='nobody%d@mask360.agency' % i, password='wrong-' + str(i))
             codes.append(st)
         check(codes[0] == 401 and 429 in codes and codes[-1] == 429 and codes.index(429) >= 35, 'throttle statuses: first %r, 429 from %r' % (codes[0], codes.index(429) if 429 in codes else None))
         st, j = bad.call('pw', email='kaavish@mask360.agency', password='vermilion-lantern-2026')

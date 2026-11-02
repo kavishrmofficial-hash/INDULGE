@@ -90,10 +90,11 @@
 
   const StatusPill = ({status}) => { const s = STATUS[status] || STATUS.on; return html`<${UI.Pill} kind=${s.pill}>${s.label}<//>`; };
   const TaskPill = ({status}) => { const s = TASK_STATUS[status] || TASK_STATUS.todo; return html`<${UI.Pill} kind=${s.pill}>${s.label}<//>`; };
-  const Progress = ({prog}) => html`<div class="row nowrap">
-    <${UI.Bar} a=${prog.done} max=${prog.total}/>
-    <span class="tiny num sub">${prog.done} of ${prog.total} tasks</span>
-    ${prog.overdue > 0 ? html`<span class="tiny num flame-t">${prog.overdue} overdue</span>` : null}
+  /* v40: the design's progress (B1 .bar): a 3px line with an ink fill, the count under it */
+  const Bar = ({prog}) => html`<div class="bar"><i style=${{width: (prog.total ? Math.round(100 * prog.done / prog.total) : 0) + '%'}}/></div>`;
+  const Progress = ({prog}) => html`<div class="pj-prog">
+    <span>${prog.done} of ${prog.total} tasks</span>
+    ${prog.overdue > 0 ? html`<span class="flt">${prog.overdue} overdue</span>` : null}
   </div>`;
 
   /* ---------- list ---------- */
@@ -101,21 +102,21 @@
     const prog = progressOf(ctx, p.id);
     const late = p.status !== 'done' && !!p.due && p.due < today;
     const body = html`<${ProjectCardBody} p=${p} ctx=${ctx} prog=${prog} late=${late}/>`;
-    return html`<button type="button" class="rowbtn" style=${{fontWeight: 300}} aria-label=${'Open ' + p.name}
-      onClick=${() => M.nav('#projects/' + p.id)}>
-      ${beam ? html`<${M.fx.Beam}>${body}<//>` : body}
-    </button>`;
+    /* v40: the design's project card (B1 .card.pj); the one project off track or at risk first carries the flame line */
+    return html`<button type="button" class=${'card lift pj pj-card' + (beam ? ' due' : '')} aria-label=${'Open ' + p.name}
+      onClick=${() => M.nav('#projects/' + p.id)}>${body}</button>`;
   }
   function ProjectCardBody({p, ctx, prog, late}) {
-    return html`<div class="card stack tight">
-        <div class="row between nowrap"><b class="grow">${p.name}</b><${StatusPill} status=${p.status}/></div>
-        <div class="sub small">${linkName(ctx, p)}</div>
-        <div class="row">
+    return html`<${React.Fragment}>
+        <div class="pj-top"><h3>${p.name}</h3>${p.archived ? html`<${UI.Pill} kind="ink">archived<//>` : html`<${StatusPill} status=${p.status}/>`}</div>
+        <div class="pj-meta">
           <${UI.Avatar} id=${p.owner} size=${24}/>
-          <span class=${'small num' + (late ? ' flame-t' : ' sub')}>${p.due ? 'due ' + U.fmtDate(p.due) : 'no due date'}</span>
+          <span>${linkName(ctx, p)}</span>
+          <span class=${'num' + (late ? ' flt' : '')}>${p.due ? 'due ' + U.fmtDate(p.due) : 'no due date'}</span>
         </div>
+        <${Bar} prog=${prog}/>
         <${Progress} prog=${prog}/>
-      </div>`;
+      <//>`;
   }
 
   function NewProjectDrawer({open, onClose}) {
@@ -183,7 +184,7 @@
       <${UI.PageHead} micro=${nActive + ' active'} title="Projects">
         <${UI.Btn} onClick=${() => setOpen(true)}><${icons.plus}/>New project<//>
       <//>
-      <div class="row">
+      <div class="row" style=${{gap: '8px'}}>
         <${UI.Seg} options=${SCOPES} value=${scope} onChange=${setScope} ariaLabel="Show"/>
         <${UI.Seg} options=${KIND_FILTER} value=${kind} onChange=${setKind} ariaLabel="Kind"/>
       </div>
@@ -208,7 +209,7 @@
       }), 'Task added');
       setV('');
     };
-    return html`<div class="row nowrap" style=${{marginTop: '8px'}}>
+    return html`<div class="row nowrap add-row">
       <div class="grow"><${UI.Input} id=${'add-task-' + section.id} value=${v} onChange=${setV} placeholder="Add task" onEnter=${add}/></div>
       <${UI.Btn} kind="sec" sm disabled=${!v.trim()} onClick=${() => add()}>Add task<//>
     </div>`;
@@ -226,15 +227,14 @@
       M.tasks.commit(ctx, t.id, sp)
         .then(() => M.toast(checked ? (sp.status === 'done' ? 'Task done' : 'Sent for sign-off') : 'Task reopened'), () => setShown(null));
     };
-    return html`<div class="listrow trow">
-      <label class="checkline"><input type="checkbox" data-task=${t.id} checked=${shown} aria-label=${'Done: ' + t.title}
-        onChange=${e => toggle(e.target.checked)}/></label>
-      <button type="button" class=${'rowbtn grow' + (done ? ' sub' : '')} onClick=${() => onOpen(t)}>${t.title}</button>
-      <span class="trow-meta row nowrap">
-        <${UI.Avatar} id=${t.owner} size=${22}/>
-        ${t.due ? html`<span class=${'tiny num' + (od ? ' flame-t' : ' sub')}>${U.fmtDay(t.due)}</span>` : null}
-        <${TaskPill} status=${t.status}/>
-      </span>
+    /* v40: the design's task row (B1 .prow): the tick, the title, the status pill, the owner, the date */
+    return html`<div class="prow trow">
+      <input type="checkbox" class=${'tick' + (shown ? ' on' : '')} data-task=${t.id} checked=${shown} aria-label=${'Done: ' + t.title}
+        onChange=${e => toggle(e.target.checked)}/>
+      <button type="button" class=${'prow-t' + (done ? ' done' : '')} onClick=${() => onOpen(t)}>${t.title}</button>
+      <${TaskPill} status=${t.status}/>
+      <${UI.Avatar} id=${t.owner} size=${22}/>
+      <span class=${'tn' + (od ? ' flt' : '')}>${t.due ? U.fmtDay(t.due) : ''}</span>
     </div>`;
   }
 
@@ -244,9 +244,9 @@
     const secs = project.sections || [];
     const known = new Set(secs.map(s => s.id));
     const orphans = tasks.filter(t => !known.has(t.section));
-    const group = (s, ts, extra) => html`<${UI.Card} key=${s.id} id=${'sec-' + s.id}>
-      <div class="row between"><${UI.Micro}>${s.name}<//><span class="tiny num sub">${ts.length}</span></div>
-      ${ts.map(t => html`<${TaskRow} key=${t.id} t=${t} ctx=${ctx} today=${today} isOd=${isOd} onOpen=${onOpen}/>`)}
+    const group = (s, ts, extra) => html`<${UI.Card} key=${s.id} id=${'sec-' + s.id} className="sec">
+      <div class="secr"><h3>${s.name}</h3><span class="tn">${ts.length}</span></div>
+      <div>${ts.map(t => html`<${TaskRow} key=${t.id} t=${t} ctx=${ctx} today=${today} isOd=${isOd} onOpen=${onOpen}/>`)}</div>
       ${extra || null}
     <//>`;
     return html`<${React.Fragment}>
@@ -260,14 +260,14 @@
   function TaskCard({t, ctx, today, isOd, next, onOpen}) {
     const od = t.status !== 'done' && isOd(t, today);
     const move = () => after(ctx.W.update('tasks/' + t.id, {section: next.id, updated: Date.now()}), 'Moved to ' + next.name);
-    return html`<div class="tcard">
-      <button type="button" class="rowbtn t" onClick=${() => onOpen(t)}>${t.title}</button>
-      <div class="row between nowrap">
-        <span class="row nowrap"><${UI.Avatar} id=${t.owner} size=${22}/>
-          ${t.due ? html`<span class=${'tiny num' + (od ? ' flame-t' : ' sub')}>${U.fmtDay(t.due)}</span>` : null}</span>
-        <${TaskPill} status=${t.status}/>
+    return html`<div class="tcard tk">
+      <button type="button" class="rowbtn t tk-t" onClick=${() => onOpen(t)}>${t.title}</button>
+      <div class="tk-m"><${TaskPill} status=${t.status}/></div>
+      <div class="tk-o">
+        <${UI.Avatar} id=${t.owner} size=${22}/><span class="grow"><${UI.Name} id=${t.owner}/></span>
+        ${t.due ? html`<span class=${'tn' + (od ? ' flt' : '')}>${U.fmtDay(t.due)}</span>` : null}
       </div>
-      ${next ? html`<div><${UI.Btn} kind="sec" sm onClick=${move}>Move to next section<//></div>` : null}
+      ${next ? html`<div><${UI.Btn} kind="ghost" sm onClick=${move}>Move to next section<//></div>` : null}
     </div>`;
   }
 
@@ -275,17 +275,19 @@
     const today = U.todayStr();
     const isOd = overdueFn();
     const secs = project.sections || [];
-    if (!secs.length) return html`<${UI.Card}><${UI.Empty} text="Add a section under Overview to start the board."/><//>`;
-    return html`<${UI.Card}><div class="board-wrap"><div class="board">
-      ${secs.map((s, i) => {
-        const ts = tasks.filter(t => t.section === s.id);
-        return html`<div class="colm" key=${s.id} data-section=${s.id}>
-          <div class="col-head"><span>${s.name}</span><span class="num">${ts.length}</span></div>
-          ${ts.length ? ts.map(t => html`<${TaskCard} key=${t.id} t=${t} ctx=${ctx} today=${today} isOd=${isOd} next=${secs[i + 1]} onOpen=${onOpen}/>`)
-            : html`<div style=${{padding: '2px 6px'}}><${UI.Empty} text="No tasks"/></div>`}
-        </div>`;
-      })}
-    </div></div><//>`;
+    /* v39: tasks with no section (or one since removed) get their own first column, as on the List tab */
+    const known = new Set(secs.map(s => s.id));
+    const orphans = tasks.filter(t => !known.has(t.section));
+    if (!secs.length && !orphans.length) return html`<${UI.Card}><${UI.Empty} text="Add a section under Overview to start the board."/><//>`;
+    const cols = (orphans.length ? [{id: 'none', name: 'no section', ts: orphans, next: secs[0]}] : [])
+      .concat(secs.map((s, i) => ({id: s.id, name: s.name, ts: tasks.filter(t => t.section === s.id), next: secs[i + 1]})));
+    return html`<div class="board-wrap board nc" style=${{'--n': cols.length}}>
+      ${cols.map(c => html`<div class="colm col" key=${c.id} data-section=${c.id}>
+          <div class="col-head col-h"><span>${c.name}</span><span class="num">${c.ts.length}</span></div>
+          ${c.ts.length ? c.ts.map(t => html`<${TaskCard} key=${t.id} t=${t} ctx=${ctx} today=${today} isOd=${isOd} next=${c.next} onOpen=${onOpen}/>`)
+            : html`<div class="col-e">No tasks</div>`}
+        </div>`)}
+    </div>`;
   }
 
   /* ---------- project page: overview tab ---------- */
@@ -305,29 +307,31 @@
     const [status, setStatus] = useState(project.status || 'on');
     const [text, setText] = useState('');
     useEffect(() => { setStatus(project.status || 'on'); }, [project.status]);
-    const can = !!text.trim() || status !== project.status;
+    /* v39: the owner or the founder sets the status (BRIEF 7.8); anyone else posts an update under the status as it is */
+    const mayStatus = ctx.isFounder || project.owner === ctx.uid;
+    const st = mayStatus ? status : (project.status || 'on');
+    const can = !!text.trim() || (mayStatus && status !== project.status);
     const post = () => {
       if (!can) return;
       const now = Date.now(), id = U.uid();
-      after(ctx.W.update('projects/' + project.id, {status, updates: {[id]: {by: ctx.uid, status, text: text.trim(), at: now}}}), 'Posted');
+      const entry = {updates: {[id]: {by: ctx.uid, status: st, text: text.trim(), at: now}}};
+      after(ctx.W.update('projects/' + project.id, mayStatus ? {status: st, ...entry} : entry), 'Posted');
       setText('');
     };
     const ups = Object.keys(project.updates || {}).map(k => ({id: k, ...project.updates[k]})).sort((a, b) => (b.at || 0) - (a.at || 0));
     void ctx.now;
     return html`<${UI.Card} title="Status update">
       <div class="stack">
-        <${UI.Seg} options=${STATUS_OPTS} value=${status} onChange=${setStatus} ariaLabel="Project status"/>
+        ${mayStatus ? html`<${UI.Seg} options=${STATUS_OPTS} value=${status} onChange=${setStatus} ariaLabel="Project status"/>`
+          : html`<div class="row"><${StatusPill} status=${project.status}/><span class="small sub">The owner sets the status.</span></div>`}
         <${UI.TextArea} id="proj-update" value=${text} onChange=${setText} rows=${3} placeholder="What moved, what is stuck, what you need."/>
         <div class="row"><${UI.Btn} disabled=${!can} onClick=${post}>Post update<//></div>
       </div>
       <hr class="hair"/>
-      ${ups.length ? ups.map(u => html`<div class="listrow" key=${u.id} style=${{alignItems: 'flex-start'}}>
-        <${UI.Avatar} id=${u.by} size=${28}/>
-        <div class="grow stack" style=${{gap: '4px'}}>
-          <div class="row"><b class="small"><${UI.Name} id=${u.by}/></b><${StatusPill} status=${u.status}/><span class="tiny sub num">${U.timeAgo(u.at || 0)}</span></div>
-          ${u.text ? html`<div class="small">${u.text}</div>` : null}
-        </div>
-      </div>`) : html`<${UI.Empty} text="No updates yet."/>`}
+      ${ups.length ? html`<div>${ups.map(u => html`<div class="upd" key=${u.id}>
+        <div class="row" style=${{gap: '8px'}}><${UI.Avatar} id=${u.by} size=${24}/><b class="small"><${UI.Name} id=${u.by}/></b><${StatusPill} status=${u.status}/><span class="tiny soft num">${U.timeAgo(u.at || 0)}</span></div>
+        ${u.text ? html`<p>${u.text}</p>` : null}
+      </div>`)}</div>` : html`<${UI.Empty} text="No updates yet."/>`}
     <//>`;
   }
 
@@ -454,31 +458,30 @@
     const pct = prog.total ? Math.round(100 * prog.done / prog.total) : 0;
     const shaky = project.status === 'risk' || project.status === 'off';
     const view = tab === 'board' ? BoardTab : tab === 'overview' ? OverviewTab : ListTab;
-    return html`<${React.Fragment}>
+    return html`<div class="pj-page">
       <${UI.PageHead} micro=${linkName(ctx, project)} title=${project.name}>${back}${ctx.isFounder || project.owner === ctx.uid ? html`<${UI.Btn} kind="sec" sm onClick=${() => ctx.W.update('projects/' + id, {archived: !project.archived, archivedAt: project.archived ? null : Date.now(), updated: Date.now()}).then(() => M.toast(project.archived ? 'Back on the list' : 'Archived. Its tasks and numbers stay.')).catch(() => {})}>${project.archived ? 'Unarchive' : 'Archive'}<//>` : null}<//>
-      <${M.fx.Beam} on=${shaky}><${UI.Card} id="project-head">
-        <div class="stack">
-          <div class="row">
-            <${StatusPill} status=${project.status}/>
-            ${project.archived ? html`<${UI.Pill} kind="ink">archived<//>` : null}
-            <span class="row nowrap small"><${UI.Avatar} id=${project.owner} size=${24}/><${UI.Name} id=${project.owner}/></span>
-            <${UI.AvatarRow} ids=${project.members || []} size=${24}/>
-            <span class=${'small num' + (late ? ' flame-t' : ' sub')}>${project.due ? 'due ' + U.fmtDate(project.due) : 'no due date'}</span>
-            ${client ? html`<${UI.Btn} kind="ghost" sm onClick=${() => M.nav('#clients/' + project.client)}><${icons.link}/>${client.name || 'Client'}<//>` : null}
-            ${pitch ? html`<${UI.Btn} kind="ghost" sm onClick=${() => M.nav('#pitches/' + project.pitch)}><${icons.link}/>${pitch.brand || 'Pitch'}<//>` : null}
-          </div>
-          <div class="row between nowrap proj-progress">
-            <${Progress} prog=${prog}/>
-            <span class="proj-pct" title="tasks done"><${M.fx.MetalText} key=${pct} size=${28} weight=${600}>${pct + '%'}<//></span>
-          </div>
-          <${UI.Seg} options=${TABS} value=${tab} onChange=${setTab} ariaLabel="Project view"/>
+      <${UI.Card} id="project-head" className="pj-head" need=${shaky}>
+        <div class="pj-facts">
+          <${StatusPill} status=${project.status}/>
+          ${project.archived ? html`<${UI.Pill} kind="ink">archived<//>` : null}
+          <span class="row nowrap"><${UI.Avatar} id=${project.owner} size=${24}/><${UI.Name} id=${project.owner}/></span>
+          <${UI.AvatarRow} ids=${project.members || []} size=${24}/>
+          <span class=${'num' + (late ? ' flt' : '')}>${project.due ? 'due ' + U.fmtDate(project.due) : 'no due date'}</span>
+          ${client ? html`<${UI.Btn} kind="ghost" sm onClick=${() => M.nav('#clients/' + project.client)}><${icons.link}/>${client.name || 'Client'}<//>` : null}
+          ${pitch ? html`<${UI.Btn} kind="ghost" sm onClick=${() => M.nav('#pitches/' + project.pitch)}><${icons.link}/>${pitch.brand || 'Pitch'}<//>` : null}
         </div>
-      <//><//>
+        <div class="pj-pct proj-progress">
+          <${Progress} prog=${prog}/>
+          <span class="proj-pct" title="tasks done"><${UI.BigNum} value=${pct + '%'}/></span>
+        </div>
+        <${Bar} prog=${prog}/>
+        <div><${UI.Seg} options=${TABS} value=${tab} onChange=${setTab} ariaLabel="Project view"/></div>
+      <//>
       <${view} ctx=${ctx} project=${project} tasks=${tasks} onOpen=${onOpen}/>
       ${M.parts.Connections ? html`<${M.parts.Connections} kind="project" id=${id}/>` : null}
       ${(D && openTask) ? html`<${D} taskId=${openTask.taskId} onClose=${() => setOpenTask(null)}
         defaults=${{project: id, section: openTask.section, client: project.client || '', owner: ctx.uid}}/>` : null}
-    <//>`;
+    </div>`;
   }
 
   function Projects({id}) {

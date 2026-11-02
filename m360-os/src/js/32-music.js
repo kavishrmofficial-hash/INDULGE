@@ -38,6 +38,7 @@
 
   M.music = {
     embedOf,
+    listOf: d => listOf(d),
     play(item) { if (now && now.kind === 'sdk' && item && item.kind !== 'sdk' && M.spotify) M.spotify.ctl.stop(); now = item; open = true; emit(); },
     stop() { if (now && now.kind === 'sdk' && M.spotify) M.spotify.ctl.stop(); now = null; emit(); },
     toggle() { open = !open; emit(); },
@@ -45,11 +46,28 @@
     on: f => { subs.add(f); return () => subs.delete(f); }
   };
 
+  /* v39: picks live in a map keyed by id (picks.<id>), so two people adding at once both land; a removed
+     pick keeps its id with gone set. The older items list is still read, oldest first */
+  const KEEP = 200;
+  function listOf(data) {
+    const d = data || {};
+    const legacy = Array.isArray(d.items) ? d.items.filter(x => x && x.id) : [];
+    const picks = d.picks && typeof d.picks === 'object' ? Object.keys(d.picks).map(id => ({...d.picks[id], id})) : [];
+    const gone = new Set(picks.filter(p => p.gone).map(p => p.id));
+    const seen = new Set();
+    const out = [];
+    for (const it of legacy.concat(picks.filter(p => !p.gone && p.url).sort((a, b) => (a.at || 0) - (b.at || 0)))) {
+      if (gone.has(it.id) || seen.has(it.id)) continue;
+      seen.add(it.id); out.push(it);
+    }
+    return out.slice(-KEEP);
+  }
+
   /* ---------- the page: the team's list ---------- */
   function Music() {
     const ctx = M.useCtx();
     const doc = M.useDoc(ctx.db, DOC);
-    const items = (doc.data && Array.isArray(doc.data.items)) ? doc.data.items : [];
+    const items = listOf(doc.data);
     const [link, setLink] = useState('');
     const [title, setTitle] = useState('');
     const [st, setSt] = useState(M.music.state());
@@ -61,10 +79,10 @@
       const e = embedOf(link);
       if (!e) { M.toast('Paste a Spotify, Apple Music, YouTube or SoundCloud link', true); return; }
       const item = {id: U.uid(), title: (title.trim() || (e.kind + ' ' + e.label)).slice(0, 80), url: link.trim(), kind: e.kind, embed: e.embed, by: ctx.uid, at: Date.now()};
-      try { await ctx.W.merge(DOC, {items: items.concat([item]).slice(-200), updated: Date.now()}); } catch (e) { return; }
+      try { await ctx.W.merge(DOC, {picks: {[item.id]: item}, updated: Date.now()}); } catch (e) { return; }
       setLink(''); setTitle(''); M.toast('Added to the team list');
     };
-    const remove = async it => { await ctx.W.merge(DOC, {items: items.filter(x => x.id !== it.id), updated: Date.now()}).catch(() => {}); };
+    const remove = async it => { await ctx.W.merge(DOC, {picks: {[it.id]: {gone: Date.now(), by: it.by}}, updated: Date.now()}).catch(() => {}); };
     const kindPill = k => html`<${UI.Pill} kind=${k === 'spotify' ? 'ink' : 'warm'}>${k}<//>`;
     return html`<div class="stack" style=${{gap: '14px'}}>
       ${M.parts.SpotifyCard ? html`<${M.parts.SpotifyCard}/>` : null}
@@ -83,7 +101,7 @@
               <div style=${{minWidth: 0}}><div class="music-title">${it.title}</div><div class="tiny ink62">${kindPill(it.kind)} <${UI.Name} id=${it.by}/> · ${U.timeAgo(it.at)}</div></div>
               <span class="row nowrap" style=${{gap: '4px'}}>
                 <${UI.Btn} sm=${true} onClick=${() => { if (!(M.spotify && M.spotify.tryPlay(ctx, it))) M.music.play(it); }}>${st.now && (st.now.id === it.id || (st.now.kind === 'sdk' && M.spotify && st.now.id === 'sdk:' + M.spotify.uriOf(it.url))) ? 'Playing' : 'Play'}<//>
-                ${it.by === ctx.uid || ctx.isFounder ? html`<button type="button" class="iconbtn" aria-label="Remove" onClick=${() => remove(it)}><${icons.x}/></button>` : null}
+                ${it.by === ctx.uid || ctx.isFounder ? html`<${UI.ConfirmBtn} label="Tap again" onConfirm=${() => remove(it)}>Remove<//>` : null}
               </span>
             </div>
           </div>`)}

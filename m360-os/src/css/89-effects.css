@@ -40,15 +40,16 @@
 .ask-row{display:flex; gap:8px; align-items:flex-end}
 .ask-row .bubble{flex:0 1 auto}
 
-/* ---------- sheen: a light sweeps a primary button under the pointer ---------- */
-@media (hover:hover) and (prefers-reduced-motion:no-preference){
-  .btn:not(.sec):not(.ghost):not(.on-dark.sec),.quick-btn,.tab-item.active{position:relative; overflow:hidden}
-  .btn:not(.sec):not(.ghost)::after,.quick-btn::after{content:""; position:absolute; top:-20%; bottom:-20%; left:-40%; width:60%; pointer-events:none;
-    background:linear-gradient(105deg, transparent 20%, rgba(255,255,255,.18) 45%, rgba(255,255,255,.34) 50%, rgba(255,255,255,.12) 56%, transparent 80%); transform:translateX(-120%) skewX(-12deg); transition:transform .1s linear; opacity:0}
-  .btn:not(.sec):not(.ghost):hover::after,.quick-btn:hover::after{opacity:1; transform:translateX(320%) skewX(-12deg); transition:transform .85s var(--ease), opacity .1s linear}
-  .btn.on-dark:hover::after{background:linear-gradient(105deg, transparent 20%, rgba(14,14,14,.06) 45%, rgba(14,14,14,.12) 50%, rgba(14,14,14,.05) 56%, transparent 80%)}
-  .quick-btn:hover::after{background:linear-gradient(105deg, transparent 20%, rgba(245,57,1,.06) 45%, rgba(245,57,1,.12) 50%, rgba(245,57,1,.05) 56%, transparent 80%)}
-}
+/* ---------- sheen: retired in v7. A primary button turns flame under the pointer (css.css) ---------- */
+
+/* ---------- folds (phones): the v7 card. A ring, 20 radius, and a hot fold carries the flame line on its
+   top edge (the border beam is retired) ---------- */
+.fold{position:relative; border:0; box-shadow:0 0 0 1px var(--line); border-radius:var(--r-card); background:var(--paper)}
+.fold.hot{border:0}
+.fold.hot::before{content:""; position:absolute; left:20px; right:20px; top:0; z-index:3; height:2px; border-radius:0 0 2px 2px; background:var(--flame)}
+.fold-title{font-weight:500; letter-spacing:-.015em}
+.fold-chev{transition:background-color .3s var(--ease)}
+.fold.open .fold-chev svg{transition:transform .5s var(--spring)}
 
 /* ---------- your team ---------- */
 .team-row{align-items:flex-start}
@@ -72,7 +73,6 @@
 .ask-row canvas{flex:none}
 .buddy-bot{margin-right:8px}
 .thinking-line canvas{flex:none}
-.card.flame{border-color:var(--flame)}
 
 .metal-host{display:inline-flex; vertical-align:middle}
 .new-metal{width:100%}
@@ -83,13 +83,9 @@
 .ask-in .input{min-width:140px}
 .ask-in .micbtn{flex:0 0 auto}
 /* ---------- v29: the packages everywhere ---------- */
-.empty-line{display:flex; align-items:center; gap:10px; min-height:34px}
-.empty-line canvas{flex:none}
 .metal-host.block{display:flex; width:100%}
 .metal-host.block .btn{width:100%}
 .metal-text-plain{display:inline-block; letter-spacing:-.02em}
 .voice-pill{display:inline-flex; vertical-align:middle; border-radius:10px; align-items:center; align-self:center}
 .beam-host.inline{display:inline-block}
-/* the beam clips its box, so a focused control inside draws its ring inward */
-.beam-host :focus-visible{outline-offset:-2px}
-.beam-host .input:focus-visible,.beam-host textarea:focus-visible{outline:0; box-shadow:inset 0 0 0 2px var(--flame)}
+

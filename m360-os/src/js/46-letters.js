@@ -497,7 +497,7 @@
       <${UI.Btn} kind="ghost" sm=${true} id="letter-dup" onClick=${() => duplicate(l)}>Duplicate<//>
       ${l.status === 'issued' ? html`<span id="letter-withdraw"><${UI.ConfirmBtn} kind="ghost" onConfirm=${() => withdraw(l)}>Withdraw<//></span>` : null}
     </span>`;
-    return html`<div class="split" id="letters-page">
+    return html`<div class="stack" style=${{gap: '24px'}}><${UI.SectionHead} label="letters" pill=${person ? person.who : 'pick a person'}/><div class="split" id="letters-page">
       <div class="stack" style=${{gap: '18px'}}>
         <${UI.Card} title="Who" id="letters-people">
           ${people.length ? people.map(p => html`<button type="button" key=${p.uid} class="listrow rowbtn" aria-pressed=${p.uid === sel}
@@ -510,19 +510,16 @@
         <//>
       </div>
       <div class="stack" style=${{gap: '18px'}}>
-        ${person ? html`<${UI.Card} title=${'Letters, ' + person.who} id="letters-list">
+        ${person ? html`<${UI.Card} title=${html`letters, <span class="dn">${person.who}</span>`} id="letters-list">
           ${list.length ? list.map(l => html`<div class="listrow" key=${l.id}>
               <span class="grow" style=${{minWidth: 0}}><b>${LABEL[l.kind] || 'Letter'}</b><span class="tiny ink62"> · ${l.ref || 'no ref'} · ${day((l.vars || {}).date) || day(U.ymd(new Date(l.at || Date.now())))}</span></span>
               ${l.status === 'issued' && M.fx ? html`<${M.fx.MetalBadge}>issued<//>` : html`<${UI.Pill} kind=${STATUS_PILL[l.status]}>${l.status === 'issued' ? 'issued' : l.status === 'withdrawn' ? 'withdrawn' : 'draft'}<//>`}
               <${UI.Btn} kind="ghost" sm=${true} onClick=${() => openLetter(l)}>Open<//>
             </div>`) : html`<${UI.Empty} text="No letters yet."/>`}
-          ${(() => {
-            const pickRow = html`<div class=${'row between' + (M.fx ? ' fx-beam-pad' : '')} style=${{marginTop: M.fx ? 0 : '12px', alignItems: 'flex-end'}}>
-              <div class="grow"><${UI.Select} id="letter-kind" label="new letter" value=${kind} options=${KINDS} onChange=${setKind}/></div>
-              <${UI.Btn} id="letter-draft" onClick=${startDraft}>Draft the letter<//>
-            </div>`;
-            return M.fx ? html`<div style=${{marginTop: '12px'}}><${M.fx.Beam} radius=${16}>${pickRow}<//></div>` : pickRow;
-          })()}
+          <div class="row between" style=${{marginTop: '16px', alignItems: 'flex-end'}}>
+            <div class="grow"><${UI.Select} id="letter-kind" label="new letter" value=${kind} options=${KINDS} onChange=${setKind}/></div>
+            <${UI.Btn} id="letter-draft" onClick=${startDraft}>Draft the letter<//>
+          </div>
         <//>` : html`<${UI.Card} title="Letters"><${UI.Empty} text=${phone ? 'Pick a person above.' : 'Pick a person on the left.'}/><//>`}
       </div>
       ${person && shown ? html`<div style=${{gridColumn: '1 / -1'}}>
@@ -530,7 +527,7 @@
         <${LetterDoc} letter=${shown} who=${person.who} actions=${editing ? null : actionsFor(shown)}/>
       </div>` : null}
       ${person && editing ? html`<${LetterDrawer} uid=${person.uid} letter=${draft} onClose=${() => setDraft(null)} onChange=${setDraft}/>` : null}
-    </div>`;
+    </div></div>`;
   }
 
   M.letters = {KINDS, LABEL, FIELDS, SUBJECT, template, vars, withDefaults, nextRef, refUsed, lettersOf, allIssued, allLetters};

@@ -48,7 +48,7 @@ def test(h):
     page = h.open('founder', width=1280, hash='#projects', reset=True, seed=True)
     h.roster(page, ('u_m1', 'u_m2'))
     page.wait_for_timeout(250)
-    check('Projects' in page.locator('h1.pgt').inner_text(), 'projects list title')
+    check('projects' in page.locator('h1.pgt').inner_text().lower(), 'projects list title')
     check('No projects yet.' in page.inner_text('body'), 'empty state on a fresh workspace')
     no_overflow(h, page, 'list 1280', checks)
 

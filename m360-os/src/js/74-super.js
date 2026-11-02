@@ -38,9 +38,10 @@
     useEffect(() => { setNote(String(ctx.settings.lockNote || '')); }, [ctx.settings.lockNote]);
     const setLock = v => after(ctx.W.merge('settings/app', {locked: v === 'locked', ...stamp()}), v === 'locked' ? 'Locked' : 'Unlocked');
     const saveNote = () => after(ctx.W.merge('settings/app', {lockNote: note.trim().slice(0, ALERT_MAX), ...stamp()}), 'Note saved');
+    /* v39: the lock holds full access admins too, so the card speaks for the whole team */
     return html`<${UI.Card} id="super-lock" title="Lock the workspace"
       action=${locked ? html`<${UI.Pill} kind="flame">locked<//>` : html`<${UI.Pill} kind="ink">open<//>`}>
-      <p class="small ink62" style=${{marginTop: 0}}>While locked, everyone can look and only you can change anything. Members see a line at the top of every page.</p>
+      <p class="small ink62" style=${{marginTop: 0}}>While locked, the whole team can only look, full access admins included. Everyone but you sees a line at the top of every page.</p>
       <div class="stack tight">
         <${UI.Field} label="workspace">
           <${UI.Seg} options=${LOCK_OPTS} value=${locked ? 'locked' : 'open'} onChange=${setLock} ariaLabel="Workspace lock"/>

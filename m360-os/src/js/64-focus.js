@@ -42,7 +42,7 @@
       const sessions = [{task: s.task, mins: s.mins, at: Math.min(Date.now(), s.start + s.mins * 60000)}].concat(((doc.focus || {}).sessions) || []).slice(0, KEEP);
       try { await ctx.W.merge('me/' + ctx.uid, {focus: {sessions}}); } catch (e) { M.toast('That session did not save. It stays on the clock; try again in a moment.', true); return; }
       state = null; persist(); emit(); markNow(null);
-      M.burst(document.querySelector('.focus-pill') || document.body);
+      if (M.mark && M.mark.happy) M.mark.happy();
       M.toast('Session done. ' + s.mins + ' minutes of deep work banked.');
     },
     /* minutes of deep work in an inclusive date range */

@@ -224,9 +224,8 @@
       </div>`;
     }
 
-    const card = html`<${UI.Card} title="Check in" id="checkin-card">${body}<//>`;
-    /* before the day starts, the card is the one thing to do: it carries the beam */
-    return ds.status === 'none' && !ds.in ? html`<${M.fx.Beam}>${card}<//>` : card;
+    /* before the day starts, the card is the one thing to do: it carries the flame line on its top edge */
+    return html`<${UI.Card} title="Check in" id="checkin-card" need=${ds.status === 'none' && !ds.in}>${body}<//>`;
   }
 
   M.parts.CheckinCard = CheckinCard;

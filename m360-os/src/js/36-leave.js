@@ -64,9 +64,9 @@
 
   /* ---------- small parts ---------- */
   const TypePill = ({t}) => html`<${UI.Pill}>${TYPE_PILL[t] || (TYPE_LABEL[t] || 'Other').toLowerCase()}<//>`;
-  /* approved is cast in metal; the pill class stays on its holder so the status reads the same everywhere */
+  /* approved is the ink pill; the rest keep their kind */
   const StatusPill = ({s}) => s === 'approved'
-    ? html`<span class="pill ink metal-pill"><${M.fx.MetalBadge} className="fit">${s}<//></span>`
+    ? html`<span class="pill ink">${s}</span>`
     : html`<${UI.Pill} kind=${STATUS_KIND[s] || 'flame-o'}>${s}<//>`;
   const ReqLine = ({req, tail}) => {
     const n = dayCount(req);
@@ -91,10 +91,10 @@
         .catch(() => {})
         .then(() => setBusy(null));
     };
-    /* a short queue of decisions carries the beam; a long one holds still */
-    return html`<${M.fx.Beam} on=${list.length > 0 && list.length <= 3}><${UI.Card} title="Approvals" id="leave-approvals"
+    /* v40: decisions waiting carry the flame line on the card's top edge */
+    return html`<${UI.Card} title="Approvals" id="leave-approvals" need=${list.length > 0}
         action=${list.length ? html`<${UI.Pill} kind="flame-o">${list.length} pending<//>` : null}>
-      ${list.length ? list.map(({uid, req}) => html`<div class="listrow" key=${uid + ':' + req.id}>
+      ${list.length ? html`<div class="lv">${list.map(({uid, req}) => html`<div class="lv-r" key=${uid + ':' + req.id}>
         <div class="row between grow">
           <div class="row nowrap">
             <${UI.Avatar} id=${uid} size=${32}/>
@@ -108,8 +108,8 @@
             <${UI.Btn} kind="sec" sm disabled=${busy === req.id} onClick=${() => decide(uid, req.id, 'declined')}>Decline<//>
           </div>
         </div>
-      </div>`) : html`<${UI.Empty} text="No leave requests waiting."/>`}
-    <//><//>`;
+      </div>`)}</div>` : html`<${UI.Empty} text="No leave requests waiting."/>`}
+    <//>`;
   }
 
   /* ---------- page ---------- */
@@ -153,11 +153,8 @@
       <${UI.PageHead} micro="team" title="Leave"/>
       ${ctx.isFounder && Approvals ? html`<${Approvals}/>` : null}
       <div class="grid2">
-        <${M.fx.Beam}><${UI.Card} title="Request leave" id="leave-request">
-          ${probation ? html`<div class="row nowrap small" style=${{alignItems: 'flex-start', marginBottom: '12px'}}>
-            <span class="dotflame" style=${{marginTop: '7px'}}/>
-            <span>You're in probation until ${U.fmtDate(probation)}. Leave in probation is loss of pay.</span>
-          </div>` : null}
+        <${UI.Card} title="Request leave" id="leave-request">
+          ${probation ? html`<div class="note leave-note">You're in probation until ${U.fmtDate(probation)}. Leave in probation is loss of pay.</div>` : null}
           <div class="stack">
             <div class="grid2">
               <${UI.Input} id="leave-from" label="from" type="date" value=${from} onChange=${onFrom}/>
@@ -169,25 +166,25 @@
             </div>
             <div class="sub small">Details go to Kaavish directly.</div>
           </div>
-        <//><//>
+        <//>
         <${UI.Card} title="Your requests" id="leave-mine">
-          ${mine.length ? mine.map(r => {
+          ${mine.length ? html`<div class="lv">${mine.map(r => {
             const s = statusOf(ctx, uid, r.id);
             const d = decOf(ctx, uid)[r.id];
             const tail = s === 'pending' ? (r.at ? 'asked ' + U.timeAgo(r.at) : '')
               : (d && d.at ? 'decided ' + U.fmtDate(U.ymd(new Date(d.at))) : '');
             const who = s === 'pending' ? 'With Kaavish' : s === 'approved' && byCoo(d) ? 'Approved by ' + M.coo.title(ctx) + ', inside policy' : '';
-            return html`<div class="listrow" key=${r.id}>
+            return html`<div class="lv-r" key=${r.id}>
               <div class="row between grow">
                 <div>
-                  <div class="row"><span class="num">${rangeText(r)}</span><${TypePill} t=${r.type}/><${StatusPill} s=${s}/></div>
+                  <div class="row"><b class="num">${rangeText(r)}</b><${TypePill} t=${r.type}/><${StatusPill} s=${s}/></div>
                   <div class="sub small">${dayText(dayCount(r))}${tail ? ' · ' + tail : ''}</div>
                   ${who ? html`<div class="sub small leave-by" data-by=${byCoo(d) ? 'coo' : 'founder'}>${who}</div>` : null}
                 </div>
                 ${s === 'pending' ? html`<${UI.ConfirmBtn} onConfirm=${() => withdraw(r.id)}>Withdraw<//>` : null}
               </div>
             </div>`;
-          }) : html`<${UI.Empty} text="No requests yet."/>`}
+          })}</div>` : html`<${UI.Empty} text="No requests yet."/>`}
         <//>
       </div>
     <//>`;
