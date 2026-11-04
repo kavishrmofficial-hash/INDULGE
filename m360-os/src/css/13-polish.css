@@ -19,3 +19,12 @@
   .app .side .nv+.nv{margin-top:1px}
   .app .sgl{height:18px; padding-bottom:2px}
 }
+
+/* what is owed (Books, Invoices): on a phone the numbers stay in view, rupees and dirhams side by side, the
+   total under them at full width */
+@media (max-width:900px){
+  .fo .kpis.owed{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible;margin:4px 0 0;padding:0;gap:16px}
+  .fo .kpis.owed .kp{flex:none;min-width:0}
+  .fo .kpis.owed .kp:last-child:nth-child(odd){grid-column:1 / -1}
+  .fo .kpis.owed .kp:not(:last-child) .kv .bignum{font-size:30px;line-height:38px}
+}

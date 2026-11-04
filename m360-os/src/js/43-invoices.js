@@ -431,7 +431,7 @@
     const list = inYear.filter(i => inFilter(i, filter));
     const counts = {};
     FILTERS.forEach(o => { counts[o.v] = inYear.filter(i => inFilter(i, o.v)).length; });
-    const sum = list.reduce((s, i) => s + (i.currency === 'INR' || !i.currency ? b.totals(i).balance : b.totals(i).balance * (b.num(i.fx) || 0)), 0);
+    const due = b.owed(ctx, list), sum = due.inr, aed = b.rateNow(ctx, 'AED');
     const noClients = !Object.keys(ctx.coll.clients.map).length;
     const Chips = M.parts.FoChips || UI.Seg;
     const late = counts.overdue > 0;
@@ -439,9 +439,14 @@
       <${UI.SectionHead} label="invoices" pill=${list.length + (list.length === 1 ? ' invoice' : ' invoices') + (filter === 'open' || filter === 'overdue' ? ', ' + U.inr(sum) + ' outstanding' : '')}>
         <${UI.Btn} id="inv-new" disabled=${noClients} onClick=${() => setDraft(fresh(ctx, ''))}><${icons.plus}/>New invoice<//>
       <//>
-      ${(filter === 'open' || filter === 'overdue') && list.length ? html`<div class="kpis k3" id="inv-outstanding">
-        <div class=${'kp' + (filter === 'overdue' || late ? ' hot' : '')}><div class="kl"><span class="cap">${filter === 'overdue' ? 'overdue' : 'outstanding'}</span></div>
-          <div class="kv"><${UI.BigNum} value=${U.inr(sum)} money=${true}/></div><div class="kn">${list.length + (list.length === 1 ? ' invoice' : ' invoices')}</div></div>
+      ${(filter === 'open' || filter === 'overdue') && list.length ? html`<div class="kpis k3 owed" id="inv-outstanding">
+        ${due.n.AED ? html`
+          <div class="kp"><div class="kl"><span class="cap">in rupees</span></div>
+            <div class="kv"><${UI.BigNum} value=${U.inr(due.by.INR)} money=${true}/></div><div class="kn">${(due.n.INR || 0) + ' open, India'}</div></div>
+          <div class="kp"><div class="kl"><span class="cap">in dirhams</span></div>
+            <div class="kv"><${UI.BigNum} value=${b.whole(due.by.AED, 'AED')} money=${true}/></div><div class="kn">${due.n.AED + ' open, UAE'}</div></div>` : null}
+        <div class=${'kp' + (filter === 'overdue' || late ? ' hot' : '')}><div class="kl"><span class="cap">${(filter === 'overdue' ? 'overdue' : 'outstanding') + (due.n.AED ? ', total in rupees' : '')}</span></div>
+          <div class="kv"><${UI.BigNum} value=${U.inr(sum)} money=${true}/></div><div class="kn">${due.n.AED && aed ? 'AED at ₹' + b.fmt(aed, 'AED') : list.length + (list.length === 1 ? ' invoice' : ' invoices')}</div></div>
       </div>` : null}
       ${noClients ? html`<div class="card small">Add a client under Accounts first; the invoice takes its legal name, address and currency from the client's billing profile under Setup.</div>` : null}
       <${UI.Band} tone="warm"><${UI.Card} id="inv-list" title="the list" action=${fys.length > 1 ? html`<${UI.Seg} sm=${true} options=${[{v: 'all', label: 'All years'}].concat(fys.map(x => ({v: x, label: 'FY ' + x})))} value=${fy} onChange=${setFy} ariaLabel="Financial year"/>` : null}>
