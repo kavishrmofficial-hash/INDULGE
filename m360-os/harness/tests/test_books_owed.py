@@ -32,7 +32,8 @@ SEED = '''() => {
     o1: inv('MM/1', 'INR', 100000, d(10)),
     o2: inv('MM/2', 'INR', 250000, d(-45), {payments: [{amount: 50000, at: now}]}),
     o3: inv('MM/3', 'AED', 43500, d(-12)),
-    o4: inv('MM/4', 'AED', 10000, d(5), {fx: '22.5'})}, updated: now});
+    o4: inv('MM/4', 'AED', 10000, d(5), {fx: '22.5'}),
+    o5: inv('MM/5', 'AED', 5000, d(-3), {fx: '22.5', payments: [{amount: 5000, at: now}]})}, updated: now});
 }'''
 
 with Office(users=4, warm=4) as o:
@@ -54,6 +55,12 @@ with Office(users=4, warm=4) as o:
         # 43,500 AED alone, 11 to 30 days late, is 11,31,870
         first = p.inner_text('#books-aging tbody tr:first-child').replace('\n', ' ').replace('\t', ' ')
         check('43,500' in first and '11,31,870' in first, '%d: 43,500 AED is 11,31,870: %r' % (w, first))
+        # income: 50,000 rupees and 5,000 dirhams at the invoice's 22.5, 1,62,500 in all
+        inc = p.inner_text('#books-income').replace('\n', ' ')
+        check('1,62,500' in inc and 'AED 5,000' in inc and '50,000' in inc, '%d: total income: %r' % (w, inc))
+        rows = p.eval_on_selector_all('#books-pending tbody tr', 'es => es.map(e => e.innerText.replace(/\\s+/g, " "))')
+        check(len(rows) == 4 and rows[0].startswith('MM/2') and '45 days late' in rows[0], '%d: pending invoices, the oldest first: %r' % (w, rows[:2]))
+        check(any('MM/3' in r and 'AED 43,500' in r and '11,31,870' in r for r in rows), '%d: the dirham invoice shows in rupees too' % w)
         ov = p.evaluate('() => document.documentElement.scrollWidth - innerWidth')
         check(ov <= 0, '%d: no sideways scroll (%d)' % (w, ov))
         p.screenshot(path=os.path.join(OUT, 'overview_%d.png' % w), full_page=True)

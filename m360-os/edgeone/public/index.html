@@ -5766,7 +5766,7 @@ html.gs-open.ai-behind .buddy-bubble.agent-pop{z-index:59}
 @media (prefers-reduced-motion:no-preference){ .o3-layer > .o3-emote{animation:o3-emote-in .35s var(--ease) both} }
 @keyframes o3-emote-in{from{scale:.7} to{scale:1}}
 </style>
-<script>window.M360_BUILD = "1f0f414+.261104-1621"; window.M360_3D_SRC = "vendor/three.92287d45.js"; window.M360_3D_SRI = "sha384-9CmMVqgd6no+mymMnUEosvNELUQCik7EBJNeBNZTkeerVlw0wzE9SGjUQswxiS20";</script><script>
+<script>window.M360_BUILD = "1ddc439+.261105-1049"; window.M360_3D_SRC = "vendor/three.92287d45.js"; window.M360_3D_SRI = "sha384-9CmMVqgd6no+mymMnUEosvNELUQCik7EBJNeBNZTkeerVlw0wzE9SGjUQswxiS20";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -29709,7 +29709,6 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     /* billed and collected use the invoice's own rate; what is still owed uses today's (owed) */
     const inrOf = i => (i.currency === 'INR' || !i.currency) ? 1 : num(i.fx) || rateNow(ctx, i.currency);
     const billed = inFy.reduce((s, i) => s + totals(i).total * inrOf(i), 0);
-    const collected = list.reduce((s, i) => s + (i.payments || []).filter(p => p.at && U.ymd(new Date(p.at)) >= fr.from).reduce((x, p) => x + num(p.amount), 0) * inrOf(i), 0);
     const open = list.filter(i => ['sent', 'overdue', 'part'].includes(status(i, today)));
     const due = owed(ctx, open);
     const overdue = open.filter(i => status(i, today) === 'overdue' || (status(i, today) === 'part' && i.due < today));
@@ -29719,6 +29718,20 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const exp = expenses(ctx);
     const expMonth = exp.filter(e => e.month === month).reduce((s, e) => s + num(e.amount), 0);
     const collMonth = list.reduce((s, i) => s + (i.payments || []).filter(p => p.at && U.monthId(new Date(p.at)) === month).reduce((x, p) => x + num(p.amount), 0) * inrOf(i), 0);
+    /* income: every payment received, by currency, and in rupees at the invoice's rate (today's when it has none) */
+    const income = keep => {
+      const by = {INR: 0, AED: 0}; let inr = 0;
+      for (const i of list) for (const p of i.payments || []) {
+        if (!p.at || !keep(U.ymd(new Date(p.at)))) continue;
+        const cur = i.currency || 'INR', a = num(p.amount);
+        by[cur] = (by[cur] || 0) + a; inr += a * inrOf(i);
+      }
+      return {by, inr};
+    };
+    const incAll = income(() => true), incFy = income(d => d >= fr.from && d <= fr.to), incMonth = income(d => d.slice(0, 7) === month);
+    const split = o => Object.keys(o.by).filter(c => o.by[c]).map(c => c === 'INR' ? U.inr(o.by[c]) : whole(o.by[c], c)).join(' and ');
+    /* the pending invoices, the soonest due first */
+    const pending = open.slice().sort((a, b) => String(a.due || '9').localeCompare(String(b.due || '9')));
     const run = (ctx.coll.payroll && ctx.coll.payroll.map[month] && ctx.coll.payroll.map[month].run) || null;
     const payMonth = run ? Object.values(run.rows || {}).reduce((s, r) => s + num(r.net), 0) : 0;
     const buckets = [['0 to 30', 0, 30], ['31 to 60', 31, 60], ['61 to 90', 61, 90], ['over 90', 91, 100000]].map(([l, a, b]) => {
@@ -29735,7 +29748,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       months.push({mid, label: NAMES_MON[d.getMonth()] + ' ' + String(d.getFullYear()).slice(2), b, c, e});
     }
     const calls = [];
-    for (const i of overdue.slice(0, 6)) calls.push({key: 'inv' + i.id, text: i.no + ', ' + (i.clientName || 'client') + ', ' + money(totals(i).balance, i.currency) + ' due ' + U.fmtDate(i.due) + ', ' + ageOf(i, today) + ' days late', to: '#invoices/' + i.id, hot: true});
+    /* late invoices sit in pending invoices, in flame; this list carries the rest of what waits on you */
     for (const i of list.filter(x => x.auto === 'retainer' && status(x, today) === 'draft').slice(0, 4)) calls.push({key: 'draft' + i.id, text: 'Retainer draft ready: ' + i.no + ', ' + (i.clientName || ''), to: '#invoices/' + i.id});
     const hrMap = (ctx.coll.hr && ctx.coll.hr.map) || {};
     for (const uid of Object.keys(hrMap)) for (const lid of Object.keys((hrMap[uid] || {}).letters || {})) { const l = hrMap[uid].letters[lid]; if (l && l.status === 'draft') calls.push({key: 'let' + lid, text: aOr(l.kind) + ' ' + (l.kind || 'letter') + ' letter is drafted and not issued', to: '#letters/' + uid}); }
@@ -29743,6 +29756,12 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const fx = open.some(i => i.currency && i.currency !== 'INR' && !num(i.fx) && !rateNow(ctx, i.currency));
     const net = collMonth - expMonth - payMonth;
     return html`<div class="stack" style=${{gap: '24px'}}>
+      <${UI.SectionHead} label="income" pill="money received"/>
+      <div class="kpis owed k3" id="books-income">
+        <${Tile} i=${0} v=${U.inr(incFy.inr)} l="this year" n=${'FY ' + fy}/>
+        <${Tile} i=${1} v=${U.inr(incMonth.inr)} l="this month" n=${NAMES_MON[new Date(ctx.now).getMonth()] + ' ' + new Date(ctx.now).getFullYear()}/>
+        <${Tile} i=${2} v=${U.inr(incAll.inr)} l="total income" n=${incAll.inr ? 'All time, ' + split(incAll) : 'Nothing received yet'}/>
+      </div>
       <${UI.SectionHead} label="outstanding" pill=${open.length + ' open'}/>
       <div class=${'kpis owed' + (others.length ? '' : ' k3')} id="books-owed">
         <${Tile} i=${0} v=${U.inr(due.by.INR)} l="in rupees" n=${(due.n.INR || 0) + ' open, India'} to="#invoices"/>
@@ -29750,23 +29769,33 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         ${others.map((c, k) => html`<${Tile} key=${c} i=${2 + k} v=${whole(due.by[c], c)} l=${'in ' + CUR[c].word.toLowerCase()} n=${due.n[c] + ' open'} to="#invoices"/>`)}
         <${Tile} i=${2 + others.length} v=${U.inr(due.inr)} l="total in rupees" n=${aed ? 'AED at ₹' + fmt(aed, 'AED') : 'Set the AED rate in Setup'} to="#invoices" hot=${overdue.length > 0}/>
       </div>
+      <${UI.Card} title="pending invoices" id="books-pending" need=${overdue.length > 0}
+        action=${html`<span class=${'pill pl tn' + (overdue.length ? ' hot' : '')}>${overdue.length ? overdue.length + ' late' : pending.length + ' open'}</span>`}>
+        ${pending.length ? html`<div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>number</th><th>client</th><th class="num">owed</th><th class="num">in rupees</th><th>due</th></tr></thead>
+          <tbody>${pending.map(i => { const bal = totals(i).balance, cur = i.currency || 'INR', r = rateNow(ctx, cur) || num(i.fx), late = ageOf(i, today);
+            return html`<tr key=${i.id} class="inv-row" style=${{cursor: 'pointer'}} onClick=${() => M.nav('#invoices/' + i.id)}>
+              <td data-label="number" class="no">${i.no}</td><td data-label="client">${i.clientName || ''}</td>
+              <td data-label="owed" class="num">${cur === 'INR' ? U.inr(bal) : whole(bal, cur)}</td>
+              <td data-label="in rupees" class="num">${r ? U.inr(bal * r) : 'no rate'}</td>
+              <td data-label="due">${!i.due ? '' : late > 0 ? html`<span class="flame-t">${late === 1 ? '1 day late' : late + ' days late'}</span>` : late === 0 ? 'today' : U.fmtDate(i.due)}</td></tr>`; })}</tbody>
+        </table></div>` : html`<${UI.Empty} text="No invoice is waiting on payment."/>`}
+      <//>
       <${UI.SectionHead} label="numbers" pill=${'FY ' + fy}/>
-      <div class="kpis" id="books-kpis">
+      <div class="kpis k3" id="books-kpis">
         <${Tile} i=${0} v=${U.inr(billed)} l="billed" n=${'FY ' + fy} to="#invoices"/>
-        <${Tile} i=${1} v=${U.inr(collected)} l="collected" n=${'FY ' + fy} to="#invoices"/>
-        <${Tile} i=${2} v=${U.inr(months[5].b)} l="billed" n="This month" to="#invoices"/>
-        <${Tile} i=${3} v=${overdue.length ? U.inr(overdueAmt) : '0'} l="overdue" n=${overdue.length ? overdue.length + ' late' : 'Nothing late'} to="#invoices" hot=${overdue.length > 0}/>
-        <${Tile} i=${4} v=${U.inr(collMonth)} l="collected" n="This month"/>
-        <${Tile} i=${5} v=${U.inr(expMonth)} l="expenses" n="This month" to="#expenses"/>
-        <${Tile} i=${6} v=${run ? U.inr(payMonth) : null} l="payroll" n="This month" to="#payroll"/>
-        <${Tile} i=${7} v=${U.inr(net)} l="net" n="This month" hot=${net < 0}/>
+        <${Tile} i=${1} v=${U.inr(months[5].b)} l="billed" n="This month" to="#invoices"/>
+        <${Tile} i=${2} v=${overdue.length ? U.inr(overdueAmt) : '0'} l="overdue" n=${overdue.length ? overdue.length + ' late' : 'Nothing late'} to="#invoices" hot=${overdue.length > 0}/>
+        <${Tile} i=${3} v=${U.inr(expMonth)} l="expenses" n="This month" to="#expenses"/>
+        <${Tile} i=${4} v=${run ? U.inr(payMonth) : null} l="payroll" n="This month" to="#payroll"/>
+        <${Tile} i=${5} v=${U.inr(net)} l="net" n="This month" hot=${net < 0}/>
       </div>
       ${fx ? html`<div class="card need small">An open invoice is in a currency with no rupee rate, so the totals leave it out. Set today's rate for it in Setup.</div>` : null}
       <${UI.Card} title="needs a call" id="books-calls" need=${calls.some(c => c.hot)}
         action=${html`<span class=${'pill pl tn' + (calls.some(c => c.hot) ? ' hot' : '')}>${calls.length ? calls.length + ' waiting' : 'all clear'}</span>`}>
         ${calls.length ? calls.map(c => html`<button type="button" key=${c.key} class="listrow rowbtn" onClick=${() => M.nav(c.to)}>
           ${c.hot ? html`<span class="dotflame"/>` : html`<span class="pill">next</span>`}<span class="grow">${c.text}</span></button>`)
-          : html`<${UI.Empty} text="Nothing waiting on you. Invoices are paid or not yet due, no drafts sit unsent."/>`}
+          : html`<${UI.Empty} text="Nothing waiting on you. No draft or letter sits unsent."/>`}
       <//>
       <${UI.Band} tone="warm">
         <div class="stack" style=${{gap: '24px'}}>

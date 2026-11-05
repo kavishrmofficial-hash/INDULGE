@@ -228,7 +228,7 @@ def artifact_part(h):
     # the overview counts the year
     h.go(p, 'founder', hash='#books', width=1280)
     p.wait_for_selector('#books-calls')
-    over = p.inner_text('#books-calls') + p.inner_text('#books-aging')
+    over = p.inner_text('#books-calls') + p.inner_text('#books-pending') + p.inner_text('#books-aging')
     check('days late' in over and 'SW-001' in over and 'SW-002' in over, 'overview should name the overdue invoice and the draft: ' + over[:300].replace('\n', ' | '))
     # v39 books-3: an edit saved from a drawer opened before a payment landed elsewhere keeps that payment
     h.go(p, 'founder', hash='#invoices/' + iid, width=1280)
