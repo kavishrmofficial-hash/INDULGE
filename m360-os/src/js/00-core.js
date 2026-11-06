@@ -589,7 +589,7 @@ M.haptic = {
     return '';
   },
   can: () => !!M.haptic.kind(),
-  last: 0, seq: 0, lastRank: -1,
+  last: 0, seq: 0, lastRank: -1, tapped: 0,
   buzz(name) {
     if (!BUZZ[name]) name = 'tap';
     if (name !== 'tap' && name !== 'tick') M.haptic.seq++;
@@ -604,7 +604,9 @@ M.haptic = {
     if (now - M.haptic.last < (RANK[name] >= 3 ? 400 : 70) && RANK[name] <= M.haptic.lastRank) return true;
     M.haptic.last = now; M.haptic.lastRank = RANK[name];
     if (kind === 'vibrate') { try { return !!navigator.vibrate(BUZZ[name]); } catch (e) { return false; } }
-    BEATS[name].forEach(ms => { if (ms) setTimeout(iosTick, ms); else iosTick(); });
+    /* the finger already played this tap's tick on the label (below): the scripted beats only add to it */
+    const beats = now - M.haptic.tapped < 400 ? BEATS[name].slice(1) : BEATS[name];
+    beats.forEach(ms => { if (ms) setTimeout(iosTick, ms); else iosTick(); });
     return true;
   }
 };
@@ -620,6 +622,58 @@ try {
     const seq = M.haptic.seq;
     setTimeout(() => { if (M.haptic.seq === seq) M.haptic.buzz(firm ? 'tick' : 'tap'); }, 0);
   }, true);
+} catch (e) { /* no document */ }
+
+/* iPhone, iOS 26.5 and later: Safari plays the switch's tick only when a real finger lands on a label for it,
+   never for a label clicked by script. So a finger that comes down on a button gets a see-through label over
+   that button for this one tap: the tap lands on the label, the switch ticks, and the click carries on to the
+   button as usual (its handlers see it bubble up; a submit button whose browser lets the label take the
+   click's default is submitted by hand). The label goes as soon as the tap ends or turns into a scroll. One tick a tap is all
+   iOS gives a web page now: the strengths stay on Android. */
+try {
+  let sw = null, lab = null, host = null, prevPos = '', was = null, timer = 0;
+  const SEL = 'button, [role="button"], [role="tab"]';
+  const ensure = () => {
+    if (sw && sw.isConnected) return;
+    sw = document.createElement('input');
+    sw.type = 'checkbox'; sw.setAttribute('switch', ''); sw.id = 'm360-hx'; sw.tabIndex = -1; sw.setAttribute('aria-hidden', 'true');
+    sw.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;margin:0';
+    document.body.appendChild(sw);
+  };
+  const drop = () => {
+    clearTimeout(timer);
+    if (lab) lab.remove();
+    lab = null;
+    if (host) { host.style.position = prevPos; host = null; }
+  };
+  document.addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'touch' || M.haptic.kind() !== 'tick' || !M.haptic.on()) return;
+    const b = e.target && e.target.closest ? e.target.closest(SEL) : null;
+    if (!b || b.disabled || b.closest('a, label, [draggable="true"]') || b.querySelector('input, select, textarea, label')) return;
+    drop(); ensure();
+    host = b; prevPos = b.style.position;
+    if (getComputedStyle(b).position === 'static') b.style.position = 'relative';
+    lab = document.createElement('label');
+    lab.htmlFor = sw.id; lab.className = 'hx-tap'; lab.setAttribute('aria-hidden', 'true');
+    lab.style.cssText = 'position:absolute;inset:0;z-index:2147483646;margin:0;padding:0;background:transparent;border-radius:inherit;-webkit-tap-highlight-color:transparent';
+    b.appendChild(lab);
+    was = document.activeElement;
+    timer = setTimeout(drop, 1500);
+  }, true);
+  document.addEventListener('click', e => {
+    if (!lab || e.target !== lab) return;
+    M.haptic.tapped = Date.now();
+    const b = host, form = b && b.type === 'submit' ? b.form : null;
+    let sent = false;
+    const saw = () => { sent = true; };
+    if (form) form.addEventListener('submit', saw, true);
+    setTimeout(() => {
+      if (form) { form.removeEventListener('submit', saw, true); if (!sent) { try { form.requestSubmit(b); } catch (err) { /* gone */ } } }
+      drop();
+      if (was && was !== document.body && document.activeElement === sw && was.focus) { try { was.focus({preventScroll: true}); } catch (err) { /* gone */ } }
+    }, 0);
+  }, true);
+  document.addEventListener('pointercancel', drop, true);
 } catch (e) { /* no document */ }
 
 /* ---------- spark: a burst of flame from an element, the m360 way to celebrate ---------- */

@@ -5766,7 +5766,7 @@ html.gs-open.ai-behind .buddy-bubble.agent-pop{z-index:59}
 @media (prefers-reduced-motion:no-preference){ .o3-layer > .o3-emote{animation:o3-emote-in .35s var(--ease) both} }
 @keyframes o3-emote-in{from{scale:.7} to{scale:1}}
 </style>
-<script>window.M360_BUILD = "8dcb743+.261106-2118"; window.M360_3D_SRC = "vendor/three.92287d45.js"; window.M360_3D_SRI = "sha384-9CmMVqgd6no+mymMnUEosvNELUQCik7EBJNeBNZTkeerVlw0wzE9SGjUQswxiS20";</script><script>
+<script>window.M360_BUILD = "de98bf4+.261106-2143"; window.M360_3D_SRC = "vendor/three.92287d45.js"; window.M360_3D_SRI = "sha384-9CmMVqgd6no+mymMnUEosvNELUQCik7EBJNeBNZTkeerVlw0wzE9SGjUQswxiS20";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -8117,7 +8117,7 @@ M.haptic = {
     return '';
   },
   can: () => !!M.haptic.kind(),
-  last: 0, seq: 0, lastRank: -1,
+  last: 0, seq: 0, lastRank: -1, tapped: 0,
   buzz(name) {
     if (!BUZZ[name]) name = 'tap';
     if (name !== 'tap' && name !== 'tick') M.haptic.seq++;
@@ -8132,7 +8132,9 @@ M.haptic = {
     if (now - M.haptic.last < (RANK[name] >= 3 ? 400 : 70) && RANK[name] <= M.haptic.lastRank) return true;
     M.haptic.last = now; M.haptic.lastRank = RANK[name];
     if (kind === 'vibrate') { try { return !!navigator.vibrate(BUZZ[name]); } catch (e) { return false; } }
-    BEATS[name].forEach(ms => { if (ms) setTimeout(iosTick, ms); else iosTick(); });
+    /* the finger already played this tap's tick on the label (below): the scripted beats only add to it */
+    const beats = now - M.haptic.tapped < 400 ? BEATS[name].slice(1) : BEATS[name];
+    beats.forEach(ms => { if (ms) setTimeout(iosTick, ms); else iosTick(); });
     return true;
   }
 };
@@ -8148,6 +8150,58 @@ try {
     const seq = M.haptic.seq;
     setTimeout(() => { if (M.haptic.seq === seq) M.haptic.buzz(firm ? 'tick' : 'tap'); }, 0);
   }, true);
+} catch (e) { /* no document */ }
+
+/* iPhone, iOS 26.5 and later: Safari plays the switch's tick only when a real finger lands on a label for it,
+   never for a label clicked by script. So a finger that comes down on a button gets a see-through label over
+   that button for this one tap: the tap lands on the label, the switch ticks, and the click carries on to the
+   button as usual (its handlers see it bubble up; a submit button whose browser lets the label take the
+   click's default is submitted by hand). The label goes as soon as the tap ends or turns into a scroll. One tick a tap is all
+   iOS gives a web page now: the strengths stay on Android. */
+try {
+  let sw = null, lab = null, host = null, prevPos = '', was = null, timer = 0;
+  const SEL = 'button, [role="button"], [role="tab"]';
+  const ensure = () => {
+    if (sw && sw.isConnected) return;
+    sw = document.createElement('input');
+    sw.type = 'checkbox'; sw.setAttribute('switch', ''); sw.id = 'm360-hx'; sw.tabIndex = -1; sw.setAttribute('aria-hidden', 'true');
+    sw.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;margin:0';
+    document.body.appendChild(sw);
+  };
+  const drop = () => {
+    clearTimeout(timer);
+    if (lab) lab.remove();
+    lab = null;
+    if (host) { host.style.position = prevPos; host = null; }
+  };
+  document.addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'touch' || M.haptic.kind() !== 'tick' || !M.haptic.on()) return;
+    const b = e.target && e.target.closest ? e.target.closest(SEL) : null;
+    if (!b || b.disabled || b.closest('a, label, [draggable="true"]') || b.querySelector('input, select, textarea, label')) return;
+    drop(); ensure();
+    host = b; prevPos = b.style.position;
+    if (getComputedStyle(b).position === 'static') b.style.position = 'relative';
+    lab = document.createElement('label');
+    lab.htmlFor = sw.id; lab.className = 'hx-tap'; lab.setAttribute('aria-hidden', 'true');
+    lab.style.cssText = 'position:absolute;inset:0;z-index:2147483646;margin:0;padding:0;background:transparent;border-radius:inherit;-webkit-tap-highlight-color:transparent';
+    b.appendChild(lab);
+    was = document.activeElement;
+    timer = setTimeout(drop, 1500);
+  }, true);
+  document.addEventListener('click', e => {
+    if (!lab || e.target !== lab) return;
+    M.haptic.tapped = Date.now();
+    const b = host, form = b && b.type === 'submit' ? b.form : null;
+    let sent = false;
+    const saw = () => { sent = true; };
+    if (form) form.addEventListener('submit', saw, true);
+    setTimeout(() => {
+      if (form) { form.removeEventListener('submit', saw, true); if (!sent) { try { form.requestSubmit(b); } catch (err) { /* gone */ } } }
+      drop();
+      if (was && was !== document.body && document.activeElement === sw && was.focus) { try { was.focus({preventScroll: true}); } catch (err) { /* gone */ } }
+    }, 0);
+  }, true);
+  document.addEventListener('pointercancel', drop, true);
 } catch (e) { /* no document */ }
 
 /* ---------- spark: a burst of flame from an element, the m360 way to celebrate ---------- */
@@ -34631,6 +34685,13 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
           <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${haptic ? 'on' : 'off'} ariaLabel="Haptics"
             onChange=${v => { M.haptic.set(v === 'on'); setHaptic(v === 'on'); if (v === 'on') M.haptic.buzz('done'); }}/>
         </div>
+        ${haptic ? html`<div class="row between" id="haptic-try">
+          <span class="tiny ink62">${M.haptic.kind() === 'tick' ? 'iPhone: a tick on every tap' : M.haptic.kind() === 'vibrate' ? 'Light to strong, by action' : 'This device has no motor a page can reach'}</span>
+          <div class="row" style=${{gap: '8px'}}>
+            <${UI.Btn} kind="sec" sm=${true} id="haptic-try-light" onClick=${() => M.haptic.buzz('tap')}>Light<//>
+            <${UI.Btn} kind="sec" sm=${true} id="haptic-try-strong" onClick=${() => M.haptic.buzz('big')}>Strong<//>
+          </div>
+        </div>` : null}
         <div class="row between">
           <span>Message previews in notices</span>
           <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'Show'}, {v: 'off', label: 'Hide'}]} value=${previews ? 'on' : 'off'} ariaLabel="Message previews"

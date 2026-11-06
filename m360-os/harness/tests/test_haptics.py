@@ -79,6 +79,45 @@ with Office(users=4, warm=4) as o:
     p.evaluate('() => { window.__hapticTicks = 0; }')
     names = tapnames(p, '#hx-own')
     check(names == ['done'] and p.evaluate('() => window.__hapticTicks') >= 1, 'iPhone: a real tap with its own nudge plays it: %r' % names)
+    # iOS 26.5+: a real finger on a button lands on a see-through label for the switch, so the switch flips
+    # (Safari's tick); the button's own click still runs, a submit still submits, a typed field keeps focus
+    p.evaluate('''() => { document.querySelectorAll('.hx2').forEach(e => e.remove());
+      window.__hits = 0; window.__subs = 0;
+      const b = document.createElement('button'); b.type = 'button'; b.id = 'hx-real'; b.className = 'hx2 btn'; b.textContent = 'Real';
+      b.style.cssText = 'position:fixed;left:20px;top:200px;z-index:2147483647;width:140px;height:48px'; b.onclick = () => { window.__hits++; };
+      const f = document.createElement('form'); f.className = 'hx2'; f.onsubmit = ev => { ev.preventDefault(); window.__subs++; };
+      f.style.cssText = 'position:fixed;left:20px;top:280px;z-index:2147483647';
+      const i = document.createElement('input'); i.id = 'hx-field'; const s = document.createElement('button'); s.type = 'submit'; s.id = 'hx-sub'; s.textContent = 'Go'; s.style.cssText = 'width:140px;height:48px';
+      f.appendChild(i); f.appendChild(s); document.body.appendChild(b); document.body.appendChild(f); }''')
+    sw0 = p.evaluate('() => { const s = document.getElementById("m360-hx"); return s ? s.checked : null; }')
+    p.tap('#hx-real'); p.wait_for_timeout(200)
+    r = p.evaluate('() => [window.__hits, document.getElementById("m360-hx") && document.getElementById("m360-hx").checked, document.querySelectorAll(".hx-tap").length, document.getElementById("hx-real").style.position]')
+    check(r[0] == 1 and r[1] is True and r[2] == 0 and r[3] == 'fixed', 'iPhone: a finger tap flips the switch, runs the button once, leaves nothing behind: %r (was %r)' % (r, sw0))
+    p.tap('#hx-real'); p.wait_for_timeout(200)
+    check(p.evaluate('() => [window.__hits, document.getElementById("m360-hx").checked]') == [2, False], 'iPhone: every tap flips it again')
+    p.focus('#hx-field'); p.tap('#hx-sub'); p.wait_for_timeout(200)
+    r = p.evaluate('() => [window.__subs, document.activeElement && document.activeElement.id]')
+    check(r == [1, 'hx-field'], 'iPhone: a submit button still submits once and the field keeps focus: %r' % r)
+    # real screens by finger: the phone's tab bar moves between pages, and Me shows the try row
+    errs = []
+    p.on('pageerror', lambda e: errs.append(str(e)))
+    p.goto(o.base + '#hq'); p.wait_for_selector('.app'); p.wait_for_timeout(1200)
+    tabs = p.locator('.tab-item')
+    moved = []
+    for k in range(min(3, tabs.count())):
+        before = p.evaluate('() => location.hash')
+        tabs.nth(k).tap(); p.wait_for_timeout(500)
+        moved.append(p.evaluate('() => location.hash'))
+    check(len(set(moved)) >= 2 and p.locator('.hx-tap').count() == 0, 'iPhone: the tab bar works by finger: %r' % moved)
+    p.goto(o.base + '#me'); p.wait_for_timeout(1200)
+    if p.locator('#haptic-try').count() == 0 and p.locator('#fold-prefs .fold-head').count():
+        p.locator('#fold-prefs .fold-head').tap(); p.wait_for_timeout(600)   # a fold head is a button: this tap goes through the label too
+    check(p.locator('#haptic-try').count() == 1 and 'iPhone' in p.inner_text('#haptic-try'), 'Me: the try row says what this phone does')
+    if p.locator('#haptic-try-strong').count():
+        n0 = p.evaluate('() => document.getElementById("m360-hx").checked')
+        p.tap('#haptic-try-strong'); p.wait_for_timeout(300)
+        check(p.evaluate('() => document.getElementById("m360-hx").checked') != n0 and 'big' in p.evaluate('() => window.__haptics'), 'Me: Strong ticks by finger')
+    check(errs == [], 'iPhone: no page errors: %r' % errs[:2])
     c.close()
 
     # the sign-in screen (a phone, signed out): a wrong password warns, Forgot it? ticks

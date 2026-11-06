@@ -344,6 +344,13 @@
           <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'On'}, {v: 'off', label: 'Off'}]} value=${haptic ? 'on' : 'off'} ariaLabel="Haptics"
             onChange=${v => { M.haptic.set(v === 'on'); setHaptic(v === 'on'); if (v === 'on') M.haptic.buzz('done'); }}/>
         </div>
+        ${haptic ? html`<div class="row between" id="haptic-try">
+          <span class="tiny ink62">${M.haptic.kind() === 'tick' ? 'iPhone: a tick on every tap' : M.haptic.kind() === 'vibrate' ? 'Light to strong, by action' : 'This device has no motor a page can reach'}</span>
+          <div class="row" style=${{gap: '8px'}}>
+            <${UI.Btn} kind="sec" sm=${true} id="haptic-try-light" onClick=${() => M.haptic.buzz('tap')}>Light<//>
+            <${UI.Btn} kind="sec" sm=${true} id="haptic-try-strong" onClick=${() => M.haptic.buzz('big')}>Strong<//>
+          </div>
+        </div>` : null}
         <div class="row between">
           <span>Message previews in notices</span>
           <${UI.Seg} sm=${true} options=${[{v: 'on', label: 'Show'}, {v: 'off', label: 'Hide'}]} value=${previews ? 'on' : 'off'} ariaLabel="Message previews"
