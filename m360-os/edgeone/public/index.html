@@ -5766,7 +5766,7 @@ html.gs-open.ai-behind .buddy-bubble.agent-pop{z-index:59}
 @media (prefers-reduced-motion:no-preference){ .o3-layer > .o3-emote{animation:o3-emote-in .35s var(--ease) both} }
 @keyframes o3-emote-in{from{scale:.7} to{scale:1}}
 </style>
-<script>window.M360_BUILD = "1ddc439+.261105-1049"; window.M360_3D_SRC = "vendor/three.92287d45.js"; window.M360_3D_SRI = "sha384-9CmMVqgd6no+mymMnUEosvNELUQCik7EBJNeBNZTkeerVlw0wzE9SGjUQswxiS20";</script><script>
+<script>window.M360_BUILD = "8dcb743+.261106-2118"; window.M360_3D_SRC = "vendor/three.92287d45.js"; window.M360_3D_SRI = "sha384-9CmMVqgd6no+mymMnUEosvNELUQCik7EBJNeBNZTkeerVlw0wzE9SGjUQswxiS20";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -7670,6 +7670,7 @@ let toastSeq = 0;
    look. A build without the island (an isolated module build) keeps the old row at the bottom */
 const islandUp = () => !!(M.island && M.island.toast);
 M.toast = (msg, isErr) => {
+  if (M.haptic) M.haptic.buzz(isErr ? 'warn' : 'done');
   if (islandUp()) { M.island.toast(String(msg), !!isErr); return; }
   const t = {id: ++toastSeq, msg: String(msg), err: !!isErr};
   toastListeners.forEach(fn => fn(t));
@@ -8078,25 +8079,61 @@ M.sound = {
   }
 };
 
-/* ---------- haptics: on a phone, a tap answers with a nudge. Patterns are short so they read as
-   texture, never as an alarm. Every call is noted on window.__haptics so a test can see it; the phone
-   only buzzes when the preference is on and the device has a vibration motor. ---------- */
+/* ---------- haptics: on a phone, an action answers with a nudge whose strength fits it. Patterns are short
+   so they read as texture, never as an alarm.
+     tap    any button                       light
+     tick   a primary button, a tab, a step   light, a touch firmer
+     pick   arming a delete, a status change  medium
+     done   a save that lands, a task done    two beats
+     big    a win: a pitch won, a streak       three beats
+     warn   an error, a delete confirmed      three quick beats
+   Android vibrates the pattern. iPhone Safari has no vibration, so it plays the system tick of a hidden
+   switch (iOS 18 and later), once per beat. A laptop has no motor a page can reach. Every call is noted
+   on window.__haptics so a test can see it; nothing plays when the preference is off. ---------- */
 const BUZZ = {tap: 8, tick: 14, pick: [12, 30, 12], done: [18, 40, 28], big: [30, 40, 30, 40, 60], warn: [50, 30, 50]};
+const BEATS = {tap: [0], tick: [0], pick: [0, 45], done: [0, 120], big: [0, 110, 220], warn: [0, 70, 140]};
+const RANK = {tap: 0, tick: 1, pick: 2, done: 3, big: 4, warn: 4};
+const iosTick = () => {
+  try {
+    const l = document.createElement('label'), i = document.createElement('input');
+    l.setAttribute('aria-hidden', 'true'); l.style.display = 'none';
+    i.type = 'checkbox'; i.setAttribute('switch', ''); i.tabIndex = -1;
+    l.appendChild(i); document.head.appendChild(l);
+    l.click(); l.remove();
+    window.__hapticTicks = (window.__hapticTicks || 0) + 1;
+  } catch (e) { /* no switch: silent */ }
+};
 M.haptic = {
   on: () => M.prefs.get('haptic', '1') !== '0',
   set: v => M.prefs.set('haptic', v ? '1' : '0'),
-  can() {
-    try { return typeof navigator.vibrate === 'function' && (navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches); } catch (e) { return false; }
+  /* 'vibrate' on Android, 'tick' on an iPhone or iPad, '' on a laptop */
+  kind() {
+    try {
+      const touch = navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches;
+      if (!touch) return '';
+      if (typeof navigator.vibrate === 'function') return 'vibrate';
+      if (/iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) return 'tick';
+    } catch (e) { /* no navigator */ }
+    return '';
   },
-  last: 0,
+  can: () => !!M.haptic.kind(),
+  last: 0, seq: 0, lastRank: -1,
   buzz(name) {
-    const pat = BUZZ[name] || BUZZ.tap;
+    if (!BUZZ[name]) name = 'tap';
+    if (name !== 'tap' && name !== 'tick') M.haptic.seq++;
     try { window.__haptics = (window.__haptics || []).concat([name]).slice(-60); } catch (e) { /* frozen window */ }
-    if (!M.haptic.on() || !M.haptic.can()) return false;
+    const kind = M.haptic.on() ? M.haptic.kind() : '';
+    if (!kind) return false;
+    /* a phone only nudges once the page has been touched: before that the browser refuses it anyway */
+    try { if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return false; } catch (e) { /* keep going */ }
     const now = Date.now();
-    if (name === 'tap' && now - M.haptic.last < 70) return true;   /* a richer nudge just went: the tap rides on it */
-    M.haptic.last = now;
-    try { return !!navigator.vibrate(pat); } catch (e) { return false; }
+    /* one action, one nudge: a weaker or equal one right after a richer one rides on it (a save's own nudge
+       and then its toast) */
+    if (now - M.haptic.last < (RANK[name] >= 3 ? 400 : 70) && RANK[name] <= M.haptic.lastRank) return true;
+    M.haptic.last = now; M.haptic.lastRank = RANK[name];
+    if (kind === 'vibrate') { try { return !!navigator.vibrate(BUZZ[name]); } catch (e) { return false; } }
+    BEATS[name].forEach(ms => { if (ms) setTimeout(iosTick, ms); else iosTick(); });
+    return true;
   }
 };
 /* every real tap on a button nudges, whichever module drew it; a disabled button stays silent */
@@ -8104,7 +8141,12 @@ try {
   document.addEventListener('click', e => {
     if (!e.isTrusted) return;
     const b = e.target && e.target.closest ? e.target.closest('button, a.btn, [role="button"], [role="tab"]') : null;
-    if (b && !b.disabled && b.getAttribute('aria-disabled') !== 'true') M.haptic.buzz('tap');
+    if (!b || b.disabled || b.getAttribute('aria-disabled') === 'true') return;
+    /* a primary button (ink or flame) is a firmer tick than a quiet one */
+    const firm = b.matches('.btn:not(.sec):not(.ghost):not(.linky), [role="tab"]');
+    /* the button's own handler runs after this; when it plays a richer nudge, the tap stays quiet */
+    const seq = M.haptic.seq;
+    setTimeout(() => { if (M.haptic.seq === seq) M.haptic.buzz(firm ? 'tick' : 'tap'); }, 0);
   }, true);
 } catch (e) { /* no document */ }
 
@@ -8376,7 +8418,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     }, [armed]);
     const cls = 'btn ' + (armed ? 'arm' : (kind === 'sec' ? 'sec' : kind === 'flame' ? 'flame' : 'ghost')) + (sm !== false ? ' sm' : '');
     return html`<button type="button" class=${cls}
-      onClick=${() => { if (armed) { setArmed(false); onConfirm(); } else setArmed(true); }}>
+      onClick=${() => { if (armed) { setArmed(false); M.haptic.buzz('warn'); onConfirm(); } else { setArmed(true); M.haptic.buzz('pick'); } }}>
       ${armed ? (label || 'Tap again to confirm') : children}</button>`;
   };
 
@@ -10715,6 +10757,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     A(q('.dr-l'), [{transform: 'rotateY(0deg)'}, {transform: 'rotateY(100deg)'}], 960, 600, EASE.apple);
     A(q('.dr-r'), [{transform: 'rotateY(0deg)'}, {transform: 'rotateY(-100deg)'}], 960, 600, EASE.apple);
     seam.animate([{opacity: 1}, {opacity: 0}], {delay: 990, duration: 180, fill: 'forwards'});
+    /* felt too: two beats as the doors part, a tick as the mark lands in its place */
+    const T = [];
+    if (M.haptic) T.push(setTimeout(() => M.haptic.buzz('done'), 960));
     A(q('.dr-spill'), [{opacity: 0, transform: 'translateX(-50%) scaleY(.4)'}, {opacity: 1, transform: 'translateX(-50%) scaleY(1)'}], 1020, 480, EASE.apple);
     q('.dr-say').animate([{opacity: 1, filter: 'blur(0px)'}, {opacity: 0, filter: 'blur(6px)'}], {delay: 1120, duration: 260, fill: 'forwards'});
     A(stage, [{transform: 'scale(1)'}, {transform: 'scale(' + S.toFixed(2) + ')'}], 1180, 620, EASE.push);
@@ -10734,7 +10779,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     }
     const HAND = 2240;
     const fade = A(root, [{opacity: 1}, {opacity: 0}], HAND, 420, EASE.out);
-    const timers = [];
+    const timers = T;
     timers.push(setTimeout(() => { if (o.onReveal) try { o.onReveal(); } catch (e) { /* page motion is extra */ } }, HAND));
     let flight = null;
     if (mark) timers.push(setTimeout(() => {
@@ -10752,6 +10797,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       const dx = z.left - b0.left - k * (a.left - b0.left), dy = z.top - b0.top - k * (a.top - b0.top);
       flight = mark.animate([{transform: 'none'}, {transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + k + ')'}],
         {duration: 560, easing: EASE.apple, fill: 'forwards'});
+      if (M.haptic) flight.finished.then(() => M.haptic.buzz('tick')).catch(() => { /* cut short */ });
       all.push(flight);
     }, HAND));
 
@@ -10961,13 +11007,17 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const s = sig(gate);
     const prev = last;
     last = s;
-    if (!prev || now() < 720 + RISE_MS) return;
+    if (!prev) return;
+    /* the next step (the code, Forgot it?) arrives with a tick */
+    if ((s.h !== prev.h || s.ids !== prev.ids) && M.haptic) M.haptic.buzz('tick');
+    if (now() < 720 + RISE_MS) return;
     if (s.h !== prev.h) { const h = gate.querySelector('h1'); if (h) fresh(h, RISE_KF, FRESH_MS); }
     if (s.ids !== prev.ids) { const b = gate.querySelector('.g-act .join-box') || gate.querySelector('.g-act'); if (b) fresh(b, RISE_KF, FRESH_MS); }
   }
 
   /* a wrong sign-in, a bad code, a taken email: the box shakes, the way the Mac login does */
   function shake(alert) {
+    if (M.haptic) M.haptic.buzz('warn');   /* felt as well as seen, reduced motion or not */
     if (still()) return;
     const box = alert.closest('.join-box') || alert.closest('.g-act');
     if (box && box.animate) box.animate(SHAKE_KF, {duration: 440, easing: 'cubic-bezier(.36,.07,.19,.97)'});
@@ -18450,7 +18500,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const {msg, status: st} = sp;
     if (task.status === st) { M.toast(st === 'review' ? 'Waiting for sign-off' : msg); return; }
     await commit(ctx, task.id, sp).catch(() => {});
-    if (st === 'done') M.rain('🔥', el || document.body, {n: 56}); else M.sound.play('tick');
+    if (st === 'done') M.rain('🔥', el || document.body, {n: 56}); else { M.sound.play('tick'); M.haptic.buzz('pick'); }
     M.toast(msg);
   }
   /* a task is never erased by its owner: it goes to the founder's bin, with who and when, and can come back */
@@ -19716,7 +19766,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
         const docOf = x => ({brand: x.brand.trim(), category: x.category.trim(), contact: x.contactId || x.contact.trim(), source: x.source.trim(),
           owner: x.owner || ctx.uid, stage: x.stage, next: x.next.trim(), nextDate: x.nextDate || '', lost: x.lost.trim()});
         const ch = U.changes(docOf(base.current || f), docOf(f));
-        if ('stage' in ch) ch.stageAt = now;
+        if ('stage' in ch) { ch.stageAt = now; M.haptic.buzz(ch.stage === 'won' ? 'big' : 'pick'); }
         /* a next step typed or dated by hand is the team's own again: the bridge (M.prospects, nextBy 'fu')
            never overwrites it from then on */
         const byHand = pitch.nextBy && ('next' in ch || 'nextDate' in ch);
@@ -30394,7 +30444,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       /* v39: the payments as they stand now, so one recorded on another device a moment ago stays */
       const now = ((ctx.coll.invoices.map[inv.fy] || {}).rows || {})[inv.id] || inv;
       const payments = (now.payments || []).concat([{at: U.parseYmd(f.date).getTime() + 43200000, amount: b.num(f.amount), ref: f.ref.trim(), note: f.note.trim()}]);
-      try { await ctx.W.merge('invoices/' + inv.fy, {rows: {[inv.id]: {payments, updatedAt: Date.now()}}, updated: Date.now()}); M.toast('Payment recorded'); onClose(); }
+      try { await ctx.W.merge('invoices/' + inv.fy, {rows: {[inv.id]: {payments, updatedAt: Date.now()}}, updated: Date.now()}); M.haptic.buzz('big'); M.toast('Payment recorded'); onClose(); }
       catch (e) { M.toast('Could not save', true); setBusy(false); }
     };
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${'Payment on ' + inv.no}

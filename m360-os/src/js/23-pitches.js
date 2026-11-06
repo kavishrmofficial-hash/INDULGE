@@ -262,7 +262,7 @@
         const docOf = x => ({brand: x.brand.trim(), category: x.category.trim(), contact: x.contactId || x.contact.trim(), source: x.source.trim(),
           owner: x.owner || ctx.uid, stage: x.stage, next: x.next.trim(), nextDate: x.nextDate || '', lost: x.lost.trim()});
         const ch = U.changes(docOf(base.current || f), docOf(f));
-        if ('stage' in ch) ch.stageAt = now;
+        if ('stage' in ch) { ch.stageAt = now; M.haptic.buzz(ch.stage === 'won' ? 'big' : 'pick'); }
         /* a next step typed or dated by hand is the team's own again: the bridge (M.prospects, nextBy 'fu')
            never overwrites it from then on */
         const byHand = pitch.nextBy && ('next' in ch || 'nextDate' in ch);

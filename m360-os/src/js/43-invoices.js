@@ -281,7 +281,7 @@
       /* v39: the payments as they stand now, so one recorded on another device a moment ago stays */
       const now = ((ctx.coll.invoices.map[inv.fy] || {}).rows || {})[inv.id] || inv;
       const payments = (now.payments || []).concat([{at: U.parseYmd(f.date).getTime() + 43200000, amount: b.num(f.amount), ref: f.ref.trim(), note: f.note.trim()}]);
-      try { await ctx.W.merge('invoices/' + inv.fy, {rows: {[inv.id]: {payments, updatedAt: Date.now()}}, updated: Date.now()}); M.toast('Payment recorded'); onClose(); }
+      try { await ctx.W.merge('invoices/' + inv.fy, {rows: {[inv.id]: {payments, updatedAt: Date.now()}}, updated: Date.now()}); M.haptic.buzz('big'); M.toast('Payment recorded'); onClose(); }
       catch (e) { M.toast('Could not save', true); setBusy(false); }
     };
     return html`<${UI.Drawer} open=${true} onClose=${onClose} title=${'Payment on ' + inv.no}

@@ -180,13 +180,17 @@
     const s = sig(gate);
     const prev = last;
     last = s;
-    if (!prev || now() < 720 + RISE_MS) return;
+    if (!prev) return;
+    /* the next step (the code, Forgot it?) arrives with a tick */
+    if ((s.h !== prev.h || s.ids !== prev.ids) && M.haptic) M.haptic.buzz('tick');
+    if (now() < 720 + RISE_MS) return;
     if (s.h !== prev.h) { const h = gate.querySelector('h1'); if (h) fresh(h, RISE_KF, FRESH_MS); }
     if (s.ids !== prev.ids) { const b = gate.querySelector('.g-act .join-box') || gate.querySelector('.g-act'); if (b) fresh(b, RISE_KF, FRESH_MS); }
   }
 
   /* a wrong sign-in, a bad code, a taken email: the box shakes, the way the Mac login does */
   function shake(alert) {
+    if (M.haptic) M.haptic.buzz('warn');   /* felt as well as seen, reduced motion or not */
     if (still()) return;
     const box = alert.closest('.join-box') || alert.closest('.g-act');
     if (box && box.animate) box.animate(SHAKE_KF, {duration: 440, easing: 'cubic-bezier(.36,.07,.19,.97)'});

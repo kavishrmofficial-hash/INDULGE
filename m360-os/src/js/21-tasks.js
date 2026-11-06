@@ -122,7 +122,7 @@
     const {msg, status: st} = sp;
     if (task.status === st) { M.toast(st === 'review' ? 'Waiting for sign-off' : msg); return; }
     await commit(ctx, task.id, sp).catch(() => {});
-    if (st === 'done') M.rain('🔥', el || document.body, {n: 56}); else M.sound.play('tick');
+    if (st === 'done') M.rain('🔥', el || document.body, {n: 56}); else { M.sound.play('tick'); M.haptic.buzz('pick'); }
     M.toast(msg);
   }
   /* a task is never erased by its owner: it goes to the founder's bin, with who and when, and can come back */

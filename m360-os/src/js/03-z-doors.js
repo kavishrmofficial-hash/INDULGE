@@ -76,6 +76,9 @@
     A(q('.dr-l'), [{transform: 'rotateY(0deg)'}, {transform: 'rotateY(100deg)'}], 960, 600, EASE.apple);
     A(q('.dr-r'), [{transform: 'rotateY(0deg)'}, {transform: 'rotateY(-100deg)'}], 960, 600, EASE.apple);
     seam.animate([{opacity: 1}, {opacity: 0}], {delay: 990, duration: 180, fill: 'forwards'});
+    /* felt too: two beats as the doors part, a tick as the mark lands in its place */
+    const T = [];
+    if (M.haptic) T.push(setTimeout(() => M.haptic.buzz('done'), 960));
     A(q('.dr-spill'), [{opacity: 0, transform: 'translateX(-50%) scaleY(.4)'}, {opacity: 1, transform: 'translateX(-50%) scaleY(1)'}], 1020, 480, EASE.apple);
     q('.dr-say').animate([{opacity: 1, filter: 'blur(0px)'}, {opacity: 0, filter: 'blur(6px)'}], {delay: 1120, duration: 260, fill: 'forwards'});
     A(stage, [{transform: 'scale(1)'}, {transform: 'scale(' + S.toFixed(2) + ')'}], 1180, 620, EASE.push);
@@ -95,7 +98,7 @@
     }
     const HAND = 2240;
     const fade = A(root, [{opacity: 1}, {opacity: 0}], HAND, 420, EASE.out);
-    const timers = [];
+    const timers = T;
     timers.push(setTimeout(() => { if (o.onReveal) try { o.onReveal(); } catch (e) { /* page motion is extra */ } }, HAND));
     let flight = null;
     if (mark) timers.push(setTimeout(() => {
@@ -113,6 +116,7 @@
       const dx = z.left - b0.left - k * (a.left - b0.left), dy = z.top - b0.top - k * (a.top - b0.top);
       flight = mark.animate([{transform: 'none'}, {transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + k + ')'}],
         {duration: 560, easing: EASE.apple, fill: 'forwards'});
+      if (M.haptic) flight.finished.then(() => M.haptic.buzz('tick')).catch(() => { /* cut short */ });
       all.push(flight);
     }, HAND));
 

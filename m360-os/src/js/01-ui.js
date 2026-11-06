@@ -171,7 +171,7 @@
     }, [armed]);
     const cls = 'btn ' + (armed ? 'arm' : (kind === 'sec' ? 'sec' : kind === 'flame' ? 'flame' : 'ghost')) + (sm !== false ? ' sm' : '');
     return html`<button type="button" class=${cls}
-      onClick=${() => { if (armed) { setArmed(false); onConfirm(); } else setArmed(true); }}>
+      onClick=${() => { if (armed) { setArmed(false); M.haptic.buzz('warn'); onConfirm(); } else { setArmed(true); M.haptic.buzz('pick'); } }}>
       ${armed ? (label || 'Tap again to confirm') : children}</button>`;
   };
 

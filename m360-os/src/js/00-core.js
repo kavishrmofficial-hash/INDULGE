@@ -142,6 +142,7 @@ let toastSeq = 0;
    look. A build without the island (an isolated module build) keeps the old row at the bottom */
 const islandUp = () => !!(M.island && M.island.toast);
 M.toast = (msg, isErr) => {
+  if (M.haptic) M.haptic.buzz(isErr ? 'warn' : 'done');
   if (islandUp()) { M.island.toast(String(msg), !!isErr); return; }
   const t = {id: ++toastSeq, msg: String(msg), err: !!isErr};
   toastListeners.forEach(fn => fn(t));
@@ -550,25 +551,61 @@ M.sound = {
   }
 };
 
-/* ---------- haptics: on a phone, a tap answers with a nudge. Patterns are short so they read as
-   texture, never as an alarm. Every call is noted on window.__haptics so a test can see it; the phone
-   only buzzes when the preference is on and the device has a vibration motor. ---------- */
+/* ---------- haptics: on a phone, an action answers with a nudge whose strength fits it. Patterns are short
+   so they read as texture, never as an alarm.
+     tap    any button                       light
+     tick   a primary button, a tab, a step   light, a touch firmer
+     pick   arming a delete, a status change  medium
+     done   a save that lands, a task done    two beats
+     big    a win: a pitch won, a streak       three beats
+     warn   an error, a delete confirmed      three quick beats
+   Android vibrates the pattern. iPhone Safari has no vibration, so it plays the system tick of a hidden
+   switch (iOS 18 and later), once per beat. A laptop has no motor a page can reach. Every call is noted
+   on window.__haptics so a test can see it; nothing plays when the preference is off. ---------- */
 const BUZZ = {tap: 8, tick: 14, pick: [12, 30, 12], done: [18, 40, 28], big: [30, 40, 30, 40, 60], warn: [50, 30, 50]};
+const BEATS = {tap: [0], tick: [0], pick: [0, 45], done: [0, 120], big: [0, 110, 220], warn: [0, 70, 140]};
+const RANK = {tap: 0, tick: 1, pick: 2, done: 3, big: 4, warn: 4};
+const iosTick = () => {
+  try {
+    const l = document.createElement('label'), i = document.createElement('input');
+    l.setAttribute('aria-hidden', 'true'); l.style.display = 'none';
+    i.type = 'checkbox'; i.setAttribute('switch', ''); i.tabIndex = -1;
+    l.appendChild(i); document.head.appendChild(l);
+    l.click(); l.remove();
+    window.__hapticTicks = (window.__hapticTicks || 0) + 1;
+  } catch (e) { /* no switch: silent */ }
+};
 M.haptic = {
   on: () => M.prefs.get('haptic', '1') !== '0',
   set: v => M.prefs.set('haptic', v ? '1' : '0'),
-  can() {
-    try { return typeof navigator.vibrate === 'function' && (navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches); } catch (e) { return false; }
+  /* 'vibrate' on Android, 'tick' on an iPhone or iPad, '' on a laptop */
+  kind() {
+    try {
+      const touch = navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches;
+      if (!touch) return '';
+      if (typeof navigator.vibrate === 'function') return 'vibrate';
+      if (/iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) return 'tick';
+    } catch (e) { /* no navigator */ }
+    return '';
   },
-  last: 0,
+  can: () => !!M.haptic.kind(),
+  last: 0, seq: 0, lastRank: -1,
   buzz(name) {
-    const pat = BUZZ[name] || BUZZ.tap;
+    if (!BUZZ[name]) name = 'tap';
+    if (name !== 'tap' && name !== 'tick') M.haptic.seq++;
     try { window.__haptics = (window.__haptics || []).concat([name]).slice(-60); } catch (e) { /* frozen window */ }
-    if (!M.haptic.on() || !M.haptic.can()) return false;
+    const kind = M.haptic.on() ? M.haptic.kind() : '';
+    if (!kind) return false;
+    /* a phone only nudges once the page has been touched: before that the browser refuses it anyway */
+    try { if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return false; } catch (e) { /* keep going */ }
     const now = Date.now();
-    if (name === 'tap' && now - M.haptic.last < 70) return true;   /* a richer nudge just went: the tap rides on it */
-    M.haptic.last = now;
-    try { return !!navigator.vibrate(pat); } catch (e) { return false; }
+    /* one action, one nudge: a weaker or equal one right after a richer one rides on it (a save's own nudge
+       and then its toast) */
+    if (now - M.haptic.last < (RANK[name] >= 3 ? 400 : 70) && RANK[name] <= M.haptic.lastRank) return true;
+    M.haptic.last = now; M.haptic.lastRank = RANK[name];
+    if (kind === 'vibrate') { try { return !!navigator.vibrate(BUZZ[name]); } catch (e) { return false; } }
+    BEATS[name].forEach(ms => { if (ms) setTimeout(iosTick, ms); else iosTick(); });
+    return true;
   }
 };
 /* every real tap on a button nudges, whichever module drew it; a disabled button stays silent */
@@ -576,7 +613,12 @@ try {
   document.addEventListener('click', e => {
     if (!e.isTrusted) return;
     const b = e.target && e.target.closest ? e.target.closest('button, a.btn, [role="button"], [role="tab"]') : null;
-    if (b && !b.disabled && b.getAttribute('aria-disabled') !== 'true') M.haptic.buzz('tap');
+    if (!b || b.disabled || b.getAttribute('aria-disabled') === 'true') return;
+    /* a primary button (ink or flame) is a firmer tick than a quiet one */
+    const firm = b.matches('.btn:not(.sec):not(.ghost):not(.linky), [role="tab"]');
+    /* the button's own handler runs after this; when it plays a richer nudge, the tap stays quiet */
+    const seq = M.haptic.seq;
+    setTimeout(() => { if (M.haptic.seq === seq) M.haptic.buzz(firm ? 'tick' : 'tap'); }, 0);
   }, true);
 } catch (e) { /* no document */ }
 
