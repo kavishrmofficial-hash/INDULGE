@@ -134,6 +134,9 @@
       <div class="small" id="safety-drive">${gs == null ? 'Google Drive: looking'
         : gs.driveWrite ? 'Google Drive: ' + plural(drive.copied || 0, 'day', 'days') + ' kept for good' + (drive.pending ? ', ' + drive.pending + ' on the way' : '') + (drive.error ? '. ' + drive.error : '')
         : 'Google Drive: not connected. Every day goes there for good once it is.'}</div>
+      ${gs && gs.driveWrite && info && info.live ? html`<div class="small" id="safety-live">Live log: ${info.live.error ? info.live.error
+        : info.live.last ? 'every change goes to Drive within seconds, the last one ' + U.timeAgo(info.live.last) + (info.live.waiting ? ', ' + info.live.waiting + ' on the way' : '')
+        : 'every change goes to Drive within seconds'}</div>` : null}
       <div class="row" style=${{gap: '8px'}}>
         <${UI.Btn} id="safety-open" kind="sec" sm=${true} onClick=${openTab}>Open Backups<//>
         ${gs && !gs.driveWrite ? html`<${UI.Btn} id="safety-drive-connect" sm=${true} disabled=${busy} onClick=${connect}>${gs.connected ? 'Allow backups in Google Drive' : 'Connect Google Drive'}<//>` : null}

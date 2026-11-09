@@ -318,21 +318,25 @@ export function safetyActions(h) {
     const tok = tokenNow || await g.accessToken(uid);
     return doFetch(url, {...(init || {}), headers: {...((init && init.headers) || {}), authorization: 'Bearer ' + tok}});
   }
-  async function folderId(uid) {
+  /* the backup folder; the oldest one when two were ever made. Only a holder makes it (make), so two instances
+     never make one each */
+  async function folderId(uid, make) {
     if (folder) return folder;
     const qs = "name = '" + DRIVE_FOLDER + "' and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
-    let r = await gfetch(uid, DR + '?q=' + encodeURIComponent(qs) + '&fields=files(id)&pageSize=1');
+    let r = await gfetch(uid, DR + '?q=' + encodeURIComponent(qs) + '&fields=files(id)&orderBy=createdTime&pageSize=1');
     let j = await r.json().catch(() => ({}));
     if (r.ok && j.files && j.files[0] && j.files[0].id) return (folder = j.files[0].id);
+    if (make === false) return '';
     r = await gfetch(uid, DR + '?fields=id', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({name: DRIVE_FOLDER, mimeType: 'application/vnd.google-apps.folder'})});
     j = await r.json().catch(() => ({}));
     if (!r.ok || !j.id) throw new Error('Drive would not make the backup folder (' + r.status + ')');
     return (folder = j.id);
   }
   /* the days Drive holds whole: ymd -> {id, size}. A file counts only when its size is the one m360 sent */
-  async function driveDays(uid) {
-    const fid = await folderId(uid);
+  async function driveDays(uid, make) {
+    const fid = await folderId(uid, make);
     const out = {};
+    if (!fid) return out;
     let page = '';
     do {
       const qs = "'" + fid + "' in parents and trashed = false";
@@ -352,34 +356,121 @@ export function safetyActions(h) {
   async function onDrive() {
     const uid = await driveUid().catch(() => null);
     if (!uid) return {};
-    return driveDays(uid).catch(() => ({}));
+    return driveDays(uid, false).catch(() => ({}));
   }
+  /* gzip when the runtime has it, plain otherwise */
+  async function packed(text) {
+    const raw = new TextEncoder().encode(text);
+    if (typeof CompressionStream === 'function') {
+      try { return {body: new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()), gz: true, raw: raw.length}; } catch (e) { /* plain */ }
+    }
+    return {body: raw, gz: false, raw: raw.length};
+  }
+  /* a folder inside another, made when missing; kept per instance */
+  const subs = {};
+  async function subFolder(uid, parent, name) {
+    const k = parent + '/' + name;
+    if (subs[k]) return subs[k];
+    const qs = "name = '" + name + "' and '" + parent + "' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
+    let r = await gfetch(uid, DR + '?q=' + encodeURIComponent(qs) + '&fields=files(id)&pageSize=1');
+    let j = await r.json().catch(() => ({}));
+    if (r.ok && j.files && j.files[0] && j.files[0].id) return (subs[k] = j.files[0].id);
+    r = await gfetch(uid, DR + '?fields=id', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({name, parents: [parent], mimeType: 'application/vnd.google-apps.folder'})});
+    j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.id) throw new Error('Drive would not make the folder ' + name + ' (' + r.status + ')');
+    return (subs[k] = j.id);
+  }
+  async function uploadTo(uid, parent, name, f, props) {
+    const mime = f.gz ? 'application/gzip' : 'application/json';
+    const meta = {name, parents: [parent], mimeType: mime, appProperties: {app: 'm360', ...(props || {}), bytes: String(f.body.length), raw: String(f.raw)}};
+    const start = await gfetch(uid, UP + '?uploadType=resumable&fields=id,size', {method: 'POST',
+      headers: {'content-type': 'application/json; charset=UTF-8', 'x-upload-content-type': mime, 'x-upload-content-length': String(f.body.length)}, body: JSON.stringify(meta)});
+    const at = start.headers.get('location');
+    if (!start.ok || !at) throw new Error('Drive would not take ' + name + ' (' + start.status + ')');
+    const r = await doFetch(at, {method: 'PUT', headers: {'content-type': mime}, body: f.body});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.id || Number(j.size) !== f.body.length) throw new Error(name + ' did not reach Drive whole (' + r.status + ')');
+    return {id: j.id, size: Number(j.size)};
+  }
+  /* one holder at a time across instances: a create-only write; a hold older than a minute is stale */
+  async function hold(key) {
+    const mine = JSON.stringify({at: Date.now()});
+    try { await store.set(key, mine, {onlyIfNew: true}); return true; } catch (e) {
+      const h = await getJ(key).catch(() => null);
+      if (h && Date.now() - (h.at || 0) < 60000) return false;
+      await store.delete(key).catch(() => {});
+      try { await store.set(key, mine, {onlyIfNew: true}); return true; } catch (x) { return false; }
+    }
+  }
+
   /* one day as the file Drive keeps; a collection that cannot be read stops it, so no part day is ever sent */
   async function dayFile(ymd) {
     const m = await getJ('bk/' + ymd + '/index').catch(() => null);
     if (!m) return null;
     const colls = {};
     for (const coll of Object.keys(isObj(m.colls) ? m.colls : {})) colls[coll] = {docs: await backupColl(ymd, coll)};
-    const raw = new TextEncoder().encode(JSON.stringify({app: 'm360', kind: 'day', ymd, at: m.at || 0, colls}));
-    let body = raw, gz = false;
-    if (typeof CompressionStream === 'function') {
-      try { body = new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()); gz = true; } catch (e) { body = raw; }
-    }
-    return {body, gz, raw: raw.length};
+    return packed(JSON.stringify({app: 'm360', kind: 'day', ymd, at: m.at || 0, colls}));
   }
   async function upload(uid, ymd, f) {
-    const fid = await folderId(uid);
-    const mime = f.gz ? 'application/gzip' : 'application/json';
-    const meta = {name: 'm360-backup-' + ymd + (f.gz ? '.json.gz' : '.json'), parents: [fid], mimeType: mime,
-      appProperties: {app: 'm360', ymd, bytes: String(f.body.length), raw: String(f.raw)}};
-    const start = await gfetch(uid, UP + '?uploadType=resumable&fields=id,size', {method: 'POST',
-      headers: {'content-type': 'application/json; charset=UTF-8', 'x-upload-content-type': mime, 'x-upload-content-length': String(f.body.length)}, body: JSON.stringify(meta)});
-    const at = start.headers.get('location');
-    if (!start.ok || !at) throw new Error('Drive would not take the backup of ' + ymd + ' (' + start.status + ')');
-    const r = await doFetch(at, {method: 'PUT', headers: {'content-type': mime}, body: f.body});
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok || !j.id || Number(j.size) !== f.body.length) throw new Error('The backup of ' + ymd + ' did not reach Drive whole (' + r.status + ')');
-    return {id: j.id, size: Number(j.size)};
+    try { return await uploadTo(uid, await folderId(uid), 'm360-backup-' + ymd + (f.gz ? '.json.gz' : '.json'), f, {ymd}); }
+    catch (e) { throw new Error(String(e.message || e).replace(/^m360-backup-[^ ]+/, 'The backup of ' + ymd)); }
+  }
+
+  /* ---------- the live log (v49): every change on Drive within seconds ----------
+     Each save, delete and server write also lands here as one line, jq/<ms>~<id> {at, uid, op, path, doc}, the
+     whole document as it now stands (null for a delete). Every request sends what is waiting to Drive as one
+     file, m360 OS backups/live/<ymd>/m360-live-<ymd>-<ms>.jsonl.gz, and lets the lines go once Drive holds the
+     file whole. The page polls every 3 seconds, so a change is on Drive a few seconds after it is made. Any
+     moment rebuilds from that day's backup plus the lines after it. With Drive not connected nothing queues. */
+  const JQ = 'jq/';
+  let liveOn = {at: 0, ok: false};
+  let liveState = {sent: 0, last: 0, at: 0, error: null};
+  let liveBusy = false, liveNext = 0;
+  const liveReady = async () => {
+    if (Date.now() - liveOn.at > 60000) liveOn = {at: Date.now(), ok: !!(await driveUid().catch(() => null))};
+    return liveOn.ok;
+  };
+  hooks.afterWrite = async e => {
+    if (!(await liveReady())) return;
+    await store.set(JQ + String(e.at).padStart(15, '0') + '~' + rand(), JSON.stringify(e));
+  };
+  async function liveFlush() {
+    if (liveBusy || Date.now() < liveNext) return liveState;
+    const uid = await driveUid().catch(() => null);
+    if (!uid) return liveState;
+    liveBusy = true;
+    let held = false;
+    try {
+      const keys = (await listAll(JQ)).map(b => b.key).sort();
+      if (!keys.length) return liveState;
+      held = await hold('jq-hold');
+      if (!held) return liveState;
+      const take = [];
+      let size = 0;
+      for (const k of keys) {
+        const str = await raw(k).catch(() => null);
+        if (str == null) continue;
+        take.push([k, String(str)]);
+        size += String(str).length;
+        if (take.length >= 1000 || size > 8 * 1024 * 1024) break;
+      }
+      if (!take.length) return liveState;
+      const first = JSON.parse(take[0][1]).at, last = JSON.parse(take[take.length - 1][1]).at;
+      const day = ymdIST(first);
+      const f = await packed(take.map(x => x[1]).join('\n') + '\n');
+      const folderLive = await subFolder(uid, await folderId(uid), 'live');
+      const folderDay = await subFolder(uid, folderLive, day);
+      await uploadTo(uid, folderDay, 'm360-live-' + day + '-' + first + '.jsonl' + (f.gz ? '.gz' : ''), f, {kind: 'live', from: String(first), to: String(last), n: String(take.length)});
+      for (const [k] of take) await store.delete(k).catch(() => {});
+      liveState = {sent: liveState.sent + take.length, last, at: Date.now(), error: null};
+    } catch (e) {
+      liveState = {...liveState, at: Date.now(), error: String((e && e.message) || e).slice(0, 200)};
+      liveNext = Date.now() + 20000;
+    } finally {
+      if (held) await store.delete('jq-hold').catch(() => {});
+      liveBusy = false;
+    }
+    return liveState;
   }
   /* one pass: the oldest day Drive does not hold yet goes up (one a pass, a day is 24 MB to read), then the days
      past the newest 7 that Drive holds are let go here */
@@ -388,7 +479,11 @@ export function safetyActions(h) {
     const uid = await driveUid().catch(() => null);
     if (!uid) { driveState = {...driveState, on: false}; return driveState; }
     driveBusy = true;
+    let held = false;
     try {
+      /* one instance sends days at a time, so a day goes up once */
+      held = await hold('bk/drive-hold');
+      if (!held) return driveState;
       const index = await readIndex();
       const have = await driveDays(uid);
       const todo = index.days.filter(d => !have[d]).sort();
@@ -410,7 +505,10 @@ export function safetyActions(h) {
     } catch (e) {
       driveState = {...driveState, on: true, at: Date.now(), error: String((e && e.message) || e).slice(0, 200)};
       driveNext = Date.now() + 2 * 60000;
-    } finally { driveBusy = false; }
+    } finally {
+      if (held) await store.delete('bk/drive-hold').catch(() => {});
+      driveBusy = false;
+    }
     return driveState;
   }
   /* a full store and Google just connected (google.js): with the token from the sign-in, the oldest days past
@@ -520,6 +618,7 @@ export function safetyActions(h) {
     upkeepBusy = true;
     try {
       await trimCaches().catch(() => {});
+      await liveFlush().catch(() => {});
       await drivePass().catch(() => {});
       if (upkeepDay === ymd || now < upkeepNext) return;
       const index = await readIndex();
@@ -665,6 +764,7 @@ export function safetyActions(h) {
       days.sort((a, b) => (a.ymd < b.ymd ? 1 : -1));
       const site = (await getJ('bk/site/index').catch(() => null)) || {};
       return {days, last: index.last || 0, lastError: index.lastError || null, keepDays: BACKUP_DAYS, trashDays: TRASH_DAYS, drive: driveState,
+        live: {...liveState, waiting: (await listAll(JQ).catch(() => [])).length},
         site: {at: site.at || 0, bytes: site.bytes || 0, lastError: site.lastError || null, cap: SITE_CAP}};
     },
 

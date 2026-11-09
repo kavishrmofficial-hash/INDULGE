@@ -984,6 +984,8 @@ export function createApp({store, env = {}}) {
           if (hooks.beforeDelete) await hooks.beforeDelete(key, path, v.uid).catch(() => {});
           await store.delete(key).catch(() => {});
           await bumpMarker(s.slice(0, -1).join('/'), s[s.length - 1], null).catch(() => {});
+          /* the live log (safety.js): every change also goes to Drive within seconds */
+          if (hooks.afterWrite) await hooks.afterWrite({at: Date.now(), uid: v.uid, op: 'delete', path, doc: null}).catch(() => {});
           await log(v.uid, 'delete', path, '');
           return {ok: true, doc: null};
         }
@@ -1009,6 +1011,7 @@ export function createApp({store, env = {}}) {
         if (hooks.beforeWrite && !quietWrite) await hooks.beforeWrite(key, path, v.uid, cur).catch(() => {});
         await store.set(key, str);
         await bumpMarker(s.slice(0, -1).join('/'), s[s.length - 1], digest([str])).catch(() => {});
+        if (!quietWrite && hooks.afterWrite) await hooks.afterWrite({at: Date.now(), uid: v.uid, op: done, path, doc: next}).catch(() => {});
         if (!quietWrite) await log(v.uid, done, path, summarize(path, data));
         /* someone taken off the roster is signed out of every device at once */
         if (path === 'roster/team') {
@@ -1460,6 +1463,7 @@ export function createApp({store, env = {}}) {
     if (hooks.beforeWrite) await hooks.beforeWrite(key, path, uid, cur).catch(() => {});
     await store.set(key, str);
     await bumpMarker(s.slice(0, -1).join('/'), s[s.length - 1], digest([str])).catch(() => {});
+    if (hooks.afterWrite) await hooks.afterWrite({at: Date.now(), uid, op: 'set', path, doc}).catch(() => {});
     await log(uid, 'set', path, what || '');
   }
   /* a live feed the server writes (the COO's coo/now and office/live): the marker moves so open pages see it,

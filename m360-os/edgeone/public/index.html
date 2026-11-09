@@ -5766,7 +5766,7 @@ html.gs-open.ai-behind .buddy-bubble.agent-pop{z-index:59}
 @media (prefers-reduced-motion:no-preference){ .o3-layer > .o3-emote{animation:o3-emote-in .35s var(--ease) both} }
 @keyframes o3-emote-in{from{scale:.7} to{scale:1}}
 </style>
-<script>window.M360_BUILD = "1a4a92c+.261109-1439"; window.M360_3D_SRC = "vendor/three.92287d45.js"; window.M360_3D_SRI = "sha384-9CmMVqgd6no+mymMnUEosvNELUQCik7EBJNeBNZTkeerVlw0wzE9SGjUQswxiS20";</script><script>
+<script>window.M360_BUILD = "6bda3eb+.261109-1506"; window.M360_3D_SRC = "vendor/three.92287d45.js"; window.M360_3D_SRI = "sha384-9CmMVqgd6no+mymMnUEosvNELUQCik7EBJNeBNZTkeerVlw0wzE9SGjUQswxiS20";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -46361,6 +46361,9 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
       <div class="small" id="safety-drive">${gs == null ? 'Google Drive: looking'
         : gs.driveWrite ? 'Google Drive: ' + plural(drive.copied || 0, 'day', 'days') + ' kept for good' + (drive.pending ? ', ' + drive.pending + ' on the way' : '') + (drive.error ? '. ' + drive.error : '')
         : 'Google Drive: not connected. Every day goes there for good once it is.'}</div>
+      ${gs && gs.driveWrite && info && info.live ? html`<div class="small" id="safety-live">Live log: ${info.live.error ? info.live.error
+        : info.live.last ? 'every change goes to Drive within seconds, the last one ' + U.timeAgo(info.live.last) + (info.live.waiting ? ', ' + info.live.waiting + ' on the way' : '')
+        : 'every change goes to Drive within seconds'}</div>` : null}
       <div class="row" style=${{gap: '8px'}}>
         <${UI.Btn} id="safety-open" kind="sec" sm=${true} onClick=${openTab}>Open Backups<//>
         ${gs && !gs.driveWrite ? html`<${UI.Btn} id="safety-drive-connect" sm=${true} disabled=${busy} onClick=${connect}>${gs.connected ? 'Allow backups in Google Drive' : 'Connect Google Drive'}<//>` : null}

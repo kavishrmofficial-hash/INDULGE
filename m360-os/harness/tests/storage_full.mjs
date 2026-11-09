@@ -45,7 +45,9 @@ function fakeGoogle(opts) {
     if (u.pathname === '/drive/v3/files' && method === 'GET') {
       const q = u.searchParams.get('q') || '';
       const m = /'([^']+)' in parents/.exec(q);
-      const list = m ? files.filter(f => f.parents && f.parents[0] === m[1]) : files.filter(f => f.mimeType === 'application/vnd.google-apps.folder' && q.includes(f.name));
+      const nm = /name = '([^']+)'/.exec(q);
+      let list = m ? files.filter(f => f.parents && f.parents[0] === m[1]) : files.filter(f => f.mimeType === 'application/vnd.google-apps.folder' && !f.parents);
+      if (nm) list = list.filter(f => f.name === nm[1]);
       return json({files: list.map(f => ({id: f.id, name: f.name, size: f.size == null ? undefined : String(f.size), appProperties: f.appProperties}))});
     }
     if (u.pathname === '/drive/v3/files' && method === 'POST') {
@@ -161,7 +163,7 @@ const gunzip = async u8 => new TextDecoder().decode(await new Response(new Blob(
   const f = gg.files.find(x => x.name === 'm360-backup-' + oldest + '.json.gz');
   const back = f && JSON.parse(await gunzip(f.body));
   check(!!back && back.kind === 'day' && back.colls.tasks.docs.blob.day === oldest && f.appProperties.bytes === String(f.size), 'a Drive file opens to the whole day, gzip, at the size sent');
-  check(gg.files.filter(x => x.mimeType === 'application/vnd.google-apps.folder').length === 1, 'one backup folder');
+  check(gg.files.filter(x => x.mimeType === 'application/vnd.google-apps.folder' && x.name === 'm360 OS backups').length === 1, 'one backup folder');
   const b = await call(app, 'backups');
   check(b.j.drive && b.j.drive.on && b.j.drive.copied === 46 && b.j.drive.pending === 0, 'Backups reports the Drive copy: ' + JSON.stringify(b.j.drive));
 }
@@ -221,6 +223,50 @@ const gunzip = async u8 => new TextDecoder().decode(await new Response(new Blob(
   const j = await (await app(req)).json();
   const ru = j.url ? new URL(j.url).searchParams.get('redirect_uri') : '';
   check(ru === 'https://m360os-wx9u1bqs.edgeone.dev/api/google', 'Google is told to come back to the page address: ' + ru);
+}
+
+/* 6: the live log: every save is on Drive by the next request, whole, and the queue empties (v49) */
+{
+  const store = memStore(1e9);
+  seed(store, 2, true);
+  const gg = fakeGoogle();
+  const app = createApp({store, env: {fetch: gg.fetch}});
+  await call(app, 'me');
+  for (const n of ['one', 'two', 'three']) await call(app, 'write', {op: 'merge', path: 'me/' + UID, data: {note: n}});
+  await call(app, 'write', {op: 'delete', path: 'tasks/t3'});
+  await call(app, 'me');
+  const live = gg.files.filter(f => /^m360-live-/.test(f.name));
+  const lines = [];
+  for (const f of live) (await gunzip(f.body)).trim().split('\n').forEach(l => lines.push(JSON.parse(l)));
+  const notes = lines.filter(l => l.path === 'me/' + UID).map(l => l.doc && l.doc.note);
+  check(notes.join(',') === 'one,two,three', 'every save is on Drive, in order, as the whole document: ' + notes.join(','));
+  check(lines.some(l => l.op === 'delete' && l.path === 'tasks/t3' && l.doc === null), 'a delete is on Drive too');
+  check(![...store.data.keys()].some(k => k.startsWith('jq/')), 'the queue is empty once Drive holds the file');
+  const day = gg.files.find(f => f.mimeType === 'application/vnd.google-apps.folder' && /^\d{4}-\d{2}-\d{2}$/.test(f.name));
+  const liveF = gg.files.find(f => f.name === 'live');
+  check(!!day && !!liveF && day.parents[0] === liveF.id, 'filed under m360 OS backups/live/<day>');
+  const b = await call(app, 'backups');
+  check(b.j.live && b.j.live.sent >= 4 && b.j.live.waiting === 0 && !b.j.live.error, 'Backups reports the live log: ' + JSON.stringify(b.j.live));
+}
+
+/* 6b: Drive not connected: nothing queues */
+{
+  const store = memStore(1e9);
+  seed(store, 1, false);
+  const app = createApp({store, env: {}});
+  await call(app, 'write', {op: 'merge', path: 'me/' + UID, data: {note: 'x'}});
+  check(![...store.data.keys()].some(k => k.startsWith('jq/')), 'without Drive no change queues');
+}
+
+/* 7: two instances on one store send each day once */
+{
+  const store = memStore(1e9);
+  seed(store, 12, true);
+  const gg = fakeGoogle();
+  const a1 = createApp({store, env: {fetch: gg.fetch}}), a2 = createApp({store, env: {fetch: gg.fetch}});
+  for (let i = 0; i < 20; i++) await Promise.all([call(a1, 'me'), call(a2, 'me')]);
+  const names = gg.files.filter(f => /^m360-backup-/.test(f.name)).map(f => f.name);
+  check(names.length === new Set(names).size && names.length === 13, 'each day went up once: ' + names.length + ' files, ' + new Set(names).size + ' days');
 }
 
 console.log(fails ? 'FAIL ' + fails : 'PASS');
