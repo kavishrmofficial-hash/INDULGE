@@ -8,6 +8,7 @@
    - a Drive upload that arrives short lets nothing go
    Run: node harness/tests/storage_full.mjs */
 import {createApp} from '../../edgeone/server/core.js';
+import {hybridStore} from '../../edgeone/server/store-supabase.js';
 
 let fails = 0;
 const check = (ok, msg) => { console.log((ok ? 'ok   ' : 'FAIL ') + msg); if (!ok) fails++; };
@@ -267,6 +268,34 @@ const gunzip = async u8 => new TextDecoder().decode(await new Response(new Blob(
   for (let i = 0; i < 20; i++) await Promise.all([call(a1, 'me'), call(a2, 'me')]);
   const names = gg.files.filter(f => /^m360-backup-/.test(f.name)).map(f => f.name);
   check(names.length === new Set(names).size && names.length === 13, 'each day went up once: ' + names.length + ' files, ' + new Set(names).size + ' days');
+}
+
+/* 8: the move to Supabase (v50): the old store full, the new one roomy. Saves work at once, old data reads
+   through, deletes reach both, and migrate copies everything across */
+{
+  const legacy = memStore(0);
+  seed(legacy, 5, false);
+  legacy.cap = legacy.used();
+  const primary = memStore(1e9);
+  const store = hybridStore(primary, legacy);
+  const app = createApp({store, env: {}});
+  const r = await call(app, 'write', {op: 'merge', path: 'me/' + UID, data: {note: 'moved'}});
+  check(r.status === 200 && r.j.doc && r.j.doc.name === 'Owner' && r.j.doc.note === 'moved', 'a save works at once and keeps the old fields: ' + JSON.stringify(r.j).slice(0, 120));
+  const t = await call(app, 'write', {op: 'merge', path: 'tasks/t5', data: {title: 'Task 5 edited'}});
+  check(t.status === 200 && t.j.doc.body && t.j.doc.title === 'Task 5 edited', 'an old document reads through and saves');
+  const d = await call(app, 'write', {op: 'delete', path: 'tasks/t6'});
+  check(d.status === 200 && !legacy.data.has('d/tasks~t6') && !primary.data.has('d/tasks~t6'), 'a delete reaches both stores');
+  let m = {};
+  for (let i = 0; i < 20 && !m.done; i++) m = await store.migrate(5000);
+  const left = [...legacy.data.keys()].filter(k => !primary.data.has(k));
+  check(m.done && left.length === 0, 'everything is across: ' + left.length + ' left');
+  check(JSON.parse(primary.data.get('d/me~' + UID)).note === 'moved', 'the move never overwrites a newer save');
+  const before = legacy.data.size;
+  legacy.data.set('d/tasks~ghost', '{"title":"ghost"}');
+  const g = await store.get('d/tasks~ghost');
+  check(g === null && legacy.data.size === before + 1, 'once done, the old store is no longer read');
+  const back = await call(app, 'backups');
+  check(back.status === 200, 'Backups still answers');
 }
 
 console.log(fails ? 'FAIL ' + fails : 'PASS');
