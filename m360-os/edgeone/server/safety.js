@@ -417,17 +417,20 @@ export function safetyActions(h) {
      the newest 7 go to Drive and, once Drive holds each whole, leave this store. About 20 seconds' worth,
      at least one day: that is the room the token and the next saves need. The Drive pass carries on after */
   hooks.driveRescue = async (token, uid) => {
-    if (!token || !uid) return;
+    if (!token || !uid) return {gone: 0, freed: 0};
     tokenNow = token;
     const t0 = Date.now();
+    let freed = 0;
     try {
       const index = await readIndex();
       const keep = index.days.slice().sort().reverse().slice(0, BACKUP_DAYS);
       const old = index.days.filter(d => keep.indexOf(d) < 0).sort();
       const have = await driveDays(uid);
       const gone = [];
+      /* days with nothing in them free nothing: keep going until real room is made (2 MB), or 18 seconds pass */
       for (const d of old) {
-        if (gone.length && Date.now() - t0 > 12000) break;
+        if (freed > 2 * 1024 * 1024 || (gone.length && Date.now() - t0 > 18000)) break;
+        const m = await getJ('bk/' + d + '/index').catch(() => null);
         if (!have[d]) {
           const f = await dayFile(d);
           if (!f) continue;
@@ -435,9 +438,11 @@ export function safetyActions(h) {
         }
         await dropDay(d);
         gone.push(d);
+        freed += Number(m && m.bytes) || 0;
       }
       if (gone.length) await putJ('bk/index', {...index, days: index.days.filter(d => gone.indexOf(d) < 0)}).catch(() => {});
       driveState = {on: true, at: Date.now(), copied: Object.keys(have).length, pending: index.days.filter(d => !have[d]).length, last: gone[gone.length - 1] || '', error: null};
+      return {gone: gone.length, freed};
     } finally { tokenNow = ''; }
   };
 

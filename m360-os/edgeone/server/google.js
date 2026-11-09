@@ -368,8 +368,15 @@ export function googleActions(h) {
     try { await putJ(tokKey(rec.uid), tok); } catch (e) {
       /* the store is full: with this fresh token the oldest backup days move to Drive first (safety.js), which
          makes the room this token needs */
-      if (hooks.driveRescue && String(j.scope || '').split(/\s+/).indexOf(DRIVE_FILE) >= 0) await hooks.driveRescue(j.access_token, rec.uid).catch(() => {});
-      try { await putJ(tokKey(rec.uid), tok); } catch (x) { return back(rec.back, false, 'full'); }
+      let why = 'full';
+      if (!hooks.driveRescue) why = 'full: no rescue';
+      else if (String(j.scope || '').split(/\s+/).indexOf(DRIVE_FILE) < 0) why = 'full: Drive files not allowed';
+      else {
+        const t0 = Date.now();
+        try { const r = await hooks.driveRescue(j.access_token, rec.uid); why = 'full: moved ' + (r ? r.gone : 0) + ' days, ' + Math.round(((r && r.freed) || 0) / 1e6) + ' MB, ' + Math.round((Date.now() - t0) / 1000) + 's'; }
+        catch (x) { why = 'full: ' + String((x && x.message) || x).slice(0, 140); }
+      }
+      try { await putJ(tokKey(rec.uid), tok); } catch (x) { return back(rec.back, false, why); }
     }
     await log(rec.uid, 'google', '', 'connected ' + email);
     return back(rec.back, true);

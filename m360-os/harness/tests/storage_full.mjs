@@ -185,6 +185,8 @@ const gunzip = async u8 => new TextDecoder().decode(await new Response(new Blob(
   seed(store, 45, true);
   store.data.set('x/g/' + UID, JSON.stringify({refresh: 'rt', access: '', exp: 0, email: 'owner@example.test', scope: 'openid email'}));
   store.data.delete('a/contacts');
+  /* like live: the four oldest days hold nothing, so moving them frees no room */
+  for (let i = 42; i <= 45; i++) { const d = ymd(Date.now() - i * DAY); store.data.set('bk/' + d + '/index', JSON.stringify({at: 0, colls: {}, bytes: 0, bad: []})); store.data.delete('bk/' + d + '/tasks'); }
   store.cap = store.used();
   const gg = fakeGoogle();
   const app = createApp({store, env: {fetch: gg.fetch}});
