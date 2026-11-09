@@ -755,6 +755,31 @@ export function safetyActions(h) {
     },
 
     /* every day that has a backup, newest first */
+    /* v49.1: what the store holds, by kind (the first part of each key; backups by day), so a full store can be
+       read: count, and bytes where the listing says them. Owner only; reads nothing but the listing */
+    async storeusage(v) {
+      await admin(v);
+      const all = [];
+      let cur = '', pages = 0, shape = [];
+      do {
+        const r = (await store.list({consistency: 'strong', ...(cur ? {cursor: cur} : {})}).catch(() => null)) || {};
+        if (!pages) shape = Object.keys(r);
+        all.push(...(r.blobs || []));
+        cur = r.cursor || r.nextCursor || r.next_cursor || '';
+        pages++;
+      } while (cur && pages < 500);
+      const by = {};
+      let size = 0, sized = 0;
+      for (const b of all) {
+        const parts = String(b.key).split('/');
+        const kind = parts[0] + (parts[0] === 'bk' && parts[1] ? '/' + parts[1] : '');
+        const e = by[kind] || (by[kind] = {n: 0, bytes: 0});
+        e.n++;
+        const z = Number(b.size != null ? b.size : (b.contentLength != null ? b.contentLength : NaN));
+        if (Number.isFinite(z)) { e.bytes += z; size += z; sized++; }
+      }
+      return {keys: all.length, pages, shape, sized, bytes: size, fields: all[0] ? Object.keys(all[0]) : [], by};
+    },
     async backups(v) {
       await admin(v);
       await hooks.upkeep().catch(() => {});
