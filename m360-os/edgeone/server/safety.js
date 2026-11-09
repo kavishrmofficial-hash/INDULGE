@@ -313,8 +313,9 @@ export function safetyActions(h) {
     const uid = await ownerUid();
     return uid && (await g.driveWriter(uid)) ? uid : null;
   }
+  let tokenNow = '';   /* a token handed in by the sign-in itself, while the store is too full to keep it */
   async function gfetch(uid, url, init) {
-    const tok = await g.accessToken(uid);
+    const tok = tokenNow || await g.accessToken(uid);
     return doFetch(url, {...(init || {}), headers: {...((init && init.headers) || {}), authorization: 'Bearer ' + tok}});
   }
   async function folderId(uid) {
@@ -412,6 +413,34 @@ export function safetyActions(h) {
     } finally { driveBusy = false; }
     return driveState;
   }
+  /* a full store and Google just connected (google.js): with the token from the sign-in, the oldest days past
+     the newest 7 go to Drive and, once Drive holds each whole, leave this store. About 20 seconds' worth,
+     at least one day: that is the room the token and the next saves need. The Drive pass carries on after */
+  hooks.driveRescue = async (token, uid) => {
+    if (!token || !uid) return;
+    tokenNow = token;
+    const t0 = Date.now();
+    try {
+      const index = await readIndex();
+      const keep = index.days.slice().sort().reverse().slice(0, BACKUP_DAYS);
+      const old = index.days.filter(d => keep.indexOf(d) < 0).sort();
+      const have = await driveDays(uid);
+      const gone = [];
+      for (const d of old) {
+        if (gone.length && Date.now() - t0 > 12000) break;
+        if (!have[d]) {
+          const f = await dayFile(d);
+          if (!f) continue;
+          have[d] = await upload(uid, d, f);
+        }
+        await dropDay(d);
+        gone.push(d);
+      }
+      if (gone.length) await putJ('bk/index', {...index, days: index.days.filter(d => gone.indexOf(d) < 0)}).catch(() => {});
+      driveState = {on: true, at: Date.now(), copied: Object.keys(have).length, pending: index.days.filter(d => !have[d]).length, last: gone[gone.length - 1] || '', error: null};
+    } finally { tokenNow = ''; }
+  };
+
   /* a cached copy of a collection over the size core.js caches now (the Base) is only a copy: it goes, which
      frees room in a full store without touching a document or a backup */
   let cachesTrimmed = false;

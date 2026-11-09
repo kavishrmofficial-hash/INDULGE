@@ -40,6 +40,16 @@ function b64Encode(str) {
   return btoa(bin);
 }
 const b64url = str => b64Encode(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+/* a signed sign-in state (v48.1): when the store is full a sign-in cannot be written down, so the state carries
+   who, until when and where back, signed with the OAuth client's secret, which never leaves this server */
+async function sign(secret, msg) {
+  const enc = new TextEncoder();
+  const k = await crypto.subtle.importKey('raw', enc.encode(String(secret)), {name: 'HMAC', hash: 'SHA-256'}, false, ['sign']);
+  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', k, enc.encode(msg)));
+  let b = '';
+  for (let i = 0; i < sig.length; i++) b += String.fromCharCode(sig[i]);
+  return btoa(b).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
 
 const header = (msg, name) => { const hs = (msg && msg.payload && msg.payload.headers) || []; const h = hs.find(x => String(x.name).toLowerCase() === name.toLowerCase()); return h ? String(h.value) : ''; };
 const addressOf = from => { const m = /<([^>]+)>/.exec(String(from || '')); return (m ? m[1] : String(from || '')).trim(); };
@@ -89,6 +99,7 @@ function mime({from, to, cc, subject, text, inReplyTo}) {
 
 export function googleActions(h) {
   const {store, env, getJ, putJ, levelOf, LEVEL, HttpError, log, rand} = h;
+  const hooks = h.hooks || {};
   const doFetch = (...a) => (env.fetch || fetch)(...a);
   const tokKey = uid => 'x/g/' + uid;
 
@@ -184,9 +195,12 @@ export function googleActions(h) {
       const back = /^#[a-z0-9/_-]*$/i.test(String(body.back || '')) ? String(body.back) : '#mail';
       /* the public address the page came from is kept with the state: the callback arrives at the
          platform's own function address, which is neither the registered redirect nor a place to send a browser */
-      await putJ('c/g/' + nonce, {uid: v.uid, until: Date.now() + STATE_MS, back, site: String((req && req.site) || '')});
+      const rec = {uid: v.uid, until: Date.now() + STATE_MS, back, site: String((req && req.site) || '')};
+      let state = nonce;
+      /* a full store cannot keep the sign-in: the state carries it, signed */
+      try { await putJ('c/g/' + nonce, rec); } catch (e) { const body = b64url(JSON.stringify(rec)); state = 'S' + body + '.' + await sign(c.clientSecret, body); }
       const url = 'https://accounts.google.com/o/oauth2/v2/auth?' + q({client_id: c.clientId, redirect_uri: redirectFor(req), response_type: 'code',
-        scope: SCOPES.join(' '), access_type: 'offline', prompt: 'consent', include_granted_scopes: 'true', state: nonce});
+        scope: SCOPES.join(' '), access_type: 'offline', prompt: 'consent', include_granted_scopes: 'true', state});
       return {url};
     },
     async googledisconnect(v) {
@@ -321,9 +335,16 @@ export function googleActions(h) {
     let site = host ? proto + '://' + host : url.origin;
     const back = (where, ok, why) => new Response('', {status: 302, headers: {location: site + '/?google=' + (ok ? 'ok' : 'error') + (why ? '&why=' + encodeURIComponent(why) : '') + (where || '#mail'), 'cache-control': 'no-store'}});
     const code = url.searchParams.get('code') || '', state = url.searchParams.get('state') || '';
-    if (!/^[a-z0-9]{10,64}$/i.test(state)) return back('', false, 'state');
-    const rec = await getJ('c/g/' + state).catch(() => null);
-    await store.delete('c/g/' + state).catch(() => {});
+    let rec = null;
+    const signed = /^S([A-Za-z0-9_-]{10,1200})\.([A-Za-z0-9_-]{20,80})$/.exec(state);
+    if (signed) {
+      const cs = await conf();
+      if (cs && await sign(cs.clientSecret, signed[1]) === signed[2]) { try { rec = JSON.parse(b64urlDecode(signed[1])); } catch (e) { rec = null; } }
+    } else {
+      if (!/^[a-z0-9]{10,64}$/i.test(state)) return back('', false, 'state');
+      rec = await getJ('c/g/' + state).catch(() => null);
+      await store.delete('c/g/' + state).catch(() => {});
+    }
     /* the address the sign-in started from wins: the redirect registered with Google and the page the browser returns to */
     if (rec && /^https?:\/\/[^/]+$/.test(String(rec.site || ''))) site = rec.site;
     if (!rec || !rec.uid || Number(rec.until) < Date.now()) return back('', false, 'expired');
@@ -343,7 +364,13 @@ export function googleActions(h) {
     const prev = await getJ(tokKey(rec.uid)).catch(() => null);
     const refresh = j.refresh_token || (prev && prev.refresh) || '';
     if (!refresh) return back(rec.back, false, 'norefresh');
-    await putJ(tokKey(rec.uid), {refresh, access: j.access_token, exp: Date.now() + (Number(j.expires_in) || 3600) * 1000, email, at: Date.now(), scope: String(j.scope || '')});
+    const tok = {refresh, access: j.access_token, exp: Date.now() + (Number(j.expires_in) || 3600) * 1000, email, at: Date.now(), scope: String(j.scope || '')};
+    try { await putJ(tokKey(rec.uid), tok); } catch (e) {
+      /* the store is full: with this fresh token the oldest backup days move to Drive first (safety.js), which
+         makes the room this token needs */
+      if (hooks.driveRescue && String(j.scope || '').split(/\s+/).indexOf(DRIVE_FILE) >= 0) await hooks.driveRescue(j.access_token, rec.uid).catch(() => {});
+      try { await putJ(tokKey(rec.uid), tok); } catch (x) { return back(rec.back, false, 'full'); }
+    }
     await log(rec.uid, 'google', '', 'connected ' + email);
     return back(rec.back, true);
   }

@@ -40,7 +40,8 @@ function fakeGoogle(opts) {
   const fetch = async (url, init) => {
     const u = new URL(String(url));
     const method = (init && init.method) || 'GET';
-    if (u.host === 'oauth2.googleapis.com') return json({access_token: 'at', expires_in: 3600});
+    if (u.host === 'oauth2.googleapis.com') return json({access_token: 'at', refresh_token: 'rt2', expires_in: 3600, scope: 'openid email https://www.googleapis.com/auth/drive.readonly ' + DRIVE_FILE});
+    if (u.host === 'openidconnect.googleapis.com') return json({email: 'owner@example.test'});
     if (u.pathname === '/drive/v3/files' && method === 'GET') {
       const q = u.searchParams.get('q') || '';
       const m = /'([^']+)' in parents/.exec(q);
@@ -175,6 +176,37 @@ const gunzip = async u8 => new TextDecoder().decode(await new Response(new Blob(
   check(localDays(store).length === 11, 'short uploads: all 10 old days and today stay here: ' + localDays(store).length);
   const b = await call(app, 'backups');
   check(b.j.drive && /did not reach Drive whole/.test(b.j.drive.error || ''), 'and Backups says why: ' + (b.j.drive && b.j.drive.error));
+}
+
+/* 4: full store, Google connected read only (before v48): Connect works, and the sign-in itself moves the oldest
+   days to Drive to make room for its token; then saves work */
+{
+  const store = memStore(0);
+  seed(store, 45, true);
+  store.data.set('x/g/' + UID, JSON.stringify({refresh: 'rt', access: '', exp: 0, email: 'owner@example.test', scope: 'openid email'}));
+  store.data.delete('a/contacts');
+  store.cap = store.used();
+  const gg = fakeGoogle();
+  const app = createApp({store, env: {fetch: gg.fetch}});
+  const before = await call(app, 'write', {op: 'merge', path: 'me/' + UID, data: {note: 'x'}});
+  check(before.status === 500, 'full and Drive not allowed yet: a save fails (' + before.status + ')');
+  const st = await call(app, 'googlestart', {back: '#admin'});
+  const state = st.j.url ? new URL(st.j.url).searchParams.get('state') : '';
+  check(/^S/.test(state || ''), 'Connect still opens Google, with a signed state: ' + (state || JSON.stringify(st.j)).slice(0, 40));
+  const forged = await app.google(new Request('https://m360.test/api/google?code=abc&state=' + encodeURIComponent(state.slice(0, -3) + 'AAA')));
+  check(/google=error/.test(forged.headers.get('location') || ''), 'a state with a wrong signature is refused');
+  const cb = await app.google(new Request('https://m360.test/api/google?code=abc&state=' + encodeURIComponent(state)));
+  check(/google=ok/.test(cb.headers.get('location') || ''), 'the sign-in comes back ok: ' + cb.headers.get('location'));
+  const tok = JSON.parse(store.data.get('x/g/' + UID));
+  check(String(tok.scope).includes(DRIVE_FILE), 'the token with the backup folder allowed is kept');
+  const sent = gg.files.filter(f => /^m360-backup-/.test(f.name)).map(f => f.name.slice(12, 22));
+  const here = localDays(store);
+  check(sent.length >= 1 && sent.every(d => !here.includes(d) || here.length <= 8), 'the oldest days went to Drive and left here: ' + sent.length + ' sent, ' + here.length + ' here');
+  check(here.length + sent.filter(d => !here.includes(d)).length === 45, 'no day is lost: here plus on Drive is all 45');
+  const after = await call(app, 'write', {op: 'merge', path: 'me/' + UID, data: {note: 'saved'}});
+  check(after.status === 200, 'and saves work again (' + after.status + ')');
+  for (let i = 0; i < 60; i++) await call(app, 'me');
+  check(localDays(store).length <= 8 && gg.files.filter(f => /^m360-backup-/.test(f.name)).length >= 45, 'the Drive pass then moves the rest: ' + localDays(store).length + ' here');
 }
 
 console.log(fails ? 'FAIL ' + fails : 'PASS');

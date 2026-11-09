@@ -1472,7 +1472,7 @@ export function createApp({store, env = {}}) {
   const holiday = holidayNotice({getJ, docKey, appSettings, ownerUid, sendMail, writeAs, ymdIST, env});
   /* radar actions (news, awards, watch) live in radar.js and share the store helpers */
   Object.assign(actions, radarActions({store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, isObj, stampKey}));
-  const google = googleActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError, log, rand, docKey});
+  const google = googleActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError, log, rand, docKey, hooks});
   Object.assign(actions, google.actions);
   /* security: the second factor, the throttle, the breach check, the new-device mail, the log */
   const sec = securityActions({store, env, getJ, putJ, ownerUid, levelOf, LEVEL, HttpError, log, sendMail, rand});
