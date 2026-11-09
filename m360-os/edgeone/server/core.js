@@ -96,6 +96,10 @@ const SEG_OK = /^[A-Za-z0-9_\-.:@+]{1,200}$/;
 const docKey = path => 'd/' + segs(path).join('~');
 const pathOfKey = key => key.slice(2).split('~').join('/');
 const aggKey = coll => 'a/' + segs(coll).join('~');
+/* v48: a collection read in one piece is cached in one piece only while that piece is small. The Base
+   (contacts, orgs: 20 MB) is read through its own compact index; a full copy of it here doubled what it
+   took in the store, and the store's 1 GB is shared with the backups */
+const AGG_MAX = 2 * 1024 * 1024;
 const collOf = path => segs(path).slice(0, -1).join('/');
 const normTag = t => String(t || '').replace(/[^a-f0-9]/gi, '').toLowerCase();
 /* a short fingerprint of a collection's state: FNV-1a over sorted id:etag pairs */
@@ -674,7 +678,11 @@ export function createApp({store, env = {}}) {
       const d = await getJ(docKey(coll + '/' + id)).catch(() => null);
       if (d != null) { docs[id] = d; fresh[id] = {h: tags[id], d}; }
     }));
-    if (stale || Object.keys(agg.docs || {}).length !== Object.keys(fresh).length) await putJ(aggKey(coll), {docs: fresh}).catch(() => {});
+    if (stale || Object.keys(agg.docs || {}).length !== Object.keys(fresh).length) {
+      const str = JSON.stringify({docs: fresh});
+      if (str.length <= AGG_MAX) await store.set(aggKey(coll), str).catch(() => {});
+      else if (agg.docs && Object.keys(agg.docs).length) await store.delete(aggKey(coll)).catch(() => {});
+    }
     return docs;
   }
   async function collsFor(uid, level, want) {
@@ -1479,7 +1487,7 @@ export function createApp({store, env = {}}) {
   const browse = browseHandler({env, levelOf, LEVEL});
   Object.assign(actions, baseActions({getJ, putJ, levelOf, LEVEL, HttpError, inventory, readColl, versionOf, docKey}).actions);
   /* safety: trash, daily backups, restore. It may register hooks.beforeDelete and hooks.upkeep. */
-  Object.assign(actions, safetyActions({store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, pathOfKey, isObj, hooks, log, stampKey, inventory}));
+  Object.assign(actions, safetyActions({store, env, getJ, putJ, listAll, levelOf, ownerUid, LEVEL, HttpError, docKey, pathOfKey, isObj, hooks, log, stampKey, inventory, google}));
   Object.assign(actions, peekActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError}));
   Object.assign(actions, handshakeActions({env, getJ, putJ, levelOf, LEVEL, HttpError, peek: (v, body) => actions.peek(v, body)}));
   Object.assign(actions, voiceActions({store, env, getJ, putJ, levelOf, LEVEL, HttpError, log}));

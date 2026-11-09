@@ -10,8 +10,12 @@ const SCOPES = [
   'https://www.googleapis.com/auth/gmail.modify',
   'https://www.googleapis.com/auth/calendar.events',
   'https://www.googleapis.com/auth/calendar.readonly',
-  'https://www.googleapis.com/auth/drive.readonly'
+  'https://www.googleapis.com/auth/drive.readonly',
+  /* v48: the daily backups go to the owner's Drive, into a folder m360 makes. drive.file reaches only files
+     m360 itself created, never the rest of the Drive */
+  'https://www.googleapis.com/auth/drive.file'
 ];
+const DRIVE_FILE = 'https://www.googleapis.com/auth/drive.file';
 const STATE_MS = 10 * 60000;
 const TZ = 'Asia/Kolkata';
 const MAX_LIST = 40;
@@ -110,7 +114,8 @@ export function googleActions(h) {
       if (j && j.error === 'invalid_grant') await store.delete(tokKey(uid)).catch(() => {});
       throw new HttpError(403, 'google_off', 'Google needs you to connect again.');
     }
-    await putJ(tokKey(uid), {...t, access: j.access_token, exp: Date.now() + (Number(j.expires_in) || 3600) * 1000});
+    /* keeping the fresh token is a nicety: a store that refuses writes still gets the call made */
+    await putJ(tokKey(uid), {...t, access: j.access_token, exp: Date.now() + (Number(j.expires_in) || 3600) * 1000}).catch(() => {});
     return j.access_token;
   }
 
@@ -154,7 +159,7 @@ export function googleActions(h) {
       const c = await conf();
       const t = await getJ(tokKey(v.uid)).catch(() => null);
       const level = await levelOf(v.uid);
-      return {configured: !!c, connected: !!(t && t.refresh), who: (t && t.email) || '', redirect: redirectFor(req),
+      return {configured: !!c, connected: !!(t && t.refresh), who: (t && t.email) || '', redirect: redirectFor(req), driveWrite: canWriteDrive(t),
         clientId: level >= LEVEL.admin && c && !c.fromEnv ? c.clientId : '', fromEnv: !!(c && c.fromEnv)};
     },
     /* the admin stores the OAuth client; an empty id removes it */
@@ -338,11 +343,15 @@ export function googleActions(h) {
     const prev = await getJ(tokKey(rec.uid)).catch(() => null);
     const refresh = j.refresh_token || (prev && prev.refresh) || '';
     if (!refresh) return back(rec.back, false, 'norefresh');
-    await putJ(tokKey(rec.uid), {refresh, access: j.access_token, exp: Date.now() + (Number(j.expires_in) || 3600) * 1000, email, at: Date.now()});
+    await putJ(tokKey(rec.uid), {refresh, access: j.access_token, exp: Date.now() + (Number(j.expires_in) || 3600) * 1000, email, at: Date.now(), scope: String(j.scope || '')});
     await log(rec.uid, 'google', '', 'connected ' + email);
     return back(rec.back, true);
   }
 
-  /* gapi and the endpoints are shared with the books (mail mining) */
-  return {actions, googleCallback, gapi, GM, DRIVE};
+  /* can this person's tokens write the backup folder (a sign-in from before v48 asked for read only) */
+  function canWriteDrive(t) { return !!(t && t.refresh && String(t.scope || '').split(/\s+/).indexOf(DRIVE_FILE) >= 0); }
+  async function driveWriter(uid) { const t = await getJ(tokKey(uid)).catch(() => null); return canWriteDrive(t); }
+
+  /* gapi and the endpoints are shared with the books (mail mining); the token and the writer check with the Drive backups */
+  return {actions, googleCallback, gapi, accessToken, driveWriter, GM, DRIVE};
 }

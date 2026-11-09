@@ -142,7 +142,7 @@ def standalone(fails, errors):
             f.wait_for_selector('#bk-row-' + today)
             bk = f.evaluate('() => window.M360_API("backups")')
             check([d['ymd'] for d in bk['days']] == [today] and bk['days'][0]['colls'].get('tasks') == 1 and bk['days'][0]['bytes'] > 0 and bk['days'][0]['at'] > first['days'][0]['at'], 'backups %r' % bk)
-            check(bk['keepDays'] == 45 and bk['trashDays'] == 30 and bk['last'] == bk['days'][0]['at'], 'backups meta %r' % bk)
+            check(bk['keepDays'] == 7 and bk['trashDays'] == 30 and bk['last'] == bk['days'][0]['at'], 'backups meta %r' % bk)
             check(store_doc('bk/index')['days'] == [today], 'bk/index %r' % store_doc('bk/index'))
             check(store_doc('bk/%s/tasks' % today)['docs']['t1']['title'] == 'Write hero reel script', 'backup blob for tasks')
             check('roster' in store_doc('bk/%s/index' % today)['colls'] and 'clients' in store_doc('bk/%s/index' % today)['colls'], 'manifest colls %r' % store_doc('bk/%s/index' % today)['colls'])

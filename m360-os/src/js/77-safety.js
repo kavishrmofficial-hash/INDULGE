@@ -114,14 +114,30 @@
   /* the standalone build: the server backs up on its own; this card points at the tab */
   function StandalonePart() {
     const [info, setInfo] = useState(null);
+    const [gs, setGs] = useState(null);
+    const [busy, setBusy] = useState(false);
     useEffect(() => { window.M360_API('backups').then(setInfo, () => setInfo({days: [], last: 0})); }, []);
+    useEffect(() => { window.M360_API('googlestatus').then(setGs, () => setGs({})); }, []);
+    /* v48: every day goes to the owner's Google Drive for good; that needs Google connected with the backup folder allowed */
+    const connect = async () => {
+      setBusy(true);
+      try { const r = await window.M360_API('googlestart', {back: '#admin'}); location.href = r.url; }
+      catch (e) { setBusy(false); M.toast(e && e.code === 'google_off' ? 'Add the Google client in Admin first' : 'Google did not open. Try again in a moment.', true); }
+    };
+    const drive = (info && info.drive) || {};
     const openTab = () => {
       const tab = Array.from(document.querySelectorAll('.seg [role="tab"]')).find(b => b.textContent.trim() === 'Backups');
       if (tab) tab.click();
     };
     return html`<div class="stack tight">
       <div class="small">Last backup: <span class="num" id="safety-last">${info == null ? 'looking' : info.last ? U.timeAgo(info.last) : 'none yet'}</span>${info && info.days ? ' · ' + plural(info.days.length, 'day', 'days') + ' kept' : ''}</div>
-      <div class="row"><${UI.Btn} id="safety-open" kind="sec" sm=${true} onClick=${openTab}>Open Backups<//></div>
+      <div class="small" id="safety-drive">${gs == null ? 'Google Drive: looking'
+        : gs.driveWrite ? 'Google Drive: ' + plural(drive.copied || 0, 'day', 'days') + ' kept for good' + (drive.pending ? ', ' + drive.pending + ' on the way' : '') + (drive.error ? '. ' + drive.error : '')
+        : 'Google Drive: not connected. Every day goes there for good once it is.'}</div>
+      <div class="row" style=${{gap: '8px'}}>
+        <${UI.Btn} id="safety-open" kind="sec" sm=${true} onClick=${openTab}>Open Backups<//>
+        ${gs && !gs.driveWrite ? html`<${UI.Btn} id="safety-drive-connect" sm=${true} disabled=${busy} onClick=${connect}>${gs.connected ? 'Allow backups in Google Drive' : 'Connect Google Drive'}<//>` : null}
+      </div>
     </div>`;
   }
 
@@ -131,7 +147,7 @@
     const standalone = !!window.M360_STANDALONE && typeof window.M360_API === 'function';
     return html`<${UI.Card} id="safety-card" title="Safety">
       <p class="small ink62" style=${{marginTop: 0}}>${standalone
-        ? 'Once a day the server copies every document into a backup kept for 45 days, and every deleted document waits in the trash for 30 days. The Backups tab has the list, restore and the trash.'
+        ? 'Once a day the server copies every document into a backup. Each day goes to Google Drive for good, the newest 7 stay here too, and every deleted document waits in the trash for 30 days. The Backups tab has the list, restore and the trash.'
         : 'Your data lives in this page\'s database on claude.ai. Download a full copy now and then and keep it somewhere safe; a copy can be imported here to add back anything that went missing.'}</p>
       ${standalone ? html`<${StandalonePart}/>` : html`<div class="stack"><${ExportPart} ctx=${ctx}/><${ImportPart} ctx=${ctx}/></div>`}
     <//>`;

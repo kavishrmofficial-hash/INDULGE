@@ -2,7 +2,7 @@
 
    Storage it adds to the layout in core.js:
      t/<ms>~<doc key without d/>     {path, by, at, doc}          a document that was deleted, kept 30 days
-     bk/index                        {days: [ymd...], last, lastError}   newest first, at most 45 days
+     bk/index                        {days: [ymd...], last, lastError}   newest first; the newest 7 stay, older ones once Drive holds them
      bk/<ymd>/index                  {at, colls: {name: count}, bytes, bad}
      bk/<ymd>/<coll, slashes as ~>   {docs: {id: data}}           one blob per collection per day
      bk/<ymd>/lock                   {at, id}                     best effort guard against two instances backing up at once
@@ -23,7 +23,9 @@ const TRASH_DAYS = 30;
 const HIST_DAYS = 30;              /* versions kept per document */
 const HIST_MAX = 30;
 const HIST_ID = /^\d{10,16}~(u_[A-Za-z0-9]{6,40}|server)$/;
-const BACKUP_DAYS = 45;
+/* v48: the newest 7 days stay in this store; every day also goes to Google Drive for good (below). 45 full days
+   of a 24 MB workspace here filled the store's 1 GB, after which no write went through at all */
+const BACKUP_DAYS = 7;
 const TRASH_LIST = 300;
 const RESPONSE_CAP = 4 * 1024 * 1024;
 const SITE_CAP = 8 * 1024 * 1024;
@@ -292,15 +294,166 @@ export function safetyActions(h) {
   async function dropDay(ymd) {
     for (const b of await listAll('bk/' + ymd + '/')) await store.delete(b.key).catch(() => {});
   }
+  /* ---------- Google Drive: every day kept for good (v48) ----------
+     Each day's backup also goes to the owner's Google Drive, one file a day in a folder m360 makes:
+       m360 OS backups/m360-backup-<ymd>.json.gz     {app: 'm360', kind: 'day', ymd, at, colls: {name: {docs}}}
+     Drive keeps every day for good. This store keeps the newest 7 days for quick restores, and lets an older
+     day go only once Drive holds it at the right size. With Drive not connected for writing, nothing here is
+     ever let go: the store fills, and the page says so. */
+  const DRIVE_FOLDER = 'm360 OS backups';
+  const DR = 'https://www.googleapis.com/drive/v3/files';
+  const UP = 'https://www.googleapis.com/upload/drive/v3/files';
+  const g = h.google || null;
+  const doFetch = (...a) => (env.fetch || fetch)(...a);
+  let folder = '';
+  let driveState = {on: false, at: 0, copied: 0, pending: 0, last: '', error: null};
+  let driveBusy = false, driveNext = 0;
+  async function driveUid() {
+    if (!g || !g.driveWriter) return null;
+    const uid = await ownerUid();
+    return uid && (await g.driveWriter(uid)) ? uid : null;
+  }
+  async function gfetch(uid, url, init) {
+    const tok = await g.accessToken(uid);
+    return doFetch(url, {...(init || {}), headers: {...((init && init.headers) || {}), authorization: 'Bearer ' + tok}});
+  }
+  async function folderId(uid) {
+    if (folder) return folder;
+    const qs = "name = '" + DRIVE_FOLDER + "' and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
+    let r = await gfetch(uid, DR + '?q=' + encodeURIComponent(qs) + '&fields=files(id)&pageSize=1');
+    let j = await r.json().catch(() => ({}));
+    if (r.ok && j.files && j.files[0] && j.files[0].id) return (folder = j.files[0].id);
+    r = await gfetch(uid, DR + '?fields=id', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({name: DRIVE_FOLDER, mimeType: 'application/vnd.google-apps.folder'})});
+    j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.id) throw new Error('Drive would not make the backup folder (' + r.status + ')');
+    return (folder = j.id);
+  }
+  /* the days Drive holds whole: ymd -> {id, size}. A file counts only when its size is the one m360 sent */
+  async function driveDays(uid) {
+    const fid = await folderId(uid);
+    const out = {};
+    let page = '';
+    do {
+      const qs = "'" + fid + "' in parents and trashed = false";
+      const r = await gfetch(uid, DR + '?q=' + encodeURIComponent(qs) + '&fields=nextPageToken,files(id,name,size,appProperties)&pageSize=1000' + (page ? '&pageToken=' + encodeURIComponent(page) : ''));
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error('Drive would not list the backups (' + r.status + ')');
+      for (const f of j.files || []) {
+        const m = /^m360-backup-(\d{4}-\d{2}-\d{2})\.json(\.gz)?$/.exec(String(f.name || ''));
+        const sent = Number(f.appProperties && f.appProperties.bytes);
+        if (m && Number(f.size) > 0 && sent === Number(f.size)) out[m[1]] = {id: f.id, size: Number(f.size)};
+      }
+      page = j.nextPageToken || '';
+    } while (page);
+    return out;
+  }
+  /* what Drive holds, or nothing when Drive is not connected for writing */
+  async function onDrive() {
+    const uid = await driveUid().catch(() => null);
+    if (!uid) return {};
+    return driveDays(uid).catch(() => ({}));
+  }
+  /* one day as the file Drive keeps; a collection that cannot be read stops it, so no part day is ever sent */
+  async function dayFile(ymd) {
+    const m = await getJ('bk/' + ymd + '/index').catch(() => null);
+    if (!m) return null;
+    const colls = {};
+    for (const coll of Object.keys(isObj(m.colls) ? m.colls : {})) colls[coll] = {docs: await backupColl(ymd, coll)};
+    const raw = new TextEncoder().encode(JSON.stringify({app: 'm360', kind: 'day', ymd, at: m.at || 0, colls}));
+    let body = raw, gz = false;
+    if (typeof CompressionStream === 'function') {
+      try { body = new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()); gz = true; } catch (e) { body = raw; }
+    }
+    return {body, gz, raw: raw.length};
+  }
+  async function upload(uid, ymd, f) {
+    const fid = await folderId(uid);
+    const mime = f.gz ? 'application/gzip' : 'application/json';
+    const meta = {name: 'm360-backup-' + ymd + (f.gz ? '.json.gz' : '.json'), parents: [fid], mimeType: mime,
+      appProperties: {app: 'm360', ymd, bytes: String(f.body.length), raw: String(f.raw)}};
+    const start = await gfetch(uid, UP + '?uploadType=resumable&fields=id,size', {method: 'POST',
+      headers: {'content-type': 'application/json; charset=UTF-8', 'x-upload-content-type': mime, 'x-upload-content-length': String(f.body.length)}, body: JSON.stringify(meta)});
+    const at = start.headers.get('location');
+    if (!start.ok || !at) throw new Error('Drive would not take the backup of ' + ymd + ' (' + start.status + ')');
+    const r = await doFetch(at, {method: 'PUT', headers: {'content-type': mime}, body: f.body});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.id || Number(j.size) !== f.body.length) throw new Error('The backup of ' + ymd + ' did not reach Drive whole (' + r.status + ')');
+    return {id: j.id, size: Number(j.size)};
+  }
+  /* one pass: the oldest day Drive does not hold yet goes up (one a pass, a day is 24 MB to read), then the days
+     past the newest 7 that Drive holds are let go here */
+  async function drivePass() {
+    if (driveBusy || Date.now() < driveNext) return driveState;
+    const uid = await driveUid().catch(() => null);
+    if (!uid) { driveState = {...driveState, on: false}; return driveState; }
+    driveBusy = true;
+    try {
+      const index = await readIndex();
+      const have = await driveDays(uid);
+      const todo = index.days.filter(d => !have[d]).sort();
+      if (todo.length) {
+        const f = await dayFile(todo[0]);
+        if (f) { have[todo[0]] = await upload(uid, todo[0], f); driveState.last = todo[0]; }
+      }
+      const keep = index.days.slice().sort().reverse().slice(0, BACKUP_DAYS);
+      const go = index.days.filter(d => keep.indexOf(d) < 0 && have[d]);
+      for (const d of go) await dropDay(d);
+      if (go.length) {
+        const now = await readIndex();
+        await putJ('bk/index', {...now, days: now.days.filter(d => go.indexOf(d) < 0)}).catch(() => {});
+      }
+      const pending = index.days.filter(d => !have[d]).length;
+      driveState = {on: true, at: Date.now(), copied: Object.keys(have).length, pending, last: driveState.last, error: null};
+      /* more to send: the next request carries on; all sent: look again in half an hour */
+      driveNext = pending ? 0 : Date.now() + 30 * 60000;
+    } catch (e) {
+      driveState = {...driveState, on: true, at: Date.now(), error: String((e && e.message) || e).slice(0, 200)};
+      driveNext = Date.now() + 2 * 60000;
+    } finally { driveBusy = false; }
+    return driveState;
+  }
+  /* a cached copy of a collection over the size core.js caches now (the Base) is only a copy: it goes, which
+     frees room in a full store without touching a document or a backup */
+  let cachesTrimmed = false;
+  async function trimCaches() {
+    if (cachesTrimmed) return;
+    cachesTrimmed = true;
+    for (const b of await listAll('a/')) {
+      const str = await raw(b.key).catch(() => null);
+      if (str != null && String(str).length > 2 * 1024 * 1024) await store.delete(b.key).catch(() => {});
+    }
+  }
+
   async function runBackup(force) {
     const now = Date.now(), ymd = ymdIST(now);
     const index = await readIndex();
     if (!force && index.days.includes(ymd)) return {ymd, skipped: 'done'};
+    /* room first (v48): days past the newest 7 go before anything of today's is written, so a full store frees
+       itself; the old order (write, then prune) could never get past the first write. A day goes only when
+       Drive holds it */
+    const have = await onDrive();
+    let days = index.days.filter(d => d !== ymd).sort().reverse();
+    const old = days.slice(BACKUP_DAYS - 1).filter(d => have[d]);
+    for (const d of old) await dropDay(d);
+    days = days.filter(d => old.indexOf(d) < 0);
+    if (old.length) await putJ('bk/index', {...index, days}).catch(() => {});
+    /* a write that still finds no room lets go of the oldest day Drive holds and tries again */
+    const roomy = async (k, val) => {
+      for (;;) {
+        try { return await putJ(k, val); } catch (e) {
+          const spare = days.slice().reverse().find(d => have[d]);
+          if (!spare) throw new Error('The store is full and no day can go yet: connect Google Drive in Backups so the old days can move there');
+          await dropDay(spare);
+          days = days.filter(d => d !== spare);
+          await putJ('bk/index', {...index, days}).catch(() => {});
+        }
+      }
+    };
     const lockKey = 'bk/' + ymd + '/lock';
     const held = await getJ(lockKey).catch(() => null);
     if (!force && held && now - (held.at || 0) < LOCK_MS) return {ymd, skipped: 'locked'};
     const me = rand();
-    await putJ(lockKey, {at: now, id: me});
+    await roomy(lockKey, {at: now, id: me});
     const again = await getJ(lockKey).catch(() => null);
     if (!force && again && again.id !== me) return {ymd, skipped: 'locked'};
     try {
@@ -308,29 +461,33 @@ export function safetyActions(h) {
       const counts = {};
       for (const coll of Object.keys(colls).sort()) {
         counts[coll] = Object.keys(colls[coll]).length;
-        await putJ(bkKey(ymd, coll), {docs: colls[coll]});
+        await roomy(bkKey(ymd, coll), {docs: colls[coll]});
       }
       const manifest = {at: Date.now(), colls: counts, bytes, bad};
-      await putJ('bk/' + ymd + '/index', manifest);
-      const cutoff = ymdIST(Date.now() - BACKUP_DAYS * 86400000);
-      const days = [ymd].concat(index.days.filter(d => d !== ymd)).sort().reverse();
-      for (const d of days) if (d < cutoff) await dropDay(d);
-      await putJ('bk/index', {...index, days: days.filter(d => d >= cutoff), last: manifest.at, lastError: null});
+      await roomy('bk/' + ymd + '/index', manifest);
+      await putJ('bk/index', {...index, days: [ymd].concat(days), last: manifest.at, lastError: null});
       /* the site backup rides on the same read; its own index records a skip when it is over the cap */
       await writeSiteLatest(colls, bad);
       return {ymd, ...manifest};
+    } catch (e) {
+      /* a day that could not be written whole leaves nothing behind: its parts would only fill the room saves need */
+      if (!index.days.includes(ymd)) await dropDay(ymd).catch(() => {});
+      throw e;
     } finally {
       await store.delete(lockKey).catch(() => {});
     }
   }
 
-  /* upkeep: at most one look per request, and once a day's backup is known to exist this instance stops looking */
+  /* upkeep: at most one look per request. The Drive pass runs first (it frees room), then today's backup once a day */
   let upkeepDay = '', upkeepBusy = false, upkeepNext = 0;
   hooks.upkeep = async function upkeep() {
     const now = Date.now(), ymd = ymdIST(now);
-    if (upkeepDay === ymd || upkeepBusy || now < upkeepNext) return;
+    if (upkeepBusy) return;
     upkeepBusy = true;
     try {
+      await trimCaches().catch(() => {});
+      await drivePass().catch(() => {});
+      if (upkeepDay === ymd || now < upkeepNext) return;
       const index = await readIndex();
       if (!index.days.includes(ymd)) {
         const r = await runBackup(false);
@@ -473,7 +630,7 @@ export function safetyActions(h) {
       await eachChunk(index.days, async ymd => { const m = await dayManifest(ymd); if (m) days.push(m); });
       days.sort((a, b) => (a.ymd < b.ymd ? 1 : -1));
       const site = (await getJ('bk/site/index').catch(() => null)) || {};
-      return {days, last: index.last || 0, lastError: index.lastError || null, keepDays: BACKUP_DAYS, trashDays: TRASH_DAYS,
+      return {days, last: index.last || 0, lastError: index.lastError || null, keepDays: BACKUP_DAYS, trashDays: TRASH_DAYS, drive: driveState,
         site: {at: site.at || 0, bytes: site.bytes || 0, lastError: site.lastError || null, cap: SITE_CAP}};
     },
 
