@@ -150,7 +150,7 @@
     const standalone = !!window.M360_STANDALONE && typeof window.M360_API === 'function';
     return html`<${UI.Card} id="safety-card" title="Safety">
       <p class="small ink62" style=${{marginTop: 0}}>${standalone
-        ? 'Once a day the server copies every document into a backup. Each day goes to Google Drive for good, the newest 7 stay here too, and every deleted document waits in the trash for 30 days. The Backups tab has the list, restore and the trash.'
+        ? 'Once a day the server copies every document into a backup. Each day goes to Google Drive for good, the newest 2 stay here too, and every deleted document waits in the trash for 30 days. The Backups tab has the list, restore and the trash.'
         : 'Your data lives in this page\'s database on claude.ai. Download a full copy now and then and keep it somewhere safe; a copy can be imported here to add back anything that went missing.'}</p>
       ${standalone ? html`<${StandalonePart}/>` : html`<div class="stack"><${ExportPart} ctx=${ctx}/><${ImportPart} ctx=${ctx}/></div>`}
     <//>`;

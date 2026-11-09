@@ -158,7 +158,7 @@ const gunzip = async u8 => new TextDecoder().decode(await new Response(new Blob(
   const sent = up();
   check(sent.length === 46, 'every day, today included, is on Drive: ' + sent.length);
   const keep = localDays(store);
-  check(keep.length === 7 && keep[keep.length - 1] === ymd(Date.now()), 'the newest 7 stay here: ' + keep.join(','));
+  check(keep.length === 2 && keep[keep.length - 1] === ymd(Date.now()), 'the newest 2 stay here: ' + keep.join(','));
   check(keep.every(d => sent.includes(d)), 'and those 7 are on Drive too');
   const f = gg.files.find(x => x.name === 'm360-backup-' + oldest + '.json.gz');
   const back = f && JSON.parse(await gunzip(f.body));
@@ -205,12 +205,12 @@ const gunzip = async u8 => new TextDecoder().decode(await new Response(new Blob(
   check(String(tok.scope).includes(DRIVE_FILE), 'the token with the backup folder allowed is kept');
   const sent = gg.files.filter(f => /^m360-backup-/.test(f.name)).map(f => f.name.slice(12, 22));
   const here = localDays(store);
-  check(sent.length >= 1 && sent.every(d => !here.includes(d) || here.length <= 8), 'the oldest days went to Drive and left here: ' + sent.length + ' sent, ' + here.length + ' here');
+  check(sent.length >= 1 && sent.every(d => !here.includes(d) || here.length <= 3), 'the oldest days went to Drive and left here: ' + sent.length + ' sent, ' + here.length + ' here');
   check(here.length + sent.filter(d => !here.includes(d)).length === 45, 'no day is lost: here plus on Drive is all 45');
   const after = await call(app, 'write', {op: 'merge', path: 'me/' + UID, data: {note: 'saved'}});
   check(after.status === 200, 'and saves work again (' + after.status + ')');
   for (let i = 0; i < 60; i++) await call(app, 'me');
-  check(localDays(store).length <= 8 && gg.files.filter(f => /^m360-backup-/.test(f.name)).length >= 45, 'the Drive pass then moves the rest: ' + localDays(store).length + ' here');
+  check(localDays(store).length <= 3 && gg.files.filter(f => /^m360-backup-/.test(f.name)).length >= 45, 'the Drive pass then moves the rest: ' + localDays(store).length + ' here');
 }
 
 /* 5: the sign-in returns to the page's own address, never the platform's internal one (v48.2) */

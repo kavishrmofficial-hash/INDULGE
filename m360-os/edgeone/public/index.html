@@ -5766,7 +5766,7 @@ html.gs-open.ai-behind .buddy-bubble.agent-pop{z-index:59}
 @media (prefers-reduced-motion:no-preference){ .o3-layer > .o3-emote{animation:o3-emote-in .35s var(--ease) both} }
 @keyframes o3-emote-in{from{scale:.7} to{scale:1}}
 </style>
-<script>window.M360_BUILD = "0a04e1b+.261109-1523"; window.M360_3D_SRC = "vendor/three.92287d45.js"; window.M360_3D_SRI = "sha384-9CmMVqgd6no+mymMnUEosvNELUQCik7EBJNeBNZTkeerVlw0wzE9SGjUQswxiS20";</script><script>
+<script>window.M360_BUILD = "248d724+.261109-1535"; window.M360_3D_SRC = "vendor/three.92287d45.js"; window.M360_3D_SRI = "sha384-9CmMVqgd6no+mymMnUEosvNELUQCik7EBJNeBNZTkeerVlw0wzE9SGjUQswxiS20";</script><script>
 /* m360 OS standalone runtime: gives the page the same window.claude contract it has on claude.ai
    (db, user, room, sample, downloads, permissions), backed by the EdgeOne function at /api/m360. */
 (function () {
@@ -46377,7 +46377,7 @@ M.MARK_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1448 422\"
     const standalone = !!window.M360_STANDALONE && typeof window.M360_API === 'function';
     return html`<${UI.Card} id="safety-card" title="Safety">
       <p class="small ink62" style=${{marginTop: 0}}>${standalone
-        ? 'Once a day the server copies every document into a backup. Each day goes to Google Drive for good, the newest 7 stay here too, and every deleted document waits in the trash for 30 days. The Backups tab has the list, restore and the trash.'
+        ? 'Once a day the server copies every document into a backup. Each day goes to Google Drive for good, the newest 2 stay here too, and every deleted document waits in the trash for 30 days. The Backups tab has the list, restore and the trash.'
         : 'Your data lives in this page\'s database on claude.ai. Download a full copy now and then and keep it somewhere safe; a copy can be imported here to add back anything that went missing.'}</p>
       ${standalone ? html`<${StandalonePart}/>` : html`<div class="stack"><${ExportPart} ctx=${ctx}/><${ImportPart} ctx=${ctx}/></div>`}
     <//>`;

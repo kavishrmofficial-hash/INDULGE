@@ -25,7 +25,8 @@ const HIST_MAX = 30;
 const HIST_ID = /^\d{10,16}~(u_[A-Za-z0-9]{6,40}|server)$/;
 /* v48: the newest 7 days stay in this store; every day also goes to Google Drive for good (below). 45 full days
    of a 24 MB workspace here filled the store's 1 GB, after which no write went through at all */
-const BACKUP_DAYS = 7;
+/* v49.2: 2. Every day is on Drive whole before it leaves here, and the store's room is what saves need */
+const BACKUP_DAYS = 2;
 const TRASH_LIST = 300;
 const RESPONSE_CAP = 4 * 1024 * 1024;
 const SITE_CAP = 8 * 1024 * 1024;
@@ -757,8 +758,10 @@ export function safetyActions(h) {
     /* every day that has a backup, newest first */
     /* v49.1: what the store holds, by kind (the first part of each key; backups by day), so a full store can be
        read: count, and bytes where the listing says them. Owner only; reads nothing but the listing */
-    async storeusage(v) {
+    async storeusage(v, body) {
       await admin(v);
+      /* measure: read the real size of up to 400 keys under each named kind (the listing gives none) */
+      const measure = Array.isArray(body && body.measure) ? body.measure.slice(0, 8).map(String) : [];
       const all = [];
       let cur = '', pages = 0, shape = [];
       do {
@@ -778,7 +781,15 @@ export function safetyActions(h) {
         const z = Number(b.size != null ? b.size : (b.contentLength != null ? b.contentLength : NaN));
         if (Number.isFinite(z)) { e.bytes += z; size += z; sized++; }
       }
-      return {keys: all.length, pages, shape, sized, bytes: size, fields: all[0] ? Object.keys(all[0]) : [], by};
+      const measured = {};
+      for (const kind of measure) {
+        const keys = all.map(b => String(b.key)).filter(k => k === kind || k.startsWith(kind + '/'));
+        const pick = keys.length > 400 ? keys.filter((k, i) => i % Math.ceil(keys.length / 400) === 0) : keys;
+        let got = 0;
+        await eachChunk(pick, async k => { const str = await raw(k).catch(() => null); if (str != null) got += String(str).length; });
+        measured[kind] = {keys: keys.length, read: pick.length, bytes: got, estimate: Math.round(got * keys.length / Math.max(1, pick.length))};
+      }
+      return {keys: all.length, pages, shape, sized, bytes: size, fields: all[0] ? Object.keys(all[0]) : [], by, measured};
     },
     async backups(v) {
       await admin(v);
