@@ -209,5 +209,17 @@ const gunzip = async u8 => new TextDecoder().decode(await new Response(new Blob(
   check(localDays(store).length <= 8 && gg.files.filter(f => /^m360-backup-/.test(f.name)).length >= 45, 'the Drive pass then moves the rest: ' + localDays(store).length + ' here');
 }
 
+/* 5: the sign-in returns to the page's own address, never the platform's internal one (v48.2) */
+{
+  const store = memStore(1e9);
+  seed(store, 1, true);
+  const app = createApp({store, env: {}});
+  const req = new Request('http://pages-pro-20-07f1.pages-scf-sg-pro.qcloudteo.com/api/m360', {method: 'POST',
+    headers: {'content-type': 'application/json', cookie: 'm360s=' + TOK, origin: 'https://m360os-wx9u1bqs.edgeone.dev'}, body: JSON.stringify({a: 'googlestart', back: '#admin'})});
+  const j = await (await app(req)).json();
+  const ru = j.url ? new URL(j.url).searchParams.get('redirect_uri') : '';
+  check(ru === 'https://m360os-wx9u1bqs.edgeone.dev/api/google', 'Google is told to come back to the page address: ' + ru);
+}
+
 console.log(fails ? 'FAIL ' + fails : 'PASS');
 process.exit(fails ? 1 : 0);

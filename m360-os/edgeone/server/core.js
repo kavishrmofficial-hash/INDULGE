@@ -1523,6 +1523,13 @@ export function createApp({store, env = {}}) {
     /* the address links point at is the one this request came to, never one the caller names */
     let site = '';
     try { site = new URL(request.url).origin; } catch (e) { site = ''; }
+    /* v48.2: the platform now hands the function its own internal http address, which is neither the page's
+       address nor one Google accepts as a sign-in return. The browser's own origin (sent with every same-site
+       POST) is the public address; failing that, the forwarded host */
+    const fwd = String(request.headers.get('x-forwarded-host') || '').split(',')[0].trim();
+    const origin = String(request.headers.get('origin') || '');
+    if (/^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(origin)) site = origin;
+    else if (/^[a-z0-9.-]+(:\d+)?$/i.test(fwd) && !/qcloudteo\.com$/i.test(fwd)) site = 'https://' + fwd;
     if (env.SITE_URL && /^https:\/\//.test(env.SITE_URL)) site = String(env.SITE_URL).replace(/\/+$/, '');
     const ip = clientIp(request);
     try {
