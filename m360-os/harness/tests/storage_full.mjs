@@ -8,7 +8,7 @@
    - a Drive upload that arrives short lets nothing go
    Run: node harness/tests/storage_full.mjs */
 import {createApp} from '../../edgeone/server/core.js';
-import {hybridStore} from '../../edgeone/server/store-supabase.js';
+import {hybridStore, ownKey} from '../../edgeone/server/store-supabase.js';
 
 let fails = 0;
 const check = (ok, msg) => { console.log((ok ? 'ok   ' : 'FAIL ') + msg); if (!ok) fails++; };
@@ -296,6 +296,27 @@ const gunzip = async u8 => new TextDecoder().decode(await new Response(new Blob(
   check(g === null && legacy.data.size === before + 1, 'once done, the old store is no longer read');
   const back = await call(app, 'backups');
   check(back.status === 200, 'Backups still answers');
+}
+
+/* 9: the server's own key (v50.1): made once as an empty blob, registered while the window is open, the same key
+   found again by every later instance, and a stranger's claim refused once it is taken */
+{
+  const edge = memStore(0);
+  edge.cap = edge.used();                       /* full: only empty values go in */
+  let kept = null, open = true;
+  const fetch = async (url, init) => {
+    const h = JSON.parse(init.body).h;
+    let ok = false;
+    if (kept) ok = kept === h; else if (open && /^[0-9a-f]{64}$/.test(h)) { kept = h; open = false; ok = true; }
+    return new Response(JSON.stringify(ok), {status: 200, headers: {'content-type': 'application/json'}});
+  };
+  const k1 = await ownKey(edge, {url: 'https://db.test', anon: 'pub', fetch});
+  check(!!k1 && [...edge.data.keys()].some(k => k === 'ks/m360store~' + k1) && edge.data.get('ks/m360store~' + k1) === '', 'the key is made as an empty blob in a full store, and registered');
+  const k2 = await ownKey(edge, {url: 'https://db.test', anon: 'pub', fetch});
+  check(k2 === k1 && [...edge.data.keys()].filter(k => k.startsWith('ks/')).length === 1, 'a later instance finds the same key and makes no other');
+  const other = memStore(1e9);
+  const k3 = await ownKey(other, {url: 'https://db.test', anon: 'pub', fetch});
+  check(k3 === '', 'a stranger with its own store is refused once the key is taken');
 }
 
 console.log(fails ? 'FAIL ' + fails : 'PASS');

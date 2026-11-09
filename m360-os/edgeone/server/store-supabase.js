@@ -127,3 +127,29 @@ export function hybridStore(primary, legacy) {
   };
   return store;
 }
+
+/* the server's own key (v50.1): an empty blob named ks/m360store~<key> in the old store. The first instance
+   makes one; every instance tries the names it finds against the database's m360_claim(h), which keeps the
+   first SHA-256 it is given while its claim window is open and answers whether a hash is the kept one */
+const sha256hex = async s => {
+  const d = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
+  return Array.from(d, b => b.toString(16).padStart(2, '0')).join('');
+};
+export async function ownKey(edge, {url, anon, fetch: f}) {
+  const doFetch = (...a) => (f || fetch)(...a);
+  const P = 'ks/m360store~';
+  const claim = async k => {
+    const r = await doFetch(String(url).replace(/\/+$/, '') + '/rest/v1/rpc/m360_claim', {method: 'POST',
+      headers: {apikey: anon, authorization: 'Bearer ' + anon, 'content-type': 'application/json'}, body: JSON.stringify({h: await sha256hex(k)})});
+    return r.ok && (await r.json().catch(() => false)) === true;
+  };
+  const names = async () => ((await edge.list({prefix: P}).catch(() => ({blobs: []}))).blobs || []).map(b => String(b.key).slice(P.length)).filter(Boolean).sort();
+  for (const k of await names()) if (await claim(k)) return k;
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const k = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  await edge.set(P + k, '');
+  if (await claim(k)) return k;
+  /* another instance made one at the same moment and won: use that one */
+  for (const n of await names()) if (n !== k && await claim(n)) return n;
+  return '';
+}
