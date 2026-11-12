@@ -10,7 +10,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'sha256-o9YR0v0YoZEnnOmrKToh5n+Cx7ufX6iR+DshtKv5UV4=' 'sha256-pOqqhextL05/a1j3nYJ9YovP4TDJ05C3VPoJVxwA3LI=' 'sha256-+ItFCtUdwnrRWi+LUILir290X0u/cEF7f3Qs8PZn1Lo=' 'sha256-LM/tgS1WgxMNDPH0F4oix6EPTXHEv+eW5Cns2zEJECQ=' https://sdk.scdn.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' data: blob: https:; connect-src 'self' https://api.spotify.com https://accounts.spotify.com https://*.spotify.com wss://*.spotify.com https://*.scdn.co https://*.spotifycdn.com; frame-src https: blob:; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+          "value": "default-src 'self'; script-src 'self' 'sha256-PBzXhmXzMyBB7CmIoDbSfxJhJEqAqBcboHK3BFDiWxY=' 'sha256-pOqqhextL05/a1j3nYJ9YovP4TDJ05C3VPoJVxwA3LI=' 'sha256-+ItFCtUdwnrRWi+LUILir290X0u/cEF7f3Qs8PZn1Lo=' 'sha256-LM/tgS1WgxMNDPH0F4oix6EPTXHEv+eW5Cns2zEJECQ=' https://sdk.scdn.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' data: blob: https:; connect-src 'self' https://api.spotify.com https://accounts.spotify.com https://*.spotify.com wss://*.spotify.com https://*.scdn.co https://*.spotifycdn.com; frame-src https: blob:; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
         },
         {
           "key": "X-Content-Type-Options",
@@ -47,7 +47,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'sha256-o9YR0v0YoZEnnOmrKToh5n+Cx7ufX6iR+DshtKv5UV4=' 'sha256-pOqqhextL05/a1j3nYJ9YovP4TDJ05C3VPoJVxwA3LI=' 'sha256-+ItFCtUdwnrRWi+LUILir290X0u/cEF7f3Qs8PZn1Lo=' 'sha256-LM/tgS1WgxMNDPH0F4oix6EPTXHEv+eW5Cns2zEJECQ=' https://sdk.scdn.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' data: blob: https:; connect-src 'self' https://api.spotify.com https://accounts.spotify.com https://*.spotify.com wss://*.spotify.com https://*.scdn.co https://*.spotifycdn.com; frame-src https: blob:; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+          "value": "default-src 'self'; script-src 'self' 'sha256-PBzXhmXzMyBB7CmIoDbSfxJhJEqAqBcboHK3BFDiWxY=' 'sha256-pOqqhextL05/a1j3nYJ9YovP4TDJ05C3VPoJVxwA3LI=' 'sha256-+ItFCtUdwnrRWi+LUILir290X0u/cEF7f3Qs8PZn1Lo=' 'sha256-LM/tgS1WgxMNDPH0F4oix6EPTXHEv+eW5Cns2zEJECQ=' https://sdk.scdn.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' data: blob: https:; connect-src 'self' https://api.spotify.com https://accounts.spotify.com https://*.spotify.com wss://*.spotify.com https://*.scdn.co https://*.spotifycdn.com; frame-src https: blob:; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
         },
         {
           "key": "X-Content-Type-Options",
@@ -178,6 +178,32 @@
     {
       "source": "/manifest.json",
       "cacheTtl": 0
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/.well-known/oauth-protected-resource/*",
+      "destination": "/.well-known/oauth-protected-resource"
+    },
+    {
+      "source": "/api/mcp/.well-known/oauth-protected-resource",
+      "destination": "/.well-known/oauth-protected-resource"
+    },
+    {
+      "source": "/.well-known/oauth-authorization-server/*",
+      "destination": "/.well-known/oauth-authorization-server"
+    },
+    {
+      "source": "/api/mcp/.well-known/oauth-authorization-server",
+      "destination": "/.well-known/oauth-authorization-server"
+    },
+    {
+      "source": "/.well-known/openid-configuration/*",
+      "destination": "/.well-known/openid-configuration"
+    },
+    {
+      "source": "/api/mcp/.well-known/openid-configuration",
+      "destination": "/.well-known/openid-configuration"
     }
   ]
 }

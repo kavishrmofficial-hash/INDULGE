@@ -188,6 +188,15 @@ def write_headers(doc, three_src=None):
             {'key': 'Content-Type', 'value': 'application/json'}, {'key': 'Access-Control-Allow-Origin', 'value': '*'},
             {'key': 'Cache-Control', 'value': 'no-cache'}]})
     cfg['headers'] = out
+    # v55.3: Claude also asks the path-specific sign-in addresses (RFC 9728 and RFC 8414 put the resource path after
+    # the well-known name). The site answered those with the app page, which Claude could not read ("Couldn't reach
+    # M360 OS"); each now serves the same static document as its plain address
+    wk = '/.well-known/'
+    rw = [r for r in cfg.get('rewrites', []) if not str(r.get('source', '')).startswith((wk, '/api/mcp/.well-known/'))]
+    for name in ('oauth-protected-resource', 'oauth-authorization-server', 'openid-configuration'):
+        rw.append({'source': wk + name + '/*', 'destination': wk + name})
+        rw.append({'source': '/api/mcp/.well-known/' + name, 'destination': wk + name})
+    cfg['rewrites'] = rw
     with open(cfg_path, 'w', encoding='utf-8') as f:
         json.dump(cfg, f, indent=2)
         f.write('\n')
