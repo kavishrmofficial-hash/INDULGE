@@ -84,9 +84,29 @@ export function supabaseStore({url, anon, key, fetch: f}) {
   };
 }
 
+/* wraps a store so no single call can outlast ms; a rejection is a miss to every caller below */
+function deadlined(store, ms) {
+  const cap = fn => (...a) => {
+    let t;
+    return Promise.race([
+      Promise.resolve().then(() => fn(...a)),
+      new Promise((_, rej) => { t = setTimeout(() => rej(new Error('legacy store timeout')), ms); }),
+    ]).finally(() => clearTimeout(t));
+  };
+  const out = Object.create(null);
+  for (const k of ['get', 'set', 'delete', 'list', 'getPrefix']) {
+    if (typeof store[k] === 'function') out[k] = cap(store[k].bind(store));
+  }
+  return out;
+}
+
 /* writes to primary; reads fall back to legacy until the move is done; deletes from both; listings from both */
 export function hybridStore(primary, legacy) {
   const DONE = 'mig/done';
+  /* v56: a legacy store that has gone away must never hang a request. Every fallback call gets a
+     deadline, because an unreachable host does not fail, it waits, and the gateway kills the whole
+     request at 30s. All four call sites below already treat a rejection as a miss. */
+  legacy = deadlined(legacy, 2500);
   let done = null;              /* null: not looked yet */
   const isDone = async () => {
     if (done === true) return true;
