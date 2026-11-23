@@ -45,7 +45,10 @@ export async function appFor(env0) {
     let key = env.M360_STORE_KEY || '';
     if (!key) { try { key = await ownKey(edge, {url, anon, info}); } catch (e) { info.error = String((e && e.stack) || e).slice(0, 400); } }
     if (key) {
-      const old = env.M360_STORE_URL ? edge : supabaseStore({url: OLD_URL, anon: OLD_ANON, key});
+      /* v56: the old Mumbai project was paused on 2026-11-20 and its hostname stopped resolving, so
+         every cache-missing read hung until the gateway timed out. The edge blob store is the only
+         legacy source now; OLD_URL is kept for the record, not for traffic. */
+      const old = edge;
       store = hybridStore(supabaseStore({url, anon, key}), old);
       info.mode = 'supabase';
     }
